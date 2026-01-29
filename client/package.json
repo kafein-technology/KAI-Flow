@@ -23,7 +23,7 @@
     "@codemirror/language": "^6.11.2",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.0",
-    "@kaifusion/widget": "^1.0.4",
+    "@kaifusion/widget": "^1.1.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-query": "^5.20.1",
     "@types/react-syntax-highlighter": "^15.5.13",

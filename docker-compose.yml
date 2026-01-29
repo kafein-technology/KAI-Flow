@@ -82,25 +82,6 @@ services:
     depends_on:
       - kaifusion-be
 
-
-
-  kai-widget:
-    build:
-      context: ./widget
-      dockerfile: Dockerfile
-    ports:
-      - "23059:80"
-    container_name: kai-fusion-widget
-    networks:
-      - kai_network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
 networks:
   kai_network:
     driver: bridge
