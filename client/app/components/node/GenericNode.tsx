@@ -407,7 +407,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
     <GenericVisual
       data={data}
       isHovered={isHovered}
-      onDoubleClick={() => setIsConfigMode(true)}
+      onDoubleClick={() => { }} // Disabled: Don't open config modal on double-click
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onDelete={handleDeleteNode}
