@@ -290,7 +290,7 @@ import logging
 import uuid
 from typing import Any, Dict, Optional, AsyncGenerator, List
 from datetime import datetime, timedelta
-from sqlalchemy import and_
+from sqlalchemy import and_, func as sql_func
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
@@ -841,6 +841,7 @@ async def get_dashboard_stats(
     """
     user_id = current_user.id
     now = datetime.utcnow()
+    today = now.date()
     periods = {
         "7days": 7,
         "30days": 30,
@@ -849,27 +850,38 @@ async def get_dashboard_stats(
     stats = {}
     for label, days in periods.items():
         since = now - timedelta(days=days)
+        # Use COALESCE to fallback to created_at when started_at is NULL
+        effective_started_at = sql_func.coalesce(
+            WorkflowExecution.started_at, 
+            WorkflowExecution.created_at
+        )
         # Get all executions for this user and period (include completed_at for runtime)
         executions_q = await db.execute(
             select(
-                WorkflowExecution.started_at,
+                effective_started_at.label('effective_started_at'),
                 WorkflowExecution.completed_at,
                 WorkflowExecution.status,
             ).where(
                 and_(
                     WorkflowExecution.user_id == user_id,
-                    WorkflowExecution.started_at >= since,
+                    effective_started_at >= since,
                 )
             )
         )
         executions = executions_q.all()
         # Build a dict of date -> aggregates
+        # Use range(days + 1) to include today in the stats
         day_stats = {}
-        for i in range(days):
+        for i in range(days + 1):
             day = (since + timedelta(days=i)).date()
-            day_stats[day] = {"prodexec": 0, "failedprod": 0, "completed": 0, "runtime_sum": 0.0}
-        for started_at, completed_at, status in executions:
-            day = started_at.date()
+            # Don't include future dates
+            if day <= today:
+                day_stats[day] = {"prodexec": 0, "failedprod": 0, "completed": 0, "runtime_sum": 0.0}
+        
+        for effective_started_at_val, completed_at, status in executions:
+            if effective_started_at_val is None:
+                continue  # Safety check for NULL values
+            day = effective_started_at_val.date()
             if day in day_stats:
                 day_stats[day]["prodexec"] += 1
                 if status and status.lower() == "failed":
@@ -877,8 +889,8 @@ async def get_dashboard_stats(
                 elif status and status.lower() == "completed":
                     day_stats[day]["completed"] += 1
                     try:
-                        if started_at and completed_at:
-                            delta = (completed_at - started_at).total_seconds()
+                        if effective_started_at_val and completed_at:
+                            delta = (completed_at - effective_started_at_val).total_seconds()
                             if delta and delta > 0:
                                 day_stats[day]["runtime_sum"] += float(delta)
                     except Exception:
@@ -891,10 +903,10 @@ async def get_dashboard_stats(
                 "prodexec": day_stats[day]["prodexec"],
                 "failedprod": day_stats[day]["failedprod"],
                 "completed": day_stats[day]["completed"],
-                # average runtime in seconds for completed executions that day
-                "avg_runtime_sec": round(
-                    (day_stats[day]["runtime_sum"] / day_stats[day]["completed"]) if day_stats[day]["completed"] > 0 else 0.0,
-                    2,
+                # average runtime in milliseconds for completed executions that day
+                "avg_runtime_ms": round(
+                    (day_stats[day]["runtime_sum"] / day_stats[day]["completed"] * 1000) if day_stats[day]["completed"] > 0 else 0.0,
+                    0,
                 ),
             }
             for day in sorted(day_stats.keys())
@@ -978,6 +990,10 @@ async def execute_adhoc_workflow(
             user_id=user_id,
             is_public=False
         )
+        # Save adhoc workflow to database so we can create execution records
+        db.add(workflow)
+        await db.commit()
+        await db.refresh(workflow)
     
     # Prepare execution context using WorkflowExecutor
     ctx = await executor.prepare_execution_context(
@@ -1020,8 +1036,8 @@ async def execute_adhoc_workflow(
         final_outputs = {}
         
         try:
-            if not isinstance(result_stream, AsyncGenerator):
-                raise TypeError("Expected an async generator from the engine for streaming.")
+            if not hasattr(result_stream, "__aiter__"):
+                raise TypeError("Expected an async iterable from the engine for streaming.")
             
             async for chunk in result_stream:
                 if isinstance(chunk, dict):

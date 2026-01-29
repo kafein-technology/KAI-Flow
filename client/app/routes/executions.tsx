@@ -167,11 +167,14 @@ function ExecutionsPage() {
     const end = new Date(completedAt);
     const duration = end.getTime() - start.getTime();
 
-    const seconds = Math.floor(duration / 1000);
-    const minutes = Math.floor(seconds / 60);
+    if (duration < 60000) {
+      return `${(duration / 1000).toFixed(2)} s`;
+    }
 
-    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
-    return `${seconds}s`;
+    const minutes = Math.floor(duration / 60000);
+    const remainingMs = duration % 60000;
+    const seconds = (remainingMs / 1000).toFixed(2);
+    return `${minutes}m ${seconds} s`;
   };
 
   const getInputText = (execution: any) => {
@@ -458,8 +461,8 @@ function ExecutionsPage() {
                       {filters.dateRange === "today"
                         ? "Today"
                         : filters.dateRange === "week"
-                        ? "Last Week"
-                        : "Last Month"}
+                          ? "Last Week"
+                          : "Last Month"}
                     </span>
                   )}
                 </p>
@@ -635,11 +638,10 @@ function ExecutionsPage() {
                           <button
                             key={page}
                             onClick={() => setCurrentPage(page)}
-                            className={`px-3 py-1 rounded text-sm ${
-                              page === currentPage
-                                ? "bg-purple-600 text-white"
-                                : "text-gray-700 hover:bg-gray-100"
-                            }`}
+                            className={`px-3 py-1 rounded text-sm ${page === currentPage
+                              ? "bg-purple-600 text-white"
+                              : "text-gray-700 hover:bg-gray-100"
+                              }`}
                           >
                             {page}
                           </button>
@@ -679,9 +681,8 @@ function ExecutionsPage() {
         }
         message={
           deleteModal.executionId === "bulk"
-            ? `Are you sure you want to delete ${selectedCount} execution${
-                selectedCount > 1 ? "s" : ""
-              }? This action cannot be undone and all execution data will be permanently removed.`
+            ? `Are you sure you want to delete ${selectedCount} execution${selectedCount > 1 ? "s" : ""
+            }? This action cannot be undone and all execution data will be permanently removed.`
             : "Are you sure you want to delete this execution? This action cannot be undone and all execution data will be permanently removed."
         }
         confirmText={
