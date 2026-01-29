@@ -251,7 +251,7 @@
                     <span>${language}</span>
                 </div>
                 <button class="kai-copy-btn" onclick="window.KAIWidget.copyToClipboard(this)">
-                    <span class="kai-copy-icon">📋</span>
+                    <span class="kai-copy-icon"></span>
                     <span class="kai-copy-text">Copy</span>
                 </button>
                 <textarea class="kai-hidden-code" style="display:none">${codeContent}</textarea>

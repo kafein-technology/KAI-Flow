@@ -75,7 +75,10 @@ from app.core.state import FlowState
 from langchain_core.documents import Document
 from datetime import datetime, timezone
 import re
+import logging
 
+
+logger = logging.getLogger(__name__)
 
 class StringInputNode(ProcessorNode):
     """
@@ -219,8 +222,8 @@ class StringInputNode(ProcessorNode):
                 "warnings": self._get_processing_warnings(processed_text, text_input)
             }
             
-            print(f"[StringInputNode] Processed text input: {len(processed_text)} characters")
-            print(f"[StringInputNode] Created document for VectorStore compatibility")
+            logger.info(f"Processed text input: {len(processed_text)} characters")
+            logger.info("Created document for VectorStore compatibility")
             
             result = {
                 "output": processed_text,
@@ -229,11 +232,11 @@ class StringInputNode(ProcessorNode):
                 "documents": [document]
             }
             
-            print(f"[StringInputNode] Final result keys: {list(result.keys())}")
+            logger.info(f"Final result keys: {list(result.keys())}")
             return result
             
         except Exception as e:
-            print(f"[StringInputNode] Error processing input: {str(e)}")
+            logger.error(f"Error processing input: {str(e)}")
             return {
                 "output": "",
                 "documents": [],  # Empty list for error case

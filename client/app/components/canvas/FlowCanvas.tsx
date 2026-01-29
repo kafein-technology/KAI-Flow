@@ -335,7 +335,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Listen for chat execution errors and display them
   useEffect(() => {
     const handleChatExecutionError = (event: CustomEvent) => {
-      console.error("❌ Chat execution error received:", event.detail);
+      console.error(" Chat execution error received:", event.detail);
 
       const errorDetails = {
         message: event.detail.error || "Chat execution failed",
@@ -1929,7 +1929,7 @@ function useWebhookExecutionListener(
           if (retryCount < MAX_RETRIES) {
             const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
             console.warn(
-              `⚠️ Webhook stream error for ${webhookId}, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+              ` Webhook stream error for ${webhookId}, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
             );
 
             retryCounts.set(webhookId, retryCount + 1);
@@ -1942,7 +1942,7 @@ function useWebhookExecutionListener(
             }, delay);
           } else {
             console.error(
-              `❌ Webhook stream error for ${webhookId}: Max retries reached. Connection failed.`,
+              ` Webhook stream error for ${webhookId}: Max retries reached. Connection failed.`,
               error
             );
             retryCounts.delete(webhookId);
@@ -1965,7 +1965,7 @@ function useWebhookExecutionListener(
             }
 
             if (data.type === "error") {
-              console.error(`❌ Webhook stream error:`, data.error);
+              console.error(` Webhook stream error:`, data.error);
               return;
             }
 
@@ -1975,7 +1975,7 @@ function useWebhookExecutionListener(
               // Event deduplication
               const eventId = `${data.execution_id || 'unknown'}-${data.event.type}-${data.event.node_id || 'unknown'}-${data.timestamp || Date.now()}`;
               if (processedEventIds.has(eventId)) {
-                console.warn("⚠️ Duplicate webhook event ignored:", eventId);
+                console.warn(" Duplicate webhook event ignored:", eventId);
                 return;
               }
 
@@ -2213,7 +2213,7 @@ function useWebhookExecutionListener(
               }
             }
           } catch (error) {
-            console.error("❌ Error parsing webhook stream event:", error, {
+            console.error(" Error parsing webhook stream event:", error, {
               eventData: event.data?.substring(0, 200), // Log first 200 chars
             });
           }

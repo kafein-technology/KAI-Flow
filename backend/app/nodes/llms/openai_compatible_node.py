@@ -13,12 +13,15 @@ KEY FEATURES:
 - Standard OpenAI parameter support
 """
 
+import logging
 from typing import Dict, Any, Optional, List
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
 from pydantic import SecretStr
 
 from ..base import BaseNode, NodeType, NodeInput, NodeOutput, NodeProperty, NodePropertyType, NodePosition
+
+logger = logging.getLogger(__name__)
 
 class OpenAICompatibleNode(BaseNode):
     """
@@ -268,7 +271,7 @@ class OpenAICompatibleNode(BaseNode):
 
     def execute(self, **kwargs) -> Runnable:
         """Execute Node to create the ChatOpenAI instance."""
-        print(f"\nOPENAI COMPATIBLE NODE SETUP")
+        logger.info("\nOPENAI COMPATIBLE NODE SETUP")
         
         # Extract configuration
         base_url = self.user_data.get("base_url", "https://openrouter.ai/api/v1")
@@ -297,7 +300,7 @@ class OpenAICompatibleNode(BaseNode):
              # Some local endpoints might not require a key.
              # We provide a dummy key because langchain/openai usually expects one.
              api_key_value = "sk-no-key-required"
-             print("INFO: No API Key provided. Using placeholder key.")
+             logger.info("No API Key provided. Using placeholder key.")
         
         # Prepare Extra Headers
         extra_headers = {}
@@ -329,13 +332,13 @@ class OpenAICompatibleNode(BaseNode):
         try:
             llm = ChatOpenAI(**llm_config)
             
-            print(f"   Provider Base: {base_url}")
-            print(f"   Model: {model_name} | Temp: {temperature}")
+            logger.info(f"   Provider Base: {base_url}")
+            logger.info(f"   Model: {model_name} | Temp: {temperature}")
             
             return llm
             
         except Exception as e:
             error_msg = f"Failed to create OpenAI Compatible LLM: {str(e)}"
-            print(f"ERROR: {error_msg}")
+            logger.error(f"{error_msg}")
             raise ValueError(error_msg) from e
 

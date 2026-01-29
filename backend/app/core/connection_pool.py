@@ -3,7 +3,7 @@ KAI-Fusion Connection Pool System
 ================================
 
 Advanced connection pooling system for managing many-to-many connections between workflow nodes.
-This module provides the foundation for converting the connection manager from one-to-one 
+This module provides the foundation for converting the connection manager from one-to-one
 to many-to-many connections.
 
 Features:
@@ -144,11 +144,11 @@ class ConnectionPool:
             "connections_removed": 0,
             "pool_created_at": time.time()
         }
-        
-        logger.info("🔗 ConnectionPool initialized")
+
+        logger.info(" ConnectionPool initialized")
 
     def add_connection(
-        self, 
+        self,
         source_node_id: str,
         source_handle: str,
         target_node_id: str,
@@ -193,7 +193,7 @@ class ConnectionPool:
                 target_node_id=target_node_id,
                 target_handle=target_handle,
                 data_type=data_type,
-                priority=priority
+                priority=priority,
             )
             
             # Check for duplicate connections
@@ -203,7 +203,7 @@ class ConnectionPool:
                 logger.warning(f"Duplicate connection detected: {connection_key} (existing: {existing_id})")
                 raise ConnectionPoolException(
                     f"Connection already exists: {connection_key}",
-                    details={"existing_connection_id": existing_id}
+                    details={"existing_connection_id": existing_id},
                 )
             
             # Check if connection ID already exists
@@ -238,14 +238,14 @@ class ConnectionPool:
             self._stats["connections_added"] += 1
             
             logger.info(
-                f"✅ Connection added: {connection_key}",
+                f" Connection added: {connection_key}",
                 extra={
                     "connection_id": connection_id,
                     "source": f"{source_node_id}:{source_handle}",
                     "target": f"{target_node_id}:{target_handle}",
                     "data_type": data_type,
-                    "priority": priority
-                }
+                    "priority": priority,
+                },
             )
             
             return connection_id
@@ -388,9 +388,9 @@ class ConnectionPool:
             # Update statistics
             self._stats["total_connections"] -= 1
             self._stats["connections_removed"] += 1
-            
+
             logger.info(
-                f"🗑️ Connection removed: {connection_key}",
+                f"Connection removed: {connection_key}",
                 extra={
                     "connection_id": connection_id,
                     "source": f"{connection.source_node_id}:{connection.source_handle}",
@@ -524,7 +524,7 @@ class ConnectionPool:
             self._stats["total_connections"] = 0
             
             logger.info(
-                f"🧹 ConnectionPool cleared: {connection_count} connections removed",
+                f" ConnectionPool cleared: {connection_count} connections removed",
                 extra={"connections_cleared": connection_count}
             )
             

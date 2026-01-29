@@ -34,7 +34,7 @@ def extract_node_source_code(node_class, node_type: str) -> str:
         
         # Get the file path of the module
         module_file = inspect.getfile(module)
-        logger.info(f"🔍 Extracting {node_type} from {module_file}")
+        logger.info(f"Extracting {node_type} from {module_file}")
         
         # Read the entire source file
         with open(module_file, 'r', encoding='utf-8') as f:
@@ -43,18 +43,18 @@ def extract_node_source_code(node_class, node_type: str) -> str:
         # Clean up the source for export
         cleaned_source = clean_node_source_for_export(full_source, node_type)
         
-        logger.info(f"✅ Successfully extracted {len(cleaned_source)} chars for {node_type}")
+        logger.info(f"Successfully extracted {len(cleaned_source)} chars for {node_type}")
         return cleaned_source
         
     except Exception as e:
-        logger.warning(f"❌ Failed to extract source for {node_type}: {e}")
+        logger.warning(f"Failed to extract source for {node_type}: {e}")
         return create_simple_fallback(node_type)
 
 def clean_node_source_for_export(source_code: str, node_type: str) -> str:
     """Clean node source code for standalone export runtime."""
     import re
     
-    logger.info(f"🧹 Cleaning source code for {node_type}")
+    logger.info(f"Cleaning source code for {node_type}")
     
     cleaned = source_code
     
@@ -183,17 +183,17 @@ def extract_modular_node_implementations(flow_data: Dict[str, Any]) -> Dict[str,
             
             # Check if it's a base node type first
             if node_type in base_node_types or node_type.lower() in [t.lower() for t in base_node_types]:
-                logger.info(f"✅ {node_type} is a base class, using built-in definition")
+                logger.info(f"{node_type} is a base class, using built-in definition")
                 node_source = create_enhanced_base_fallback(node_type)
             else:
                 # Try to get from registry for custom nodes
                 node_class = node_registry.get_node(node_type)
                 
                 if node_class:
-                    logger.info(f"✅ {node_type} found in registry, extracting source")
+                    logger.info(f"{node_type} found in registry, extracting source")
                     node_source = extract_node_source_code(node_class, node_type)
                 else:
-                    logger.info(f"⚠️  {node_type} not found in registry, creating fallback")
+                    logger.info(f"{node_type} not found in registry, creating fallback")
                     node_source = create_simple_fallback(node_type)
             
             # Create clean file
@@ -201,12 +201,12 @@ def extract_modular_node_implementations(flow_data: Dict[str, Any]) -> Dict[str,
             filename = f"nodes/{node_type.lower()}_node.py"
             modular_files[filename] = clean_source
             
-            logger.info(f"✅ {node_type} → {filename}")
+            logger.info(f"{node_type} -> {filename}")
             
         except Exception as e:
-            logger.warning(f"❌ Failed to process {node_type}: {e}")
+            logger.warning(f"Failed to process {node_type}: {e}")
     
-    logger.info(f"✅ MODULAR: Created {len(modular_files)} files")
+    logger.info(f"MODULAR: Created {len(modular_files)} files")
     return modular_files
 
 def create_clean_node_file(node_source: str, node_type: str) -> str:
@@ -573,10 +573,10 @@ def _discover_and_import_node_modules():
                     break
         
         if not current_dir:
-            logger.warning("⚠️  Could not determine nodes directory")
+            logger.warning("  Could not determine nodes directory")
             return
         
-        logger.debug(f"🔍 Looking for node modules in: {current_dir}")
+        logger.debug(f"Looking for node modules in: {current_dir}")
         
         # Find all *_node.py files
         node_files = glob.glob(os.path.join(current_dir, "*_node.py"))
@@ -587,10 +587,10 @@ def _discover_and_import_node_modules():
                 node_files = [f for f in os.listdir(current_dir) if f.endswith("_node.py")]
                 node_files = [os.path.join(current_dir, f) for f in node_files]
             except OSError:
-                logger.warning(f"⚠️  Could not list directory: {current_dir}")
+                logger.warning(f"  Could not list directory: {current_dir}")
                 return
         
-        logger.debug(f"🔍 Found {len(node_files)} node files: {[os.path.basename(f) for f in node_files]}")
+        logger.debug(f"Found {len(node_files)} node files: {[os.path.basename(f) for f in node_files]}")
         
         for node_file in node_files:
             try:
@@ -605,7 +605,7 @@ def _discover_and_import_node_modules():
                     try:
                         module = importlib.import_module(f"nodes.{module_name}")
                     except ImportError:
-                        logger.warning(f"⚠️  Failed to import {module_name}: {e}")
+                        logger.warning(f"  Failed to import {module_name}: {e}")
                         continue
                 
                 # Add module to current namespace
@@ -619,12 +619,12 @@ def _discover_and_import_node_modules():
                 # Try to get the class from the module
                 if hasattr(module, node_class_name):
                     globals()[node_class_name] = getattr(module, node_class_name)
-                    logger.debug(f"✅ Exposed class {node_class_name} from {module_name}")
+                    logger.debug(f" Exposed class {node_class_name} from {module_name}")
                 elif hasattr(module, module_name.replace("_", "")):
                     # Alternative naming pattern
                     alt_class_name = module_name.replace("_", "")
                     globals()[alt_class_name] = getattr(module, alt_class_name)
-                    logger.debug(f"✅ Exposed class {alt_class_name} from {module_name}")
+                    logger.debug(f" Exposed class {alt_class_name} from {module_name}")
                 else:
                     # Try to find any class in the module that looks like a node
                     for attr_name in dir(module):
@@ -633,18 +633,18 @@ def _discover_and_import_node_modules():
                             hasattr(attr, 'execute') and
                             'node' in attr_name.lower()):
                             globals()[attr_name] = attr
-                            logger.debug(f"✅ Exposed class {attr_name} from {module_name}")
+                            logger.debug(f" Exposed class {attr_name} from {module_name}")
                             break
                 
-                logger.debug(f"✅ Imported node module: {module_name}")
+                logger.debug(f" Imported node module: {module_name}")
                 
             except Exception as e:
-                logger.warning(f"⚠️  Failed to import {module_name}: {e}")
+                logger.warning(f"  Failed to import {module_name}: {e}")
                 # Create a fallback stub for the module
                 _create_fallback_module_stub(module_name)
     
     except Exception as e:
-        logger.warning(f"⚠️  Node module discovery failed: {e}")
+        logger.warning(f"  Node module discovery failed: {e}")
 
 def _register_critical_missing_classes():
     """Pre-register critical classes that are commonly missing."""
@@ -679,7 +679,7 @@ def _register_critical_missing_classes():
     globals()['ReactAgentNode'] = ReactAgentNode
     globals()['OpenAINode'] = OpenAINode
     
-    logger.info("✅ Pre-registered critical missing classes")
+    logger.info(" Pre-registered critical missing classes")
 
 def _create_fallback_module_stub(module_name):
     """Create a fallback module stub for failed imports."""
@@ -694,13 +694,13 @@ def _create_fallback_module_stub(module_name):
             return None
     
     globals()[module_name] = FallbackModuleStub()
-    logger.debug(f"✅ Created fallback stub for {module_name}")
+    logger.debug(f" Created fallback stub for {module_name}")
 
 # Auto-import all node modules when this package is loaded
 try:
     _discover_and_import_node_modules()
 except Exception as e:
-    logger.warning(f"⚠️  Auto-import failed: {e}")
+    logger.warning(f"  Auto-import failed: {e}")
 
 # Auto-discover available modules and classes
 _available_modules = []
@@ -736,11 +736,11 @@ def _register_discovered_items():
                 class_name = "".join(word.capitalize() for word in node_type_parts)
                 _available_classes.append(class_name)
                 
-        logger.debug(f"📦 Registered modules: {_available_modules}")
-        logger.debug(f"🏗️  Registered classes: {_available_classes}")
+        logger.debug(f"Registered modules: {_available_modules}")
+        logger.debug(f"Registered classes: {_available_classes}")
         
     except Exception as e:
-        logger.warning(f"⚠️  Registration failed: {e}")
+        logger.warning(f"  Registration failed: {e}")
 
 # Register discovered items
 _register_discovered_items()
@@ -758,7 +758,7 @@ def __getattr__(name):
         try:
             return importlib.import_module(f".{name}", package="nodes")
         except ImportError as e:
-            logger.warning(f"⚠️  Failed to import {name}: {e}")
+            logger.warning(f"  Failed to import {name}: {e}")
             raise AttributeError(f"module 'nodes' has no attribute '{name}'")
     
     if name in _available_classes:
@@ -780,12 +780,12 @@ def __getattr__(name):
 
 def create_minimal_backend(dependencies: WorkflowDependencies, workflow_flow_data: Dict[str, Any] = None) -> Dict[str, str]:
     """Create modular backend components."""
-    logger.info("🔥 Creating modular backend")
+    logger.info(" Creating modular backend")
     
     # Extract node implementations to separate files
     if workflow_flow_data:
         modular_files = extract_modular_node_implementations(workflow_flow_data)
-        logger.info(f"✅ {len(modular_files)} node files created")
+        logger.info(f"  {len(modular_files)} node files created")
     else:
         modular_files = {"nodes/__init__.py": create_base_definitions()}
     
@@ -816,7 +816,7 @@ def filter_requirements_for_nodes(node_types: List[str]) -> str:
         return "\n".join(sorted(dynamic_packages))
         
     except Exception as e:
-        logger.error(f"❌ Dynamic package filtering failed: {e}")
+        logger.error(f"  Dynamic package filtering failed: {e}")
         
         # Fallback
         base_packages = ["fastapi>=0.104.0", "uvicorn[standard]>=0.24.0", "langchain>=0.1.0", "pydantic>=2.5.0"]
@@ -949,7 +949,7 @@ def create_workflow_export_package(components: Dict[str, Any]) -> Dict[str, Any]
         permanent_zip_path = os.path.join(permanent_dir, f"{package_name}.zip")
         shutil.move(zip_path, permanent_zip_path)
         
-        logger.info(f"✅ Export package created: {permanent_zip_path}")
+        logger.info(f"  Export package created: {permanent_zip_path}")
         
         return {
             "download_url": f"/api/v1/export/download/{package_name}.zip",

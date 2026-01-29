@@ -128,7 +128,7 @@ Not sure where to start? Ideas:
 
 ---
 
-## 👩‍🚀 Developers
+## 👩‍ Developers
 
 KAI‑Fusion is a dual‑stack app:
 
@@ -220,7 +220,7 @@ cd ..
   (or use VS Code debug config in `.vscode/launch.json`)
 * **Frontend**: `cd client && npm run dev`
 
-Open the printed Vite URL (e.g. `http://localhost:5173`). Backend runs at `http://localhost:8000` (Swagger at `/docs`).
+Open the loggered Vite URL (e.g. `http://localhost:5173`). Backend runs at `http://localhost:8000` (Swagger at `/docs`).
 
 ### 9) Docker Compose (Optional)
 

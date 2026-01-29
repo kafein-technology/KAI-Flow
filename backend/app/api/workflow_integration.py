@@ -15,28 +15,29 @@ Apply these changes to your existing workflows.py file.
 # STEP 2: Minimal changes to execute_adhoc_workflow function
 # Replace the engine creation and execution with enhanced versions
 
+
 def enhanced_execute_adhoc_workflow_changes():
     """
     Shows the minimal changes needed in execute_adhoc_workflow function.
-    
+
     ORIGINAL CODE (around line 940):
     ```python
     engine = get_engine()
     chat_service = ChatService(db)
     ```
-    
+
     ENHANCED CODE:
     ```python
     engine = get_engine()
     chat_service = ChatService(db)
-    
+
     # NEW: Add enhanced workflow capabilities with minimal changes
     workflow_enhancer = get_workflow_enhancer()
     enhancer_context = workflow_enhancer.create_context_from_request(
         req, current_user, is_internal_call
     )
     ```
-    
+
     ORIGINAL ENGINE BUILD (around line 1092):
     ```python
     try:
@@ -47,13 +48,13 @@ def enhanced_execute_adhoc_workflow_changes():
             user_context=user_context,
         )
     ```
-    
+
     ENHANCED ENGINE BUILD:
     ```python
     try:
         # Use enhanced build with dynamic capabilities
         workflow_enhancer.enhanced_build(flow_data=req.flow_data, user_context=user_context)
-        
+
         # Use enhanced execute with dynamic capabilities
         result_stream = await workflow_enhancer.enhanced_execute(
             inputs={"input": req.input_text},
@@ -64,11 +65,12 @@ def enhanced_execute_adhoc_workflow_changes():
     """
     pass
 
+
 # STEP 3: Optional - Add metrics endpoint (can be added later)
 def add_metrics_endpoint():
     """
     Optional: Add this endpoint to workflows.py for monitoring dynamic capabilities
-    
+
     ```python
     @router.get("/dynamic/metrics/{session_id}")
     async def get_dynamic_metrics(
@@ -86,6 +88,7 @@ def add_metrics_endpoint():
     ```
     """
     pass
+
 
 # Complete minimal integration patch
 INTEGRATION_PATCH = """

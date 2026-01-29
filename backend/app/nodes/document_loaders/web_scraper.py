@@ -182,8 +182,8 @@ documents = scraper.execute(
 
 # Process extracted documents
 for doc in documents:
-    print(f"Source: {doc.metadata['source']}")
-    print(f"Content: {doc.page_content[:100]}...")
+    logger.info(f"Source: {doc.metadata['source']}")
+    logger.debug(f"Content: {doc.page_content[:100]}...")
 ```
 
 Advanced Content Processing:
@@ -488,9 +488,9 @@ class WebScraperNode(ProcessorNode):
     
     # Process extracted documents
     for doc in documents:
-        print(f\"Extracted from: {doc.metadata['source']}\")
-        print(f\"Content length: {doc.metadata['content_length']} chars\")
-        print(f\"Content preview: {doc.page_content[:200]}...\")
+        logger.info(f\"Extracted from: {doc.metadata['source']}\")
+        logger.info(f\"Content length: {doc.metadata['content_length']} chars\")
+        logger.debug(f\"Content preview: {doc.page_content[:200]}...\")
     ```
     
     Advanced Enterprise Content Processing:
@@ -519,7 +519,7 @@ class WebScraperNode(ProcessorNode):
             })
             high_quality_docs.append(doc)
     
-    print(f\"Processed {len(high_quality_docs)} high-quality documents\")
+    logger.info(f\"Processed {len(high_quality_docs)} high-quality documents\")
     ```
     
     RAG Pipeline Integration:

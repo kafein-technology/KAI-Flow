@@ -1,10 +1,10 @@
-# 🚀 KAI-Fusion Webhook & HTTP Node Integration Guide
+#  KAI-Fusion Webhook & HTTP Node Integration Guide
 
-## 📋 Overview
+##  Overview
 
 This comprehensive guide explains how to configure external services to trigger KAI-Fusion workflows via webhooks and retrieve data using HTTP nodes. You'll learn how to set up webhook triggers, configure HTTP request nodes, and integrate external systems with your AI workflows.
 
-## 🏗️ Architecture Overview
+##  Architecture Overview
 
 ```
 External Service → Webhook Trigger → Start Node → HTTP Request → End Node → Response
@@ -14,7 +14,7 @@ External Service → Webhook Trigger → Start Node → HTTP Request → End Nod
 
 ---
 
-## 🎯 Part 1: Webhook Trigger Configuration
+##  Part 1: Webhook Trigger Configuration
 
 ### 1.1 Webhook Node Setup in KAI-Fusion UI
 
@@ -162,12 +162,12 @@ result = client.trigger_workflow(
     event_type="github.data.fetch"
 )
 
-print(f"Workflow triggered: {result}")
+logger(f"Workflow triggered: {result}")
 ```
 
 ---
 
-## 🔗 Part 3: HTTP Request Node Configuration
+##  Part 3: HTTP Request Node Configuration
 
 ### 3.1 HTTP Node Setup in Workflow
 
@@ -234,7 +234,7 @@ The HTTP node can forward data received from the webhook trigger:
 
 ---
 
-## 📨 Part 4: Complete Workflow Examples
+##  Part 4: Complete Workflow Examples
 
 ### 4.1 Web Scraping → HTTP Forward Workflow
 
@@ -297,7 +297,7 @@ WebhookTrigger → StartNode → WebScraper → HttpRequest → EndNode
 
 ---
 
-## 🔧 Part 5: External Service Setup
+##  Part 5: External Service Setup
 
 ### 5.1 Webhook Receiver Service (Node.js Example)
 
@@ -369,9 +369,9 @@ def receive_processed_data():
     """Receive processed data from KAI-Fusion HTTP node"""
     data = request.get_json()
     
-    print(f"Received processed data at {datetime.now()}")
-    print(f"Workflow ID: {data.get('workflow_id')}")
-    print(f"Scraped content length: {len(data.get('scraped_data', []))}")
+    logger(f"Received processed data at {datetime.now()}")
+    logger(f"Workflow ID: {data.get('workflow_id')}")
+    logger(f"Scraped content length: {len(data.get('scraped_data', []))}")
     
     # Process the received data here
     processed_result = {
@@ -425,7 +425,7 @@ if __name__ == '__main__':
 
 ```bash
 #!/bin/bash
-echo "🚀 Testing KAI-Fusion Webhook → HTTP Integration"
+echo " Testing KAI-Fusion Webhook → HTTP Integration"
 
 # Test 1: Simple webhook trigger
 echo "Test 1: Basic webhook trigger"
@@ -474,7 +474,7 @@ for i in {1..3}; do
 done
 
 wait
-echo "✅ All tests completed!"
+echo " All tests completed!"
 ```
 
 ### 6.2 Monitoring and Debugging
@@ -547,7 +547,7 @@ curl -X GET "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_yo
 
 ---
 
-## 📊 Part 8: Response Formats
+##  Part 8: Response Formats
 
 ### 8.1 Successful Webhook Response
 
@@ -601,7 +601,7 @@ curl -X GET "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_yo
 
 ---
 
-## 🎯 Part 9: Advanced Use Cases
+##  Part 9: Advanced Use Cases
 
 ### 9.1 Multi-Step Data Pipeline
 
@@ -660,7 +660,7 @@ curl -X GET "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_yo
 
 ---
 
-## 🚀 Quick Start Checklist
+##  Quick Start Checklist
 
 - [ ] Create webhook trigger node in KAI-Fusion UI
 - [ ] Note down your `webhook_id` and `secret_token`

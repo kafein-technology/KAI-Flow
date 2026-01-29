@@ -29,7 +29,7 @@ You can run the full stack locally using Docker (with an external DB) or set up 
 
 ---
 
-### 🔗 Quick Links
+###  Quick Links
 
 * **Website (Preview)**: [https://kai-fusion-blond.vercel.app](https://kai-fusion-blond.vercel.app)
 * **API Docs (local)**: [http://localhost:8000/docs](http://localhost:8000/docs) (FastAPI Swagger UI)
@@ -39,7 +39,7 @@ You can run the full stack locally using Docker (with an external DB) or set up 
 
 ## 📚 Table of Contents
 
-* ⚡ Quick Start (TL;DR)
+*  Quick Start (TL;DR)
 * 🐘 PostgreSQL (Docker)
 * 🔐 Environment Variables
 
@@ -51,7 +51,7 @@ You can run the full stack locally using Docker (with an external DB) or set up 
 * 🐳 Docker (Compose & Images)
 * 🧱 Project Structure
 * ✨ App Overview (What you can build)
-* 📊 Repository Stats (⭐ Stars & ⬇️ Downloads)
+*  Repository Stats (⭐ Stars & ⬇️ Downloads)
 * 🙌 Contributing (with user icons)
 * 🆘 Troubleshooting
 * 🤝 Code of Conduct
@@ -59,7 +59,7 @@ You can run the full stack locally using Docker (with an external DB) or set up 
 
 ---
 
-## ⚡ Quick Start (TL;DR)
+##  Quick Start (TL;DR)
 
 **Prerequisites**
 
@@ -94,7 +94,7 @@ python backend/app.py
 # 6) Frontend
 # create client/.env as shown below
 cd client && npm install && npm run dev
-# Open the printed Vite URL (e.g. http://localhost:5173)
+# Open the loggered Vite URL (e.g. http://localhost:5173)
 ```
 
 > **Tip:** Replace all `kai` defaults (DB name/user/password) for your own environment in production.
@@ -232,7 +232,7 @@ $env:OPENSSL_CONF="C:\Program Files\Git\usr\ssl\openssl.cnf"; openssl req -x509 
 cd client
 npm install
 npm run dev
-# Open the printed Vite URL (e.g. http://localhost:5173)
+# Open the loggered Vite URL (e.g. http://localhost:5173)
 ```
 
 ### Widget (Embeddable)
@@ -281,7 +281,7 @@ If your repo includes a `docker-compose.yml` at the root, simply run:
 docker compose up -d
 ```
 
-Then open the printed URLs:
+Then open the loggered URLs:
 
 * Frontend: e.g. [http://localhost:5173](http://localhost:5173) or [http://localhost:3000](http://localhost:3000)
 * Backend: [http://localhost:8000](http://localhost:8000) (Swagger: `/docs`)
@@ -366,7 +366,7 @@ KAI-Fusion/
 
 ---
 
-## 📊 Repository Stats (⭐ Stars & ⬇️ Downloads)
+##  Repository Stats (⭐ Stars & ⬇️ Downloads)
 
 ### ⭐ Star History (auto‑updated)
 

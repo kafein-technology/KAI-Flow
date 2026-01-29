@@ -57,7 +57,7 @@ def get_empty_secret_from_credential(credential: UserCredential) -> Dict[str, An
         return empty_secret
         
     except Exception as e:
-        print(f"   Warning: Could not decrypt credential: {e}")
+        logger(f"   Warning: Could not decrypt credential: {e}")
         return {"api_key": ""}
 
 
@@ -98,9 +98,9 @@ async def export_workflows(
                     if workflow:
                         workflows_to_export.append(workflow)
                     else:
-                        print(f"Warning: Workflow not found: {wf_id}")
+                        logger(f"Warning: Workflow not found: {wf_id}")
                 except Exception as e:
-                    print(f"Warning: Invalid workflow ID {wf_id}: {e}")
+                    logger(f"Warning: Invalid workflow ID {wf_id}: {e}")
         
         elif user_email:
             user_result = await db.execute(
@@ -108,7 +108,7 @@ async def export_workflows(
             )
             user = user_result.scalar_one_or_none()
             if not user:
-                print(f"Error: User not found: {user_email}")
+                logger(f"Error: User not found: {user_email}")
                 return
             
             wf_result = await db.execute(
@@ -116,17 +116,17 @@ async def export_workflows(
             )
             workflows_to_export = wf_result.scalars().all()
             config["target_user_email"] = user_email
-            print(f"Exporting all workflows for: {user_email}")
+            logger(f"Exporting all workflows for: {user_email}")
         
         else:
-            print("Error: Please provide --ids or --user-email")
+            logger("Error: Please provide --ids or --user-email")
             return
         
         if not workflows_to_export:
-            print("Error: No workflows to export")
+            logger("Error: No workflows to export")
             return
         
-        print(f"\nExporting {len(workflows_to_export)} workflow(s)...\n")
+        logger(f"\nExporting {len(workflows_to_export)} workflow(s)...\n")
         
         for workflow in workflows_to_export:
             # Keep flow_data as-is (don't modify credential_id)
@@ -152,9 +152,9 @@ async def export_workflows(
                                 "service_type": cred.service_type,
                                 "secret": empty_secret
                             }
-                            print(f"   Credential: {cred.name} (ID: {cred_id})")
+                            logger(f"   Credential: {cred.name} (ID: {cred_id})")
                     except Exception as e:
-                        print(f"   Warning: Could not process credential {cred_id}: {e}")
+                        logger(f"   Warning: Could not process credential {cred_id}: {e}")
             
             # Save flow file (unchanged - keeps credential_id as-is)
             safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in workflow.name.lower())[:50]
@@ -171,7 +171,7 @@ async def export_workflows(
                 "flow_file": flow_file
             })
             
-            print(f"Exported: {workflow.name} (ID: {workflow.id})")
+            logger(f"Exported: {workflow.name} (ID: {workflow.id})")
         
         # Add all found credentials to config
         for cred_info in seen_credentials.values():
@@ -222,11 +222,11 @@ python -m scripts.import_workflows --config /path/to/workflows_config.yaml
     
     (output_path / "README.md").write_text(readme, encoding="utf-8")
     
-    print(f"\n{'='*50}")
-    print(f"Export complete: {output_path.absolute()}")
-    print(f"   Workflows: {len(config['workflows'])}")
-    print(f"   Credentials: {len(config['credentials'])}")
-    print(f"\nIMPORTANT: Fill credential secrets before import!")
+    logger(f"\n{'='*50}")
+    logger(f"Export complete: {output_path.absolute()}")
+    logger(f"   Workflows: {len(config['workflows'])}")
+    logger(f"   Credentials: {len(config['credentials'])}")
+    logger(f"\nIMPORTANT: Fill credential secrets before import!")
 
 
 def main():

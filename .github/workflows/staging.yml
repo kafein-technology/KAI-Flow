@@ -48,5 +48,5 @@ jobs:
             owner,
             repo,
             commit_sha: sha,
-            body: '🚀 Staging deployment completed! \n\nPreview: https://kai-fusion-staging.vercel.app'
+            body: ' Staging deployment completed! \n\nPreview: https://kai-fusion-staging.vercel.app'
           });

@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DynamicWorkflowContext:
     """Context for dynamic workflow execution"""
+
     session_id: str
     user_id: Optional[str] = None
     owner_id: Optional[str] = None
@@ -105,7 +106,7 @@ class DynamicNodeResolver:
         # Set basic properties
         instance.node_id = node_def["id"]
         instance.user_data = node_def.get("data", {})
-        
+
         # Apply dynamic context
         if hasattr(instance, 'apply_context'):
             instance.apply_context(context)
@@ -173,7 +174,7 @@ class DynamicWorkflowOptimizer:
         optimized_flow = self._optimize_node_ordering(optimized_flow)
         optimized_flow = self._optimize_connections(optimized_flow)
         optimized_flow = self._add_implicit_nodes(optimized_flow)
-        
+
         return optimized_flow
     
     def _optimize_node_ordering(self, flow_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -283,7 +284,7 @@ class DynamicWorkflowEngine:
                                      stream: bool = False) -> Union[Dict[str, Any], AsyncGenerator]:
         """Execute workflow with dynamic capabilities"""
         
-        logger.info(f"🚀 Executing dynamic workflow (session: {context.session_id})")
+        logger.info(f"Executing dynamic workflow (session: {context.session_id})")
         
         try:
             # Execute using base builder with enhanced context
@@ -293,14 +294,14 @@ class DynamicWorkflowEngine:
                 user_id=context.user_id,
                 owner_id=context.owner_id,
                 workflow_id=context.workflow_id,
-                stream=stream
+                stream=stream,
             )
             
-            logger.info(f"✅ Dynamic workflow execution completed")
+            logger.info(f"Dynamic workflow execution completed")
             return result
             
         except Exception as e:
-            logger.error(f"❌ Dynamic workflow execution failed: {e}")
+            logger.error(f"Dynamic workflow execution failed: {e}")
             raise
     
     def get_runtime_metrics(self, session_id: str) -> Dict[str, Any]:
@@ -364,7 +365,7 @@ class ExecuteAdhocWorkflowEnhancer:
                 "is_webhook": current_user is None
             }
         )
-        
+
         return context
     
     async def execute_with_dynamic_engine(self, req: Any, context: DynamicWorkflowContext, 

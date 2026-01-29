@@ -2,7 +2,7 @@
 
 Bu kılavuz, KAI-Fusion platformunda Webhook Trigger Node'un tüm özelliklerini ve kullanım senaryolarını detaylı şekilde açıklar.
 
-## 🎯 Webhook Trigger Node Nedir?
+##  Webhook Trigger Node Nedir?
 
 Webhook Trigger Node, dış sistemlerin KAI-Fusion workflow'larını HTTP istekleri ile tetiklememizi sağlayan güçlü bir giriş noktası bileşenidir. REST API endpoint'i oluşturur ve gelen istekleri workflow'a aktarır.
 
@@ -24,15 +24,15 @@ Webhook Trigger Node, dış sistemlerin KAI-Fusion workflow'larını HTTP istekl
 - **CORS Support** - Cross-origin requests desteği
 - **IP Whitelisting** - Gelecek güncellemede
 
-### 📊 İzleme ve Analytics
+###  İzleme ve Analytics
 - **Real-time Event Tracking** - Gelen isteklerin canlı takibi
 - **Event Statistics** - Event türü ve kaynak istatistikleri
 - **Performance Metrics** - İstek zamanlamaları ve başarı oranları
 - **Request Logging** - Detaylı istek logları
 
-## 🔧 Konfigürasyon Parametreleri
+##  Konfigürasyon Parametreleri
 
-### 📋 Temel Ayarlar
+###  Temel Ayarlar
 ```json
 {
   "http_method": "POST",
@@ -52,7 +52,7 @@ Webhook Trigger Node, dış sistemlerin KAI-Fusion workflow'larını HTTP istekl
 }
 ```
 
-### 🔧 Gelişmiş Ayarlar
+###  Gelişmiş Ayarlar
 ```json
 {
   "webhook_timeout": 30,
@@ -62,7 +62,7 @@ Webhook Trigger Node, dış sistemlerin KAI-Fusion workflow'larını HTTP istekl
 }
 ```
 
-## 🎯 HTTP Method Kullanımları
+##  HTTP Method Kullanımları
 
 ### 1. **GET Request** - Query Parameters
 ```bash
@@ -229,7 +229,7 @@ curl -X PUT "https://your-domain.com/{API_START}/webhooks/wh_content_manager" \
   }'
 ```
 
-## 🔗 Workflow Entegrasyonu
+##  Workflow Entegrasyonu
 
 ### 1. **Basic Webhook → Processing → Response**
 ```json
@@ -302,7 +302,7 @@ curl -X PUT "https://your-domain.com/{API_START}/webhooks/wh_content_manager" \
 }
 ```
 
-## 📊 Event Monitoring & Analytics
+##  Event Monitoring & Analytics
 
 ### Real-time Event Tracking
 ```javascript
@@ -395,7 +395,7 @@ curl -u "username:password" \
 }
 ```
 
-## 🎯 Testing ve Debugging
+##  Testing ve Debugging
 
 ### Test Webhook Locally
 ```bash
@@ -467,7 +467,7 @@ curl -X POST "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
 }
 ```
 
-## 🚀 Advanced Use Cases
+##  Advanced Use Cases
 
 ### 1. **Multi-Tenant Webhook System**
 ```json
@@ -512,7 +512,7 @@ curl -X POST "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
 }
 ```
 
-## 📋 Best Practices
+##  Best Practices
 
 ### 1. **Security**
 ```json

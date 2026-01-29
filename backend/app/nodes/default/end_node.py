@@ -1,6 +1,9 @@
 from typing import Any, Dict
+import logging
 from langchain_core.runnables import Runnable
 from ..base import TerminatorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
+
+logger = logging.getLogger(__name__)
 
 class EndNode(TerminatorNode):
     """
@@ -42,8 +45,8 @@ class EndNode(TerminatorNode):
         if previous_node is not None:
             # Convert to string if needed and return for chat interface
             result = str(previous_node) if not isinstance(previous_node, str) else previous_node
-            print(f"[DEBUG] EndNode returning output: '{result[:100]}...'")
+            logger.debug(f"EndNode returning output: '{result[:100]}...'")
             return result
         else:
-            print("[DEBUG] EndNode received None as input")
+            logger.debug("EndNode received None as input")
             return "No output received"

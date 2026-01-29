@@ -50,9 +50,9 @@ export default function TutorialLauncher({
       case "Document Processing":
         return "📄";
       case "Automation":
-        return "⚡";
+        return "";
       default:
-        return "🔧";
+        return "";
     }
   };
 

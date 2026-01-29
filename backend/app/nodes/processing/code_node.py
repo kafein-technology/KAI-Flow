@@ -80,21 +80,92 @@ logger = logging.getLogger(__name__)
 
 # Safe built-in functions and modules for Python sandbox
 SAFE_PYTHON_BUILTINS = {
-    "abs", "all", "any", "ascii", "bin", "bool", "bytes", "chr", "dict", "dir", "divmod", "enumerate", "filter", "float",
-    "format", "frozenset", "hex", "int", "isinstance", "issubclass", "iter", "len", "list", "map", "max", "min", "next",
-    "oct", "ord", "pow", "print", "range", "repr", "reversed", "round", "set", "slice", "sorted", "str", "sum", "tuple",
-    "type", "zip", # Additional safe functions (note: broadens sandbox surface, kept for backward compatibility)
-    "hasattr", "getattr", "setattr", "delattr", "hash", "id", "callable", "classmethod", "staticmethod", "property",
-    "locals", "globals", "vars",
+    "abs",
+    "all",
+    "any",
+    "ascii",
+    "bin",
+    "bool",
+    "bytes",
+    "chr",
+    "dict",
+    "dir",
+    "divmod",
+    "enumerate",
+    "filter",
+    "float",
+    "format",
+    "frozenset",
+    "hex",
+    "int",
+    "isinstance",
+    "issubclass",
+    "iter",
+    "len",
+    "list",
+    "map",
+    "max",
+    "min",
+    "next",
+    "oct",
+    "ord",
+    "pow",
+    "print",
+    "logger",
+    "range",
+    "repr",
+    "reversed",
+    "round",
+    "set",
+    "slice",
+    "sorted",
+    "str",
+    "sum",
+    "tuple",
+    "type",
+    "zip",  # Additional safe functions (note: broadens sandbox surface, kept for backward compatibility)
+    "hasattr",
+    "getattr",
+    "setattr",
+    "delattr",
+    "hash",
+    "id",
+    "callable",
+    "classmethod",
+    "staticmethod",
+    "property",
+    "locals",
+    "globals",
+    "vars",
 }
 
 SAFE_PYTHON_MODULES = {
-    "json", "math", "random", "re", "datetime", "time", "itertools", "collections", "functools", "operator", "string",
-    "decimal", "fractions", "statistics", "base64", "hashlib", "hmac", "secrets", "uuid",
-    "urllib.parse", "html", "xml.etree.ElementTree", "csv"}
+    "json",
+    "math",
+    "random",
+    "re",
+    "datetime",
+    "time",
+    "itertools",
+    "collections",
+    "functools",
+    "operator",
+    "string",
+    "decimal",
+    "fractions",
+    "statistics",
+    "base64",
+    "hashlib",
+    "hmac",
+    "secrets",
+    "uuid",
+    "urllib.parse",
+    "html",
+    "xml.etree.ElementTree",
+    "csv",
+}
 
-SAFE_JS_MODULES = {
-    "crypto", "util", "url", "querystring", "path", "os"}
+SAFE_JS_MODULES = {"crypto", "util", "url", "querystring", "path", "os"}
 
 CODE_INPUT_VARIABLE_NAME = "node_data"
 
@@ -115,7 +186,7 @@ def _extract_between_markers(text: str, start: str, end: str) -> Optional[str]:
     if start not in text or end not in text:
         return None
     start_idx = text.find(start) + len(start)
-    # The wrappers print marker then newline, so tolerate optional newline
+    # The wrappers logger marker then newline, so tolerate optional newline
     if start_idx < len(text) and text[start_idx : start_idx + 1] == "\n":
         start_idx += 1
     end_idx = text.find(end)
@@ -125,14 +196,16 @@ def _extract_between_markers(text: str, start: str, end: str) -> Optional[str]:
 
 
 def _split_user_stdout(text: str, marker_start: str) -> str:
-    """Return everything printed before our structured marker."""
+    """Return everything loggered before our structured marker."""
     if marker_start not in text:
         return text.strip()
     return text[: text.find(marker_start)].strip()
 
 
 def _write_temp_file(suffix: str, content: str) -> str:
-    with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False, encoding="utf-8") as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=suffix, delete=False, encoding="utf-8"
+    ) as f:
         f.write(content)
         return f.name
 
@@ -177,7 +250,10 @@ class PythonSandbox:
                             return f"Import of '{alias.name}' is not allowed"
 
                 if isinstance(node, ast.ImportFrom):
-                    if node.module and node.module.split(".")[0] not in SAFE_PYTHON_MODULES:
+                    if (
+                        node.module
+                        and node.module.split(".")[0] not in SAFE_PYTHON_MODULES
+                    ):
                         return f"Import from '{node.module}' is not allowed"
 
                 if isinstance(node, ast.Name) and node.id in {
@@ -193,7 +269,11 @@ class PythonSandbox:
 
                 if isinstance(node, ast.Attribute):
                     # Basic guard for direct attribute access like os.system / sys.exit / subprocess.run
-                    if hasattr(node.value, "id") and node.value.id in {"os", "sys", "subprocess"}:
+                    if hasattr(node.value, "id") and node.value.id in {
+                        "os",
+                        "sys",
+                        "subprocess",
+                    }:
                         return f"Access to '{node.value.id}' module is not allowed"
 
             return None
@@ -205,7 +285,9 @@ class PythonSandbox:
 
     def _build_wrapper_script(self) -> str:
         context_json = json.dumps(self.context, default=str, ensure_ascii=False)
-        context_json_escaped = context_json.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
+        context_json_escaped = context_json.replace("\\", "\\\\").replace(
+            '"""', '\\"\\"\\"'
+        )
 
         user_code_escaped = self.code.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
 
@@ -255,6 +337,7 @@ def main():
         "time": time,
         "itertools": itertools,
         "collections": collections,
+        "logger": print,
     }}
 
     try:
@@ -317,7 +400,12 @@ if __name__ == "__main__":
         if self.enable_validation:
             validation_error = self.validate_code()
             if validation_error:
-                return {"success": False, "error": validation_error, "output": None, "stdout": ""}
+                return {
+                    "success": False,
+                    "error": validation_error,
+                    "output": None,
+                    "stdout": "",
+                }
 
         temp_path: Optional[str] = None
         try:
@@ -358,7 +446,12 @@ if __name__ == "__main__":
                     "stdout": stdout.strip(),
                 }
 
-            return {"success": True, "error": None, "output": None, "stdout": stdout.strip()}
+            return {
+                "success": True,
+                "error": None,
+                "output": None,
+                "stdout": stdout.strip(),
+            }
 
         except subprocess.TimeoutExpired:
             return {
@@ -368,9 +461,19 @@ if __name__ == "__main__":
                 "stdout": "",
             }
         except FileNotFoundError:
-            return {"success": False, "error": "Python interpreter not found", "output": None, "stdout": ""}
+            return {
+                "success": False,
+                "error": "Python interpreter not found",
+                "output": None,
+                "stdout": "",
+            }
         except Exception as e:
-            return {"success": False, "error": f"Python execution failed: {str(e)}", "output": None, "stdout": ""}
+            return {
+                "success": False,
+                "error": f"Python execution failed: {str(e)}",
+                "output": None,
+                "stdout": "",
+            }
         finally:
             _cleanup_file(temp_path)
 
@@ -483,7 +586,12 @@ try {{
         if self.enable_validation:
             validation_error = self.validate_code()
             if validation_error:
-                return {"success": False, "error": validation_error, "output": None, "stdout": ""}
+                return {
+                    "success": False,
+                    "error": validation_error,
+                    "output": None,
+                    "stdout": "",
+                }
 
         temp_path: Optional[str] = None
         try:
@@ -523,7 +631,12 @@ try {{
                     "stdout": stdout.strip(),
                 }
 
-            return {"success": True, "error": None, "output": None, "stdout": stdout.strip()}
+            return {
+                "success": True,
+                "error": None,
+                "output": None,
+                "stdout": stdout.strip(),
+            }
 
         except subprocess.TimeoutExpired:
             return {
@@ -561,7 +674,11 @@ def _extract_input_payload(input_data: Any) -> Any:
     """
 
     if isinstance(input_data, dict):
-        if "documents" in input_data and isinstance(input_data["documents"], list) and input_data["documents"]:
+        if (
+            "documents" in input_data
+            and isinstance(input_data["documents"], list)
+            and input_data["documents"]
+        ):
             docs = input_data["documents"]
             page_contents = []
             for doc in docs:
@@ -570,7 +687,11 @@ def _extract_input_payload(input_data: Any) -> Any:
                 elif isinstance(doc, dict) and "page_content" in doc:
                     page_contents.append(doc["page_content"])
             if page_contents:
-                return "\n\n".join(page_contents) if len(page_contents) > 1 else page_contents[0]
+                return (
+                    "\n\n".join(page_contents)
+                    if len(page_contents) > 1
+                    else page_contents[0]
+                )
 
         if "page_content" in input_data:
             return input_data["page_content"]
@@ -594,7 +715,11 @@ def _extract_input_payload(input_data: Any) -> Any:
             elif isinstance(item, dict) and "page_content" in item:
                 page_contents.append(item["page_content"])
         if page_contents:
-            return "\n\n".join(page_contents) if len(page_contents) > 1 else page_contents[0]
+            return (
+                "\n\n".join(page_contents)
+                if len(page_contents) > 1
+                else page_contents[0]
+            )
 
     return input_data
 
@@ -688,7 +813,7 @@ class CodeNode(ProcessorNode):
                     name="output",
                     displayName="Output",
                     type="any",
-                    description="Result from code execution. Output is STDOUT (print/console.log).",
+                    description="Result from code execution. Output is STDOUT (logger/console.log).",
                     is_connection=True,
                     direction=NodePosition.RIGHT,
                 ),
@@ -715,7 +840,7 @@ class CodeNode(ProcessorNode):
                         "Access input as node_data. You can refer to previous nodes using Jinja like ${node_name}. "
                         "If special characters possible, use {{node_name|tojson}}."
                     ),
-                    default="# Python Example\nprint(node_data)",
+                    default="# Python Example\nlogger(node_data)",
                     required=True,
                     rows=12,
                     maxLength=50000,
@@ -755,7 +880,9 @@ class CodeNode(ProcessorNode):
 
         logger.info("CodeNode initialized with multi-language support")
 
-    def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(
+        self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]
+    ) -> Dict[str, Any]:
         language = (inputs.get("language") or "python").strip().lower()
         raw_code = inputs.get("code", "") or ""
         timeout = int(inputs.get("timeout", 30))
@@ -777,36 +904,47 @@ class CodeNode(ProcessorNode):
         start_time = time.time()
         try:
             if language == "python":
-                sandbox = PythonSandbox(code, context, timeout=timeout, enable_validation=enable_validation)
+                sandbox = PythonSandbox(
+                    code, context, timeout=timeout, enable_validation=enable_validation
+                )
             elif language == "javascript":
-                sandbox = JavaScriptSandbox(code, context, timeout=timeout, enable_validation=enable_validation)
+                sandbox = JavaScriptSandbox(
+                    code, context, timeout=timeout, enable_validation=enable_validation
+                )
             else:
                 raise ValueError(f"Unsupported language: {language}")
 
             result = sandbox.execute()
             execution_time_ms = (time.time() - start_time) * 1000
 
-            logger.info("Execution success=%s time=%.2fms", result.get("success"), execution_time_ms)
+            logger.info(
+                "Execution success=%s time=%.2fms",
+                result.get("success"),
+                execution_time_ms,
+            )
 
             if result.get("success"):
                 stdout_output = (result.get("stdout") or "").strip()
-                
+
                 # SMART OUTPUT DETECTION: If stdout looks like a Python dict/list repr,
                 # automatically convert to proper JSON format
                 if stdout_output and (
-                    (stdout_output.startswith('{') and stdout_output.endswith('}')) or
-                    (stdout_output.startswith('[') and stdout_output.endswith(']'))
+                    (stdout_output.startswith("{") and stdout_output.endswith("}"))
+                    or (stdout_output.startswith("[") and stdout_output.endswith("]"))
                 ):
                     try:
                         import ast
+
                         parsed = ast.literal_eval(stdout_output)
                         # Convert to proper JSON with double quotes
                         stdout_output = json.dumps(parsed, ensure_ascii=False)
-                        logger.debug("Smart output: Converted Python dict/list repr to JSON")
+                        logger.debug(
+                            "Smart output: Converted Python dict/list repr to JSON"
+                        )
                     except (ValueError, SyntaxError):
                         # Keep original if not a valid Python literal
                         pass
-                
+
                 return {"output": stdout_output}
 
             err = result.get("error") or "Unknown error"

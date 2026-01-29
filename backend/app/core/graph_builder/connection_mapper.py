@@ -60,8 +60,8 @@ class ConnectionMapper:
             connections = []
             
             if edges:
-                logger.info(f"🔗 PARSING CONNECTIONS ({len(edges)} edges)")
-                
+                logger.info(f" PARSING CONNECTIONS ({len(edges)} edges)")
+
             for edge in edges:
                 source = edge.get("source", "")
                 target = edge.get("target", "")
@@ -84,12 +84,14 @@ class ConnectionMapper:
                 )
                 
                 connections.append(conn)
-                logger.debug(f"   📤 {source}[{source_handle}] ➜ {target}[{target_handle}]")
-            
+                logger.debug(
+                    f"{source}[{source_handle}] ➜ {target}[{target_handle}]"
+                )
+
             # Store connections for later use
             self.connections = connections
-            
-            logger.info(f"✅ Parsed {len(connections)} connections successfully")
+
+            logger.info(f" Parsed {len(connections)} connections successfully")
             return connections
             
         except Exception as e:
@@ -117,9 +119,8 @@ class ConnectionMapper:
             ConnectionError: If enhanced mapping fails
         """
         try:
+            logger.info(" Building enhanced connection mappings")
 
-            logger.info("🔗 Building enhanced connection mappings")
-            
             # Use ConnectionManager to build mappings
             core_mappings = self.connection_manager.build_connection_mappings(
                 connections, nodes
@@ -133,10 +134,10 @@ class ConnectionMapper:
             
             # Store connection statistics
             self._connection_stats = self.connection_manager.get_connection_stats()
-            
-            logger.info(f"✅ Enhanced connection mappings built successfully")
-            logger.info(f"📊 Connection Stats: {self._connection_stats}")
-            
+
+            logger.info(f" Enhanced connection mappings built successfully")
+            logger.info(f" Connection Stats: {self._connection_stats}")
+
             return enhanced_mappings
             
         except Exception as e:
@@ -159,8 +160,10 @@ class ConnectionMapper:
         """
         try:
             pool_enabled = self._is_pool_enabled()
-            logger.info(f"🔗 Applying connection mappings with pool {'enabled' if pool_enabled else 'disabled'}")
-            
+            logger.info(
+                f" Applying connection mappings with pool {'enabled' if pool_enabled else 'disabled'}"
+            )
+
             for node_id, connection_map in connection_mappings.items():
                 if node_id not in nodes:
                     logger.warning(f"Node {node_id} not found in node registry")
@@ -183,11 +186,15 @@ class ConnectionMapper:
                             if len(pool_connections) > 1:
                                 # Many-to-many: Use list of connections from pool
                                 input_connections[handle] = pool_connections
-                                logger.debug(f"[POOL] Input: {node_id}.{handle} <- {len(pool_connections)} connections [MANY-TO-MANY]")
+                                logger.debug(
+                                    f"[POOL] Input: {node_id}.{handle} <- {len(pool_connections)} connections [MANY-TO-MANY]"
+                                )
                             else:
                                 # Single connection: Store as dict for backward compatibility
                                 input_connections[handle] = pool_connections[0]
-                                logger.debug(f"[POOL] Input: {node_id}.{handle} <- 1 connection [SINGLE-DICT]")
+                                logger.debug(
+                                    f"[POOL] Input: {node_id}.{handle} <- 1 connection [SINGLE-DICT]"
+                                )
                         else:
                             # Fallback to single connection if pool has no connections
                             input_connections[handle] = {
@@ -197,7 +204,9 @@ class ConnectionMapper:
                                 "status": conn_info.status.value,
                                 "validation_errors": conn_info.validation_errors
                             }
-                            logger.debug(f"[POOL-FALLBACK] Input: {node_id}.{handle} <- {conn_info.source_node_id}.{conn_info.source_handle}")
+                            logger.debug(
+                                f"[POOL-FALLBACK] Input: {node_id}.{handle} <- {conn_info.source_node_id}.{conn_info.source_handle}"
+                            )
                     else:
                         # Traditional one-to-one: Backward compatibility mode
                         input_connections[handle] = {
@@ -207,21 +216,27 @@ class ConnectionMapper:
                             "status": conn_info.status.value,
                             "validation_errors": conn_info.validation_errors
                         }
-                        logger.debug(f"[TRADITIONAL] Input: {node_id}.{handle} <- {conn_info.source_node_id}.{conn_info.source_handle}")
-                
+                        logger.debug(
+                            f"[TRADITIONAL] Input: {node_id}.{handle} <- {conn_info.source_node_id}.{conn_info.source_handle}"
+                        )
+
                 # Process output connections (always supports multiple)
                 for handle, conn_list in connection_map.output_connections.items():
                     output_connections[handle] = []
                     for conn_info in conn_list:
-                        output_connections[handle].append({
-                            "target_node_id": conn_info.target_node_id,
-                            "target_handle": conn_info.target_handle,
-                            "data_type": conn_info.data_type,
-                            "status": conn_info.status.value,
-                            "validation_errors": conn_info.validation_errors
-                        })
-                        logger.debug(f"[ENHANCED] Output: {node_id}.{handle} -> {conn_info.target_node_id}.{conn_info.target_handle}")
-                
+                        output_connections[handle].append(
+                            {
+                                "target_node_id": conn_info.target_node_id,
+                                "target_handle": conn_info.target_handle,
+                                "data_type": conn_info.data_type,
+                                "status": conn_info.status.value,
+                                "validation_errors": conn_info.validation_errors,
+                            }
+                        )
+                        logger.debug(
+                            f"[ENHANCED] Output: {node_id}.{handle} -> {conn_info.target_node_id}.{conn_info.target_handle}"
+                        )
+
                 # Apply connections to node instance
                 if pool_enabled:
                     self._apply_pool_connections(node_instance, input_connections)
@@ -239,10 +254,14 @@ class ConnectionMapper:
                 output_count = sum(len(conns) for conns in output_connections.values())
                 
                 if pool_enabled and total_input_connections > input_count:
-                    logger.info(f"   🔗 {node_id}: {input_count} handles, {total_input_connections} input connections, {output_count} outputs [MANY-TO-MANY]")
+                    logger.info(
+                        f"    {node_id}: {input_count} handles, {total_input_connections} input connections, {output_count} outputs [MANY-TO-MANY]"
+                    )
                 else:
-                    logger.info(f"   🔗 {node_id}: {input_count} inputs, {output_count} outputs [TRADITIONAL]")
-                
+                    logger.info(
+                        f"    {node_id}: {input_count} inputs, {output_count} outputs [TRADITIONAL]"
+                    )
+
         except Exception as e:
             logger.error(f"Failed to apply connection mappings: {e}")
             raise ConnectionError(
@@ -281,18 +300,24 @@ class ConnectionMapper:
                             "source_handle": conn.source_handle,
                             "data_type": conn.data_type
                         }
-                        logger.debug(f"[BASIC] Input mapping: {node_id}.{conn.target_handle} <- {conn.source_node_id}.{conn.source_handle}")
-                    
+                        logger.debug(
+                            f"[BASIC] Input mapping: {node_id}.{conn.target_handle} <- {conn.source_node_id}.{conn.source_handle}"
+                        )
+
                     # Find all connections from this node (outputs)
                     if conn.source_node_id == node_id:
                         if conn.source_handle not in output_connections:
                             output_connections[conn.source_handle] = []
-                        output_connections[conn.source_handle].append({
-                            "target_node_id": conn.target_node_id,
-                            "target_handle": conn.target_handle,
-                            "data_type": conn.data_type
-                        })
-                        logger.debug(f"[BASIC] Output mapping: {node_id}.{conn.source_handle} -> {conn.target_node_id}.{conn.target_handle}")
+                        output_connections[conn.source_handle].append(
+                            {
+                                "target_node_id": conn.target_node_id,
+                                "target_handle": conn.target_handle,
+                                "data_type": conn.data_type,
+                            }
+                        )
+                        logger.debug(
+                            f"[BASIC] Output mapping: {node_id}.{conn.source_handle} -> {conn.target_node_id}.{conn.target_handle}"
+                        )
 
                 # Set connection mappings on the node instance
                 gnode.node_instance._input_connections = input_connections
@@ -300,18 +325,30 @@ class ConnectionMapper:
                 
                 # Log instantiation
                 config_keys = list(gnode.user_data.keys()) if gnode.user_data else []
-                logger.info(f"   ✅ {node_id} ({gnode.type}) | Config: {len(config_keys)} | I/O: {len(input_connections)}/{len(output_connections)}")
-            
+                logger.info(
+                    f"    {node_id} ({gnode.type}) | Config: {len(config_keys)} | I/O: {len(input_connections)}/{len(output_connections)}"
+                )
+
             # Create basic stats
             self._connection_stats = {
                 "total_connections": len(connections),
                 "mapping_type": "basic",
-                "nodes_with_inputs": sum(1 for _, gnode in nodes.items() if hasattr(gnode.node_instance, '_input_connections') and gnode.node_instance._input_connections),
-                "nodes_with_outputs": sum(1 for _, gnode in nodes.items() if hasattr(gnode.node_instance, '_output_connections') and gnode.node_instance._output_connections)
+                "nodes_with_inputs": sum(
+                    1
+                    for _, gnode in nodes.items()
+                    if hasattr(gnode.node_instance, "_input_connections")
+                    and gnode.node_instance._input_connections
+                ),
+                "nodes_with_outputs": sum(
+                    1
+                    for _, gnode in nodes.items()
+                    if hasattr(gnode.node_instance, "_output_connections")
+                    and gnode.node_instance._output_connections
+                ),
             }
-            
-            logger.info("✅ Basic connection mapping completed")
-            
+
+            logger.info(" Basic connection mapping completed")
+
         except Exception as e:
             logger.error(f"Basic connection mapping failed: {e}")
             raise ConnectionError(
@@ -356,17 +393,21 @@ class ConnectionMapper:
             # Convert to the format expected by nodes
             pool_connections = []
             for conn_info in connection_infos:
-                pool_connections.append({
-                    "source_node_id": conn_info.source_node_id,
-                    "source_handle": conn_info.source_handle,
-                    "data_type": conn_info.data_type,
-                    "status": conn_info.status.value,
-                    "validation_errors": conn_info.validation_errors
-                })
-            
-            logger.debug(f"Extracted {len(pool_connections)} pool connections for {node_id}:{handle}")
+                pool_connections.append(
+                    {
+                        "source_node_id": conn_info.source_node_id,
+                        "source_handle": conn_info.source_handle,
+                        "data_type": conn_info.data_type,
+                        "status": conn_info.status.value,
+                        "validation_errors": conn_info.validation_errors,
+                    }
+                )
+
+            logger.debug(
+                f"Extracted {len(pool_connections)} pool connections for {node_id}:{handle}"
+            )
             return pool_connections
-            
+
         except Exception as e:
             logger.error(f"Error extracting pool connections: {e}")
             return []
@@ -416,12 +457,16 @@ class ConnectionMapper:
         for conn in connections:
             # Check if source node exists
             if conn.source_node_id not in available_nodes:
-                errors.append(f"Connection references unknown source node: {conn.source_node_id}")
-            
+                errors.append(
+                    f"Connection references unknown source node: {conn.source_node_id}"
+                )
+
             # Check if target node exists
             if conn.target_node_id not in available_nodes:
-                errors.append(f"Connection references unknown target node: {conn.target_node_id}")
-        
+                errors.append(
+                    f"Connection references unknown target node: {conn.target_node_id}"
+                )
+
         return errors
     
     def get_node_connection_info(self, node_id: str) -> Optional[Dict[str, Any]]:

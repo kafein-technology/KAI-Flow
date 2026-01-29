@@ -4,11 +4,11 @@ A customizable, React-based chat widget developed for the KAI Fusion AI platform
 
 ## Features
 
-- 🚀 **Easy Integration:** Add to your site with a single React component.
+-  **Easy Integration:** Add to your site with a single React component.
 - 🎨 **Customizable:** Settings for color, title, and position.
 - 📝 **Markdown Support:** Support for mathematical formulas (KaTeX), code blocks (Syntax Highlighting), and GFM.
 - 📱 **Responsive:** Modern design compatible with mobile and desktop.
-- ⚡ **Real-Time:** Fast interaction with streaming response support.
+-  **Real-Time:** Fast interaction with streaming response support.
 
 ## Installation
 

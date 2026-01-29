@@ -941,7 +941,7 @@ async def execute_adhoc_workflow(
     chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
     session_id = req.session_id or str(chatflow_id)
     
-    # 🔥 CRITICAL: session_id must always be present
+    #  CRITICAL: session_id must always be present
     if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
         session_id = str(chatflow_id)
         logger.warning(f"Invalid session_id in workflow execution, using chatflow_id: {session_id}")

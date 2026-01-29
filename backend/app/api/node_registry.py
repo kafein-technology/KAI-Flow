@@ -9,7 +9,7 @@ from app.api.schemas import (
     NodeRegistryCreate,
     NodeRegistryUpdate,
     NodeRegistryResponse,
-    NodeRegistryListResponse
+    NodeRegistryListResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,9 @@ async def get_node_registry_list(
     limit: int = Query(100, ge=1, le=1000, description="Number of records to return"),
     category: Optional[str] = Query(None, description="Filter by category"),
     active_only: bool = Query(False, description="Show only active nodes"),
-    search: Optional[str] = Query(None, description="Search in node_type, node_class, or category")
+    search: Optional[str] = Query(
+        None, description="Search in node_type, node_class, or category"
+    ),
 ):
     """
     Get a list of node registry entries with optional filtering.
@@ -33,12 +35,14 @@ async def get_node_registry_list(
         if search:
             nodes = await node_registry_service.search_nodes(db, search, skip, limit)
         elif category:
-            nodes = await node_registry_service.get_by_category(db, category, skip, limit)
+            nodes = await node_registry_service.get_by_category(
+                db, category, skip, limit
+            )
         elif active_only:
             nodes = await node_registry_service.get_active_nodes(db, skip, limit)
         else:
             nodes = await node_registry_service.get_all(db, skip=skip, limit=limit)
-        
+
         # Convert to response format
         node_responses = [
             NodeRegistryResponse(
@@ -50,16 +54,16 @@ async def get_node_registry_list(
                 schema_definition=node.schema_definition,
                 ui_schema=node.ui_schema,
                 is_active=node.is_active,
-                created_at=node.created_at.isoformat() if node.created_at else None
+                created_at=node.created_at.isoformat() if node.created_at else None,
             )
             for node in nodes
         ]
-        
+
         return NodeRegistryListResponse(
             nodes=node_responses,
             total=len(node_responses),  # TODO: Add proper count query
             page=skip // limit + 1,
-            size=limit
+            size=limit,
         )
     except Exception as e:
         logger.error(f"Error getting node registry list: {e}")
@@ -68,8 +72,7 @@ async def get_node_registry_list(
 
 @router.get("/{node_type}", response_model=NodeRegistryResponse)
 async def get_node_registry_by_type(
-    node_type: str,
-    db: AsyncSession = Depends(get_db_session)
+    node_type: str, db: AsyncSession = Depends(get_db_session)
 ):
     """
     Get detailed information about a specific node type.
@@ -77,8 +80,10 @@ async def get_node_registry_by_type(
     try:
         node = await node_registry_service.get_by_node_type(db, node_type)
         if not node:
-            raise HTTPException(status_code=404, detail=f"Node type '{node_type}' not found")
-        
+            raise HTTPException(
+                status_code=404, detail=f"Node type '{node_type}' not found"
+            )
+
         return NodeRegistryResponse(
             id=str(node.id),
             node_type=node.node_type,
@@ -88,7 +93,7 @@ async def get_node_registry_by_type(
             schema_definition=node.schema_definition,
             ui_schema=node.ui_schema,
             is_active=node.is_active,
-            created_at=node.created_at.isoformat() if node.created_at else None
+            created_at=node.created_at.isoformat() if node.created_at else None,
         )
     except HTTPException:
         raise
@@ -99,15 +104,14 @@ async def get_node_registry_by_type(
 
 @router.post("", response_model=NodeRegistryResponse)
 async def create_node_registry(
-    node_data: NodeRegistryCreate,
-    db: AsyncSession = Depends(get_db_session)
+    node_data: NodeRegistryCreate, db: AsyncSession = Depends(get_db_session)
 ):
     """
     Create a new node registry entry.
     """
     try:
         node = await node_registry_service.create_node_registry(db, node_data)
-        
+
         return NodeRegistryResponse(
             id=str(node.id),
             node_type=node.node_type,
@@ -117,7 +121,7 @@ async def create_node_registry(
             schema_definition=node.schema_definition,
             ui_schema=node.ui_schema,
             is_active=node.is_active,
-            created_at=node.created_at.isoformat() if node.created_at else None
+            created_at=node.created_at.isoformat() if node.created_at else None,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -130,16 +134,20 @@ async def create_node_registry(
 async def update_node_registry(
     node_type: str,
     node_data: NodeRegistryUpdate,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ):
     """
     Update an existing node registry entry.
     """
     try:
-        node = await node_registry_service.update_node_registry(db, node_type, node_data)
+        node = await node_registry_service.update_node_registry(
+            db, node_type, node_data
+        )
         if not node:
-            raise HTTPException(status_code=404, detail=f"Node type '{node_type}' not found")
-        
+            raise HTTPException(
+                status_code=404, detail=f"Node type '{node_type}' not found"
+            )
+
         return NodeRegistryResponse(
             id=str(node.id),
             node_type=node.node_type,
@@ -149,7 +157,7 @@ async def update_node_registry(
             schema_definition=node.schema_definition,
             ui_schema=node.ui_schema,
             is_active=node.is_active,
-            created_at=node.created_at.isoformat() if node.created_at else None
+            created_at=node.created_at.isoformat() if node.created_at else None,
         )
     except HTTPException:
         raise
@@ -160,8 +168,7 @@ async def update_node_registry(
 
 @router.delete("/{node_type}")
 async def delete_node_registry(
-    node_type: str,
-    db: AsyncSession = Depends(get_db_session)
+    node_type: str, db: AsyncSession = Depends(get_db_session)
 ):
     """
     Delete a node registry entry.
@@ -169,8 +176,10 @@ async def delete_node_registry(
     try:
         node = await node_registry_service.delete_node_registry(db, node_type)
         if not node:
-            raise HTTPException(status_code=404, detail=f"Node type '{node_type}' not found")
-        
+            raise HTTPException(
+                status_code=404, detail=f"Node type '{node_type}' not found"
+            )
+
         return {"message": f"Node type '{node_type}' deleted successfully"}
     except HTTPException:
         raise
@@ -181,8 +190,7 @@ async def delete_node_registry(
 
 @router.patch("/{node_type}/toggle")
 async def toggle_node_active_status(
-    node_type: str,
-    db: AsyncSession = Depends(get_db_session)
+    node_type: str, db: AsyncSession = Depends(get_db_session)
 ):
     """
     Toggle the active status of a node registry entry.
@@ -190,11 +198,13 @@ async def toggle_node_active_status(
     try:
         node = await node_registry_service.toggle_active_status(db, node_type)
         if not node:
-            raise HTTPException(status_code=404, detail=f"Node type '{node_type}' not found")
-        
+            raise HTTPException(
+                status_code=404, detail=f"Node type '{node_type}' not found"
+            )
+
         return {
             "message": f"Node type '{node_type}' {'activated' if node.is_active else 'deactivated'} successfully",
-            "is_active": node.is_active
+            "is_active": node.is_active,
         }
     except HTTPException:
         raise
@@ -204,9 +214,7 @@ async def toggle_node_active_status(
 
 
 @router.get("/stats/summary")
-async def get_node_registry_statistics(
-    db: AsyncSession = Depends(get_db_session)
-):
+async def get_node_registry_statistics(db: AsyncSession = Depends(get_db_session)):
     """
     Get statistics about node registry entries.
     """
@@ -219,9 +227,7 @@ async def get_node_registry_statistics(
 
 
 @router.get("/categories/list")
-async def get_node_categories(
-    db: AsyncSession = Depends(get_db_session)
-):
+async def get_node_categories(db: AsyncSession = Depends(get_db_session)):
     """
     Get a list of all available node categories.
     """
@@ -229,11 +235,8 @@ async def get_node_categories(
         # Get all nodes and extract unique categories
         nodes = await node_registry_service.get_all(db, skip=0, limit=1000)
         categories = list(set(node.category for node in nodes))
-        
-        return {
-            "categories": sorted(categories),
-            "total_categories": len(categories)
-        }
+
+        return {"categories": sorted(categories), "total_categories": len(categories)}
     except Exception as e:
         logger.error(f"Error getting node categories: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error") 
+        raise HTTPException(status_code=500, detail="Internal server error")

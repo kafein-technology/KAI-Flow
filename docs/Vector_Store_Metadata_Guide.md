@@ -2,7 +2,7 @@
 
 Bu kılavuz, KAI-Fusion platformunda vector store'ları kullanırken metadata'yı nasıl kullanacağınızı, ekleyeceğinizi ve yöneteceğinizi açıklar.
 
-## 📊 Metadata Nedir?
+## Metadata Nedir?
 
 Metadata, dokümanlarınızla birlikte saklanan ek bilgilerdir. Bu bilgiler:
 - Dökümanın kaynağı
@@ -11,7 +11,7 @@ Metadata, dokümanlarınızla birlikte saklanan ek bilgilerdir. Bu bilgiler:
 - Özel etiketler
 - Filtreleme için kullanılan alanlar
 
-## 🔧 VectorStoreOrchestrator ile Metadata
+## VectorStoreOrchestrator ile Metadata
 
 ### 1. Temel Metadata Ekleme
 
@@ -119,7 +119,7 @@ Metadata, dokümanlarınızla birlikte saklanan ek bilgilerdir. Bu bilgiler:
 }
 ```
 
-## 🔍 Metadata ile Filtreleme
+##  Metadata ile Filtreleme
 
 ### 1. Retriever Konfigürasyonu
 ```python
@@ -148,18 +148,18 @@ filter_conditions = {
 }
 ```
 
-## 📋 Metadata Best Practices
+##  Metadata Best Practices
 
 ### 1. **Tutarlı Alan Adları**
 ```json
-// ✅ Doğru
+//  Doğru
 {
   "source": "catalog",
   "category": "electronics", 
   "created_date": "2024-08-06"
 }
 
-// ❌ Yanlış (tutarsız naming)
+//  Yanlış (tutarsız naming)
 {
   "Source": "catalog",
   "Category": "electronics",
@@ -169,14 +169,14 @@ filter_conditions = {
 
 ### 2. **Standardize Değerler**
 ```json
-// ✅ Doğru - kontrollü değerler
+//  Doğru - kontrollü değerler
 {
   "priority": "high",  // "high" | "medium" | "low"
   "status": "active",  // "active" | "archived" | "draft"
   "language": "tr"     // ISO codes
 }
 
-// ❌ Yanlış - serbest metin
+//  Yanlış - serbest metin
 {
   "priority": "Very Important",
   "status": "Currently Active", 
@@ -205,7 +205,7 @@ filter_conditions = {
 }
 ```
 
-## 🚀 Workflow Entegrasyonu
+##  Workflow Entegrasyonu
 
 ### 1. Document Loader + Metadata
 ```json
@@ -248,7 +248,7 @@ filter_conditions = {
 }
 ```
 
-## 🎯 Performans Optimizasyonu
+##  Performans Optimizasyonu
 
 ### 1. **Index Edilmiş Alanlar**
 ```sql
@@ -271,7 +271,7 @@ CREATE INDEX idx_metadata_gin ON langchain_pg_embedding USING gin (cmetadata);
 
 ### 3. **Metadata Boyutu Optimizasyonu**
 ```json
-// ✅ Optimal - compact metadata
+//  Optimal - compact metadata
 {
   "src": "cat",          // "source": "catalog"
   "cat": "elec",         // "category": "electronics" 
@@ -280,7 +280,7 @@ CREATE INDEX idx_metadata_gin ON langchain_pg_embedding USING gin (cmetadata);
   "created": 1704067200  // Unix timestamp
 }
 
-// ❌ Büyük metadata
+//  Büyük metadata
 {
   "source_system_full_name": "Product Catalog Management System v2.1",
   "category_description": "Electronics and Digital Devices Category",
@@ -288,7 +288,7 @@ CREATE INDEX idx_metadata_gin ON langchain_pg_embedding USING gin (cmetadata);
 }
 ```
 
-## 🔗 API Kullanımı
+##  API Kullanımı
 
 ### 1. Metadata ile Arama
 ```python
@@ -326,11 +326,11 @@ filtered_docs = retriever.get_relevant_documents(
 ```python
 # Storage stats ile metadata analizi
 stats = result["storage_stats"]
-print(f"Stored documents: {stats['documents_stored']}")
-print(f"Processing time: {stats['processing_time_seconds']}s")
+logger(f"Stored documents: {stats['documents_stored']}")
+logger(f"Processing time: {stats['processing_time_seconds']}s")
 ```
 
-## ⚡ Gerçek Dünya Örnekleri
+##  Gerçek Dünya Örnekleri
 
 ### 1. **Multi-tenant Uygulama**
 ```json
@@ -374,14 +374,14 @@ print(f"Processing time: {stats['processing_time_seconds']}s")
 
 ### 1. **Hassas Bilgi**
 ```json
-// ❌ Metadata'ya hassas bilgi koyma
+//  Metadata'ya hassas bilgi koyma
 {
   "user_password": "secret123",
   "credit_card": "1234-5678-9012-3456",
   "ssn": "123-45-6789"
 }
 
-// ✅ Güvenli metadata
+//  Güvenli metadata
 {
   "user_id_hash": "sha256:abc...",
   "has_payment_info": true,

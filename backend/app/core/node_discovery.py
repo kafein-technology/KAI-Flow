@@ -8,7 +8,7 @@ the advanced NodeRegistry architecture. This module is officially deprecated and
 provides comprehensive migration guidance and compatibility bridges for existing
 integrations requiring seamless transition to the modern node management system.
 
-⚠️  DEPRECATION NOTICE:
+  DEPRECATION NOTICE:
 =====================
 
 **THIS MODULE IS OFFICIALLY DEPRECATED AND WILL BE REMOVED IN FUTURE VERSIONS**
@@ -199,10 +199,10 @@ def modern_node_creation(node_type: str):
     node_class = node_registry.get_node(node_type)
     if not node_class:
         return None
-    
+
     # Access metadata for enhanced functionality
     metadata = node_registry.get_node_metadata(node_type)
-    
+
     # Create with modern safety features
     try:
         instance = node_class()
@@ -223,7 +223,7 @@ from app.core.node_discovery import get_registry
 class LegacyWorkflowBuilder:
     def __init__(self):
         self.available_nodes = get_registry()
-    
+
     def create_node(self, node_type: str):
         if node_type in self.available_nodes:
             return self.available_nodes[node_type]()
@@ -238,28 +238,28 @@ class ModernWorkflowBuilder:
         node_registry.enable_hot_reload()
         node_registry.start_analytics()
         self.registry = node_registry
-    
+
     def create_node(self, node_type: str):
         # Validate node availability
         if not self.registry.is_node_available(node_type):
             return None
-        
+
         # Get node class with validation
         node_class = self.registry.get_node(node_type)
-        
+
         # Create with comprehensive error handling
         try:
             instance = node_class()
-            
+
             # Track for analytics and optimization
             self.registry.track_node_creation(node_type)
-            
+
             return instance
         except Exception as e:
             # Enhanced error reporting
             self.registry.report_node_error(node_type, e)
             return None
-    
+
     def get_analytics(self):
         return self.registry.get_performance_stats()
 ```
@@ -330,17 +330,19 @@ from app.nodes import BaseNode
 # Deprecated - use app.core.node_registry instead
 NODE_TYPE_MAP: Dict[str, Type[BaseNode]] = {}
 
+
 def discover_nodes():
     """DEPRECATED: Use app.core.node_registry.discover_nodes() instead."""
     warnings.warn(
         "node_discovery.discover_nodes() is deprecated. "
         "Use app.core.node_registry.node_registry.discover_nodes() instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
-    
+
     # Return empty to prevent usage
     return
+
 
 def get_node_class(node_type: str) -> Type[BaseNode]:
     """DEPRECATED: Use app.core.node_registry.node_registry.get_node() instead."""
@@ -348,15 +350,17 @@ def get_node_class(node_type: str) -> Type[BaseNode]:
         "node_discovery.get_node_class() is deprecated. "
         "Use app.core.node_registry.node_registry.get_node() instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
-    
+
     # Fallback to new system
     from app.core.node_registry import node_registry
+
     node_class = node_registry.get_node(node_type)
     if not node_class:
         raise ValueError(f"Unknown node type: {node_type}")
     return node_class
+
 
 def get_registry() -> Dict[str, Type[BaseNode]]:
     """DEPRECATED: Use app.core.node_registry.node_registry.nodes instead."""
@@ -364,9 +368,10 @@ def get_registry() -> Dict[str, Type[BaseNode]]:
         "node_discovery.get_registry() is deprecated. "
         "Use app.core.node_registry.node_registry.nodes instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
-    
+
     # Fallback to new system
     from app.core.node_registry import node_registry
+
     return node_registry.nodes.copy()

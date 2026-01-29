@@ -2,7 +2,7 @@
 
 Bu kılavuz, KAI-Fusion platformunda HTTP Client Node'un tüm özelliklerini ve kullanım senaryolarını detaylı şekilde açıklar.
 
-## 🚀 HTTP Client Node Nedir?
+##  HTTP Client Node Nedir?
 
 HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönderen güçlü bileşenidir. RESTful API'lere bağlanma, veri çekme/gönderme ve dış sistemlerle entegrasyon için kullanılır.
 
@@ -32,9 +32,9 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
 - **application/xml** - XML verileri
 - **Custom** - Özel content type'lar
 
-## 🔧 Konfigürasyon Parametreleri
+##  Konfigürasyon Parametreleri
 
-### 📋 Temel Ayarlar
+###  Temel Ayarlar
 ```json
 {
   "url": "https://api.example.com/users",
@@ -72,7 +72,7 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
 }
 ```
 
-## 🎯 Kullanım Senaryoları
+##  Kullanım Senaryoları
 
 ### 1. **RESTful API Entegrasyonu**
 ```json
@@ -168,7 +168,7 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
 }
 ```
 
-## 🔄 Retry ve Error Handling
+##  Retry ve Error Handling
 
 ### Retry Konfigürasyonu
 ```json
@@ -194,7 +194,7 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
 }
 ```
 
-## 📊 Response İşleme
+##  Response İşleme
 
 ### Başarılı Response
 ```json
@@ -244,7 +244,7 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
 }
 ```
 
-## 🔗 Workflow Entegrasyonu
+##  Workflow Entegrasyonu
 
 ### 1. **API Chain Workflow**
 ```json
@@ -348,7 +348,7 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
 }
 ```
 
-## 🎯 Best Practices
+##  Best Practices
 
 ### 1. **Error Handling**
 ```json
@@ -386,7 +386,7 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
 }
 ```
 
-## 📋 Common Use Cases
+##  Common Use Cases
 
 ### 1. **CRM Integration**
 - Müşteri verilerini senkronize etme

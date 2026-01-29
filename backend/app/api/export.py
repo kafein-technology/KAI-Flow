@@ -97,9 +97,9 @@ async def export_workflows(
     - flows/*.json (individual workflow flow data)
     - README.md (import instructions)
     """
-    logger.info(f"🚀 Export request from user: {current_user.email}")
-    logger.info(f"   Workflow IDs: {request.workflow_ids}")
-    
+    logger.info(f"Export request from user: {current_user.email}")
+    logger.info(f"Workflow IDs: {request.workflow_ids}")
+
     if not request.workflow_ids:
         raise HTTPException(status_code=400, detail="No workflow IDs provided")
     
@@ -129,7 +129,7 @@ async def export_workflows(
             )
         )
         workflow = result.scalar_one_or_none()
-        
+
         if not workflow:
             continue
         
@@ -161,7 +161,9 @@ async def export_workflows(
                     pass
         
         # Create flow file
-        safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in workflow.name.lower())[:50]
+        safe_name = "".join(
+            c if c.isalnum() or c in "_-" else "_" for c in workflow.name.lower()
+        )[:50]
         flow_filename = f"flows/{safe_name}.json"
         flow_files[flow_filename] = json.dumps(flow_data, indent=2, default=str, ensure_ascii=False)
         
@@ -175,7 +177,7 @@ async def export_workflows(
     
     if not config["workflows"]:
         raise HTTPException(status_code=404, detail="No workflows found to export")
-    
+
     # Add credentials to config
     for cred_info in seen_credentials.values():
         config["credentials"].append(cred_info)

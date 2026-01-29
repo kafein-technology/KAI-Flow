@@ -374,7 +374,7 @@ const Navbar: React.FC<NavbarProps> = ({
             workflow'unu silmek istediğine emin misin?
             <br />
             <span className="text-red-600 text-sm font-medium mt-2 block">
-              ⚠️ Bu işlem geri alınamaz!
+              Bu işlem geri alınamaz!
             </span>
           </p>
           <div className="modal-action">

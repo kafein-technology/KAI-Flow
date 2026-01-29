@@ -67,21 +67,25 @@ from collections import defaultdict, deque
 # Import existing logging config
 from .logging_config import get_logger_with_context
 
+logger = logging.getLogger(__name__)
+
 
 class LogLevel(Enum):
     """Enhanced log levels for workflow components."""
+
     CRITICAL = "critical"  # System failures that stop workflows
-    ERROR = "error"       # Node failures that can be recovered
-    WARNING = "warning"   # Issues that don't block execution
-    INFO = "info"         # Normal workflow progress
-    DEBUG = "debug"       # Only when explicitly enabled
-    TRACE = "trace"       # Ultra-verbose for debugging
+    ERROR = "error"  # Node failures that can be recovered
+    WARNING = "warning"  # Issues that don't block execution
+    INFO = "info"  # Normal workflow progress
+    DEBUG = "debug"  # Only when explicitly enabled
+    TRACE = "trace"  # Ultra-verbose for debugging
 
 
 class WorkflowPhase(Enum):
     """Workflow execution phases for progress tracking."""
+
     VALIDATE = "validate"
-    BUILD = "build"  
+    BUILD = "build"
     EXECUTE = "execute"
     COMPLETE = "complete"
     ERROR = "error"
@@ -89,6 +93,7 @@ class WorkflowPhase(Enum):
 
 class ComponentType(Enum):
     """Component types for context-aware logging."""
+
     WORKFLOW_ENGINE = "workflow_engine"
     NODE_EXECUTOR = "node_executor"
     MEMORY_MANAGER = "memory_manager"
@@ -102,14 +107,15 @@ class ComponentType(Enum):
 @dataclass
 class DataSummary:
     """Summary of data objects to avoid logging raw content."""
+
     type_name: str
     size: int
     sample: Optional[str] = None
     hash_digest: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
-    
+
     @classmethod
-    def from_data(cls, data: Any, max_sample_size: int = 100) -> 'DataSummary':
+    def from_data(cls, data: Any, max_sample_size: int = 100) -> "DataSummary":
         """Create summary from any data object."""
         if data is None:
             return cls(type_name="NoneType", size=0)
@@ -280,7 +286,7 @@ class SmartDataFilter:
             parts.append(f"{kwargs['rows']} rows")
         if 'duration' in kwargs:
             parts.append(f"{kwargs['duration']:.3f}s")
-        if 'conditions' in kwargs:
+        if "conditions" in kwargs:
             parts.append(f"conditions:{len(kwargs['conditions'])}")
         
         return " | ".join(parts)
@@ -350,22 +356,24 @@ class WorkflowLogger:
         # Log with appropriate level
         log_method = getattr(self.logger, level.value)
         log_method(message, extra=filtered_extra)
-    
-    def start_workflow_phase(self, phase: WorkflowPhase, total_steps: int = 0, **details):
+
+    def start_workflow_phase(
+        self, phase: WorkflowPhase, total_steps: int = 0, **details
+    ):
         """Start a new workflow phase with progress tracking."""
         self.progress_tracker = WorkflowProgress(
             workflow_id=self.workflow_id or "unknown",
             phase=phase,
             total_steps=total_steps,
-            details=details
+            details=details,
         )
-        
+
         phase_symbols = {
-            WorkflowPhase.VALIDATE: "🔍",
-            WorkflowPhase.BUILD: "🏗️", 
-            WorkflowPhase.EXECUTE: "🚀",
-            WorkflowPhase.COMPLETE: "✅",
-            WorkflowPhase.ERROR: "❌"
+            WorkflowPhase.VALIDATE: "[VALIDATE]",
+            WorkflowPhase.BUILD: "[BUILD]", 
+            WorkflowPhase.EXECUTE: "[EXECUTE]",
+            WorkflowPhase.COMPLETE: "[COMPLETE]",
+            WorkflowPhase.ERROR: "[ERROR]"
         }
         
         symbol = phase_symbols.get(phase, "⚙️")
@@ -375,19 +383,18 @@ class WorkflowLogger:
             message += f" ({total_steps} steps)"
         
         self.log_with_context(LogLevel.INFO, message, **details)
-        print("=" * 60)
-        print(message)
+        logger.info("=" * 60)
+        logger.info(message)
         if details:
             for key, value in details.items():
-                print(f"   {key}: {value}")
-        print("=" * 60)
-    
+                logger.info(f"   {key}: {value}")
+        logger.info("=" * 60)
+
     def end_workflow_phase(self, phase: WorkflowPhase, success: bool = True, **details):
         """End workflow phase with summary."""
         if not self.progress_tracker:
             self.progress_tracker = WorkflowProgress(
-                workflow_id=self.workflow_id or "unknown",
-                phase=phase
+                workflow_id=self.workflow_id or "unknown", phase=phase
             )
         
         status_symbol = "✅" if success else "❌"
@@ -397,23 +404,29 @@ class WorkflowLogger:
         message = f"{status_symbol} WORKFLOW {phase.value.upper()} {status_text} ({elapsed:.2f}s)"
         
         level = LogLevel.INFO if success else LogLevel.ERROR
-        self.log_with_context(level, message, success=success, elapsed_time=elapsed, **details)
-        
-        print(f"{status_symbol} {phase.value.upper()} {status_text} in {elapsed:.2f}s")
+        self.log_with_context(
+            level, message, success=success, elapsed_time=elapsed, **details
+        )
+
+        logger.info(
+            f"{status_symbol} {phase.value.upper()} {status_text} in {elapsed:.2f}s"
+        )
         if details:
             for key, value in details.items():
-                print(f"   {key}: {value}")
-        print("=" * 60)
-    
-    def log_node_execution(self, node_id: str, node_type: str, inputs: Dict[str, Any], **extra):
+                logger.info(f"   {key}: {value}")
+        logger.info("=" * 60)
+
+    def log_node_execution(
+        self, node_id: str, node_type: str, inputs: Dict[str, Any], **extra
+    ):
         """Log node execution with smart filtering."""
         # Filter inputs to avoid embedding dumps
         filtered_inputs = self.data_filter.filter_dict(inputs)
-        
+
         # Create clean input summary
         input_summary = []
         for key, value in filtered_inputs.items():
-            if key.startswith('_kai_fusion'):
+            if key.startswith("_kai_fusion"):
                 continue
             if isinstance(value, str) and "embedding vector" in value:
                 input_summary.append(f"{key}=<vector>")
@@ -425,12 +438,12 @@ class WorkflowLogger:
         message = f"🎯 Node: {node_id} ({node_type}) | Inputs: {', '.join(input_summary)}"
         
         self.log_with_context(
-            LogLevel.INFO, 
+            LogLevel.INFO,
             message,
             node_id=node_id,
             node_type=node_type,
             input_keys=list(inputs.keys()),
-            **extra
+            **extra,
         )
     
     def log_embedding_operation(self, operation: str, **kwargs):
@@ -462,7 +475,7 @@ class WorkflowLogger:
             level = LogLevel.ERROR  # Generic database error
             category = "database_error"
         
-        message = f"💥 Database Error ({category}): {error_type}"
+        message = f"Database Error ({category}): {error_type}"
         
         self.error_counts[category] += 1
         
@@ -474,7 +487,7 @@ class WorkflowLogger:
             query_type=query_type,
             error_message=str(error)[:500],  # Truncate long error messages
             error_count=self.error_counts[category],
-            **context
+            **context,
         )
     
     def log_performance_metric(self, operation: str, duration: float, **metrics):
@@ -487,17 +500,15 @@ class WorkflowLogger:
         
         # Performance status
         if duration > avg_time * 2:
-            status = "🐌 SLOW"
+            status = "SLOW"
             level = LogLevel.WARNING
         elif duration > avg_time * 1.5:
-            status = "⚠️ DEGRADED"
+            status = "DEGRADED"
             level = LogLevel.WARNING
         else:
-            status = "⚡ NORMAL"
+            status = "NORMAL"
             level = LogLevel.DEBUG
-        
         message = f"{status} {operation}: {duration:.3f}s (avg: {avg_time:.3f}s)"
-        
         self.log_with_context(
             level,
             message,
@@ -507,29 +518,23 @@ class WorkflowLogger:
             sample_size=len(recent_times),
             **metrics
         )
-    
     def update_progress(self, completed_steps: int = 1, details: Optional[str] = None):
         """Update workflow progress."""
         if not self.progress_tracker:
             return
-        
         self.progress_tracker.current_step += completed_steps
         self.progress_tracker.last_update = time.time()
-        
         if details:
             self.progress_tracker.details.update({"last_action": details})
-        
         # Log progress at intervals
         progress = self.progress_tracker.progress_percent
         if progress > 0 and (progress % 25 == 0 or progress >= 100):
             bar = self.progress_tracker.format_progress_bar()
-            message = f"📊 Progress: {bar}"
+            message = f"Progress: {bar}"
             if details:
                 message += f" | {details}"
-            
             self.log_with_context(LogLevel.INFO, message, progress_percent=progress)
-    
-    @contextmanager 
+    @contextmanager
     def timed_operation(self, operation_name: str):
         """Context manager for timing operations."""
         start_time = time.time()
@@ -538,27 +543,28 @@ class WorkflowLogger:
         finally:
             duration = time.time() - start_time
             self.log_performance_metric(operation_name, duration)
-    
     def debug(self, message: str, **extra):
         """Debug logging (only when debug enabled)."""
         self.log_with_context(LogLevel.DEBUG, message, **extra)
-    
+
     def info(self, message: str, **extra):
         """Info logging for normal workflow progress."""
         self.log_with_context(LogLevel.INFO, message, **extra)
-    
+
     def warning(self, message: str, **extra):
         """Warning logging for issues that don't block execution."""
         self.log_with_context(LogLevel.WARNING, message, **extra)
-    
+
     def error(self, message: str, error: Optional[Exception] = None, **extra):
         """Error logging for recoverable failures."""
         if error:
-            extra.update({
-                'error_type': type(error).__name__,
-                'error_message': str(error),
-                'stack_trace': traceback.format_exc()
-            })
+            extra.update(
+                {
+                    "error_type": type(error).__name__,
+                    "error_message": str(error),
+                    "stack_trace": traceback.format_exc(),
+                }
+            )
         self.log_with_context(LogLevel.ERROR, message, **extra)
     
     def critical(self, message: str, error: Optional[Exception] = None, **extra):

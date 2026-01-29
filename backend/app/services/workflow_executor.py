@@ -417,7 +417,7 @@ class WorkflowExecutor:
                 # Add webhook_response to result for easy access
                 if webhook_response:
                     result["webhook_response"] = webhook_response
-                    logger.info(f"✅ Extracted webhook_response from workflow execution")
+                    logger.info(f"Extracted webhook_response from workflow execution")
             
             if stream and hasattr(result, "__aiter__"):
                 async def _tracked_stream() -> AsyncGenerator:

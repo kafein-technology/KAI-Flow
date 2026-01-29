@@ -1,6 +1,6 @@
 # ⏰ KAI-Fusion Timer Trigger Kullanım Kılavuzu
 
-## 📋 İçindekiler
+##  İçindekiler
 - [Genel Bakış](#genel-bakış)
 - [Timer Oluşturma](#timer-oluşturma)
 - [Workflow Bağlantısı](#workflow-bağlantısı)
@@ -13,15 +13,15 @@
 
 ---
 
-## 🎯 Genel Bakış
+##  Genel Bakış
 
 KAI-Fusion Timer Trigger Node, belirli zaman aralıklarında veya programlanmış zamanlarda workflow'ları otomatik olarak başlatan gelişmiş bir tetikleme sistemidir. Timer expire olduğunda manuel start butonuna tıklanmış gibi workflow'u başlatır ve complete processing chain'i execute eder.
 
 ### ✨ Temel Özellikler
 - ⏰ **Çoklu Zamanlama Modları**: Interval, Cron, Once, Manual
-- 🚀 **Otomatik Workflow Tetikleme**: Start node'a bağlanarak workflow'u başlatır
-- 🔄 **Otomatik Restart**: Recurring schedule'lar otomatik olarak yeniden başlar
-- 📊 **İleri Düzey Monitoring**: Execution stats, timer status, performance metrics
+-  **Otomatik Workflow Tetikleme**: Start node'a bağlanarak workflow'u başlatır
+-  **Otomatik Restart**: Recurring schedule'lar otomatik olarak yeniden başlar
+-  **İleri Düzey Monitoring**: Execution stats, timer status, performance metrics
 - 🛡️ **Error Handling**: Retry logic, timeout handling, failure recovery
 - ⚙️ **Esnek Konfigürasyon**: Max executions, timeout, retry settings
 - 🎛️ **Manual Control**: Start/stop/trigger now functionality
@@ -113,7 +113,7 @@ Position: Start node'undan ÖNCE (workflow entry point)
 
 ---
 
-## 🔗 Workflow Bağlantısı
+##  Workflow Bağlantısı
 
 ### Connection Pattern
 ```
@@ -227,7 +227,7 @@ Sadece manuel tetikleme ile çalışır.
 
 ---
 
-## 🚀 Otomatik Workflow Tetikleme
+##  Otomatik Workflow Tetikleme
 
 ### Tetikleme Mekanizması
 Timer expire olduğunda:
@@ -478,9 +478,9 @@ status = timer_node.get_timer_status()
 from app.nodes.triggers.timer_start_node import get_active_timers
 
 active_timers = get_active_timers()
-print(f"Active timers: {len(active_timers)}")
+logger(f"Active timers: {len(active_timers)}")
 for timer_id, timer_info in active_timers.items():
-    print(f"{timer_id}: {timer_info['status']}")
+    logger(f"{timer_id}: {timer_info['status']}")
 ```
 
 #### Stop All Timers
@@ -488,7 +488,7 @@ for timer_id, timer_info in active_timers.items():
 from app.nodes.triggers.timer_start_node import stop_all_timers
 
 stop_all_timers()
-print("All timers stopped")
+logger("All timers stopped")
 ```
 
 #### Cleanup Completed Timers
@@ -496,12 +496,12 @@ print("All timers stopped")
 from app.nodes.triggers.timer_start_node import cleanup_completed_timers
 
 cleaned_count = cleanup_completed_timers()
-print(f"Cleaned up {cleaned_count} completed timers")
+logger(f"Cleaned up {cleaned_count} completed timers")
 ```
 
 ---
 
-## 📊 Monitoring & İstatistikler
+##  Monitoring & İstatistikler
 
 ### Timer Statistics
 ```python
@@ -556,7 +556,7 @@ Timer node aşağıdaki metrikleri track eder:
 
 ---
 
-## 🔧 Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 
@@ -629,8 +629,8 @@ state.workflow_id = "test-workflow"
 state.user_id = "test-user"
 
 result = timer_node._execute(state)
-print(f"Timer Status: {result['status']}")
-print(f"Next Run: {result['schedule_info']['next_run']}")
+logger(f"Timer Status: {result['status']}")
+logger(f"Next Run: {result['schedule_info']['next_run']}")
 ```
 
 #### Test Manual Trigger
@@ -638,7 +638,7 @@ print(f"Next Run: {result['schedule_info']['next_run']}")
 # Test manual workflow triggering
 async def test_manual_trigger():
     trigger_result = await timer_node.trigger_now()
-    print(f"Manual Trigger Result: {trigger_result}")
+    logger(f"Manual Trigger Result: {trigger_result}")
 
 asyncio.run(test_manual_trigger())
 ```
@@ -647,9 +647,9 @@ asyncio.run(test_manual_trigger())
 ```python
 # Check timer health and status
 status = timer_node.get_timer_status()
-print(f"Timer Active: {status['is_active']}")
-print(f"Execution Count: {status['timer_stats']['execution_count']}")
-print(f"Last Execution: {status['timer_stats']['last_execution']}")
+logger(f"Timer Active: {status['is_active']}")
+logger(f"Execution Count: {status['timer_stats']['execution_count']}")
+logger(f"Last Execution: {status['timer_stats']['last_execution']}")
 ```
 
 ### Log Analysis
@@ -668,7 +668,7 @@ logging.getLogger('app.nodes.triggers.timer_start_node').setLevel(logging.DEBUG)
 
 ---
 
-## 🚀 Production Deployment
+##  Production Deployment
 
 ### Environment Configuration
 ```bash
@@ -757,11 +757,11 @@ def setup_timer_monitoring():
 - **v1.x**: Basic timer implementation (deprecated)
 
 **Last Updated:** 2025-08-05  
-**Status:** ✅ Production Ready
+**Status:**  Production Ready
 
 ---
 
-## 🎯 Quick Start Checklist
+##  Quick Start Checklist
 
 - [ ] Timer node workflow'a eklendi
 - [ ] Start node'a bağlandı
@@ -772,4 +772,4 @@ def setup_timer_monitoring():
 - [ ] Test edildi ve çalışıyor
 - [ ] Production'da monitoring setup edildi
 
-Timer trigger node artık webhook trigger gibi otomatik workflow tetikleme ile tam entegre çalışmaya hazır! 🚀
+Timer trigger node artık webhook trigger gibi otomatik workflow tetikleme ile tam entegre çalışmaya hazır! 

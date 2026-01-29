@@ -340,7 +340,7 @@ function MarketplaceLayout() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">
-                      ⚡ Quick Start Templates
+                      Quick Start Templates
                     </h2>
                     <p className="text-sm text-gray-600">
                       Ready-to-use templates to get you started instantly
