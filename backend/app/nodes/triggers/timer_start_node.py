@@ -177,7 +177,11 @@ class TimerStartNode(TerminatorNode):
                     type=NodePropertyType.SELECT,
                     default="interval",
                     options=[
+<<<<<<< HEAD
                         {"label": "Interval +", "value": "interval", "hint": "Run at regular intervals"},
+=======
+                        {"label": "Interval ", "value": "interval", "hint": "Run at regular intervals"},
+>>>>>>> serialization_fixes
                         {"label": "Cron Expression", "value": "cron", "hint": "Use cron expression for complex scheduling"},
                         {"label": "One Time", "value": "once", "hint": "Run once at a specific time"},
                         {"label": "Manual Trigger", "value": "manual", "hint": "Trigger manually only"},
@@ -238,7 +242,11 @@ class TimerStartNode(TerminatorNode):
                     type=NodePropertyType.SELECT,
                     default="UTC",
                     options=[
+<<<<<<< HEAD
                         {"label": "UTC +", "value": "UTC"},
+=======
+                        {"label": "UTC ", "value": "UTC"},
+>>>>>>> serialization_fixes
                         {"label": "Eastern Time", "value": "America/New_York"},
                         {"label": "Central Time", "value": "America/Chicago"},
                         {"label": "Mountain Time", "value": "America/Denver"},

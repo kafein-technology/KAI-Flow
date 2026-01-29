@@ -179,7 +179,7 @@ class ApiClient {
         if (error.response) {
             const errorData = error.response.data as any;
 
-            // 🔥 Burayı güncelledik
+            //  Burayı güncelledik
             const message =
                 errorData?.message ||
                 errorData?.detail || // <--- burası önemli

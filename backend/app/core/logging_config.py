@@ -24,7 +24,7 @@ from .constants import LOG_LEVEL, ENVIRONMENT
 
 class JSONFormatter(logging.Formatter):
     """JSON formatter for structured logging in production."""
-    
+
     def format(self, record: logging.LogRecord) -> str:
         log_entry = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -35,19 +35,38 @@ class JSONFormatter(logging.Formatter):
             "function": record.funcName,
             "line": record.lineno,
         }
-        
+
         # Add exception info if present
         if record.exc_info:
             log_entry["exception"] = self.formatException(record.exc_info)
-        
+
         # Add extra fields from record
         for key, value in record.__dict__.items():
-            if key not in ['name', 'msg', 'args', 'levelname', 'levelno', 'pathname', 
-                          'filename', 'module', 'exc_info', 'exc_text', 'stack_info',
-                          'lineno', 'funcName', 'created', 'msecs', 'relativeCreated',
-                          'thread', 'threadName', 'processName', 'process', 'getMessage']:
+            if key not in [
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "getMessage",
+            ]:
                 log_entry[key] = value
-        
+
         return json.dumps(log_entry)
 
 
@@ -56,20 +75,22 @@ class HumanReadableFormatter(logging.Formatter):
 
     # ANSI color codes
     COLORS = {
-        'DEBUG': '\033[36m',    # Cyan
-        'INFO': '\033[32m',     # Green
-        'WARNING': '\033[33m',  # Yellow
-        'ERROR': '\033[31m',    # Red
-        'CRITICAL': '\033[35m', # Magenta
-        'RESET': '\033[0m'      # Reset to default
+        "DEBUG": "\033[36m",  # Cyan
+        "INFO": "\033[32m",  # Green
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "CRITICAL": "\033[35m",  # Magenta
+        "RESET": "\033[0m",  # Reset to default
     }
 
     def __init__(self, use_colors=True):
         super().__init__(
             fmt="%(asctime)s | %(levelname)-8s | %(name)-20s | %(funcName)-15s:%(lineno)-4d | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
-        self.use_colors = use_colors and os.name != 'nt'  # Disable colors on Windows by default
+        self.use_colors = (
+            use_colors and os.name != "nt"
+        )  # Disable colors on Windows by default
 
     def format(self, record: logging.LogRecord) -> str:
         # Store the original levelname
@@ -103,43 +124,73 @@ class ColoredLoggerAdapter(logging.LoggerAdapter):
 
 class DatabaseFilter(logging.Filter):
     """Filter to identify database-related log entries."""
-    
+
     def filter(self, record: logging.LogRecord) -> bool:
-        db_keywords = ['database', 'db_', 'sql', 'postgres', 'connection', 'session', 'query']
+        db_keywords = [
+            "database",
+            "db_",
+            "sql",
+            "postgres",
+            "connection",
+            "session",
+            "query",
+        ]
         message = record.getMessage().lower()
         logger_name = record.name.lower()
-        
-        return any(keyword in message or keyword in logger_name for keyword in db_keywords)
+
+        return any(
+            keyword in message or keyword in logger_name for keyword in db_keywords
+        )
 
 
 class APIFilter(logging.Filter):
     """Filter to identify API-related log entries."""
-    
+
     def filter(self, record: logging.LogRecord) -> bool:
-        api_keywords = ['api', 'request', 'response', 'endpoint', 'middleware', 'fastapi']
+        api_keywords = [
+            "api",
+            "request",
+            "response",
+            "endpoint",
+            "middleware",
+            "fastapi",
+        ]
         message = record.getMessage().lower()
         logger_name = record.name.lower()
-        
-        return any(keyword in message or keyword in logger_name for keyword in api_keywords)
+
+        return any(
+            keyword in message or keyword in logger_name for keyword in api_keywords
+        )
 
 
 class ErrorFilter(logging.Filter):
     """Filter to identify error and warning log entries."""
-    
+
     def filter(self, record: logging.LogRecord) -> bool:
         return record.levelno >= logging.WARNING
 
 
 class SecurityFilter(logging.Filter):
     """Filter to identify security-related log entries."""
-    
+
     def filter(self, record: logging.LogRecord) -> bool:
-        security_keywords = ['security', 'auth', 'authentication', 'authorization', 
-                           'suspicious', 'attack', 'malicious', 'unauthorized']
+        security_keywords = [
+            "security",
+            "auth",
+            "authentication",
+            "authorization",
+            "suspicious",
+            "attack",
+            "malicious",
+            "unauthorized",
+        ]
         message = record.getMessage().lower()
         logger_name = record.name.lower()
-        
-        return any(keyword in message or keyword in logger_name for keyword in security_keywords)
+
+        return any(
+            keyword in message or keyword in logger_name
+            for keyword in security_keywords
+        )
 
 
 def setup_log_directories():
@@ -150,45 +201,45 @@ def setup_log_directories():
 
 
 def create_rotating_file_handler(
-    filename: str, 
+    filename: str,
     max_bytes: int = 10 * 1024 * 1024,  # 10MB
     backup_count: int = 5,
-    log_filter: Optional[logging.Filter] = None
+    log_filter: Optional[logging.Filter] = None,
 ) -> logging.handlers.RotatingFileHandler:
     """Create a rotating file handler with optional filtering."""
     handler = logging.handlers.RotatingFileHandler(
         filename, maxBytes=max_bytes, backupCount=backup_count
     )
-    
+
     # Use JSON formatter for production, human-readable for development
     if ENVIRONMENT == "production":
         handler.setFormatter(JSONFormatter())
     else:
         handler.setFormatter(HumanReadableFormatter())
-    
+
     if log_filter:
         handler.addFilter(log_filter)
-    
+
     return handler
 
 
 def setup_comprehensive_logging():
     """
     Setup comprehensive logging system with console output.
-    
+
     Optimized for development and production environments:
     - Console output with appropriate formatting
     - File logging disabled to prevent disk usage issues
     - Structured JSON logs in production
     """
-    
+
     # Configure root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(getattr(logging, LOG_LEVEL.upper()))
-    
+
     # Clear existing handlers
     root_logger.handlers.clear()
-    
+
     # Console handler for immediate feedback
     console_handler = logging.StreamHandler(sys.stdout)
     if ENVIRONMENT == "production":
@@ -200,36 +251,47 @@ def setup_comprehensive_logging():
         console_handler.setLevel(logging.DEBUG)
 
     root_logger.addHandler(console_handler)
-    
+
     # Configure specific loggers
     configure_third_party_loggers()
-    
+
     # Log startup message
     logger = logging.getLogger(__name__)
+<<<<<<< HEAD
     logger.info("Console logging system initialized", extra={
         "environment": ENVIRONMENT,
         "log_level": LOG_LEVEL,
         "handlers_count": len(root_logger.handlers)
     })
+=======
+    logger.info(
+        " Console logging system initialized",
+        extra={
+            "environment": ENVIRONMENT,
+            "log_level": LOG_LEVEL,
+            "handlers_count": len(root_logger.handlers),
+        },
+    )
+>>>>>>> serialization_fixes
 
 
 def configure_third_party_loggers():
     """Configure logging levels for third-party libraries."""
-    
+
     # SQLAlchemy logging
     logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
     logging.getLogger("sqlalchemy.pool").setLevel(logging.INFO)
     logging.getLogger("sqlalchemy.dialects").setLevel(logging.WARNING)
-    
+
     # FastAPI/Uvicorn logging
     logging.getLogger("uvicorn").setLevel(logging.INFO)
     logging.getLogger("uvicorn.access").setLevel(logging.INFO)
     logging.getLogger("fastapi").setLevel(logging.INFO)
-    
+
     # HTTP libraries
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("requests").setLevel(logging.WARNING)
-    
+
     # Asyncio
     logging.getLogger("asyncio").setLevel(logging.WARNING)
 
@@ -267,7 +329,7 @@ def get_colored_logger(name: str) -> ColoredLoggerAdapter:
 def log_performance(func_name: str, duration: float, **extra_context: Any):
     """
     Log performance metrics for function execution.
-    
+
     Args:
         func_name: Name of the function
         duration: Execution duration in seconds
@@ -290,14 +352,14 @@ def log_security_event(
 ):
     """
     Log security-related events.
-    
+
     Args:
         event_type: Type of security event
         details: Event details
         severity: Event severity (info, warning, error)
     """
     logger = logging.getLogger("security")
-    
+
     log_method = getattr(logger, severity.lower(), logger.info)
     log_method(
         f"Security event: {event_type}",
@@ -305,10 +367,12 @@ def log_security_event(
     )
 
 
-def log_database_operation(operation: str, table: str, duration: float, **extra_context: Any):
+def log_database_operation(
+    operation: str, table: str, duration: float, **extra_context: Any
+):
     """
     Log database operations with timing and context.
-    
+
     Args:
         operation: Database operation (SELECT, INSERT, UPDATE, DELETE)
         table: Table name
@@ -316,19 +380,24 @@ def log_database_operation(operation: str, table: str, duration: float, **extra_
         **extra_context: Additional context
     """
     logger = logging.getLogger("database")
-    logger.info(f"Database {operation} on {table}", extra={
-        "db_operation": operation,
-        "db_table": table,
-        "duration_seconds": round(duration, 4),
-        "duration_ms": round(duration * 1000, 2),
-        **extra_context
-    })
+    logger.info(
+        f"Database {operation} on {table}",
+        extra={
+            "db_operation": operation,
+            "db_table": table,
+            "duration_seconds": round(duration, 4),
+            "duration_ms": round(duration * 1000, 2),
+            **extra_context,
+        },
+    )
 
 
-def log_api_request(method: str, path: str, status_code: int, duration: float, **extra_context: Any):
+def log_api_request(
+    method: str, path: str, status_code: int, duration: float, **extra_context: Any
+):
     """
     Log API requests with timing and response information.
-    
+
     Args:
         method: HTTP method
         path: Request path
@@ -337,16 +406,20 @@ def log_api_request(method: str, path: str, status_code: int, duration: float, *
         **extra_context: Additional context
     """
     logger = logging.getLogger("api")
-    
+
     log_level = logging.INFO
     if status_code >= 400:
         log_level = logging.WARNING if status_code < 500 else logging.ERROR
-    
-    logger.log(log_level, f"{method} {path} {status_code}", extra={
-        "http_method": method,
-        "http_path": path,
-        "http_status": status_code,
-        "duration_seconds": round(duration, 4),
-        "duration_ms": round(duration * 1000, 2),
-        **extra_context
-    })
+
+    logger.log(
+        log_level,
+        f"{method} {path} {status_code}",
+        extra={
+            "http_method": method,
+            "http_path": path,
+            "http_status": status_code,
+            "duration_seconds": round(duration, 4),
+            "duration_ms": round(duration * 1000, 2),
+            **extra_context,
+        },
+    )

@@ -95,13 +95,18 @@ class WorkflowExecutionEnhancer:
             logger.info(f"Enhanced build starting (session: {context.session_id})")
             
             # Use dynamic engine to build workflow
+<<<<<<< HEAD
             compiled_graph = engine.build_dynamic_workflow(
                 flow_data, context
             )
             
+=======
+            compiled_graph = engine.build_dynamic_workflow(flow_data, context)
+
+>>>>>>> serialization_fixes
             logger.info(f"Enhanced build completed successfully")
             return context, compiled_graph, engine
-            
+
         except Exception as e:
             logger.error(f"Enhanced build failed: {e}")
             raise
@@ -149,6 +154,7 @@ class WorkflowExecutionEnhancer:
 
 # Global instance for easy use
 _workflow_enhancer = WorkflowExecutionEnhancer()
+
 
 def get_workflow_enhancer() -> WorkflowExecutionEnhancer:
     """Get the global workflow enhancer instance"""

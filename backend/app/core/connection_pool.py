@@ -144,11 +144,16 @@ class ConnectionPool:
             "connections_removed": 0,
             "pool_created_at": time.time()
         }
+<<<<<<< HEAD
         
         logger.info("ConnectionPool initialized")
+=======
+
+        logger.info(" ConnectionPool initialized")
+>>>>>>> serialization_fixes
 
     def add_connection(
-        self, 
+        self,
         source_node_id: str,
         source_handle: str,
         target_node_id: str,
@@ -193,7 +198,7 @@ class ConnectionPool:
                 target_node_id=target_node_id,
                 target_handle=target_handle,
                 data_type=data_type,
-                priority=priority
+                priority=priority,
             )
             
             # Check for duplicate connections
@@ -203,7 +208,7 @@ class ConnectionPool:
                 logger.warning(f"Duplicate connection detected: {connection_key} (existing: {existing_id})")
                 raise ConnectionPoolException(
                     f"Connection already exists: {connection_key}",
-                    details={"existing_connection_id": existing_id}
+                    details={"existing_connection_id": existing_id},
                 )
             
             # Check if connection ID already exists
@@ -388,7 +393,7 @@ class ConnectionPool:
             # Update statistics
             self._stats["total_connections"] -= 1
             self._stats["connections_removed"] += 1
-            
+
             logger.info(
                 f"Connection removed: {connection_key}",
                 extra={
@@ -524,7 +529,11 @@ class ConnectionPool:
             self._stats["total_connections"] = 0
             
             logger.info(
+<<<<<<< HEAD
                 f"ConnectionPool cleared: {connection_count} connections removed",
+=======
+                f" ConnectionPool cleared: {connection_count} connections removed",
+>>>>>>> serialization_fixes
                 extra={"connections_cleared": connection_count}
             )
             

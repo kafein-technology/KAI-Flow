@@ -40,7 +40,7 @@ const executeWorkflowWithStreaming = async (
   chatflow_id: string,
   workflow_id: string
 ) => {
-  console.log('🔄 Starting chat execution with streaming...');
+  console.log(' Starting chat execution with streaming...');
 
   // Track all node data during execution
   const nodeExecutionData: Record<string, any> = {};
@@ -68,7 +68,7 @@ const executeWorkflowWithStreaming = async (
     while (true) {
       const { value, done } = await reader.read();
       if (done) {
-        console.log('🏁 Stream ended');
+        console.log(' Stream ended');
         break;
       }
 
@@ -87,12 +87,12 @@ const executeWorkflowWithStreaming = async (
             // Log specific node events for debugging
             const eventType = parsed.event || parsed.type;
             if (eventType === 'node_start' || eventType === 'node_end') {
-              console.log(`🎯 ${eventType.toUpperCase()}: node_id="${parsed.node_id}" - Looking for match...`);
+              console.log(` ${eventType.toUpperCase()}: node_id="${parsed.node_id}" - Looking for match...`);
             }
 
             // Track all node execution data
             if (eventType === 'node_start' && parsed.node_id) {
-              console.log('📝 Node start tracking:', parsed.node_id, 'input_text:', input_text);
+              console.log(' Node start tracking:', parsed.node_id, 'input_text:', input_text);
 
               // ENHANCEMENT: Use backend-provided input metadata instead of hardcoding
               const backendInputs = parsed.metadata?.inputs || {};
@@ -108,7 +108,7 @@ const executeWorkflowWithStreaming = async (
               // For provider nodes, use metadata inputs
               if (parsed.metadata?.node_type === 'provider' && parsed.metadata.inputs) {
                 nodeExecutionData[parsed.node_id].inputs = parsed.metadata.inputs;
-                console.log('🔧 Provider inputs captured:', parsed.node_id, parsed.metadata.inputs);
+                console.log(' Provider inputs captured:', parsed.node_id, parsed.metadata.inputs);
               }
 
               // For processor nodes like Agent, merge with user's chat input
@@ -127,14 +127,14 @@ const executeWorkflowWithStreaming = async (
                 console.log('🤖 Agent inputs_meta:', parsed.node_id, nodeExecutionData[parsed.node_id].inputs_meta);
               }
 
-              console.log('💾 Node data stored:', parsed.node_id, nodeExecutionData[parsed.node_id]);
+              console.log(' Node data stored:', parsed.node_id, nodeExecutionData[parsed.node_id]);
             }
 
             if (eventType === 'node_end' && parsed.node_id) {
               // Extract output from the event - backend now sends output in node_end events
               const nodeOutput = parsed.output || {};
 
-              console.log('📤 Node end output received:', parsed.node_id, nodeOutput);
+              console.log(' Node end output received:', parsed.node_id, nodeOutput);
 
               if (nodeExecutionData[parsed.node_id]) {
                 // Merge output with existing data
@@ -151,7 +151,7 @@ const executeWorkflowWithStreaming = async (
                 };
               }
 
-              console.log('💾 Node execution data updated:', parsed.node_id, nodeExecutionData[parsed.node_id]);
+              console.log(' Node execution data updated:', parsed.node_id, nodeExecutionData[parsed.node_id]);
             }
 
             // Emit custom event for FlowCanvas to listen
@@ -164,7 +164,7 @@ const executeWorkflowWithStreaming = async (
 
             // Handle error event to display error in UI
             if (event === 'error') {
-              console.error('❌ Chat execution error:', parsed.error || parsed.data);
+              console.error(' Chat execution error:', parsed.error || parsed.data);
 
               // Emit error event for FlowCanvas to display
               window.dispatchEvent(new CustomEvent('chat-execution-error', {
@@ -202,10 +202,10 @@ const executeWorkflowWithStreaming = async (
                 const executionsStore = executionsModule.useExecutionsStore.getState();
                 executionsStore.setCurrentExecutionForWorkflow(workflow_id, executionResult);
               } catch (error) {
-                console.error('❌ Error setting execution result:', error);
+                console.error(' Error setting execution result:', error);
               }
-              console.log('💾 Execution result saved to store');
-              console.log('📊 Final node_outputs:', executionResult.result.node_outputs);
+              console.log(' Execution result saved to store');
+              console.log(' Final node_outputs:', executionResult.result.node_outputs);
 
               // Emit completion event to clear active edges after delay
               setTimeout(() => {
@@ -215,9 +215,9 @@ const executeWorkflowWithStreaming = async (
           } catch (e) {
             // Handle JSON parsing errors gracefully, especially with Turkish characters
             if (e instanceof SyntaxError && e.message.includes('Unterminated string')) {
-              console.warn('⚠️ JSON parsing error (likely due to special characters), skipping chunk:', data.substring(0, 100) + '...');
+              console.warn(' JSON parsing error (likely due to special characters), skipping chunk:', data.substring(0, 100) + '...');
             } else {
-              console.error('❌ Error parsing stream data:', e, 'Raw data:', data.substring(0, 200) + '...');
+              console.error(' Error parsing stream data:', e, 'Raw data:', data.substring(0, 200) + '...');
             }
             // Continue processing other lines instead of breaking
             continue;
@@ -226,10 +226,10 @@ const executeWorkflowWithStreaming = async (
       }
     }
 
-    console.log('✅ Chat streaming execution completed successfully');
+    console.log(' Chat streaming execution completed successfully');
     reader.releaseLock();
   } catch (error) {
-    console.error('❌ Chat streaming execution failed:', error);
+    console.error(' Chat streaming execution failed:', error);
     throw error;
   }
 };

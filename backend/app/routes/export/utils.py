@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # -*- coding: utf-8 -*-
 """Export utility functions."""
 
@@ -198,3 +199,5 @@ def validate_env_variables(dependencies: WorkflowDependencies, env_vars: Dict[st
         "errors": errors,
         "warnings": warnings
     }
+=======
+>>>>>>> serialization_fixes

@@ -113,7 +113,11 @@ async def create_collection(
             collection_data=collection_data.dict()
         )
         
+<<<<<<< HEAD
         logger.info(f"Created collection '{collection.name}' for user {current_user.id}")
+=======
+        logger.info(f" Created collection '{collection.name}' for user {current_user.id}")
+>>>>>>> serialization_fixes
         
         return CollectionResponse(
             id=collection.id,
@@ -127,8 +131,16 @@ async def create_collection(
         )
         
     except Exception as e:
+<<<<<<< HEAD
         logger.error(f"Failed to create collection: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create collection: {str(e)}")
+=======
+        logger.error(f" Failed to create collection: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create collection: {str(e)}"
+        )
+
+>>>>>>> serialization_fixes
 
 @router.get("/collections", response_model=List[CollectionResponse])
 async def list_collections(
@@ -172,6 +184,7 @@ async def list_collections(
             )
             for collection, doc_count in collections_data
         ]
+<<<<<<< HEAD
         
         logger.info(f"Listed {len(collections)} collections for user {current_user.id}")
         return collections
@@ -179,8 +192,24 @@ async def list_collections(
     except Exception as e:
         logger.error(f"Failed to list collections: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to list collections: {str(e)}")
+=======
 
-@router.get("/collections/{collection_id}/analytics", response_model=DocumentAnalyticsResponse)
+        logger.info(
+            f" Listed {len(collections)} collections for user {current_user.id}"
+        )
+        return collections
+        
+    except Exception as e:
+        logger.error(f" Failed to list collections: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list collections: {str(e)}"
+        )
+>>>>>>> serialization_fixes
+
+
+@router.get(
+    "/collections/{collection_id}/analytics", response_model=DocumentAnalyticsResponse
+)
 async def get_collection_analytics(
     collection_id: UUID = Path(..., description="Collection ID"),
     current_user: User = Depends(get_current_user),
@@ -212,7 +241,7 @@ async def get_collection_analytics(
 async def search_documents(
     search_request: DocumentSearchRequest,
     current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ):
     """
     Advanced document search with full-text search and filtering.
@@ -252,9 +281,17 @@ async def search_documents(
             )
             for doc in documents
         ]
+<<<<<<< HEAD
         
         logger.info(f"Search completed: {len(documents)}/{search_metadata['total_count']} documents")
         
+=======
+
+        logger.info(
+            f" Search completed: {len(documents)}/{search_metadata['total_count']} documents"
+        )
+
+>>>>>>> serialization_fixes
         return DocumentSearchResponse(
             documents=document_responses,
             total_count=search_metadata["total_count"],
@@ -265,7 +302,11 @@ async def search_documents(
         )
         
     except Exception as e:
+<<<<<<< HEAD
         logger.error(f"Document search failed: {str(e)}")
+=======
+        logger.error(f" Document search failed: {str(e)}")
+>>>>>>> serialization_fixes
         raise HTTPException(status_code=500, detail=f"Document search failed: {str(e)}")
 
 @router.get("/{document_id}", response_model=DocumentResponse)
@@ -341,7 +382,11 @@ async def delete_document(
         if not success:
             raise HTTPException(status_code=404, detail="Document not found")
         
+<<<<<<< HEAD
         logger.info(f"Deleted document {document_id} for user {current_user.id}")
+=======
+        logger.info(f" Deleted document {document_id} for user {current_user.id}")
+>>>>>>> serialization_fixes
         
         return {"message": "Document deleted successfully", "document_id": str(document_id)}
         
@@ -373,7 +418,11 @@ async def bulk_store_documents(
             collection_id=collection_id
         )
         
+<<<<<<< HEAD
         logger.info(f"Bulk stored {len(stored_documents)} documents for user {current_user.id}")
+=======
+        logger.info(f" Bulk stored {len(stored_documents)} documents for user {current_user.id}")
+>>>>>>> serialization_fixes
         
         return {
             "message": f"Successfully stored {len(stored_documents)} documents",
@@ -418,12 +467,16 @@ async def store_document_chunks(
         )
         
         logger.info(f"Stored {len(stored_chunks)} chunks for document {document_id}")
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> serialization_fixes
         return {
             "message": f"Successfully stored {len(stored_chunks)} chunks",
             "document_id": str(document_id),
             "chunks_count": len(stored_chunks),
-            "chunk_ids": [str(chunk.id) for chunk in stored_chunks]
+            "chunk_ids": [str(chunk.id) for chunk in stored_chunks],
         }
         
     except HTTPException:
@@ -435,7 +488,7 @@ async def store_document_chunks(
 @router.get("/stats/overview")
 async def get_document_stats(
     current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ):
     """
     Get comprehensive document statistics for the user.
@@ -471,7 +524,7 @@ async def get_document_stats(
         )
         
         format_distribution = {row[0]: row[1] for row in format_stats}
-        
+
         # Recent activity (documents created in last 7 days)
         recent_docs = await session.scalar(
             select(func.count(Document.id))

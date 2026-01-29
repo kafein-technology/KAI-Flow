@@ -89,9 +89,20 @@ export interface WorkflowUpdateRequest {
   is_active?: boolean;
 }
 
+// Dashboard stats for a single day
+export interface DashboardDayStats {
+  date: string;
+  prodexec: number;
+  failedprod: number;
+  completed: number;
+  avg_runtime_ms: number;
+}
+
+// Dashboard stats response from API - contains data for different time periods
 export interface WorkflowStats {
-  total_workflows: number;
-  user_id: string;
+  "7days": DashboardDayStats[];
+  "30days": DashboardDayStats[];
+  "90days": DashboardDayStats[];
 }
 
 export interface WorkflowVisibilityUpdate {
@@ -119,7 +130,7 @@ export interface WorkflowTemplateCreate {
   flow_data: WorkflowData;
 }
 
-export interface WorkflowTemplateResponse extends WorkflowTemplate {}
+export interface WorkflowTemplateResponse extends WorkflowTemplate { }
 
 export interface WorkflowValidationResult {
   valid: boolean;

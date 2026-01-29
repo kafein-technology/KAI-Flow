@@ -1603,12 +1603,12 @@ async def load_test(concurrent_requests=10, total_requests=100):
         avg_duration = sum(r["duration"] for r in results) / len(results)
         max_duration = max(r["duration"] for r in results)
         
-        print(f"Load Test Results:")
-        print(f"Total Requests: {total_requests}")
-        print(f"Successful: {successful} ({successful/total_requests*100:.1f}%)")
-        print(f"Average Duration: {avg_duration:.3f}s")
-        print(f"Max Duration: {max_duration:.3f}s")
-        print(f"Requests/second: {total_requests/sum(r['duration'] for r in results):.1f}")
+        logger(f"Load Test Results:")
+        logger(f"Total Requests: {total_requests}")
+        logger(f"Successful: {successful} ({successful/total_requests*100:.1f}%)")
+        logger(f"Average Duration: {avg_duration:.3f}s")
+        logger(f"Max Duration: {max_duration:.3f}s")
+        logger(f"Requests/second: {total_requests/sum(r['duration'] for r in results):.1f}")
 
 if __name__ == "__main__":
     asyncio.run(load_test(concurrent_requests=20, total_requests=200))

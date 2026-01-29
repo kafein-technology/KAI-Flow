@@ -870,12 +870,18 @@ async def get_dashboard_stats(
         )
         executions = executions_q.all()
         # Build a dict of date -> aggregates
+        # Use range(days + 1) to include today in the stats
         day_stats = {}
-        for i in range(days):
+        for i in range(days + 1):
             day = (since + timedelta(days=i)).date()
-            day_stats[day] = {"prodexec": 0, "failedprod": 0, "completed": 0, "runtime_sum": 0.0}
-        for started_at, completed_at, status in executions:
-            day = started_at.date()
+            # Don't include future dates
+            if day <= today:
+                day_stats[day] = {"prodexec": 0, "failedprod": 0, "completed": 0, "runtime_sum": 0.0}
+        
+        for effective_started_at_val, completed_at, status in executions:
+            if effective_started_at_val is None:
+                continue  # Safety check for NULL values
+            day = effective_started_at_val.date()
             if day in day_stats:
                 day_stats[day]["prodexec"] += 1
                 if status and status.lower() == "failed":
@@ -883,8 +889,8 @@ async def get_dashboard_stats(
                 elif status and status.lower() == "completed":
                     day_stats[day]["completed"] += 1
                     try:
-                        if started_at and completed_at:
-                            delta = (completed_at - started_at).total_seconds()
+                        if effective_started_at_val and completed_at:
+                            delta = (completed_at - effective_started_at_val).total_seconds()
                             if delta and delta > 0:
                                 day_stats[day]["runtime_sum"] += float(delta)
                     except Exception:
@@ -897,10 +903,10 @@ async def get_dashboard_stats(
                 "prodexec": day_stats[day]["prodexec"],
                 "failedprod": day_stats[day]["failedprod"],
                 "completed": day_stats[day]["completed"],
-                # average runtime in seconds for completed executions that day
-                "avg_runtime_sec": round(
-                    (day_stats[day]["runtime_sum"] / day_stats[day]["completed"]) if day_stats[day]["completed"] > 0 else 0.0,
-                    2,
+                # average runtime in milliseconds for completed executions that day
+                "avg_runtime_ms": round(
+                    (day_stats[day]["runtime_sum"] / day_stats[day]["completed"] * 1000) if day_stats[day]["completed"] > 0 else 0.0,
+                    0,
                 ),
             }
             for day in sorted(day_stats.keys())
@@ -935,7 +941,11 @@ async def execute_adhoc_workflow(
     chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
     session_id = req.session_id or str(chatflow_id)
     
+<<<<<<< HEAD
     # CRITICAL: session_id must always be present
+=======
+    #  CRITICAL: session_id must always be present
+>>>>>>> serialization_fixes
     if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
         session_id = str(chatflow_id)
         logger.warning(f"Invalid session_id in workflow execution, using chatflow_id: {session_id}")
@@ -984,6 +994,10 @@ async def execute_adhoc_workflow(
             user_id=user_id,
             is_public=False
         )
+        # Save adhoc workflow to database so we can create execution records
+        db.add(workflow)
+        await db.commit()
+        await db.refresh(workflow)
     
     # Prepare execution context using WorkflowExecutor
     ctx = await executor.prepare_execution_context(
@@ -1026,8 +1040,8 @@ async def execute_adhoc_workflow(
         final_outputs = {}
         
         try:
-            if not isinstance(result_stream, AsyncGenerator):
-                raise TypeError("Expected an async generator from the engine for streaming.")
+            if not hasattr(result_stream, "__aiter__"):
+                raise TypeError("Expected an async iterable from the engine for streaming.")
             
             async for chunk in result_stream:
                 if isinstance(chunk, dict):

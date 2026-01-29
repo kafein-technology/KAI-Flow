@@ -7,13 +7,11 @@ import {
   Trash,
   Loader,
   Clock,
-  Container,
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
 import ToggleSwitch from "./ToggleSwitch";
-import WorkflowExportModal from "../modals/WorkflowExportModal";
 
 interface NavbarProps {
   workflowName: string;
@@ -54,7 +52,6 @@ const Navbar: React.FC<NavbarProps> = ({
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
@@ -167,15 +164,7 @@ const Navbar: React.FC<NavbarProps> = ({
     deleteDialogRef.current?.close();
   };
 
-  // Docker export handler
-  const handleDockerExport = () => {
-    if (!currentWorkflow) {
-      enqueueSnackbar("No workflow to export!", { variant: "warning" });
-      return;
-    }
-    setShowExportModal(true);
-    setIsDropdownOpen(false);
-  };
+
 
   return (
     <>
@@ -348,14 +337,7 @@ const Navbar: React.FC<NavbarProps> = ({
                     <Download className="w-5 h-5" />
                     Export JSON
                   </button>
-                  {/* Docker Export */}
-                  <button
-                    className="w-full text-left px-3 py-2 text-black hover:bg-blue-50 rounded flex gap-3 justify-start items-center transition-colors duration-200"
-                    onClick={handleDockerExport}
-                  >
-                    <Container className="w-5 h-5 text-blue-600" />
-                    Docker Export
-                  </button>
+
                   {/* Delete */}
                   <button
                     className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded flex gap-3 justify-start items-center transition-colors duration-200"
@@ -392,7 +374,7 @@ const Navbar: React.FC<NavbarProps> = ({
             workflow'unu silmek istediğine emin misin?
             <br />
             <span className="text-red-600 text-sm font-medium mt-2 block">
-              ⚠️ Bu işlem geri alınamaz!
+              Bu işlem geri alınamaz!
             </span>
           </p>
           <div className="modal-action">
@@ -417,15 +399,7 @@ const Navbar: React.FC<NavbarProps> = ({
         </div>
       </dialog>
 
-      {/* Workflow Export Modal */}
-      {showExportModal && currentWorkflow && (
-        <WorkflowExportModal
-          isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          workflowId={currentWorkflow.id}
-          workflowName={currentWorkflow.name}
-        />
-      )}
+
     </>
   );
 };

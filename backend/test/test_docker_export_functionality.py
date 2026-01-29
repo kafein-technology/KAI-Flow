@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #!/usr/bin/env python3
 """
 Docker Export Functionality - Comprehensive Test Suite
@@ -567,3 +568,5 @@ if __name__ == "__main__":
         print(f"\n{Colors.YELLOW}Test interrupted by user{Colors.END}")
     except Exception as e:
         print(f"\n{Colors.RED}Test suite failed: {str(e)}{Colors.END}")
+=======
+>>>>>>> serialization_fixes

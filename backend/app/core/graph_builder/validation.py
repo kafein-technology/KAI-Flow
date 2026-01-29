@@ -16,9 +16,16 @@ import logging
 from collections import defaultdict
 
 from .types import (
-    ValidationResult, NodeRegistry, START_NODE_TYPE, END_NODE_TYPE,
-    TERMINAL_NODE_TYPES, PooledConnection, ConnectionPoolStats, ConnectionPoolConfig,
-    DEFAULT_POOL_ENABLED, POOL_FEATURE_FLAG
+    ValidationResult,
+    NodeRegistry,
+    START_NODE_TYPE,
+    END_NODE_TYPE,
+    TERMINAL_NODE_TYPES,
+    PooledConnection,
+    ConnectionPoolStats,
+    ConnectionPoolConfig,
+    DEFAULT_POOL_ENABLED,
+    POOL_FEATURE_FLAG,
 )
 from .exceptions import ValidationError
 from app.nodes import BaseNode
@@ -30,7 +37,7 @@ logger = logging.getLogger(__name__)
 class ValidationEngine:
     """
     Handles workflow validation and error checking.
-    
+
     Provides comprehensive validation including:
     - Node structure and configuration validation
     - Connection validation
@@ -38,7 +45,7 @@ class ValidationEngine:
     - Workflow topology validation
     - Control flow validation
     """
-    
+
     def __init__(self, node_registry: NodeRegistry):
         self.node_registry = node_registry
         self._validation_stats = {}

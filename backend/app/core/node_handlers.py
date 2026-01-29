@@ -98,12 +98,16 @@ class MemoryNodeHandler(NodeExecutionHandler):
             logger.debug(
                 f"[DEBUG] Set session_id on memory node {node_id}: {state.session_id}"
             )
+<<<<<<< HEAD
+=======
+
+>>>>>>> serialization_fixes
             # Inject user_id if supported
             self._inject_user_context(source_node_instance, state, node_id)
-            
+
             # Extract memory-specific inputs
             memory_inputs = self._extract_memory_inputs(source_node_instance, state)
-            
+
             # Execute memory node to get instance
             node_instance = source_node_instance.execute(**memory_inputs)
             logger.debug(
@@ -111,15 +115,17 @@ class MemoryNodeHandler(NodeExecutionHandler):
             )
 
             return node_instance
-            
+
         except Exception as e:
             logger.error(f"[ERROR] Failed to extract memory node {node_id}: {e}")
             raise RuntimeError(f"Memory node extraction failed for {node_id}: {str(e)}")
-    
-    def _extract_memory_inputs(self, source_node_instance: Any, state: FlowState) -> Dict[str, Any]:
+
+    def _extract_memory_inputs(
+        self, source_node_instance: Any, state: FlowState
+    ) -> Dict[str, Any]:
         """Extract inputs needed for memory node execution."""
         memory_inputs = {}
-        
+
         # Get memory node input specifications
         for input_spec in source_node_instance.metadata.inputs:
             if input_spec.name in source_node_instance.user_data:
@@ -128,21 +134,21 @@ class MemoryNodeHandler(NodeExecutionHandler):
                 ]
             elif input_spec.default is not None:
                 memory_inputs[input_spec.name] = input_spec.default
-        
+
         # Pass current state variables to memory node
         memory_inputs.update(state.variables)
-        
+
         return memory_inputs
 
 
 class ProviderNodeHandler(NodeExecutionHandler):
     """
     Handler for Provider node types.
-    
+
     Provider nodes create LangChain objects (LLMs, Tools, etc.) from configuration.
     Some provider nodes (like RetrieverProvider) also depend on connections from other nodes.
     """
-    
+
     def __init__(self):
         """Initialize provider node handler."""
         super().__init__()
@@ -172,7 +178,7 @@ class ProviderNodeHandler(NodeExecutionHandler):
 
             # Inject user_id from state into node instance before execution
             self._inject_user_context(source_node_instance, state, node_id)
-            
+
             # Execute provider node to get LangChain object
             node_instance = source_node_instance.execute(**all_inputs)
             logger.debug(
@@ -180,7 +186,7 @@ class ProviderNodeHandler(NodeExecutionHandler):
             )
 
             return node_instance
-            
+
         except Exception as e:
             logger.error(f"[ERROR] Failed to extract provider node {node_id}: {e}")
             raise RuntimeError(
@@ -192,7 +198,7 @@ class ProviderNodeHandler(NodeExecutionHandler):
     ) -> Dict[str, Any]:
         """Extract inputs needed for provider node execution."""
         provider_inputs = {}
-        
+
         # Provider nodes work with user configuration inputs (non-connection inputs)
         for input_spec in source_node_instance.metadata.inputs:
             if not input_spec.is_connection:  # Only non-connection inputs
@@ -286,28 +292,30 @@ class ProviderNodeHandler(NodeExecutionHandler):
                 )
                 # Continue with other connections rather than failing completely
                 continue
-        
+
         return connected_inputs
 
 
 class ProcessorNodeHandler(NodeExecutionHandler):
     """
     Handler for Processor node types.
-    
+
     Processor nodes are the most complex - they combine multiple inputs
     and may need re-execution. This handler implements intelligent caching
     and fallback strategies.
     """
-    
+
     def __init__(self):
         """Initialize processor node handler."""
         super().__init__()
-    
-    def extract_connected_instance(self,
-                                 connection_info: Dict[str, str],
-                                 source_node_instance: Any,
-                                 gnode_instance: Any,
-                                 state: FlowState) -> Any:
+
+    def extract_connected_instance(
+        self,
+        connection_info: Dict[str, str],
+        source_node_instance: Any,
+        gnode_instance: Any,
+        state: FlowState,
+    ) -> Any:
         """Extract processor node output with intelligent caching."""
         node_id = connection_info["source_node_id"]
         input_name = connection_info.get("target_handle", "input")
@@ -328,9 +336,11 @@ class ProcessorNodeHandler(NodeExecutionHandler):
 
             # Inject user_id if supported
             self._inject_user_context(source_node_instance, state, node_id)
-            
-            return self._re_execute_processor(source_node_instance, gnode_instance, state)
-            
+
+            return self._re_execute_processor(
+                source_node_instance, gnode_instance, state
+            )
+
         except Exception as e:
             logger.error(f"[ERROR] Failed to extract processor node {node_id}: {e}")
             raise RuntimeError(
@@ -342,7 +352,7 @@ class ProcessorNodeHandler(NodeExecutionHandler):
     ) -> Optional[Any]:
         """
         Intelligent cached output retrieval with multiple fallback strategies.
-        
+
         Priority order:
         1. Direct input_name match in stored result
         2. Common fallbacks (documents, output)
@@ -350,7 +360,7 @@ class ProcessorNodeHandler(NodeExecutionHandler):
         """
         if not (hasattr(state, "node_outputs") and node_id in state.node_outputs):
             return None
-        
+
         stored_result = state.node_outputs[node_id]
         logger.debug(
             f"[DEBUG] Found stored result for {node_id}: {type(stored_result)}"
@@ -363,32 +373,38 @@ class ProcessorNodeHandler(NodeExecutionHandler):
                     f"[DEBUG] Found specific output '{input_name}' in stored result"
                 )
                 return stored_result[input_name]
-            
+
             # Common fallbacks
             if "documents" in stored_result:
                 logger.debug(f"[DEBUG] Using 'documents' fallback for {input_name}")
                 return stored_result["documents"]
-            
+
             if "output" in stored_result:
                 logger.debug(f"[DEBUG] Using 'output' fallback for {input_name}")
                 return stored_result["output"]
-        
+
         # Return full result as last fallback
         logger.debug("[DEBUG] Using full stored result as fallback")
         return stored_result
-    
-    def _re_execute_processor(self, source_node_instance: Any, gnode_instance: Any, state: FlowState) -> Any:
+
+    def _re_execute_processor(
+        self, source_node_instance: Any, gnode_instance: Any, state: FlowState
+    ) -> Any:
         """
         Re-execute a processor node when cached output is not available.
-        
+
         This builds the proper input context and connected_nodes for execution.
         """
         logger.debug(
             f"[DEBUG] Re-executing processor node {source_node_instance.__class__.__name__}"
         )
+<<<<<<< HEAD
+=======
+
+>>>>>>> serialization_fixes
         # Extract user inputs for processor
         processor_inputs = self._extract_processor_inputs(source_node_instance, state)
-        
+
         # Build connected nodes for processor (recursive but controlled)
         processor_connected_nodes = self._build_connected_nodes_for_processor(
             source_node_instance, gnode_instance, state
@@ -400,15 +416,19 @@ class ProcessorNodeHandler(NodeExecutionHandler):
         )
 
         # Execute processor with proper context
-        result = source_node_instance.execute(processor_inputs, processor_connected_nodes)
-        print(f"[DEBUG] Processor re-execution completed: {type(result)}")
-        
+        result = source_node_instance.execute(
+            processor_inputs, processor_connected_nodes
+        )
+        logger.debug(f"[DEBUG] Processor re-execution completed: {type(result)}")
+
         return self._extract_result_output(result)
-    
-    def _extract_processor_inputs(self, source_node_instance: Any, state: FlowState) -> Dict[str, Any]:
+
+    def _extract_processor_inputs(
+        self, source_node_instance: Any, state: FlowState
+    ) -> Dict[str, Any]:
         """Extract user inputs for processor node execution."""
         processor_inputs = {}
-        
+
         for input_spec in source_node_instance.metadata.inputs:
             if not input_spec.is_connection:  # Only non-connection inputs
                 # Check user_data first
@@ -445,6 +465,10 @@ class ProcessorNodeHandler(NodeExecutionHandler):
         # we might need to inject the main handler registry here
         # For now, we skip deep recursion to avoid complexity
         logger.debug("[DEBUG] Processor connected nodes building skipped for safety")
+<<<<<<< HEAD
+=======
+
+>>>>>>> serialization_fixes
         return connected_nodes
     
     def _extract_result_output(self, result: Any) -> Any:

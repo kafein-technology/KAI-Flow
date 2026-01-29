@@ -325,7 +325,7 @@
       {
         "id": "CodeNode__e9a5e6e3-dbeb-4b7a-9e17-e9f17b28162c",
         "data": {
-          "code": "\nresponse = ${{ agent_1 | tojson }}\n\nlines = [\n    line.strip()\n    for line in response.splitlines()\n    if line.strip() and line.strip() not in (\"startlist/\", \"endlist/\")\n]\nreturn_body= {\"values\":lines}\nprint(return_body)\n",
+          "code": "\nresponse = ${{ agent_1 | tojson }}\n\nlines = [\n    line.strip()\n    for line in response.splitlines()\n    if line.strip() and line.strip() not in (\"startlist/\", \"endlist/\")\n]\nreturn_body= {\"values\":lines}\nlogger(return_body)\n",
           "icon": {
             "alt": null,
             "name": "code",
@@ -348,7 +348,7 @@
               "name": "output",
               "type": "any",
               "direction": "right",
-              "description": "Result from code execution. Output is STDOUT (print/console.log).",
+              "description": "Result from code execution. Output is STDOUT (logger/console.log).",
               "displayName": "Output",
               "is_connection": true
             }
@@ -384,7 +384,7 @@
                 "name": "output",
                 "type": "any",
                 "direction": "right",
-                "description": "Result from code execution. Output is STDOUT (print/console.log).",
+                "description": "Result from code execution. Output is STDOUT (logger/console.log).",
                 "displayName": "Output",
                 "is_connection": true
               }
@@ -418,7 +418,7 @@
                 "name": "code",
                 "rows": 12,
                 "type": "code-editor",
-                "default": "# Python Example\nprint(node_data)",
+                "default": "# Python Example\nlogger(node_data)",
                 "tabName": "basic",
                 "required": true,
                 "maxLength": 50000,

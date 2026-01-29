@@ -36,7 +36,11 @@ def setup_langsmith():
             os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
         if LANGCHAIN_PROJECT:
             os.environ["LANGCHAIN_PROJECT"] = LANGCHAIN_PROJECT
+<<<<<<< HEAD
         logging.info("LangSmith tracing enabled")
+=======
+        logging.info(" LangSmith tracing enabled")
+>>>>>>> serialization_fixes
 
 
 

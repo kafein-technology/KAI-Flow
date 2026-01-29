@@ -74,7 +74,11 @@ async def test_status_code(status_code: int):
 
     # logger to console
     logger.info(
+<<<<<<< HEAD
         f"GET Request with status code {status_code} received at {response_data['timestamp']}"
+=======
+        f" GET Request with status code {status_code} received at {response_data['timestamp']}"
+>>>>>>> serialization_fixes
     )
     logger.info(f"Response: {response_data}")
 
@@ -91,16 +95,28 @@ async def test_delay(seconds: int):
     import asyncio
     
     if seconds < 0 or seconds > 60:
+<<<<<<< HEAD
         raise HTTPException(status_code=400, detail="Delay must be between 0 and 60 seconds")
 
     logger.info(f"Starting delay of {seconds} seconds...")
+=======
+        raise HTTPException(
+            status_code=400, detail="Delay must be between 0 and 60 seconds"
+        )
+
+    logger.info(f" Starting delay of {seconds} seconds...")
+>>>>>>> serialization_fixes
     await asyncio.sleep(seconds)
 
     response_data = {
         "status": "success",
         "message": f"Delay completed after {seconds} seconds",
-        "received_data": {"method": "GET", "delay_seconds": seconds, "endpoint": f"/{API_START}/{API_VERSION}/test/delay/{seconds}"},
-        "timestamp": datetime.datetime.now().isoformat()
+        "received_data": {
+            "method": "GET",
+            "delay_seconds": seconds,
+            "endpoint": f"/{API_START}/{API_VERSION}/test/delay/{seconds}",
+        },
+        "timestamp": datetime.datetime.now().isoformat(),
     }
 
     # logger to console
@@ -109,15 +125,16 @@ async def test_delay(seconds: int):
 
     # Log to file
     logger.info(f"Delay request completed: {response_data}")
-    
+
     return response_data
+
 
 # Basit webhook endpoint'i (authentication olmadan)
 @router.post("/webhook")
 async def test_webhook(request: TestRequest):
     """Basit webhook endpoint - authentication olmadan"""
     import datetime
-    
+
     response_data = {
         "status": "success",
         "message": "Webhook received successfully!",
@@ -125,24 +142,40 @@ async def test_webhook(request: TestRequest):
             "method": "POST",
             "endpoint": f"/{API_START}/{API_VERSION}/test/webhook",
             "message": request.message,
-            "name": request.name
+            "name": request.name,
         },
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.datetime.now().isoformat(),
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> serialization_fixes
     # logger to console
     logger.info(f"Webhook POST Request received at {response_data['timestamp']}")
     logger.info(f"Message: {request.message}")
     logger.info(f"Name: {request.name}")
     logger.info(f"Response: {response_data}")
+<<<<<<< HEAD
     # Log to file
     logger.info(f"Webhook request received: {response_data}")
+=======
+
+    # Log to file
+    logger.info(f"Webhook request received: {response_data}")
+
+>>>>>>> serialization_fixes
     return response_data
+
 
 # Authentication ile webhook endpoint'i
 @router.post("/webhook-auth")
 async def test_webhook_with_auth(request: TestRequest):
     """Authentication ile webhook endpoint"""
     import datetime
+<<<<<<< HEAD
+=======
+
+>>>>>>> serialization_fixes
     response_data = {
         "status": "success",
         "message": "Authenticated webhook received successfully!",
@@ -151,10 +184,14 @@ async def test_webhook_with_auth(request: TestRequest):
             "endpoint": f"/{API_START}/{API_VERSION}/test/webhook-auth",
             "message": request.message,
             "name": request.name,
-            "authenticated": True
+            "authenticated": True,
         },
         "timestamp": datetime.datetime.now().isoformat(),
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> serialization_fixes
     # logger to console
     logger.info(
         f" Authenticated Webhook POST Request received at {response_data['timestamp']}"
@@ -166,5 +203,5 @@ async def test_webhook_with_auth(request: TestRequest):
 
     # Log to file
     logger.info(f"Authenticated webhook request received: {response_data}")
-    
-    return response_data 
+
+    return response_data

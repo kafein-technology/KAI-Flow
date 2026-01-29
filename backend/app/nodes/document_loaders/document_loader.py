@@ -116,7 +116,7 @@ result = loader.execute(
 
 documents = result["documents"]
 stats = result["stats"]
-print(f"Loaded {len(documents)} documents from {stats['sources_processed']} sources")
+logger.info(f"Loaded {len(documents)} documents from {stats['sources_processed']} sources")
 ```
 
 Enterprise Document Processing:
@@ -1067,7 +1067,7 @@ class DocumentLoaderNode(ProcessorNode):
             
             # Convert JSON to readable text
             if isinstance(data, dict):
-                # Pretty print for readability
+                # Pretty logger for readability
                 content = json.dumps(data, indent=2, ensure_ascii=False)
                 
                 # Also create a flattened text version for better processing

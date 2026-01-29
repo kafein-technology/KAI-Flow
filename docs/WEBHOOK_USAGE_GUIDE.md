@@ -1,6 +1,6 @@
 # 🌐 KAI-Fusion Webhook Trigger Kullanım Kılavuzu
 
-## 📋 İçindekiler
+##  İçindekiler
 - [Genel Bakış](#genel-bakış)
 - [Webhook Oluşturma](#webhook-oluşturma)
 - [Workflow Bağlantısı](#workflow-bağlantısı)
@@ -11,16 +11,16 @@
 
 ---
 
-## 🎯 Genel Bakış
+##  Genel Bakış
 
 KAI-Fusion Webhook Trigger Node, external sistemlerin HTTP POST istekleri ile workflow'ları tetiklemesini sağlar. Webhook sanki manuel start butonuna tıklanmış gibi workflow'u başlatır ve complete processing chain'i execute eder.
 
 ### ✨ Temel Özellikler
-- 🔗 **External HTTP Integration**: Dışarıdan API çağrıları kabul eder
-- ⚡ **Automatic Workflow Triggering**: Start node'a bağlanarak workflow'u başlatır
-- 📤 **Output Return**: Workflow sonuçlarını external sistem'e döndürür
+-  **External HTTP Integration**: Dışarıdan API çağrıları kabul eder
+-  **Automatic Workflow Triggering**: Start node'a bağlanarak workflow'u başlatır
+-  **Output Return**: Workflow sonuçlarını external sistem'e döndürür
 - 🔒 **Security**: Authentication, rate limiting, CORS support
-- 📊 **Monitoring**: Event tracking, statistics, correlation ID
+-  **Monitoring**: Event tracking, statistics, correlation ID
 
 ---
 
@@ -75,7 +75,7 @@ Node konfigüre edildiğinde aşağıdaki bilgileri alırsınız:
 
 ---
 
-## 🔗 Workflow Bağlantısı
+##  Workflow Bağlantısı
 
 ### Connection Pattern
 ```
@@ -171,8 +171,8 @@ payload = {
 }
 
 response = requests.post(url, json=payload, headers=headers)
-print(f"Status: {response.status_code}")
-print(f"Response: {response.json()}")
+logger(f"Status: {response.status_code}")
+logger(f"Response: {response.json()}")
 ```
 
 #### JavaScript/Node.js
@@ -457,17 +457,17 @@ Dakika başına maksimum 60 istek.
 Web uygulamaları için cross-origin support.
 
 ### 6. Production Security Checklist
-- ✅ `authentication_required: true`
-- ✅ Strong webhook token
-- ✅ Appropriate rate limits
-- ✅ Event type whitelist
-- ✅ HTTPS endpoint (production)
-- ✅ Payload size limits
-- ✅ Request logging enabled
+-  `authentication_required: true`
+-  Strong webhook token
+-  Appropriate rate limits
+-  Event type whitelist
+-  HTTPS endpoint (production)
+-  Payload size limits
+-  Request logging enabled
 
 ---
 
-## 🔧 Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 
@@ -540,16 +540,16 @@ curl -X GET "http://localhost:8000/health"
 
 ---
 
-## 📊 Monitoring & Analytics
+##  Monitoring & Analytics
 
 ### Webhook Statistics
 ```python
 # Get webhook statistics
 webhook_stats = webhook_node.get_webhook_stats()
-print(f"Total events: {webhook_stats['total_events']}")
-print(f"Event types: {webhook_stats['event_types']}")
-print(f"Sources: {webhook_stats['sources']}")
-print(f"Last event: {webhook_stats['last_event_at']}")
+logger(f"Total events: {webhook_stats['total_events']}")
+logger(f"Event types: {webhook_stats['event_types']}")
+logger(f"Sources: {webhook_stats['sources']}")
+logger(f"Last event: {webhook_stats['last_event_at']}")
 ```
 
 ### Available Metrics
@@ -561,7 +561,7 @@ print(f"Last event: {webhook_stats['last_event_at']}")
 
 ---
 
-## 🚀 Production Deployment
+##  Production Deployment
 
 ### Environment Variables
 ```bash
@@ -614,4 +614,4 @@ ab -n 100 -c 10 -p payload.json -T application/json \
 - **v1.x**: Legacy implementation (deprecated)
 
 **Last Updated:** 2025-08-04  
-**Status:** ✅ Production Ready
+**Status:**  Production Ready

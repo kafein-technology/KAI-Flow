@@ -167,7 +167,7 @@ def performance_monitor(func):
             detection_source = "dynamic"
             if hasattr(result, 'detection_source'):
                 detection_source = result.detection_source
-            
+
             # Record successful lookup
             lookup_time_ms = (time.time() - start_time) * 1000
             self._stats.record_lookup(lookup_time_ms, detection_source)
@@ -184,7 +184,11 @@ def performance_monitor(func):
 
 class DynamicTypeDetector:
     """
+<<<<<<< HEAD
     PHASE 1: Core Dynamic Type Detection Service
+=======
+     PHASE 1: Core Dynamic Type Detection Service
+>>>>>>> serialization_fixes
     
     Sophisticated metadata-driven node type detection system that replaces
     hardcoded static mappings with dynamic analysis of node metadata.
@@ -202,7 +206,11 @@ class DynamicTypeDetector:
         self._type_cache: Dict[str, NodeTypeInfo] = {}
         self._stats = DetectionStats()
         
+<<<<<<< HEAD
         # FALLBACK: Legacy compatibility mappings (transitional only)
+=======
+        #  FALLBACK: Legacy compatibility mappings (transitional only)
+>>>>>>> serialization_fixes
         self._legacy_mappings = {
             # Processor nodes
             'ReactAgent': NodeType.PROCESSOR,
@@ -222,9 +230,9 @@ class DynamicTypeDetector:
             'OpenAIEmbeddingsProvider': NodeType.PROVIDER,
             
             # Control flow (when implemented)
-            'ConditionalNode': NodeType.PROCESSOR,  # Control flow nodes are typically processors
-            'LoopNode': NodeType.PROCESSOR,
-            'ParallelNode': NodeType.PROCESSOR,
+            "ConditionalNode": NodeType.PROCESSOR,  # Control flow nodes are typically processors
+            "LoopNode": NodeType.PROCESSOR,
+            "ParallelNode": NodeType.PROCESSOR,
         }
         
         logger.info(" Dynamic Type Detector initialized - Phase 1")
@@ -244,7 +252,11 @@ class DynamicTypeDetector:
             cached_info.detection_source = "cache"
             return cached_info
         
+<<<<<<< HEAD
         # LEVEL 2: Dynamic detection from node registry
+=======
+        #  LEVEL 2: Dynamic detection from node registry
+>>>>>>> serialization_fixes
         try:
             type_info = self._detect_from_metadata(node_type_name)
             if type_info:
@@ -270,7 +282,7 @@ class DynamicTypeDetector:
             node_type=NodeType.PROVIDER,  # Safe default
             category="Unknown",
             detection_source="error_fallback",
-            metadata={"error": "Type detection failed", "node_name": node_type_name}
+            metadata={"error": "Type detection failed", "node_name": node_type_name},
         )
         
         return error_info
@@ -336,7 +348,7 @@ class DynamicTypeDetector:
             if any(keyword in tags_text for keyword in control_flow_keywords):
                 logger.debug(f"CONTROL_FLOW detected via tags: {metadata.tags}")
                 return True
-        
+
         # 4. Check description for control flow patterns
         if hasattr(metadata, "description") and metadata.description:
             description_lower = metadata.description.lower()
@@ -366,13 +378,19 @@ class DynamicTypeDetector:
                 category="Legacy",
                 is_control_flow=False,  # Conservative assumption
                 session_aware=self._determine_session_awareness(fallback_type),
-                metadata={"source": "legacy_fallback", "original_name": node_type_name}
+                metadata={"source": "legacy_fallback", "original_name": node_type_name},
             )
-        
+
         return None
+<<<<<<< HEAD
     
     # PUBLIC API: Replacement methods for hardcoded sets
     
+=======
+
+    #  PUBLIC API: Replacement methods for hardcoded sets
+
+>>>>>>> serialization_fixes
     def get_processor_node_types(self) -> Set[str]:
         """ DYNAMIC: Get all processor node types"""
         return self._get_nodes_by_type(NodeType.PROCESSOR)

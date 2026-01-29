@@ -15,7 +15,6 @@ from app.models.workflow import Workflow
 from app.core.node_registry import node_registry
 from .schemas import WorkflowDependencies, SecurityConfig, MonitoringConfig, DockerConfig
 from .workflow_templates import create_workflow_engine, create_main_py, create_dockerfile
-from app.core.constants import API_START,API_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -741,7 +740,11 @@ def _register_discovered_items():
         logger.debug(f"Registered classes: {_available_classes}")
         
     except Exception as e:
+<<<<<<< HEAD
         logger.warning(f"Registration failed: {e}")
+=======
+        logger.warning(f"  Registration failed: {e}")
+>>>>>>> serialization_fixes
 
 # Register discovered items
 _register_discovered_items()
@@ -759,7 +762,11 @@ def __getattr__(name):
         try:
             return importlib.import_module(f".{name}", package="nodes")
         except ImportError as e:
+<<<<<<< HEAD
             logger.warning(f"Failed to import {name}: {e}")
+=======
+            logger.warning(f"  Failed to import {name}: {e}")
+>>>>>>> serialization_fixes
             raise AttributeError(f"module 'nodes' has no attribute '{name}'")
     
     if name in _available_classes:
@@ -781,12 +788,20 @@ def __getattr__(name):
 
 def create_minimal_backend(dependencies: WorkflowDependencies, workflow_flow_data: Dict[str, Any] = None) -> Dict[str, str]:
     """Create modular backend components."""
+<<<<<<< HEAD
     logger.info("Creating modular backend")
+=======
+    logger.info(" Creating modular backend")
+>>>>>>> serialization_fixes
     
     # Extract node implementations to separate files
     if workflow_flow_data:
         modular_files = extract_modular_node_implementations(workflow_flow_data)
+<<<<<<< HEAD
         logger.info(f"{len(modular_files)} node files created")
+=======
+        logger.info(f"  {len(modular_files)} node files created")
+>>>>>>> serialization_fixes
     else:
         modular_files = {"nodes/__init__.py": create_base_definitions()}
     
@@ -817,7 +832,11 @@ def filter_requirements_for_nodes(node_types: List[str]) -> str:
         return "\n".join(sorted(dynamic_packages))
         
     except Exception as e:
+<<<<<<< HEAD
         logger.error(f"Dynamic package filtering failed: {e}")
+=======
+        logger.error(f"  Dynamic package filtering failed: {e}")
+>>>>>>> serialization_fixes
         
         # Fallback
         base_packages = ["fastapi>=0.104.0", "uvicorn[standard]>=0.24.0", "langchain>=0.1.0", "pydantic>=2.5.0"]
@@ -889,7 +908,7 @@ Ready-to-run Docker export of your KAI-Fusion workflow.
 ## API Usage
 
 ```bash
-curl -X POST http://localhost:{port}/{API_START}/workflow/execute \\
+curl -X POST http://localhost:{port}/api/workflow/execute \\
   -H "Content-Type: application/json" \\
   -d '{{"input": "Your input here"}}'
 ```
@@ -953,7 +972,7 @@ def create_workflow_export_package(components: Dict[str, Any]) -> Dict[str, Any]
         logger.info(f"  Export package created: {permanent_zip_path}")
         
         return {
-            "download_url": f"/{API_START}/{API_VERSION}/export/download/{package_name}.zip",
+            "download_url": f"/api/v1/export/download/{package_name}.zip",
             "package_size": os.path.getsize(permanent_zip_path),
             "local_path": permanent_zip_path
         }

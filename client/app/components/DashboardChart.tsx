@@ -36,6 +36,22 @@ interface DashboardChartProps {
 // Custom Tooltip for recharts
 const CustomTooltip = ({ active, payload, label, dataKeys, config }: any) => {
   if (!active || !payload || !payload.length) return null;
+
+  const formatValue = (key: string, value: any) => {
+    if (typeof value !== "number") return value;
+    if (key.includes("runtime") || key.includes("duration")) {
+      if (value === 0) return "0s";
+      if (value < 60000) {
+        return `${(value / 1000).toFixed(2)} s`;
+      }
+      const minutes = Math.floor(value / 60000);
+      const remainingMs = value % 60000;
+      const seconds = (remainingMs / 1000).toFixed(2);
+      return `${minutes}m ${seconds} s`;
+    }
+    return value.toLocaleString();
+  };
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-2xl px-4 py-3 min-w-[180px] z-[9999] relative">
       <div className="text-xs font-semibold text-gray-900 mb-2">{label}</div>
@@ -53,9 +69,7 @@ const CustomTooltip = ({ active, payload, label, dataKeys, config }: any) => {
                 {config[key]?.label || key}
               </span>
               <span className="ml-auto font-bold text-gray-900 text-sm">
-                {typeof entry.value === "number"
-                  ? entry.value.toLocaleString()
-                  : entry.value}
+                {formatValue(key, entry.value)}
               </span>
             </div>
           );
@@ -75,13 +89,40 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
 }) => {
   const [activeDataKey, setActiveDataKey] = React.useState<string>(dataKeys[0]);
 
-  // Calculate total for each data key
+  // Calculate total/average for each data key
   const totals = React.useMemo(() => {
     return dataKeys.reduce((acc, key) => {
-      acc[key] = data.reduce((sum, item) => sum + (Number(item[key]) || 0), 0);
+      const isRuntime = key.includes("runtime") || key.includes("duration");
+
+      if (isRuntime) {
+        // Average for days that actually have runtime info
+        const values = data
+          .map(item => Number(item[key]) || 0)
+          .filter(v => v > 0);
+        acc[key] = values.length > 0
+          ? values.reduce((sum, v) => sum + v, 0) / values.length
+          : 0;
+      } else {
+        // Simple sum for counts
+        acc[key] = data.reduce((sum, item) => sum + (Number(item[key]) || 0), 0);
+      }
       return acc;
     }, {} as Record<string, number>);
   }, [data, dataKeys]);
+
+  const formatTotalValue = (key: string, value: number) => {
+    if (key.includes("runtime") || key.includes("duration")) {
+      if (value === 0) return "0s";
+      if (value < 60000) {
+        return `${(value / 1000).toFixed(2)} s`;
+      }
+      const minutes = Math.floor(value / 60000);
+      const remainingMs = value % 60000;
+      const seconds = (remainingMs / 1000).toFixed(2);
+      return `${minutes}m ${seconds} s`;
+    }
+    return value.toLocaleString();
+  };
 
   return (
     <div
@@ -99,16 +140,15 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
             <button
               key={key}
               onClick={() => setActiveDataKey(key)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 ${
-                activeDataKey === key
-                  ? "bg-blue-100 dark:bg-blue-600 text-blue-700 dark:text-blue-300"
-                  : "hover:bg-gray-100 dark:hover:bg-gray-500 text-foreground"
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 ${activeDataKey === key
+                ? "bg-blue-100 dark:bg-blue-600 text-blue-700 dark:text-blue-300"
+                : "hover:bg-gray-100 dark:hover:bg-gray-500 text-foreground"
+                }`}
               style={{ marginLeft: key !== dataKeys[0] ? 8 : 0 }}
             >
               <span>{config[key]?.label || key}</span>
               <span className="block text-xs text-muted-foreground font-normal">
-                {totals[key].toLocaleString()}
+                {formatTotalValue(key, totals[key])}
               </span>
             </button>
           ))}
@@ -165,10 +205,20 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                 }}
               />
               <YAxis
+                yAxisId="left"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={10}
                 tick={{ fill: "#6b7280" }}
+                orientation="left"
+              />
+              <YAxis
+                yAxisId="right"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+                tick={{ fill: "#6b7280" }}
+                orientation="right"
               />
               <Tooltip
                 content={<CustomTooltip dataKeys={dataKeys} config={config} />}
@@ -183,19 +233,25 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                   });
                 }}
               />
-              {dataKeys.map((key) => (
-                <Area
-                  key={key}
-                  type="monotone"
-                  dataKey={key}
-                  stroke={config[key]?.color || "#2563eb"}
-                  fill={`url(#gradient-${key})`}
-                  fillOpacity={activeDataKey === key ? 1 : 0.2}
-                  strokeWidth={activeDataKey === key ? 2 : 1}
-                  opacity={activeDataKey === key ? 1 : 0.5}
-                  isAnimationActive={true}
-                />
-              ))}
+              {dataKeys.map((key) => {
+                const isRuntime = key.includes("runtime") || key.includes("duration");
+                return (
+                  <Area
+                    key={key}
+                    type="monotone"
+                    dataKey={key}
+                    yAxisId={isRuntime ? "right" : "left"}
+                    stroke={config[key]?.color || "#2563eb"}
+                    fill={`url(#gradient-${key})`}
+                    fillOpacity={activeDataKey === key ? 0.3 : 0.05}
+                    strokeWidth={activeDataKey === key ? 3 : 1.5}
+                    dot={{ r: 4, strokeWidth: 1, fill: config[key]?.color || "#2563eb", fillOpacity: activeDataKey === key ? 1 : 0.4 }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                    opacity={activeDataKey === key ? 1 : 0.4}
+                    isAnimationActive={true}
+                  />
+                );
+              })}
             </AreaChart>
           </ResponsiveContainer>
         </div>

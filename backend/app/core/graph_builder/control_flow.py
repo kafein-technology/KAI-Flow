@@ -71,6 +71,7 @@ class ControlFlowManager:
                 try:
                     if ctype == ControlFlowType.CONDITIONAL:
                         self.add_conditional_routing(graph, node_id, cdata)
+<<<<<<< HEAD
                         logger.debug(f"Added conditional routing for {node_id}")
                     elif ctype == ControlFlowType.LOOP:
                         self.add_loop_logic(graph, node_id, cdata)
@@ -78,6 +79,15 @@ class ControlFlowManager:
                     elif ctype == ControlFlowType.PARALLEL:
                         self.add_parallel_fanout(graph, node_id, cdata)
                         logger.debug(f"Added parallel fanout for {node_id}")
+=======
+                        logger.debug(f"    Added conditional routing for {node_id}")
+                    elif ctype == ControlFlowType.LOOP:
+                        self.add_loop_logic(graph, node_id, cdata)
+                        logger.debug(f"    Added loop logic for {node_id}")
+                    elif ctype == ControlFlowType.PARALLEL:
+                        self.add_parallel_fanout(graph, node_id, cdata)
+                        logger.debug(f"    Added parallel fanout for {node_id}")
+>>>>>>> serialization_fixes
                     else:
                         logger.warning(f"Unknown control flow type for {node_id}: {ctype}")
                         
@@ -98,7 +108,11 @@ class ControlFlowManager:
                 "parallel_nodes": sum(1 for info in nodes_to_process.values() if info["type"] == ControlFlowType.PARALLEL)
             }
             
+<<<<<<< HEAD
             logger.info(f"Control flow edges added successfully. Stats: {self._control_flow_stats}")
+=======
+            logger.info(f" Control flow edges added successfully. Stats: {self._control_flow_stats}")
+>>>>>>> serialization_fixes
             
         except Exception as e:
             logger.error(f"Failed to add control flow edges: {e}")

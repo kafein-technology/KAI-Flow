@@ -16,6 +16,7 @@ import {
   MessageCircle,
   Eye,
   X,
+  Download,
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 
@@ -45,6 +46,7 @@ import Loading from "~/components/Loading";
 import PinnedItemsSection from "~/components/common/PinnedItemsSection";
 import PinButton from "~/components/common/PinButton";
 import WorkflowEditModal from "~/components/modals/WorkflowEditModal";
+import WorkflowExportModal from "~/components/modals/WorkflowExportModal";
 
 const ErrorMessageBlock = ({
   error,
@@ -153,6 +155,7 @@ function WorkflowsLayout() {
   const [showRemoveExternalConfirm, setShowRemoveExternalConfirm] =
     useState(false);
   const [page, setPage] = useState(1);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Sayfalama hesaplamaları
   const totalItems = workflows.length; // Use workflows from the store for total count
@@ -403,22 +406,20 @@ function WorkflowsLayout() {
                 <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                   <button
                     onClick={() => setActiveTab("my-workflows")}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
-                      activeTab === "my-workflows"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${activeTab === "my-workflows"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                      }`}
                   >
                     <Activity className="w-4 h-4" />
                     My Workflows
                   </button>
                   <button
                     onClick={() => setActiveTab("external-workflows")}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
-                      activeTab === "external-workflows"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${activeTab === "external-workflows"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                      }`}
                   >
                     <Globe className="w-4 h-4" />
                     External Workflows
@@ -430,21 +431,19 @@ function WorkflowsLayout() {
                   <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                     <button
                       onClick={() => setStatusFilter("all")}
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                        statusFilter === "all"
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
+                      className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${statusFilter === "all"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                        }`}
                     >
                       All
                     </button>
                     <button
                       onClick={() => setStatusFilter("active")}
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                        statusFilter === "active"
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
+                      className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${statusFilter === "active"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -453,11 +452,10 @@ function WorkflowsLayout() {
                     </button>
                     <button
                       onClick={() => setStatusFilter("inactive")}
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                        statusFilter === "inactive"
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
+                      className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${statusFilter === "inactive"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
@@ -490,6 +488,16 @@ function WorkflowsLayout() {
                       <Plus className="w-5 h-5" />
                       Create Workflow
                     </Link>
+
+                    {/* Export Workflows Button */}
+                    <button
+                      onClick={() => setShowExportModal(true)}
+                      disabled={workflows.length === 0}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export
+                    </button>
                   </div>
                 )}
 
@@ -534,11 +542,10 @@ function WorkflowsLayout() {
                         >
                           {/* Status Indicator Bar */}
                           <div
-                            className={`absolute top-0 left-0 right-0 h-1 ${
-                              workflow.is_active
-                                ? "bg-gradient-to-r from-green-500 to-emerald-500"
-                                : "bg-gradient-to-r from-gray-400 to-gray-500"
-                            }`}
+                            className={`absolute top-0 left-0 right-0 h-1 ${workflow.is_active
+                              ? "bg-gradient-to-r from-green-500 to-emerald-500"
+                              : "bg-gradient-to-r from-gray-400 to-gray-500"
+                              }`}
                           />
 
                           {/* Header */}
@@ -546,11 +553,10 @@ function WorkflowsLayout() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <div
-                                  className={`w-2 h-2 rounded-full ${
-                                    workflow.is_active
-                                      ? "bg-green-500 animate-pulse"
-                                      : "bg-gray-400"
-                                  }`}
+                                  className={`w-2 h-2 rounded-full ${workflow.is_active
+                                    ? "bg-green-500 animate-pulse"
+                                    : "bg-gray-400"
+                                    }`}
                                 />
                                 <Link
                                   to={`/canvas?workflow=${workflow.id}`}
@@ -587,20 +593,18 @@ function WorkflowsLayout() {
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                               <span
-                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
-                                  workflow.is_public
-                                    ? "bg-blue-100 text-blue-800 border border-blue-200"
-                                    : "bg-gray-100 text-gray-800 border border-gray-200"
-                                }`}
+                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${workflow.is_public
+                                  ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                  : "bg-gray-100 text-gray-800 border border-gray-200"
+                                  }`}
                               >
                                 {workflow.is_public ? "Public" : "Private"}
                               </span>
                               <span
-                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
-                                  workflow.is_active
-                                    ? "bg-green-100 text-green-800 border border-green-200"
-                                    : "bg-gray-100 text-gray-600 border border-gray-200"
-                                }`}
+                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${workflow.is_active
+                                  ? "bg-green-100 text-green-800 border border-green-200"
+                                  : "bg-gray-100 text-gray-600 border border-gray-200"
+                                  }`}
                               >
                                 {workflow.is_active ? (
                                   <>
@@ -695,11 +699,10 @@ function WorkflowsLayout() {
                           <button
                             key={p}
                             onClick={() => setPage(p)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                              p === page
-                                ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
-                                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                            }`}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${p === page
+                              ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
+                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                              }`}
                           >
                             {p}
                           </button>
@@ -786,13 +789,12 @@ function WorkflowsLayout() {
                       >
                         {/* Status Indicator Bar */}
                         <div
-                          className={`absolute top-0 left-0 right-0 h-1 ${
-                            workflow.connection_status === "online"
-                              ? "bg-gradient-to-r from-green-500 to-emerald-500"
-                              : workflow.connection_status === "offline"
+                          className={`absolute top-0 left-0 right-0 h-1 ${workflow.connection_status === "online"
+                            ? "bg-gradient-to-r from-green-500 to-emerald-500"
+                            : workflow.connection_status === "offline"
                               ? "bg-gradient-to-r from-red-500 to-red-600"
                               : "bg-gradient-to-r from-yellow-500 to-orange-500"
-                          }`}
+                            }`}
                         />
 
                         {/* Header */}
@@ -800,13 +802,12 @@ function WorkflowsLayout() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <div
-                                className={`w-2 h-2 rounded-full ${
-                                  workflow.connection_status === "online"
-                                    ? "bg-green-500 animate-pulse"
-                                    : workflow.connection_status === "offline"
+                                className={`w-2 h-2 rounded-full ${workflow.connection_status === "online"
+                                  ? "bg-green-500 animate-pulse"
+                                  : workflow.connection_status === "offline"
                                     ? "bg-red-500"
                                     : "bg-yellow-500"
-                                }`}
+                                  }`}
                               />
                               <h3 className="text-lg font-semibold text-gray-900 group-hover:text-green-600 transition-colors">
                                 {workflow.name}
@@ -856,13 +857,12 @@ function WorkflowsLayout() {
                           <div className="text-xs text-gray-500">
                             Status:{" "}
                             <span
-                              className={`font-medium ${
-                                workflow.connection_status === "online"
-                                  ? "text-green-600"
-                                  : workflow.connection_status === "offline"
+                              className={`font-medium ${workflow.connection_status === "online"
+                                ? "text-green-600"
+                                : workflow.connection_status === "offline"
                                   ? "text-red-600"
                                   : "text-yellow-600"
-                              }`}
+                                }`}
                             >
                               {workflow.connection_status}
                             </span>
@@ -1212,6 +1212,13 @@ function WorkflowsLayout() {
         onClose={handleEditModalClose}
         onSubmit={handleWorkflowEditSubmit}
         isLoading={isLoading}
+      />
+
+      {/* Workflow Export Modal */}
+      <WorkflowExportModal
+        isOpen={showExportModal}
+        workflows={workflows}
+        onClose={() => setShowExportModal(false)}
       />
     </div>
   );

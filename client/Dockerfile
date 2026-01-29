@@ -8,14 +8,14 @@ RUN npm ci
 FROM node:22-alpine AS build
 WORKDIR /app
 
-# ✅ Build-time env değişkenleri tanımlanıyor
+#  Build-time env değişkenleri tanımlanıyor
 ARG VITE_API_BASE_URL
 ARG VITE_API_VERSION
 ARG VITE_BASE_PATH
 ARG VITE_NODE_ENV
 ARG VITE_ENABLE_LOGGING
 
-# ✅ Build ortamına geçiriliyor
+#  Build ortamına geçiriliyor
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_API_VERSION=$VITE_API_VERSION
 ENV VITE_BASE_PATH=$VITE_BASE_PATH
@@ -25,7 +25,7 @@ ENV VITE_ENABLE_LOGGING=$VITE_ENABLE_LOGGING
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
 
-# ✅ Build sırasında env'ler gömülmüş olacak
+#  Build sırasında env'ler gömülmüş olacak
 RUN npm run build
 
 # 3. Prod sunucu - Using 'serve' for static file serving

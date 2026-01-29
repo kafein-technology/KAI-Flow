@@ -584,6 +584,10 @@ class RetrieverProvider(ProviderNode):
     Query: A technical issue occurred while searching for '{query}'.
     
     # WARNING: ERROR DETAILS:
+<<<<<<< HEAD
+=======
+    logger.warning("ERROR DETAILS:")
+>>>>>>> serialization_fixes
     {error_msg}
     
     SEARCH SUMMARY:

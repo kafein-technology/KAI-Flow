@@ -234,24 +234,23 @@ class EnhancedMemoryManager:
                 reason_str = ", ".join(reasons)
                 if self.cleanup_memory(session_id, f"policy: {reason_str}"):
                     cleaned_count += 1
-            
             if cleaned_count > 0:
+<<<<<<< HEAD
                 logger.info(f"Automatic memory cleanup: {cleaned_count} sessions")
+=======
+                logger.info(f" Automatic memory cleanup: {cleaned_count} sessions")
+>>>>>>> serialization_fixes
     def _force_cleanup(self):
         """Force cleanup of oldest memory sessions."""
         with self._lock:
             if not self._memory_metrics:
                 return
-            
             # Sort by last accessed time (oldest first)
             sorted_sessions = sorted(
-                self._memory_metrics.items(),
-                key=lambda x: x[1].last_accessed
+                self._memory_metrics.items(), key=lambda x: x[1].last_accessed
             )
-            
             # Clean up oldest 25% of sessions
             cleanup_count = max(1, len(sorted_sessions) // 4)
-            
             for session_id, _ in sorted_sessions[:cleanup_count]:
                 self.cleanup_memory(session_id, "force cleanup")
             logger.warning(f" Force memory cleanup: {cleanup_count} sessions")
@@ -298,7 +297,11 @@ class EnhancedMemoryManager:
     def optimize_memory(self):
         """Perform memory optimization."""
         with self._lock:
+<<<<<<< HEAD
             logger.info("Starting memory optimization")
+=======
+            logger.info(" Starting memory optimization")
+>>>>>>> serialization_fixes
             
             # Update all memory metrics
             for session_id in self._session_memories.keys():

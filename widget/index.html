@@ -1,347 +1,326 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KAI-Fusion Widget Demo</title>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
 
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KAI-Fusion Widget Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      color: #2563eb;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #6b7280;
+      font-size: 1.1rem;
+    }
+
+    .config-section {
+      background: #f8fafc;
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+
+    .config-title {
+      color: #1f2937;
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .input-group {
+      margin-bottom: 16px;
+    }
+
+    .input-group label {
+      display: block;
+      color: #374151;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: #2563eb;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-secondary {
+      background: #6b7280;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
+
+    .btn-success {
+      background: #059669;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #047857;
+    }
+
+    .status {
+      background: #f3f4f6;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      color: #374151;
+      white-space: pre-wrap;
+      margin-top: 16px;
+    }
+
+    .demo-section {
+      margin-bottom: 30px;
+    }
+
+    .demo-title {
+      color: #1f2937;
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .integration-code {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: "Courier New", monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: #374151;
+      color: #e5e7eb;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      background: #4b5563;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        margin: 10px;
         padding: 20px;
       }
 
-      .container {
-        max-width: 800px;
-        margin: 0 auto;
-        background: white;
-        border-radius: 20px;
-        padding: 40px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-      }
-
-      .header {
-        text-align: center;
-        margin-bottom: 40px;
-      }
-
       .header h1 {
-        color: #2563eb;
-        font-size: 2.5rem;
-        margin-bottom: 10px;
-      }
-
-      .header p {
-        color: #6b7280;
-        font-size: 1.1rem;
-      }
-
-      .config-section {
-        background: #f8fafc;
-        padding: 24px;
-        border-radius: 12px;
-        margin-bottom: 30px;
-      }
-
-      .config-title {
-        color: #1f2937;
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .input-group {
-        margin-bottom: 16px;
-      }
-
-      .input-group label {
-        display: block;
-        color: #374151;
-        font-weight: 500;
-        margin-bottom: 6px;
-      }
-
-      .input-group input {
-        width: 100%;
-        padding: 12px;
-        border: 2px solid #e5e7eb;
-        border-radius: 8px;
-        font-size: 14px;
-        transition: border-color 0.2s;
-      }
-
-      .input-group input:focus {
-        outline: none;
-        border-color: #2563eb;
+        font-size: 2rem;
       }
 
       .buttons {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
+        flex-direction: column;
       }
+    }
+  </style>
+</head>
 
-      .btn {
-        padding: 10px 20px;
-        border: none;
-        border-radius: 8px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .btn-primary {
-        background: #2563eb;
-        color: white;
-      }
-
-      .btn-primary:hover {
-        background: #1d4ed8;
-      }
-
-      .btn-secondary {
-        background: #6b7280;
-        color: white;
-      }
-
-      .btn-secondary:hover {
-        background: #4b5563;
-      }
-
-      .btn-success {
-        background: #059669;
-        color: white;
-      }
-
-      .btn-success:hover {
-        background: #047857;
-      }
-
-      .status {
-        background: #f3f4f6;
-        padding: 16px;
-        border-radius: 8px;
-        font-family: "Courier New", monospace;
-        font-size: 12px;
-        color: #374151;
-        white-space: pre-wrap;
-        margin-top: 16px;
-      }
-
-      .demo-section {
-        margin-bottom: 30px;
-      }
-
-      .demo-title {
-        color: #1f2937;
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin-bottom: 16px;
-      }
-
-      .integration-code {
-        background: #1e293b;
-        color: #e2e8f0;
-        padding: 16px;
-        border-radius: 8px;
-        font-family: "Courier New", monospace;
-        font-size: 13px;
-        overflow-x: auto;
-        position: relative;
-      }
-
-      .copy-btn {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        background: #374151;
-        color: #e5e7eb;
-        border: none;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        cursor: pointer;
-      }
-
-      .copy-btn:hover {
-        background: #4b5563;
-      }
-
-      @media (max-width: 768px) {
-        .container {
-          margin: 10px;
-          padding: 20px;
-        }
-
-        .header h1 {
-          font-size: 2rem;
-        }
-
-        .buttons {
-          flex-direction: column;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">
-        <h1>🤖 KAI-Fusion Widget</h1>
-        <p>Simple, lightweight chat widget for your website</p>
-      </div>
-
-      <div class="config-section">
-        <div class="config-title">⚙️ Configuration</div>
-
-        <div class="input-group">
-          <label for="srcUrl">Widget Script URL</label>
-          <input
-            type="text"
-            id="srcUrl"
-            placeholder="https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js"
-          />
-        </div>
-
-        <div class="input-group">
-          <label for="targetUrl">Target API URL</label>
-          <input
-            type="text"
-            id="targetUrl"
-            value="http://localhost:8000"
-            placeholder="https://your-api.com"
-          />
-        </div>
-
-        <div class="input-group">
-          <label for="authToken">Auth Token (Optional)</label>
-          <input
-            type="password"
-            id="authToken"
-            value=""
-            placeholder="your-auth-token"
-          />
-        </div>
-
-        <div class="input-group">
-          <label for="workflowId">Workflow ID</label>
-          <input
-            type="text"
-            id="workflowId"
-            value="your-workflow-id"
-            placeholder="Workflow UUID"
-          />
-        </div>
-
-        <div class="input-group">
-          <label for="widgetTitle">Widget Title</label>
-          <input
-            type="text"
-            id="widgetTitle"
-            value="KAI Fusion Assistant"
-            placeholder="Widget Title"
-          />
-        </div>
-
-        <div class="buttons">
-          <button class="btn btn-primary" onclick="updateConfig()">
-            Update Config
-          </button>
-          <button class="btn btn-secondary" onclick="testConnection()">
-            Test Connection
-          </button>
-          <button class="btn btn-success" onclick="showWidget()">
-            Show Widget
-          </button>
-        </div>
-
-        <div id="status" class="status" style="display: none"></div>
-      </div>
-
-      <div class="demo-section">
-        <div class="demo-title">📝 Integration Code</div>
-        <div class="integration-code">
-          <button class="copy-btn" onclick="copyIntegrationCode()">Copy</button>
-          <div id="integrationCode"></div>
-        </div>
-      </div>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🤖 KAI-Fusion Widget</h1>
+      <p>Simple, lightweight chat widget for your website</p>
     </div>
 
-    <script>
-      // Configuration management
-      let currentConfig = {
-        srcUrl: "https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js",
-        targetUrl: "http://localhost:23056",
-        authToken: "",
-        workflowId: "your-workflow-id",
-        title: "KAI Fusion Assistant",
-        position: "right",
-        color: "#526cfe",
-      };
+    <div class="config-section">
+      <div class="config-title">⚙️ Configuration</div>
 
-        function updateConfig() {
-          const srcUrl = document.getElementById("srcUrl").value.trim();
-          const targetUrl = document.getElementById("targetUrl").value.trim();
-          const authToken = document.getElementById("authToken").value.trim();
-          const workflowId = document.getElementById("workflowId").value.trim();
-          const title = document.getElementById("widgetTitle").value.trim();
-  
-          if (!targetUrl || !srcUrl) {
-            showStatus("❌ Please enter Target URL and Script URL", "error");
-            return;
-          }
-  
-          currentConfig.srcUrl = srcUrl;
-          currentConfig.targetUrl = targetUrl;
-          currentConfig.authToken = authToken;
-          currentConfig.workflowId = workflowId;
-          currentConfig.title = title;
-  
-          // Update integration code
-          updateIntegrationCode();
-  
-          // Widget güncelleme mantığı
-          const hostId = "kai-chat-widget-host";
-          const hostEl = document.getElementById(hostId);
-          
-          if (hostEl) {
-              // Mevcut widget'ı DOM'dan kaldır
-              hostEl.remove();
-              
-              // window.KaiChat erişilebilir durumdaysa yeniden başlat
-              if (window.KaiChat && window.KaiChat.init) {
-                  window.KaiChat.init({
-                      title: currentConfig.title,
-                      authToken: currentConfig.authToken,
-                      workflowId: currentConfig.workflowId,
-                      targetUrl: currentConfig.targetUrl,
-                      position: currentConfig.position,
-                      color: currentConfig.color
-                  });
-                  showStatus("✅ Configuration updated & Widget reloaded.", "success");
-              } else {
-                  // Script yüklü ama KaiChat objesi yoksa (nadir durum)
-                  showStatus("✅ Configuration updated. Click Show Widget to reload.", "success");
-              }
-          } else {
-              showStatus(
-                "✅ Configuration updated. Click Show Widget to apply.",
-                "success"
-              );
-          }
+      <div class="input-group">
+        <label for="srcUrl">Widget Script URL</label>
+        <input type="text" id="srcUrl"
+          placeholder="https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js" />
+      </div>
+
+      <div class="input-group">
+        <label for="targetUrl">Target API URL</label>
+        <input type="text" id="targetUrl" value="http://localhost:8000" placeholder="https://your-api.com" />
+      </div>
+
+      <div class="input-group">
+        <label for="authToken">Auth Token (Optional)</label>
+        <input type="password" id="authToken" value="" placeholder="your-auth-token" />
+      </div>
+
+      <div class="input-group">
+        <label for="workflowId">Workflow ID</label>
+        <input type="text" id="workflowId" value="your-workflow-id" placeholder="Workflow UUID" />
+      </div>
+
+      <div class="input-group">
+        <label for="widgetTitle">Widget Title</label>
+        <input type="text" id="widgetTitle" value="KAI Fusion Assistant" placeholder="Widget Title" />
+      </div>
+
+      <div class="buttons">
+        <button class="btn btn-primary" onclick="updateConfig()">
+          Update Config
+        </button>
+        <button class="btn btn-secondary" onclick="testConnection()">
+          Test Connection
+        </button>
+        <button class="btn btn-success" onclick="showWidget()">
+          Show Widget
+        </button>
+      </div>
+
+      <div id="status" class="status" style="display: none"></div>
+    </div>
+
+    <div class="demo-section">
+      <div class="demo-title">📝 Integration Code</div>
+      <div class="integration-code">
+        <button class="copy-btn" onclick="copyIntegrationCode()">Copy</button>
+        <div id="integrationCode"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration management
+    let currentConfig = {
+      srcUrl: "https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js",
+      targetUrl: "http://localhost:23056",
+      authToken: "",
+      workflowId: "your-workflow-id",
+      title: "KAI Fusion Assistant",
+      position: "right",
+      color: "#526cfe",
+    };
+
+    function updateConfig() {
+      const srcUrl = document.getElementById("srcUrl").value.trim();
+      const targetUrl = document.getElementById("targetUrl").value.trim();
+      const authToken = document.getElementById("authToken").value.trim();
+      const workflowId = document.getElementById("workflowId").value.trim();
+      const title = document.getElementById("widgetTitle").value.trim();
+
+      if (!targetUrl || !srcUrl) {
+        showStatus("❌ Please enter Target URL and Script URL", "error");
+        return;
+      }
+
+      currentConfig.srcUrl = srcUrl;
+      currentConfig.targetUrl = targetUrl;
+      currentConfig.authToken = authToken;
+      currentConfig.workflowId = workflowId;
+      currentConfig.title = title;
+
+      // Update integration code
+      updateIntegrationCode();
+
+      // Widget güncelleme mantığı
+      const hostId = "kai-chat-widget-host";
+      const hostEl = document.getElementById(hostId);
+
+      if (hostEl) {
+        // Mevcut widget'ı DOM'dan kaldır
+        hostEl.remove();
+
+        // window.KaiChat erişilebilir durumdaysa yeniden başlat
+        if (window.KaiChat && window.KaiChat.init) {
+          window.KaiChat.init({
+            title: currentConfig.title,
+            authToken: currentConfig.authToken,
+            workflowId: currentConfig.workflowId,
+            targetUrl: currentConfig.targetUrl,
+            position: currentConfig.position,
+            color: currentConfig.color
+          });
+          showStatus(" Configuration updated & Widget reloaded.", "success");
+        } else {
+          // Script yüklü ama KaiChat objesi yoksa (nadir durum)
+          showStatus(" Configuration updated. Click Show Widget to reload.", "success");
         }
+      } else {
+        showStatus(
+          " Configuration updated. Click Show Widget to apply.",
+          "success"
+        );
+      }
+    }
 
-      function updateIntegrationCode() {
-        const code = `&lt;script src="${currentConfig.srcUrl}"
+    function updateIntegrationCode() {
+      const code = `&lt;script src="${currentConfig.srcUrl}"
   data-title="${currentConfig.title}"
   data-auth-token="${currentConfig.authToken}"
   data-workflow-id="${currentConfig.workflowId}"
@@ -349,109 +328,110 @@
   data-position="${currentConfig.position}"
   data-color="${currentConfig.color}"&gt;&lt;/script&gt;`;
 
-        document.getElementById("integrationCode").innerHTML = code;
+      document.getElementById("integrationCode").innerHTML = code;
+    }
+
+    async function testConnection() {
+      const targetUrl = document.getElementById("targetUrl").value.trim();
+
+      if (!targetUrl) {
+        showStatus("❌ Please enter a target URL", "error");
+        return;
       }
 
-      async function testConnection() {
-        const targetUrl = document.getElementById("targetUrl").value.trim();
+      showStatus(" Testing connection...", "info");
 
-        if (!targetUrl) {
-          showStatus("❌ Please enter a target URL", "error");
-          return;
-        }
+      try {
+        const response = await fetch(`${targetUrl}/health`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-        showStatus("🔄 Testing connection...", "info");
-
-        try {
-          const response = await fetch(`${targetUrl}/health`, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            showStatus(
-              `✅ Connection successful!\nResponse: ${JSON.stringify(
-                data,
-                null,
-                2
-              )}`,
-              "success"
-            );
-          } else {
-            showStatus(
-              `❌ Connection failed: ${response.status} ${response.statusText}`,
-              "error"
-            );
-          }
-        } catch (error) {
-          showStatus(`❌ Connection error: ${error.message}`, "error");
-        }
-      }
-
-      function showWidget() {
-        if (!currentConfig.workflowId) {
-          showStatus("⚠️ Warning: Workflow ID is empty!", "error");
-        }
-
-        // Check if script already exists
-        if (!document.querySelector(`script[src="${currentConfig.srcUrl}"]`)) {
-          const script = document.createElement("script");
-          script.src = currentConfig.srcUrl;
-          script.setAttribute("data-title", currentConfig.title);
-          script.setAttribute("data-auth-token", currentConfig.authToken);
-          script.setAttribute("data-workflow-id", currentConfig.workflowId);
-          script.setAttribute("data-target-url", currentConfig.targetUrl);
-          script.setAttribute("data-position", currentConfig.position);
-          script.setAttribute("data-color", currentConfig.color);
-
-          document.head.appendChild(script);
-
-          showStatus("🚀 Widget loaded! Check bottom-right corner.", "success");
+        if (response.ok) {
+          const data = await response.json();
+          showStatus(
+            ` Connection successful!\nResponse: ${JSON.stringify(
+              data,
+              null,
+              2
+            )}`,
+            "success"
+          );
         } else {
-          showStatus("👁️ Widget script already loaded.", "info");
+          showStatus(
+            `❌ Connection failed: ${response.status} ${response.statusText}`,
+            "error"
+          );
         }
+      } catch (error) {
+        showStatus(`❌ Connection error: ${error.message}`, "error");
+      }
+    }
+
+    function showWidget() {
+      if (!currentConfig.workflowId) {
+        showStatus(" Warning: Workflow ID is empty!", "error");
       }
 
-      function showStatus(message, type) {
-        const statusEl = document.getElementById("status");
-        statusEl.textContent = message;
-        statusEl.style.display = "block";
+      // Check if script already exists
+      if (!document.querySelector(`script[src="${currentConfig.srcUrl}"]`)) {
+        const script = document.createElement("script");
+        script.src = currentConfig.srcUrl;
+        script.setAttribute("data-title", currentConfig.title);
+        script.setAttribute("data-auth-token", currentConfig.authToken);
+        script.setAttribute("data-workflow-id", currentConfig.workflowId);
+        script.setAttribute("data-target-url", currentConfig.targetUrl);
+        script.setAttribute("data-position", currentConfig.position);
+        script.setAttribute("data-color", currentConfig.color);
 
-        // Auto hide after 5 seconds
-        setTimeout(() => {
-          statusEl.style.display = "none";
-        }, 5000);
+        document.head.appendChild(script);
+
+        showStatus(" Widget loaded! Check bottom-right corner.", "success");
+      } else {
+        showStatus("👁️ Widget script already loaded.", "info");
       }
+    }
 
-      function copyIntegrationCode() {
-        const code = document.getElementById("integrationCode").textContent;
+    function showStatus(message, type) {
+      const statusEl = document.getElementById("status");
+      statusEl.textContent = message;
+      statusEl.style.display = "block";
 
-        if (navigator.clipboard) {
-          navigator.clipboard.writeText(code).then(() => {
-            const btn = document.querySelector(".copy-btn");
-            const originalText = btn.textContent;
-            btn.textContent = "Copied!";
-            btn.style.background = "#059669";
+      // Auto hide after 5 seconds
+      setTimeout(() => {
+        statusEl.style.display = "none";
+      }, 5000);
+    }
 
-            setTimeout(() => {
-              btn.textContent = originalText;
-              btn.style.background = "#374151";
-            }, 2000);
-          });
-        }
+    function copyIntegrationCode() {
+      const code = document.getElementById("integrationCode").textContent;
+
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(code).then(() => {
+          const btn = document.querySelector(".copy-btn");
+          const originalText = btn.textContent;
+          btn.textContent = "Copied!";
+          btn.style.background = "#059669";
+
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = "#374151";
+          }, 2000);
+        });
       }
+    }
 
-      // Initialize
-      document.getElementById("srcUrl").value = currentConfig.srcUrl;
-      document.getElementById("targetUrl").value = currentConfig.targetUrl;
-      document.getElementById("authToken").value = currentConfig.authToken;
-      document.getElementById("workflowId").value = currentConfig.workflowId;
-      document.getElementById("widgetTitle").value = currentConfig.title;
+    // Initialize
+    document.getElementById("srcUrl").value = currentConfig.srcUrl;
+    document.getElementById("targetUrl").value = currentConfig.targetUrl;
+    document.getElementById("authToken").value = currentConfig.authToken;
+    document.getElementById("workflowId").value = currentConfig.workflowId;
+    document.getElementById("widgetTitle").value = currentConfig.title;
 
-      updateIntegrationCode();
-    </script>
-  </body>
+    updateIntegrationCode();
+  </script>
+</body>
+
 </html>

@@ -1,0 +1,114 @@
+# KAI-Fusion Docker Compose - Test Environment
+# Usage: docker-compose up --build
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: kaifusion-postgres
+    environment:
+      POSTGRES_USER: kaifusion
+      POSTGRES_PASSWORD: kaifusion_secret
+      POSTGRES_DB: kaifusion
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U kaifusion" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kaifusion-network
+
+  # Backend API
+  backend:
+    build:
+      context: ..
+      dockerfile: export-docker/Dockerfile.backend
+    container_name: kaifusion-backend
+    environment:
+      - DATABASE_URL=postgresql://kaifusion:kaifusion_secret@postgres:5432/kaifusion
+      - POSTGRES_USERNAME=kaifusion
+      - POSTGRES_PASSWORD=kaifusion_secret
+      - SECRET_KEY=your-secret-key-change-in-production
+      - CREDENTIAL_MASTER_KEY=your-credential-key-change-in-production
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "23056:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./import_bundle:/app/import_bundle
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - kaifusion-network
+    command: >
+      sh -c "
+        echo ' Running database setup...' &&
+        python -m migrations.database_setup &&
+        echo ' Database ready!' &&
+        echo ' Starting backend...' &&
+        uvicorn main:app --host 0.0.0.0 --port 8000
+      "
+
+  # Frontend
+  frontend:
+    build:
+      context: ..
+      dockerfile: export-docker/Dockerfile.frontend
+    container_name: kaifusion-frontend
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - kaifusion-network
+
+  # One-time workflow import (optional)
+  import-workflows:
+    build:
+      context: ..
+      dockerfile: export-docker/Dockerfile.backend
+    container_name: kaifusion-import
+    environment:
+      - DATABASE_URL=postgresql://kaifusion:kaifusion_secret@postgres:5432/kaifusion
+      - POSTGRES_USERNAME=kaifusion
+      - POSTGRES_PASSWORD=kaifusion_secret
+      - CREDENTIAL_MASTER_KEY=your-credential-key-change-in-production
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./import_bundle:/app/import_bundle
+    networks:
+      - kaifusion-network
+    profiles:
+      - import
+    command: >
+      sh -c "
+        if [ -f /app/import_bundle/workflows_config.yaml ]; then
+          echo '📦 Importing workflows...' &&
+          python -m scripts.import_workflows --config /app/import_bundle/workflows_config.yaml &&
+          echo ' Import complete!'
+        else
+          echo ' No workflows_config.yaml found in import_bundle/'
+        fi
+      "
+
+networks:
+  kaifusion-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

@@ -125,7 +125,7 @@ const ServiceSelectionModal: React.FC<ServiceSelectionModalProps> = ({
         <div className="p-6 overflow-y-auto max-h-[60vh]">
           {filteredServices.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-6xl mb-4">🔍</div>
+              <div className="text-6xl mb-4"></div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
                 No services found
               </h3>

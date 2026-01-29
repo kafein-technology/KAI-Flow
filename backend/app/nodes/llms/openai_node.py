@@ -331,7 +331,7 @@ class OpenAINode(BaseNode):
     
     Target Performance Metrics:
     - Initialization Time: < 100ms for standard configurations
-    - Memory Footprint: < 10MB per instance
+    - Memory Footlogger: < 10MB per instance
     - Configuration Validation: < 10ms
     - Cost Calculation: < 1ms per estimation
     - Error Recovery: < 500ms for common failure scenarios
@@ -793,7 +793,7 @@ class OpenAINode(BaseNode):
             "max_tokens": max_tokens,
             "top_p": top_p,
             "frequency_penalty": frequency_penalty,
-            "presence_penalty": presence_penalty,
+            "presence_penalty": frequency_penalty,
             "api_key": SecretStr(str(api_key)),
             "timeout": timeout,
             "streaming": streaming

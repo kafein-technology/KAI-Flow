@@ -333,12 +333,28 @@ class ConnectionMapper:
             self._connection_stats = {
                 "total_connections": len(connections),
                 "mapping_type": "basic",
-                "nodes_with_inputs": sum(1 for _, gnode in nodes.items() if hasattr(gnode.node_instance, '_input_connections') and gnode.node_instance._input_connections),
-                "nodes_with_outputs": sum(1 for _, gnode in nodes.items() if hasattr(gnode.node_instance, '_output_connections') and gnode.node_instance._output_connections)
+                "nodes_with_inputs": sum(
+                    1
+                    for _, gnode in nodes.items()
+                    if hasattr(gnode.node_instance, "_input_connections")
+                    and gnode.node_instance._input_connections
+                ),
+                "nodes_with_outputs": sum(
+                    1
+                    for _, gnode in nodes.items()
+                    if hasattr(gnode.node_instance, "_output_connections")
+                    and gnode.node_instance._output_connections
+                ),
             }
+<<<<<<< HEAD
             
             logger.info("Basic connection mapping completed")
             
+=======
+
+            logger.info(" Basic connection mapping completed")
+
+>>>>>>> serialization_fixes
         except Exception as e:
             logger.error(f"Basic connection mapping failed: {e}")
             raise ConnectionError(
@@ -383,17 +399,21 @@ class ConnectionMapper:
             # Convert to the format expected by nodes
             pool_connections = []
             for conn_info in connection_infos:
-                pool_connections.append({
-                    "source_node_id": conn_info.source_node_id,
-                    "source_handle": conn_info.source_handle,
-                    "data_type": conn_info.data_type,
-                    "status": conn_info.status.value,
-                    "validation_errors": conn_info.validation_errors
-                })
-            
-            logger.debug(f"Extracted {len(pool_connections)} pool connections for {node_id}:{handle}")
+                pool_connections.append(
+                    {
+                        "source_node_id": conn_info.source_node_id,
+                        "source_handle": conn_info.source_handle,
+                        "data_type": conn_info.data_type,
+                        "status": conn_info.status.value,
+                        "validation_errors": conn_info.validation_errors,
+                    }
+                )
+
+            logger.debug(
+                f"Extracted {len(pool_connections)} pool connections for {node_id}:{handle}"
+            )
             return pool_connections
-            
+
         except Exception as e:
             logger.error(f"Error extracting pool connections: {e}")
             return []
@@ -443,8 +463,10 @@ class ConnectionMapper:
         for conn in connections:
             # Check if source node exists
             if conn.source_node_id not in available_nodes:
-                errors.append(f"Connection references unknown source node: {conn.source_node_id}")
-            
+                errors.append(
+                    f"Connection references unknown source node: {conn.source_node_id}"
+                )
+
             # Check if target node exists
             if conn.target_node_id not in available_nodes:
                 errors.append(

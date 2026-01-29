@@ -59,6 +59,55 @@ interface FlowCanvasProps {
   workflowId?: string;
 }
 
+// Helper function to create a stable JSON string with sorted keys for deep comparison
+const stableStringify = (obj: unknown): string => {
+  if (obj === null || obj === undefined) return JSON.stringify(obj);
+  if (typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(item => stableStringify(item)).join(',') + ']';
+  }
+  const sortedKeys = Object.keys(obj as Record<string, unknown>).sort();
+  const parts = sortedKeys.map(key => {
+    const value = (obj as Record<string, unknown>)[key];
+    return JSON.stringify(key) + ':' + stableStringify(value);
+  });
+  return '{' + parts.join(',') + '}';
+};
+
+// Helper function to normalize flow data for comparison
+// Strips out React Flow internal properties that don't represent actual user changes
+const normalizeFlowDataForComparison = (flowData: WorkflowData | undefined): string => {
+  if (!flowData) return stableStringify({ nodes: [], edges: [] });
+
+  // Normalize nodes - only include properties that matter for saving
+  const normalizedNodes = (flowData.nodes || []).map(node => ({
+    id: node.id,
+    type: node.type,
+    position: {
+      x: Math.round((node.position?.x || 0) * 1000) / 1000, // Round to avoid floating point issues
+      y: Math.round((node.position?.y || 0) * 1000) / 1000,
+    },
+    data: node.data,
+  }));
+
+  // Normalize edges - only include properties that matter for saving
+  const normalizedEdges = (flowData.edges || []).map(edge => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    sourceHandle: edge.sourceHandle || null,
+    targetHandle: edge.targetHandle || null,
+    type: edge.type || 'custom',
+  }));
+
+  // Sort for consistent comparison
+  normalizedNodes.sort((a, b) => a.id.localeCompare(b.id));
+  normalizedEdges.sort((a, b) => a.id.localeCompare(b.id));
+
+  return stableStringify({ nodes: normalizedNodes, edges: normalizedEdges });
+};
+
+
 function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -308,8 +357,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         edges: edges as WorkflowEdge[],
       };
       const originalFlowData = currentWorkflow.flow_data;
+      // Use normalized comparison to avoid false positives from React Flow internal properties
       const hasChanges =
-        JSON.stringify(currentFlowData) !== JSON.stringify(originalFlowData);
+        normalizeFlowDataForComparison(currentFlowData) !== normalizeFlowDataForComparison(originalFlowData);
       setHasUnsavedChanges(hasChanges);
     }
   }, [nodes, edges, currentWorkflow]);
@@ -335,7 +385,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Listen for chat execution errors and display them
   useEffect(() => {
     const handleChatExecutionError = (event: CustomEvent) => {
-      console.error("❌ Chat execution error received:", event.detail);
+      console.error(" Chat execution error received:", event.detail);
 
       const errorDetails = {
         message: event.detail.error || "Chat execution failed",
@@ -1929,7 +1979,7 @@ function useWebhookExecutionListener(
           if (retryCount < MAX_RETRIES) {
             const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
             console.warn(
-              `⚠️ Webhook stream error for ${webhookId}, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+              ` Webhook stream error for ${webhookId}, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
             );
 
             retryCounts.set(webhookId, retryCount + 1);
@@ -1942,7 +1992,7 @@ function useWebhookExecutionListener(
             }, delay);
           } else {
             console.error(
-              `❌ Webhook stream error for ${webhookId}: Max retries reached. Connection failed.`,
+              ` Webhook stream error for ${webhookId}: Max retries reached. Connection failed.`,
               error
             );
             retryCounts.delete(webhookId);
@@ -1965,7 +2015,7 @@ function useWebhookExecutionListener(
             }
 
             if (data.type === "error") {
-              console.error(`❌ Webhook stream error:`, data.error);
+              console.error(` Webhook stream error:`, data.error);
               return;
             }
 
@@ -1975,7 +2025,7 @@ function useWebhookExecutionListener(
               // Event deduplication
               const eventId = `${data.execution_id || 'unknown'}-${data.event.type}-${data.event.node_id || 'unknown'}-${data.timestamp || Date.now()}`;
               if (processedEventIds.has(eventId)) {
-                console.warn("⚠️ Duplicate webhook event ignored:", eventId);
+                console.warn(" Duplicate webhook event ignored:", eventId);
                 return;
               }
 
@@ -2213,7 +2263,7 @@ function useWebhookExecutionListener(
               }
             }
           } catch (error) {
-            console.error("❌ Error parsing webhook stream event:", error, {
+            console.error(" Error parsing webhook stream event:", error, {
               eventData: event.data?.substring(0, 200), // Log first 200 chars
             });
           }

@@ -28,7 +28,10 @@ SYSTEM_ENV_VARS = {
     "REQUIRE_API_KEY": "API key authentication required"
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> serialization_fixes
 logger.info("MODULAR EXPORT: Loaded from modular export package")
 logger.info(f"Available functions: {len(__all__)} functions exported")
 logger.info(f"Router: {router}")

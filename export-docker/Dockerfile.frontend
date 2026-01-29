@@ -1,0 +1,42 @@
+# Frontend Dockerfile for KAI-Fusion
+# Uses react-router build and serve
+
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY client/package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source
+COPY client/ .
+
+# Set API URL for build
+ARG VITE_API_BASE_URL=http://localhost:8000
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
+# Build
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Copy package files for runtime dependencies
+COPY client/package*.json ./
+
+# Install only production dependencies
+RUN npm ci --omit=dev
+
+# Copy built files
+COPY --from=builder /app/dist ./dist
+
+
+EXPOSE 3000
+
+# Use react-router-serve (as per package.json start script)
+CMD ["npx", "react-router-serve", "./build/server/index.js"]

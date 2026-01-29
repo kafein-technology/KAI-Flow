@@ -198,7 +198,6 @@ def enhanced_trace_workflow(func):
             result = func(*args, **kwargs)
             # End workflow tracing
             tracer.end_workflow(success=True)
-            
             return result
         except Exception as e:
             tracer.end_workflow(success=False, error=str(e))

@@ -1,18 +1,19 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import and_
 
-from app.models.node_registry import NodeRegistry
-from app.services.base import BaseService
-from app.api.schemas import NodeRegistryCreate, NodeRegistryUpdate
+from ..models.node_registry import NodeRegistry
+from .base import BaseService
+from ..api.schemas import NodeRegistryCreate, NodeRegistryUpdate
 
 
 class NodeRegistryService(BaseService[NodeRegistry]):
     def __init__(self):
         super().__init__(NodeRegistry)
 
-    async def get_by_node_type(self, db: AsyncSession, node_type: str) -> Optional[NodeRegistry]:
+    async def get_by_node_type(
+        self, db: AsyncSession, node_type: str
+    ) -> Optional[NodeRegistry]:
         """
         Get a node registry entry by node_type.
         """
@@ -21,7 +22,9 @@ class NodeRegistryService(BaseService[NodeRegistry]):
         )
         return result.scalars().first()
 
-    async def get_by_category(self, db: AsyncSession, category: str, skip: int = 0, limit: int = 100) -> List[NodeRegistry]:
+    async def get_by_category(
+        self, db: AsyncSession, category: str, skip: int = 0, limit: int = 100
+    ) -> List[NodeRegistry]:
         """
         Get all node registry entries by category.
         """
@@ -33,7 +36,9 @@ class NodeRegistryService(BaseService[NodeRegistry]):
         )
         return result.scalars().all()
 
-    async def get_active_nodes(self, db: AsyncSession, skip: int = 0, limit: int = 100) -> List[NodeRegistry]:
+    async def get_active_nodes(
+        self, db: AsyncSession, skip: int = 0, limit: int = 100
+    ) -> List[NodeRegistry]:
         """
         Get all active node registry entries.
         """
@@ -45,7 +50,9 @@ class NodeRegistryService(BaseService[NodeRegistry]):
         )
         return result.scalars().all()
 
-    async def create_node_registry(self, db: AsyncSession, obj_in: NodeRegistryCreate) -> NodeRegistry:
+    async def create_node_registry(
+        self, db: AsyncSession, obj_in: NodeRegistryCreate
+    ) -> NodeRegistry:
         """
         Create a new node registry entry.
         """
@@ -53,7 +60,7 @@ class NodeRegistryService(BaseService[NodeRegistry]):
         existing = await self.get_by_node_type(db, obj_in.node_type)
         if existing:
             raise ValueError(f"Node type '{obj_in.node_type}' already exists")
-        
+
         obj_in_data = obj_in.model_dump()
         db_obj = NodeRegistry(**obj_in_data)
         db.add(db_obj)
@@ -61,7 +68,9 @@ class NodeRegistryService(BaseService[NodeRegistry]):
         await db.refresh(db_obj)
         return db_obj
 
-    async def update_node_registry(self, db: AsyncSession, node_type: str, obj_in: NodeRegistryUpdate) -> Optional[NodeRegistry]:
+    async def update_node_registry(
+        self, db: AsyncSession, node_type: str, obj_in: NodeRegistryUpdate
+    ) -> Optional[NodeRegistry]:
         """
         Update a node registry entry by node_type.
         """

@@ -304,10 +304,14 @@ class OpenAICompatibleNode(BaseNode):
              # Some local endpoints might not require a key.
              # We provide a dummy key because langchain/openai usually expects one.
              api_key_value = "sk-no-key-required"
+<<<<<<< HEAD
              logger.warning(f"[DEBUG][COMPATIBLE] No API Key - using placeholder. Base URL: {base_url}")
         
         # Trace base URL for debugging 401 "No cookie auth" errors
         logger.info(f"[TRACE][LLM.COMPATIBLE] Base URL: {base_url}, API Key set: {bool(api_key_value)}")
+=======
+             logger.info("No API Key provided. Using placeholder key.")
+>>>>>>> serialization_fixes
         
         # Prepare Extra Headers
         extra_headers = {}

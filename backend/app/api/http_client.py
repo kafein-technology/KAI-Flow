@@ -117,7 +117,11 @@ async def test_http_client(node_id: str, test_request: HttpClientTestRequest):
         if not result:
             raise ValueError("HTTP Client returned empty result")
         
+<<<<<<< HEAD
         logger.info(f"HTTP Client test successful: {node_id} -> {result.get('status_code')}")
+=======
+        logger.info(f" HTTP Client test successful: {node_id} -> {result.get('status_code')}")
+>>>>>>> serialization_fixes
         
         # Format response for UI (handle different response formats)
         response_time = 0
@@ -141,7 +145,11 @@ async def test_http_client(node_id: str, test_request: HttpClientTestRequest):
         return response_data
         
     except Exception as e:
+<<<<<<< HEAD
         logger.error(f"HTTP Client test failed: {node_id} - {str(e)}")
+=======
+        logger.error(f" HTTP Client test failed: {node_id} - {str(e)}")
+>>>>>>> serialization_fixes
         raise HTTPException(
             status_code=500,
             detail=f"HTTP Client test failed: {str(e)}"
