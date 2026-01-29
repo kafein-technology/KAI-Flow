@@ -245,17 +245,16 @@ class WorkflowExecutor:
         Returns:
             Updated WorkflowExecution object
         """
-        update_data: Dict[str, Any] = {
-            "status": status,
-        }
-        if error_message is not None:
-            update_data["error_message"] = error_message
-        if outputs is not None:
-            update_data["outputs"] = outputs
-        if started_at is not None:
-            update_data["started_at"] = started_at
-        if completed_at is not None:
-            update_data["completed_at"] = completed_at
+        update_data = WorkflowExecutionUpdate(
+            status=status,
+            **{k: v for k, v in {
+                "error_message": error_message,
+                "outputs": outputs,
+                "started_at": started_at,
+                "completed_at": completed_at,
+            }.items() if v is not None}
+        )
+
 
         execution = await self.execution_service.update_execution(db, execution_id, update_data)
         logger.debug(f"Updated execution {execution_id} status to {status}")
