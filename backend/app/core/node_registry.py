@@ -447,9 +447,9 @@ class NodeRegistry:
             # Automatically reload changed nodes
             try:
                 self.registry.reload_node_from_file(node_file_path)
-                print(f"✅ Hot reloaded node from {node_file_path}")
+                print(f" Hot reloaded node from {node_file_path}")
             except Exception as e:
-                print(f"❌ Failed to reload node: {e}")
+                print(f"Failed to reload node: {e}")
                 
         def get_development_metrics(self):
             return {
@@ -550,8 +550,8 @@ class NodeRegistry:
                 pass
         except Exception as e:  # noqa: BLE001
             # Skip nodes that cannot be instantiated (likely abstract bases)
-            print(f"⚠️  Skipping node {node_class.__name__}: {e}")
-    
+            logger.warning(f"Skipping node {node_class.__name__}: {e}")
+
     def get_node(self, node_name: str) -> Optional[Type[BaseNode]]:
         """Get a node class by name"""
         return self.nodes.get(node_name)
@@ -573,7 +573,7 @@ class NodeRegistry:
         nodes_dir = (current_dir.parent / "nodes").resolve()
         
         if not nodes_dir.exists():
-            print(f"⚠️ Nodes directory not found: {nodes_dir}")
+            logger.warning(f"Nodes directory not found: {nodes_dir}")
             return
         
         # Walk through all subdirectories
@@ -591,7 +591,9 @@ class NodeRegistry:
                         relative_parts = file_path.relative_to(app_root).with_suffix('').parts
                         module_path = '.'.join(['app'] + list(relative_parts))
                     except ValueError:
-                        print(f"⚠️ Could not determine module path for {file_path}")
+                        logger.warning(
+                            f" Could not determine module path for {file_path}"
+                        )
                         continue
                     
                     try:
@@ -608,8 +610,7 @@ class NodeRegistry:
                                 self.register_node(obj)
                                 
                     except Exception as e:
-                        print(f"❌ Error loading node from {module_path}: {e}")
-    
+                        logger.error(f"Error loading node from {module_path}: {e}")
     def clear(self):
         """Clear all registered nodes"""
         self.nodes.clear()

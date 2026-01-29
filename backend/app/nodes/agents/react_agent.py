@@ -113,7 +113,10 @@ from langgraph.graph.state import CompiledStateGraph
 import re
 import sys
 import os
+import logging
 from langchain_core.callbacks import BaseCallbackHandler
+
+logger = logging.getLogger(__name__)
 
 # ================================================================================
 # DEBUG CALLBACK HANDLER (Console step-by-step traces for LLM and Tool calls)
@@ -343,7 +346,7 @@ class ReactAgentNode(ProcessorNode):
                 displayName="Agent Type",
                 type=NodePropertyType.SELECT,
                 options=[
-                    {"label": "ReAct Agent ⭐", "value": "react"},
+                    {"label": "ReAct Agent +", "value": "react"},
                     {"label": "Conversational Agent", "value": "conversational"},
                     {"label": "Task-Oriented Agent", "value": "task_oriented"},
                 ],
@@ -604,6 +607,17 @@ class ReactAgentNode(ProcessorNode):
         print(f"[DEBUG] LLM received: {type(llm)}")
         if llm is None:
             available_connections = list(connected_nodes.keys())
+            
+            # Check if 'llm' connection was actually provided in UI but failed to initialize
+            if hasattr(self, '_input_connections') and 'llm' in self._input_connections:
+                logger.error(f"CRITICAL: LLM connection 'llm' exists in UI but failed to initialize for {self.__class__.__name__}")
+                raise ValueError(
+                    "The connected LLM node ('llm') failed to initialize. "
+                    "This usually happens when an API key is missing or decryption failed. "
+                    "Please check your OpenAI Chat node settings, ensure the API key is provided, "
+                    "and try re-saving the node to re-encrypt your credentials."
+                )
+            
             raise ValueError(
                 f"A valid LLM connection is required. "
                 f"Available connections: {available_connections}. "
@@ -862,8 +876,10 @@ class ReactAgentNode(ProcessorNode):
             return self._handle_unicode_error(unicode_error)
 
         except Exception as e:
+            import traceback
             error_msg = f"Agent graph execution failed: {str(e)}"
             print(f"[ERROR] {error_msg}")
+            print(f"[ERROR TRACEBACK] {traceback.format_exc()}")
             return {"error": error_msg}
 
     def _handle_unicode_error(self, unicode_error: UnicodeEncodeError) -> Dict[str, Any]:

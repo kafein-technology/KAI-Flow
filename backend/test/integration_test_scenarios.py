@@ -33,7 +33,7 @@ class IntegrationTester:
     
     def log_result(self, test_name: str, status: str, message: str = ""):
         """Test sonucu logla"""
-        print(f"{'✅' if status == 'PASS' else '❌' if status == 'FAIL' else 'ℹ️'} {test_name}: {status}")
+        print(f"{'' if status == 'PASS' else '' if status == 'FAIL' else ''} {test_name}: {status}")
         if message:
             print(f"   → {message}")
         
@@ -380,7 +380,7 @@ class IntegrationTester:
     
     def run_all_tests(self):
         """Run all integration tests"""
-        print("🧪 DOCKER EXPORT INTEGRATION TESTS")
+        print(" DOCKER EXPORT INTEGRATION TESTS")
         print("=" * 40)
         
         tests = [
@@ -405,12 +405,12 @@ class IntegrationTester:
         passed = len([r for r in self.test_results if r["status"] == "PASS"])
         failed = len([r for r in self.test_results if r["status"] == "FAIL"])
         
-        print(f"\n📊 TEST SUMMARY")
+        print(f"\n TEST SUMMARY")
         print(f"Total: {total}, Passed: {passed}, Failed: {failed}")
         print(f"Success Rate: {(passed/total*100):.1f}%")
         
         if failed > 0:
-            print(f"\n❌ FAILED TESTS:")
+            print(f"\n FAILED TESTS:")
             for result in self.test_results:
                 if result["status"] == "FAIL":
                     print(f"   • {result['test']}: {result['message']}")
@@ -425,10 +425,10 @@ def main():
         passed, failed, total = tester.run_all_tests()
         
         if failed == 0:
-            print(f"\n🎉 ALL TESTS PASSED! System ready for deployment.")
+            print(f"\n ALL TESTS PASSED! System ready for deployment.")
             return 0
         else:
-            print(f"\n⚠️ {failed} test(s) failed. Review issues before deployment.")
+            print(f"\n {failed} test(s) failed. Review issues before deployment.")
             return 1
             
     except Exception as e:

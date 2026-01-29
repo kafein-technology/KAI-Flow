@@ -3,6 +3,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import uuid
+from datetime import datetime, timezone
 from .base import Base
 
 class WorkflowExecution(Base):
@@ -15,9 +16,9 @@ class WorkflowExecution(Base):
     inputs = Column(JSONB)
     outputs = Column(JSONB)
     error_message = Column(Text)
-    started_at = Column(TIMESTAMP(timezone=True))
+    started_at = Column(TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc))
     completed_at = Column(TIMESTAMP(timezone=True))
-    created_at = Column(TIMESTAMP(timezone=True), default=func.now())
+    created_at = Column(TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     workflow = relationship("Workflow", back_populates="executions")

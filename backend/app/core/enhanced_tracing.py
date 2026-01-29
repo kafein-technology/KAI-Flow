@@ -53,11 +53,11 @@ class EnhancedWorkflowTracer:
                 "node_count": node_count,
                 "edge_count": connection_count,
                 "platform": "kai-fusion",
-                "version": "2.1.0"
+                "version": "2.1.0",
             }
             
-            logger.info(f"🔍 Enhanced workflow trace started: {workflow_id}")
-            logger.info(f"📊 Metadata: {metadata}")
+            logger.info(f"Enhanced workflow trace started: {workflow_id}")
+            logger.info(f"Metadata: {metadata}")
             
     def start_node_execution(self, node_id: str, node_type: str, inputs: Dict[str, Any]):
         """Start tracking a node execution with performance monitoring."""
@@ -68,8 +68,8 @@ class EnhancedWorkflowTracer:
         self.node_executions[node_id] = execution_id
         
         if ENABLE_WORKFLOW_TRACING:
-            logger.info(f"🎯 Node execution started: {node_id} ({node_type})")
-            logger.info(f"📝 Inputs: {list(inputs.keys())}")
+            logger.info(f"Node execution started: {node_id} ({node_type})")
+            logger.info(f"Inputs: {list(inputs.keys())}")
     
     def end_node_execution(self, node_id: str, node_type: str, outputs: Dict[str, Any], 
                           success: bool = True, error_message: Optional[str] = None):
@@ -94,12 +94,14 @@ class EnhancedWorkflowTracer:
             del self.node_executions[node_id]
         
         if ENABLE_WORKFLOW_TRACING:
-            status = "✅ SUCCESS" if success else "❌ FAILED"
-            logger.info(f"🎯 Node execution completed: {node_id} ({node_type}) - {status}")
+            status = "SUCCESS" if success else "FAILED"
+            logger.info(f"Node execution completed: {node_id} ({node_type}) - {status}")
             if error_message:
-                logger.error(f"❌ Error: {error_message}")
-    
-    def track_memory_operation(self, operation: str, node_id: str, content: str, session_id: str):
+                logger.error(f"Error: {error_message}")
+
+    def track_memory_operation(
+        self, operation: str, node_id: str, content: str, session_id: str
+    ):
         """Track memory operations with enhanced monitoring."""
         if TRACE_MEMORY_OPERATIONS:
             # Record memory usage
@@ -111,8 +113,7 @@ class EnhancedWorkflowTracer:
                 )
             except Exception:
                 pass
-            
-            logger.info(f"🧠 Memory {operation}: {node_id} ({len(content)} chars)")
+            logger.info(f"Memory {operation}: {node_id} ({len(content)} chars)")
     
     def track_connection_resolution(self, node_count: int, connection_count: int, resolution_time: float):
         """Track connection resolution performance."""
@@ -130,13 +131,15 @@ class EnhancedWorkflowTracer:
         
         if self.workflow_start_time:
             total_duration = time.time() - self.workflow_start_time
-            
-            status = "✅ SUCCESS" if success else "❌ FAILED"
-            logger.info(f"🏁 Enhanced workflow completed in {total_duration:.2f}s - {status}")
-            
+
+            status = "SUCCESS" if success else "FAILED"
+            logger.info(
+                f"Enhanced workflow completed in {total_duration:.2f}s - {status}"
+            )
+
             if error:
-                logger.error(f"❌ Workflow error: {error}")
-    
+                logger.error(f"Workflow error: {error}")
+
     def get_callback_manager(self) -> Optional[CallbackManager]:
         """Get callback manager for LangSmith integration."""
         if LANGCHAIN_TRACING_V2:
@@ -145,7 +148,7 @@ class EnhancedWorkflowTracer:
                 if LANGCHAIN_API_KEY:
                     tracer = LangChainTracer(
                         project_name=LANGCHAIN_PROJECT or "kai-fusion",
-                        session_id=self.session_id
+                        session_id=self.session_id,
                     )
                     return CallbackManager([tracer])
             except Exception as e:
@@ -159,60 +162,47 @@ def enhanced_trace_workflow(func):
     async def async_wrapper(*args, **kwargs):
         if not ENABLE_WORKFLOW_TRACING:
             return await func(*args, **kwargs)
-        
         # Extract session and user info from kwargs
         session_id = kwargs.get('session_id')
         user_id = kwargs.get('user_id')
         workflow_id = kwargs.get('workflow_id')
         
         tracer = EnhancedWorkflowTracer(session_id=session_id, user_id=user_id)
-        
         try:
             # Start workflow tracing
             flow_data = kwargs.get('flow_data') or (args[0] if args else {})
             tracer.start_workflow(workflow_id=workflow_id, flow_data=flow_data)
-            
             # Execute function
             result = await func(*args, **kwargs)
-            
             # End workflow tracing
             tracer.end_workflow(success=True)
-            
             return result
-            
         except Exception as e:
             tracer.end_workflow(success=False, error=str(e))
             raise
-    
     @wraps(func)
     def sync_wrapper(*args, **kwargs):
         if not ENABLE_WORKFLOW_TRACING:
             return func(*args, **kwargs)
-        
         # Extract session and user info from kwargs
         session_id = kwargs.get('session_id')
         user_id = kwargs.get('user_id')
         workflow_id = kwargs.get('workflow_id')
         
         tracer = EnhancedWorkflowTracer(session_id=session_id, user_id=user_id)
-        
         try:
             # Start workflow tracing
             flow_data = kwargs.get('flow_data') or (args[0] if args else {})
             tracer.start_workflow(workflow_id=workflow_id, flow_data=flow_data)
-            
             # Execute function
             result = func(*args, **kwargs)
-            
             # End workflow tracing
             tracer.end_workflow(success=True)
             
             return result
-            
         except Exception as e:
             tracer.end_workflow(success=False, error=str(e))
             raise
-    
     # Return appropriate wrapper based on function type
     import asyncio
     if asyncio.iscoroutinefunction(func):
@@ -233,26 +223,20 @@ def enhanced_trace_node_execution(func):
         session_id = getattr(self, 'session_id', None)
         
         tracer = EnhancedWorkflowTracer(session_id=session_id)
-        
         try:
             # Start node tracing
             inputs = kwargs.get('inputs', {})
             tracer.start_node_execution(node_id, node_type, inputs)
-            
             # Execute function
             result = func(self, *args, **kwargs)
-            
             # End node tracing
             outputs = {'output': result} if result else {}
             tracer.end_node_execution(node_id, node_type, outputs, success=True)
-            
             return result
-            
         except Exception as e:
             tracer.end_node_execution(node_id, node_type, {}, success=False, error_message=str(e))
-            logger.error(f"❌ Enhanced node {node_id} failed: {str(e)}")
+            logger.error(f"Enhanced node {node_id} failed: {str(e)}")
             raise
-    
     return wrapper
 
 
@@ -280,7 +264,7 @@ def enhanced_trace_memory_operation(operation: str):
                 return result
                 
             except Exception as e:
-                logger.error(f"❌ Enhanced memory operation {operation} failed: {str(e)}")
+                logger.error(f"Enhanced memory operation {operation} failed: {str(e)}")
                 raise
         
         return wrapper
@@ -298,12 +282,12 @@ def setup_enhanced_tracing():
         try:
             from app.core.config import setup_langsmith
             setup_langsmith()
-            logger.info("🔍 Enhanced workflow tracing initialized with LangSmith")
+            logger.info("Enhanced workflow tracing initialized with LangSmith")
         except Exception as e:
             logger.warning(f"LangSmith setup failed: {e}")
-            logger.info("🔍 Enhanced workflow tracing initialized (local only)")
+            logger.info("Enhanced workflow tracing initialized (local only)")
     else:
-        logger.info("🔍 Enhanced workflow tracing initialized (local only)")
+        logger.info("Enhanced workflow tracing initialized (local only)")
 
 
 # Backward compatibility aliases

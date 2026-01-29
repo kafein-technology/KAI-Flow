@@ -72,9 +72,9 @@ class StateManager:
         
         # Start cleanup thread
         self._start_cleanup_thread()
-        
-        logger.info(f"🧹 StateManager initialized with policy: {self.cleanup_policy}")
-    
+
+        logger.info(f" StateManager initialized with policy: {self.cleanup_policy}")
+
     def create_state(
         self, 
         session_id: str, 
@@ -112,7 +112,7 @@ class StateManager:
                 last_accessed=datetime.now()
             )
             
-            logger.info(f"✅ Created managed state: {session_id}")
+            logger.info(f" Created managed state: {session_id}")
             return state
     
     def get_state(self, session_id: str) -> Optional[FlowState]:
@@ -216,8 +216,8 @@ class StateManager:
             daemon=True
         )
         self._cleanup_thread.start()
-        logger.info("🧹 Cleanup thread started")
-    
+        logger.info(" Cleanup thread started")
+
     def _cleanup_worker(self):
         """Background cleanup worker."""
         while not self._shutdown_event.is_set():
@@ -270,8 +270,8 @@ class StateManager:
                     cleaned_count += 1
             
             if cleaned_count > 0:
-                logger.info(f"🧹 Automatic cleanup: {cleaned_count} sessions")
-            
+                logger.info(f" Automatic cleanup: {cleaned_count} sessions")
+
             # Check system memory pressure
             self._check_memory_pressure()
     
@@ -292,9 +292,9 @@ class StateManager:
             
             for session_id, _ in sorted_sessions[:cleanup_count]:
                 self.cleanup_state(session_id, "force cleanup")
-            
-            logger.warning(f"🧹 Force cleanup: {cleanup_count} sessions")
-    
+
+            logger.warning(f" Force cleanup: {cleanup_count} sessions")
+
     def _check_memory_pressure(self):
         """Check system memory pressure and take action."""
         try:
@@ -304,11 +304,13 @@ class StateManager:
             
             if memory_percent > self.cleanup_policy.force_cleanup_threshold:
                 self._memory_warnings += 1
-                logger.warning(f"⚠️ High memory usage: {memory_percent:.1%}")
-                
+                logger.warning(f" High memory usage: {memory_percent:.1%}")
+
                 # Force cleanup if memory pressure is high
                 if memory_percent > 0.9:  # 90% memory usage
-                    logger.error(f"🚨 Critical memory usage: {memory_percent:.1%}, forcing cleanup")
+                    logger.error(
+                        f" Critical memory usage: {memory_percent:.1%}, forcing cleanup"
+                    )
                     self._force_cleanup()
                     
                     # Force garbage collection
@@ -362,24 +364,26 @@ class StateManager:
     def optimize_memory(self):
         """Perform memory optimization."""
         with self._lock:
-            logger.info("🔧 Starting memory optimization")
-            
+            logger.info(" Starting memory optimization")
+
             # Update all state metrics
             for session_id in self._states.keys():
                 self._update_state_metrics(session_id)
             
             # Force garbage collection
             collected = gc.collect()
-            logger.info(f"🗑️ Garbage collection: {collected} objects collected")
-            
+            logger.info(f" Garbage collection: {collected} objects collected")
+
             # Log memory statistics
             stats = self.get_statistics()
-            logger.info(f"📊 Memory optimization complete: {stats['total_memory_mb']:.1f}MB across {stats['active_sessions']} sessions")
-    
+            logger.info(
+                f" Memory optimization complete: {stats['total_memory_mb']:.1f}MB across {stats['active_sessions']} sessions"
+            )
+
     def shutdown(self):
         """Shutdown the state manager."""
-        logger.info("🛑 Shutting down StateManager")
-        
+        logger.info(" Shutting down StateManager")
+
         # Signal shutdown
         self._shutdown_event.set()
         
@@ -392,8 +396,8 @@ class StateManager:
             session_ids = list(self._states.keys())
             for session_id in session_ids:
                 self.cleanup_state(session_id, "shutdown")
-        
-        logger.info("✅ StateManager shutdown complete")
+
+        logger.info(" StateManager shutdown complete")
 
 
 # Global state manager instance

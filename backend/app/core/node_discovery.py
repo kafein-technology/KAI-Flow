@@ -8,7 +8,7 @@ the advanced NodeRegistry architecture. This module is officially deprecated and
 provides comprehensive migration guidance and compatibility bridges for existing
 integrations requiring seamless transition to the modern node management system.
 
-⚠️  DEPRECATION NOTICE:
+  DEPRECATION NOTICE:
 =====================
 
 **THIS MODULE IS OFFICIALLY DEPRECATED AND WILL BE REMOVED IN FUTURE VERSIONS**
@@ -199,10 +199,10 @@ def modern_node_creation(node_type: str):
     node_class = node_registry.get_node(node_type)
     if not node_class:
         return None
-    
+
     # Access metadata for enhanced functionality
     metadata = node_registry.get_node_metadata(node_type)
-    
+
     # Create with modern safety features
     try:
         instance = node_class()
@@ -223,7 +223,7 @@ from app.core.node_discovery import get_registry
 class LegacyWorkflowBuilder:
     def __init__(self):
         self.available_nodes = get_registry()
-    
+
     def create_node(self, node_type: str):
         if node_type in self.available_nodes:
             return self.available_nodes[node_type]()

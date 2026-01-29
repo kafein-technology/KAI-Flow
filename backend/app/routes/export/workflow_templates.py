@@ -74,7 +74,7 @@ class NodeExecutor:
             # Check if it matches a base node type
             normalized_type = node_type.lower()
             if normalized_type in base_node_map:
-                logger.info(f"✅ Using base class: {node_type} -> {base_node_map[normalized_type].__name__}")
+                logger.info(f"Using base class: {node_type} -> {base_node_map[normalized_type].__name__}")
                 return base_node_map[normalized_type]
             
             # Try to import from specific node module
@@ -88,30 +88,30 @@ class NodeExecutor:
                     if (isinstance(attr, type) and
                         hasattr(attr, 'execute') and
                         attr_name.lower().find(node_type.lower()) != -1):
-                        logger.info(f"✅ Loaded specific class: {node_type} -> {attr.__name__}")
+                        logger.info(f"Loaded specific class: {node_type} -> {attr.__name__}")
                         return attr
                 
-                logger.warning(f"⚠️  No specific class found in {module_name} for {node_type}")
+                logger.warning(f"No specific class found in {module_name} for {node_type}")
                 
             except ImportError:
-                logger.warning(f"⚠️  Could not import module for {node_type}")
+                logger.warning(f"Could not import module for {node_type}")
             
             # Final fallback based on node type pattern
             if 'processor' in normalized_type:
-                logger.info(f"🔄 Fallback to ProcessorNode for {node_type}")
+                logger.info(f"Fallback to ProcessorNode for {node_type}")
                 return ProcessorNode
             elif 'provider' in normalized_type:
-                logger.info(f"🔄 Fallback to ProviderNode for {node_type}")
+                logger.info(f"Fallback to ProviderNode for {node_type}")
                 return ProviderNode
             elif 'terminator' in normalized_type or 'end' in normalized_type:
-                logger.info(f"🔄 Fallback to TerminatorNode for {node_type}")
+                logger.info(f"Fallback to TerminatorNode for {node_type}")
                 return TerminatorNode
             else:
-                logger.info(f"🔄 Fallback to BaseNode for {node_type}")
+                logger.info(f"Fallback to BaseNode for {node_type}")
                 return BaseNode
                 
         except Exception as e:
-            logger.error(f"❌ Error loading node class {node_type}: {e}")
+            logger.error(f"Error loading node class {node_type}: {e}")
             # Ultimate fallback
             from nodes import BaseNode
             return BaseNode
@@ -471,7 +471,7 @@ def load_workflow_definition():
         workflow_engine = initialize_workflow_engine(WORKFLOW_DEF)
         workflow_info = workflow_engine.get_workflow_info()
         
-        logger.info(f"✅ Workflow engine initialized successfully")
+        logger.info(f"Workflow engine initialized successfully")
         logger.info(f"   - Nodes: {workflow_info['nodes']}")
         logger.info(f"   - Edges: {workflow_info['edges']}")
         logger.info(f"   - Start nodes: {workflow_info['start_nodes']}")
@@ -481,7 +481,7 @@ def load_workflow_definition():
         return True
         
     except Exception as e:
-        logger.error(f"❌ Failed to load workflow: {e}")
+        logger.error(f"Failed to load workflow: {e}")
         import traceback
         logger.error(traceback.format_exc())
         
@@ -499,10 +499,10 @@ def load_workflow_definition():
         
         try:
             workflow_engine = initialize_workflow_engine(WORKFLOW_DEF)
-            logger.info("✅ Fallback workflow engine initialized")
+            logger.info("Fallback workflow engine initialized")
             return True
         except Exception as fallback_error:
-            logger.error(f"❌ Even fallback workflow failed: {fallback_error}")
+            logger.error(f"Even fallback workflow failed: {fallback_error}")
             return False
 
 # Initialize workflow on startup
@@ -743,7 +743,7 @@ async def global_exception_handler(request, exc):
 @app.on_event("startup")
 async def startup_event():
     """Application startup event."""
-    logger.info("🚀 KAI-Fusion Advanced Workflow Runtime starting up")
+    logger.info(" KAI-Fusion Advanced Workflow Runtime starting up")
     logger.info(f"   - Workflow loaded: {workflow_loaded}")
     logger.info(f"   - Environment: {os.getenv('ENVIRONMENT', 'development')}")
     logger.info(f"   - Port: {os.getenv('API_PORT', '8000')}")

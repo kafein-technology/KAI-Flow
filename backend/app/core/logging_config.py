@@ -206,7 +206,7 @@ def setup_comprehensive_logging():
     
     # Log startup message
     logger = logging.getLogger(__name__)
-    logger.info("📊 Console logging system initialized", extra={
+    logger.info("Console logging system initialized", extra={
         "environment": ENVIRONMENT,
         "log_level": LOG_LEVEL,
         "handlers_count": len(root_logger.handlers)
@@ -274,15 +274,20 @@ def log_performance(func_name: str, duration: float, **extra_context: Any):
         **extra_context: Additional context
     """
     logger = logging.getLogger("performance")
-    logger.info(f"Performance: {func_name} executed", extra={
-        "function": func_name,
-        "duration_seconds": round(duration, 4),
-        "duration_ms": round(duration * 1000, 2),
-        **extra_context
-    })
+    logger.info(
+        f"Performance: {func_name} executed",
+        extra={
+            "function": func_name,
+            "duration_seconds": round(duration, 4),
+            "duration_ms": round(duration * 1000, 2),
+            **extra_context,
+        },
+    )
 
 
-def log_security_event(event_type: str, details: Dict[str, Any], severity: str = "info"):
+def log_security_event(
+    event_type: str, details: Dict[str, Any], severity: str = "info"
+):
     """
     Log security-related events.
     
@@ -294,11 +299,10 @@ def log_security_event(event_type: str, details: Dict[str, Any], severity: str =
     logger = logging.getLogger("security")
     
     log_method = getattr(logger, severity.lower(), logger.info)
-    log_method(f"Security event: {event_type}", extra={
-        "event_type": event_type,
-        "security_event": True,
-        **details
-    })
+    log_method(
+        f"Security event: {event_type}",
+        extra={"event_type": event_type, "security_event": True, **details},
+    )
 
 
 def log_database_operation(operation: str, table: str, duration: float, **extra_context: Any):

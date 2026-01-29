@@ -45,7 +45,7 @@ class WorkflowExecutionEnhancer:
         
         if not session_id:
             # Safe fallback using object id
-            logger.warning(f"⚠️  No session_id or chatflow_id provided, using object id fallback")
+            logger.warning(f"No session_id or chatflow_id provided, using object id fallback")
             session_id = f"session_{id(req)}"
             
         if isinstance(session_id, int):
@@ -92,18 +92,18 @@ class WorkflowExecutionEnhancer:
         )
         
         try:
-            logger.info(f"🔄 Enhanced build starting (session: {context.session_id})")
+            logger.info(f"Enhanced build starting (session: {context.session_id})")
             
             # Use dynamic engine to build workflow
             compiled_graph = engine.build_dynamic_workflow(
                 flow_data, context
             )
             
-            logger.info(f"✅ Enhanced build completed successfully")
+            logger.info(f"Enhanced build completed successfully")
             return context, compiled_graph, engine
             
         except Exception as e:
-            logger.error(f"❌ Enhanced build failed: {e}")
+            logger.error(f"Enhanced build failed: {e}")
             raise
     
     async def enhanced_execute(self, inputs: Dict[str, Any] = None, *, stream: bool = False, 
@@ -122,7 +122,7 @@ class WorkflowExecutionEnhancer:
             raise RuntimeError("Must provide build_result (context, compiled_graph, engine) to enhanced_execute()")
         
         try:
-            logger.info(f"🚀 Enhanced execute starting (session: {context.session_id})")
+            logger.info(f"Enhanced execute starting (session: {context.session_id})")
             
             # Ensure the graph is set on the builder instance associated with this engine
             engine.base_builder.graph = compiled_graph
@@ -131,11 +131,11 @@ class WorkflowExecutionEnhancer:
                 inputs or {}, context, stream
             )
             
-            logger.info(f"✅ Enhanced execute completed successfully")
+            logger.info(f"Enhanced execute completed successfully")
             return result
             
         except Exception as e:
-            logger.error(f"❌ Enhanced execute failed: {e}")
+            logger.error(f"Enhanced execute failed: {e}")
             raise
     
     def get_metrics(self) -> Dict[str, Any]:
@@ -153,6 +153,7 @@ _workflow_enhancer = WorkflowExecutionEnhancer()
 def get_workflow_enhancer() -> WorkflowExecutionEnhancer:
     """Get the global workflow enhancer instance"""
     return _workflow_enhancer
+
 
 def create_workflow_enhancer() -> WorkflowExecutionEnhancer:
     """Create a new workflow enhancer instance"""

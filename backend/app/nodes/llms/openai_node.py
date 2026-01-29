@@ -239,11 +239,14 @@ LICENSE: Proprietary - KAI-Fusion Platform
 
 from typing import Dict, Any, Optional, List
 import os
+import logging
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
 from pydantic import SecretStr
 
 from ..base import BaseNode, NodeType, NodeInput, NodeOutput, NodeProperty, NodePosition, NodePropertyType
+
+logger = logging.getLogger(__name__)
 
 
 # ================================================================================
@@ -743,7 +746,7 @@ class OpenAINode(BaseNode):
     
     def execute(self, **kwargs) -> Runnable:
         """Execute OpenAI node with enhanced configuration and validation."""
-        print(f"\nOPENAI LLM SETUP")
+        logger.info("\nOPENAI LLM SETUP")
         
         # Get configuration from user_data
         model_name = self.user_data.get("model_name", "gpt-4o")
@@ -757,7 +760,15 @@ class OpenAINode(BaseNode):
         
         # Get API key from user configuration (database/UI)
         credential_id = self.user_data.get("credential_id")
-        api_key = self.get_credential(credential_id).get('secret').get('api_key')
+        logger.info(f"[DEBUG] OpenAI credential_id: {credential_id}")
+        
+        api_key = None
+        if credential_id:
+            cred = self.get_credential(credential_id)
+            logger.info(f"[DEBUG] Credential retrieved: {cred is not None}, has secret: {cred.get('secret') if cred else 'N/A'}")
+            if cred and cred.get('secret'):
+                api_key = str(cred.get('secret').get('api_key', '')).strip()
+                logger.info(f"[DEBUG] API key retrieved: {bool(api_key)}, length: {len(api_key) if api_key else 0}")
         
         if not api_key:
             raise ValueError(
@@ -772,7 +783,7 @@ class OpenAINode(BaseNode):
             # Use default of 10000 tokens but cap at model limit
             max_tokens = min(10000, model_config["max_tokens"])
         elif max_tokens > model_config["max_tokens"]:
-            print(f"Requested max_tokens ({max_tokens}) exceeds model limit ({model_config['max_tokens']})")
+            logger.warning(f"Requested max_tokens ({max_tokens}) exceeds model limit ({model_config['max_tokens']})")
             max_tokens = model_config["max_tokens"]
         
         # Build LLM configuration
@@ -788,13 +799,15 @@ class OpenAINode(BaseNode):
             "streaming": streaming
         }
         
-        # Create OpenAI Chat model
+        # Trace base URL for debugging 401 "No cookie auth" errors
+        # Note: ChatOpenAI uses default OpenAI URL if base_url is not provided
+        logger.info(f"[TRACE][LLM.OPENAI] Initializing ChatOpenAI")
         try:
             llm = ChatOpenAI(**llm_config)
             
             # Log successful creation
-            print(f"   Model: {model_name} | Temp: {temperature} | Max Tokens: {max_tokens}")
-            print(f"   Features: Tools({model_config['supports_tools']}) | Vision({model_config['supports_vision']}) | Context({model_config['context_window']})")
+            logger.info(f"   Model: {model_name} | Temp: {temperature} | Max Tokens: {max_tokens}")
+            logger.info(f"   Features: Tools({model_config['supports_tools']}) | Vision({model_config['supports_vision']}) | Context({model_config['context_window']})")
             
             # Store model info for potential use
             self.model_info = {
@@ -812,7 +825,7 @@ class OpenAINode(BaseNode):
             
         except Exception as e:
             error_msg = f"Failed to create OpenAI LLM: {str(e)}"
-            print(f"{error_msg}")
+            logger.error(f"{error_msg}")
             raise ValueError(error_msg) from e
     
     def get_model_info(self) -> Optional[Dict[str, Any]]:

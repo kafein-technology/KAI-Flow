@@ -71,7 +71,7 @@ class AutoToolConverter:
 
             if tool:
                 self.conversion_cache[cache_key] = tool
-                logger.info(f"✅ Successfully converted {node_class_name} to tool: {tool.name}")
+                logger.info(f" Successfully converted {node_class_name} to tool: {tool.name}")
 
             return tool
 

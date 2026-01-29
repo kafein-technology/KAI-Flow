@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import abc
+import logging
 from typing import Any, AsyncGenerator, Dict, Optional, Union
 from app.core.tracing import trace_workflow, get_workflow_tracer
 
@@ -113,16 +114,20 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
 
         # Single, standardized node discovery
         if not node_registry.nodes:
-            print("🔍 Discovering nodes...")
+            logging.getLogger(__name__).info(" Discovering nodes...")
             node_registry.discover_nodes()
 
         # Ensure we have nodes
         if not node_registry.nodes:
-            print("⚠️  No nodes discovered! Creating minimal fallback registry...")
+            logging.getLogger(__name__).warning(
+                "  No nodes discovered! Creating minimal fallback registry..."
+            )
             self._create_minimal_fallback_registry(node_registry)
 
-        print(f"✅ Engine initialized with {len(node_registry.nodes)} nodes")
-        
+        logging.getLogger(__name__).info(
+            f" Engine initialized with {len(node_registry.nodes)} nodes"
+        )
+
         # Choose MemorySaver automatically (GraphBuilder handles this)
         self._builder = GraphBuilder(node_registry.nodes)
         self._built: bool = False
@@ -135,9 +140,13 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
             from app.nodes.default import StartNode, EndNode
             registry.register_node(StartNode)
             registry.register_node(EndNode)
-            print("✅ Registered fallback nodes: StartNode, EndNode")
+            logging.getLogger(__name__).info(
+                " Registered fallback nodes: StartNode, EndNode"
+            )
         except Exception as e:
-            print(f"⚠️  Could not register fallback nodes: {e}")
+            logging.getLogger(__name__).error(
+                f"  Could not register fallback nodes: {e}"
+            )
 
     # ------------------------------------------------------------------
     # Validation
@@ -187,8 +196,10 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
                     available_types = list(self._builder.node_registry.keys())
                     similar = [t for t in available_types if (node_type or "").lower() in t.lower()]
                     if similar:
-                        warnings.append(f"Did you mean one of: {', '.join(similar[:3])}?")
-        
+                        warnings.append(
+                            f"Did you mean one of: {', '.join(similar[:3])}?"
+                        )
+
         # Validate edges
         if edges:
             for i, edge in enumerate(edges):
@@ -261,23 +272,27 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
             logger.info("🔍 Validating workflow structure...")
             validation_result = self.validate(flow_data)
             if not validation_result["valid"]:
-                error_msg = f"Cannot build workflow: {'; '.join(validation_result['errors'])}"
-                logger.end_workflow_phase(WorkflowPhase.BUILD, success=False, error=error_msg)
+                error_msg = (
+                    f"Cannot build workflow: {'; '.join(validation_result['errors'])}"
+                )
+                logger.end_workflow_phase(
+                    WorkflowPhase.BUILD, success=False, error=error_msg
+                )
                 raise ValueError(error_msg)
-            
+
             # Log warnings if any
             if validation_result["warnings"]:
                 for warning in validation_result["warnings"]:
-                    logger.warning(f"⚠️  {warning}")
+                    logger.warning(f"{warning}")
             
-            logger.info("✅ Validation passed")
+            logger.info("Validation passed")
             logger.update_progress(1, "Validation completed")
-            
+
             # Build graph structure
-            logger.info("🔧 Building graph structure...")
+            logger.info("Building graph structure...")
             self._builder.build_from_flow(flow_data, user_id=user_id)
             self._built = True
-            
+
             logger.end_workflow_phase(
                 WorkflowPhase.BUILD, 
                 success=True,
@@ -287,7 +302,9 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
             
         except Exception as e:
             error_msg = f"Workflow build failed: {str(e)}"
-            logger.end_workflow_phase(WorkflowPhase.BUILD, success=False, error=error_msg)
+            logger.end_workflow_phase(
+                WorkflowPhase.BUILD, success=False, error=error_msg
+            )
             raise ValueError(error_msg) from e
 
     # ------------------------------------------------------------------
@@ -312,8 +329,10 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         session_id = user_context.get("session_id") if user_context else None  # type: ignore[attr-defined]
 
         # Get enhanced logger
-        logger = get_enhanced_logger("workflow_engine", workflow_id=workflow_id, session_id=session_id)
-        
+        logger = get_enhanced_logger(
+            "workflow_engine", workflow_id=workflow_id, session_id=session_id
+        )
+
         # Calculate estimated steps from flow data
         nodes = self._flow_data.get("nodes", []) if self._flow_data else []
         estimated_steps = len(nodes)
@@ -332,7 +351,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
 
         try:
             # GraphBuilder.execute manages streaming vs sync
-            logger.info("🚀 Starting workflow execution...")
+            logger.info("Starting workflow execution...")
             result = await self._builder.execute(
                 inputs,
                 user_id=user_id,
@@ -354,7 +373,10 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
             
         except Exception as e:
             error_msg = f"Workflow execution failed: {str(e)}"
-            logger.end_workflow_phase(WorkflowPhase.EXECUTE, success=False, error=error_msg)
+            error_type = type(e).__name__
+            logger.end_workflow_phase(
+                WorkflowPhase.EXECUTE, success=False, error=error_msg
+            )
             tracer.end_workflow(success=False, error=error_msg)
             
             # Return structured error result

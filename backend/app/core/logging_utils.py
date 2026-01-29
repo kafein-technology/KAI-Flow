@@ -67,6 +67,8 @@ from collections import defaultdict, deque
 # Import existing logging config
 from .logging_config import get_logger_with_context
 
+logger = logging.getLogger(__name__)
+
 
 class LogLevel(Enum):
     """Enhanced log levels for workflow components."""
@@ -361,27 +363,27 @@ class WorkflowLogger:
         )
         
         phase_symbols = {
-            WorkflowPhase.VALIDATE: "🔍",
-            WorkflowPhase.BUILD: "🏗️", 
-            WorkflowPhase.EXECUTE: "🚀",
-            WorkflowPhase.COMPLETE: "✅",
-            WorkflowPhase.ERROR: "❌"
+            WorkflowPhase.VALIDATE: "[VALIDATE]",
+            WorkflowPhase.BUILD: "[BUILD]", 
+            WorkflowPhase.EXECUTE: "[EXECUTE]",
+            WorkflowPhase.COMPLETE: "[COMPLETE]",
+            WorkflowPhase.ERROR: "[ERROR]"
         }
         
-        symbol = phase_symbols.get(phase, "⚙️")
+        symbol = phase_symbols.get(phase, "SETTINGS")
         message = f"{symbol} WORKFLOW {phase.value.upper()} STARTED"
         
         if total_steps > 0:
             message += f" ({total_steps} steps)"
         
         self.log_with_context(LogLevel.INFO, message, **details)
-        print("=" * 60)
-        print(message)
+        logger.info("=" * 60)
+        logger.info(message)
         if details:
             for key, value in details.items():
-                print(f"   {key}: {value}")
-        print("=" * 60)
-    
+                logger.info(f"   {key}: {value}")
+        logger.info("=" * 60)
+
     def end_workflow_phase(self, phase: WorkflowPhase, success: bool = True, **details):
         """End workflow phase with summary."""
         if not self.progress_tracker:
@@ -390,26 +392,30 @@ class WorkflowLogger:
                 phase=phase
             )
         
-        status_symbol = "✅" if success else "❌"
         status_text = "COMPLETED" if success else "FAILED"
         elapsed = self.progress_tracker.elapsed_time
         
-        message = f"{status_symbol} WORKFLOW {phase.value.upper()} {status_text} ({elapsed:.2f}s)"
+        message = f"WORKFLOW {phase.value.upper()} {status_text} ({elapsed:.2f}s)"
         
         level = LogLevel.INFO if success else LogLevel.ERROR
-        self.log_with_context(level, message, success=success, elapsed_time=elapsed, **details)
-        
-        print(f"{status_symbol} {phase.value.upper()} {status_text} in {elapsed:.2f}s")
+        self.log_with_context(
+            level, message, success=success, elapsed_time=elapsed, **details
+        )
+
+        logger.info(
+            f" {phase.value.upper()} {status_text} in {elapsed:.2f}s"
+        )
         if details:
             for key, value in details.items():
-                print(f"   {key}: {value}")
-        print("=" * 60)
-    
-    def log_node_execution(self, node_id: str, node_type: str, inputs: Dict[str, Any], **extra):
+                logger.info(f"   {key}: {value}")
+        logger.info("=" * 60)
+
+    def log_node_execution(
+        self, node_id: str, node_type: str, inputs: Dict[str, Any], **extra
+    ):
         """Log node execution with smart filtering."""
         # Filter inputs to avoid embedding dumps
         filtered_inputs = self.data_filter.filter_dict(inputs)
-        
         # Create clean input summary
         input_summary = []
         for key, value in filtered_inputs.items():
@@ -422,7 +428,7 @@ class WorkflowLogger:
             else:
                 input_summary.append(f"{key}={type(value).__name__}")
         
-        message = f"🎯 Node: {node_id} ({node_type}) | Inputs: {', '.join(input_summary)}"
+        message = f" Node: {node_id} ({node_type}) | Inputs: {', '.join(input_summary)}"
         
         self.log_with_context(
             LogLevel.INFO, 
@@ -436,14 +442,14 @@ class WorkflowLogger:
     def log_embedding_operation(self, operation: str, **kwargs):
         """Log embedding operations with clean summaries."""
         summary = self.data_filter.summarize_embedding_operation(operation, **kwargs)
-        message = f"🧠 {summary}"
+        message = f" {summary}"
         
         self.log_with_context(LogLevel.INFO, message, operation_type="embedding", **kwargs)
     
     def log_database_query(self, operation: str, table: str, **kwargs):
         """Log database queries with clean summaries.""" 
         summary = self.data_filter.summarize_database_query(operation, table, **kwargs)
-        message = f"💾 {summary}"
+        message = f"{summary}"
         
         self.log_with_context(LogLevel.INFO, message, operation_type="database", **kwargs)
     
@@ -462,7 +468,7 @@ class WorkflowLogger:
             level = LogLevel.ERROR  # Generic database error
             category = "database_error"
         
-        message = f"💥 Database Error ({category}): {error_type}"
+        message = f"Database Error ({category}): {error_type}"
         
         self.error_counts[category] += 1
         
@@ -487,13 +493,13 @@ class WorkflowLogger:
         
         # Performance status
         if duration > avg_time * 2:
-            status = "🐌 SLOW"
+            status = "SLOW"
             level = LogLevel.WARNING
         elif duration > avg_time * 1.5:
-            status = "⚠️ DEGRADED"
+            status = "DEGRADED"
             level = LogLevel.WARNING
         else:
-            status = "⚡ NORMAL"
+            status = "NORMAL"
             level = LogLevel.DEBUG
         
         message = f"{status} {operation}: {duration:.3f}s (avg: {avg_time:.3f}s)"
@@ -523,10 +529,9 @@ class WorkflowLogger:
         progress = self.progress_tracker.progress_percent
         if progress > 0 and (progress % 25 == 0 or progress >= 100):
             bar = self.progress_tracker.format_progress_bar()
-            message = f"📊 Progress: {bar}"
+            message = f"Progress: {bar}"
             if details:
                 message += f" | {details}"
-            
             self.log_with_context(LogLevel.INFO, message, progress_percent=progress)
     
     @contextmanager 

@@ -65,18 +65,14 @@ class DockerExportTester:
         
         if status == "PASS":
             color = Colors.GREEN
-            icon = "✅"
         elif status == "FAIL":
             color = Colors.RED
-            icon = "❌"
         elif status == "SKIP":
             color = Colors.YELLOW
-            icon = "⏭️"
         else:
             color = Colors.BLUE
-            icon = "ℹ️"
         
-        print(f"{color}{icon} [{timestamp}] {test_name}: {status}{Colors.END}")
+        print(f"{color} [{timestamp}] {test_name}: {status}{Colors.END}")
         if message:
             print(f"   {message}")
         
@@ -513,9 +509,9 @@ class DockerExportTester:
         skipped = len([r for r in self.test_results if r["status"] == "SKIP"])
         
         print(f"\n{Colors.WHITE}Total Tests: {total_tests}{Colors.END}")
-        print(f"{Colors.GREEN}✅ Passed: {passed}{Colors.END}")
-        print(f"{Colors.RED}❌ Failed: {failed}{Colors.END}")
-        print(f"{Colors.YELLOW}⏭️ Skipped: {skipped}{Colors.END}")
+        print(f"{Colors.GREEN} Passed: {passed}{Colors.END}")
+        print(f"{Colors.RED} Failed: {failed}{Colors.END}")
+        print(f"{Colors.YELLOW} Skipped: {skipped}{Colors.END}")
         
         success_rate = (passed / total_tests * 100) if total_tests > 0 else 0
         print(f"\n{Colors.BOLD}Success Rate: {success_rate:.1f}%{Colors.END}")
@@ -524,20 +520,20 @@ class DockerExportTester:
             print(f"\n{Colors.RED}{Colors.BOLD}FAILED TESTS:{Colors.END}")
             for result in self.test_results:
                 if result["status"] == "FAIL":
-                    print(f"{Colors.RED}❌ {result['test_name']}: {result['message']}{Colors.END}")
+                    print(f"{Colors.RED} {result['test_name']}: {result['message']}{Colors.END}")
         
         # Overall assessment
         if success_rate >= 95:
-            print(f"\n{Colors.GREEN}{Colors.BOLD}🎉 EXCELLENT: System ready for production!{Colors.END}")
+            print(f"\n{Colors.GREEN}{Colors.BOLD} EXCELLENT: System ready for production!{Colors.END}")
         elif success_rate >= 80:
-            print(f"\n{Colors.YELLOW}{Colors.BOLD}⚠️ GOOD: Minor issues to address{Colors.END}")
+            print(f"\n{Colors.YELLOW}{Colors.BOLD}GOOD: Minor issues to address{Colors.END}")
         else:
-            print(f"\n{Colors.RED}{Colors.BOLD}❌ NEEDS WORK: Major issues detected{Colors.END}")
+            print(f"\n{Colors.RED}{Colors.BOLD} NEEDS WORK: Major issues detected{Colors.END}")
 
 async def main():
     """Ana test fonksiyonu"""
     print(f"{Colors.BOLD}{Colors.MAGENTA}")
-    print("🐳 DOCKER EXPORT FUNCTIONALITY TEST SUITE")
+    print("DOCKER EXPORT FUNCTIONALITY TEST SUITE")
     print("=" * 50)
     print(f"{Colors.END}")
     
@@ -552,7 +548,7 @@ async def main():
             tester.test_performance_metrics
         ]
         
-        print(f"{Colors.BLUE}🚀 Starting test sequence...{Colors.END}\n")
+        print(f"{Colors.BLUE} Starting test sequence...{Colors.END}\n")
         
         for test_func in test_functions:
             try:

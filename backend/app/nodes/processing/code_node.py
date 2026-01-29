@@ -255,6 +255,7 @@ def main():
         "time": time,
         "itertools": itertools,
         "collections": collections,
+        "logger": print,
     }}
 
     try:
@@ -802,7 +803,9 @@ class CodeNode(ProcessorNode):
                         parsed = ast.literal_eval(stdout_output)
                         # Convert to proper JSON with double quotes
                         stdout_output = json.dumps(parsed, ensure_ascii=False)
-                        logger.debug("Smart output: Converted Python dict/list repr to JSON")
+                        logger.debug(
+                            "Smart output: Converted Python dict/list repr to JSON"
+                        )
                     except (ValueError, SyntaxError):
                         # Keep original if not a valid Python literal
                         pass

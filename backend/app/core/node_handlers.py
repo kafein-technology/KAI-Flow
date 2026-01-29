@@ -95,8 +95,9 @@ class MemoryNodeHandler(NodeExecutionHandler):
         try:
             # Set session_id on memory nodes before execution
             source_node_instance.session_id = state.session_id
-            print(f"[DEBUG] Set session_id on memory node {node_id}: {state.session_id}")
-            
+            logger.debug(
+                f"[DEBUG] Set session_id on memory node {node_id}: {state.session_id}"
+            )
             # Inject user_id if supported
             self._inject_user_context(source_node_instance, state, node_id)
             
@@ -105,12 +106,14 @@ class MemoryNodeHandler(NodeExecutionHandler):
             
             # Execute memory node to get instance
             node_instance = source_node_instance.execute(**memory_inputs)
-            print(f"[DEBUG] Memory node {node_id} executed successfully: {type(node_instance).__name__}")
-            
+            logger.debug(
+                f"[DEBUG] Memory node {node_id} executed successfully: {type(node_instance).__name__}"
+            )
+
             return node_instance
             
         except Exception as e:
-            print(f"[ERROR] Failed to extract memory node {node_id}: {e}")
+            logger.error(f"[ERROR] Failed to extract memory node {node_id}: {e}")
             raise RuntimeError(f"Memory node extraction failed for {node_id}: {str(e)}")
     
     def _extract_memory_inputs(self, source_node_instance: Any, state: FlowState) -> Dict[str, Any]:
@@ -120,7 +123,9 @@ class MemoryNodeHandler(NodeExecutionHandler):
         # Get memory node input specifications
         for input_spec in source_node_instance.metadata.inputs:
             if input_spec.name in source_node_instance.user_data:
-                memory_inputs[input_spec.name] = source_node_instance.user_data[input_spec.name]
+                memory_inputs[input_spec.name] = source_node_instance.user_data[
+                    input_spec.name
+                ]
             elif input_spec.default is not None:
                 memory_inputs[input_spec.name] = input_spec.default
         
@@ -155,28 +160,36 @@ class ProviderNodeHandler(NodeExecutionHandler):
             # Extract provider-specific inputs from user configuration
             provider_inputs = self._extract_provider_inputs(source_node_instance, state)
             
-            # 🔥 NEW: Extract connected inputs for provider nodes that need them
+            # NEW: Extract connected inputs for provider nodes that need them
             connected_inputs = self._extract_connected_inputs(source_node_instance, gnode_instance, state)
             
             # Merge both input types
             all_inputs = {**provider_inputs, **connected_inputs}
-            
-            print(f"[DEBUG] Provider node {node_id} inputs: user={list(provider_inputs.keys())}, connected={list(connected_inputs.keys())}")
-            
+
+            logger.debug(
+                f"[DEBUG] Provider node {node_id} inputs: user={list(provider_inputs.keys())}, connected={list(connected_inputs.keys())}"
+            )
+
             # Inject user_id from state into node instance before execution
             self._inject_user_context(source_node_instance, state, node_id)
             
             # Execute provider node to get LangChain object
             node_instance = source_node_instance.execute(**all_inputs)
-            print(f"[DEBUG] Provider node {node_id} executed successfully: {type(node_instance).__name__}")
-            
+            logger.debug(
+                f"[DEBUG] Provider node {node_id} executed successfully: {type(node_instance).__name__}"
+            )
+
             return node_instance
             
         except Exception as e:
-            print(f"[ERROR] Failed to extract provider node {node_id}: {e}")
-            raise RuntimeError(f"Provider node extraction failed for {node_id}: {str(e)}")
-    
-    def _extract_provider_inputs(self, source_node_instance: Any, state: FlowState) -> Dict[str, Any]:
+            logger.error(f"[ERROR] Failed to extract provider node {node_id}: {e}")
+            raise RuntimeError(
+                f"Provider node extraction failed for {node_id}: {str(e)}"
+            )
+
+    def _extract_provider_inputs(
+        self, source_node_instance: Any, state: FlowState
+    ) -> Dict[str, Any]:
         """Extract inputs needed for provider node execution."""
         provider_inputs = {}
         
@@ -199,7 +212,7 @@ class ProviderNodeHandler(NodeExecutionHandler):
     
     def _extract_connected_inputs(self, source_node_instance: Any, gnode_instance: Any, state: FlowState) -> Dict[str, Any]:
         """
-        🔥 NEW: Extract connected inputs for provider nodes.
+        NEW: Extract connected inputs for provider nodes.
         
         This handles provider nodes like RetrieverProvider that need connections
         from other nodes (e.g., embedder from OpenAIEmbeddingsProvider).
@@ -220,8 +233,10 @@ class ProviderNodeHandler(NodeExecutionHandler):
         for input_name, connection_info in source_node_instance._input_connections.items():
             try:
                 source_node_id = connection_info["source_node_id"]
-                print(f"[DEBUG] Provider extracting connected input '{input_name}' from {source_node_id}")
-                
+                logger.debug(
+                    f"[DEBUG] Provider extracting connected input '{input_name}' from {source_node_id}"
+                )
+
                 # Get source node instance from global registry (injected by GraphBuilder)
                 if hasattr(self, 'nodes_registry') and source_node_id in self.nodes_registry:
                     source_gnode = self.nodes_registry[source_node_id]
@@ -238,25 +253,37 @@ class ProviderNodeHandler(NodeExecutionHandler):
                         
                         connected_result = source_instance.execute(**provider_inputs)
                         connected_inputs[input_name] = connected_result
-                        print(f"[DEBUG] Successfully extracted provider connection: {input_name} -> {type(connected_result).__name__}")
-                        
+                        logger.debug(
+                            f"[DEBUG] Successfully extracted provider connection: {input_name} -> {type(connected_result).__name__}"
+                        )
+
                     elif source_node_type.value == "processor":
                         # Try to get cached output from processor
                         if hasattr(state, 'node_outputs') and source_node_id in state.node_outputs:
                             cached_result = state.node_outputs[source_node_id]
                             connected_inputs[input_name] = cached_result
-                            print(f"[DEBUG] Successfully extracted processor connection: {input_name} -> {type(cached_result)}")
+                            logger.debug(
+                                f"[DEBUG] Successfully extracted processor connection: {input_name} -> {type(cached_result)}"
+                            )
                         else:
-                            print(f"[WARNING] No cached output for processor {source_node_id}")
-                            
+                            logger.warning(
+                                f"[WARNING] No cached output for processor {source_node_id}"
+                            )
+
                     else:
-                        print(f"[WARNING] Unsupported connected node type for provider: {source_node_type}")
-                        
+                        logger.warning(
+                            f"[WARNING] Unsupported connected node type for provider: {source_node_type}"
+                        )
+
                 else:
-                    print(f"[ERROR] Source node {source_node_id} not found in registry")
-                    
+                    logger.error(
+                        f"[ERROR] Source node {source_node_id} not found in registry"
+                    )
+
             except Exception as e:
-                print(f"[ERROR] Failed to extract connected input '{input_name}': {e}")
+                logger.error(
+                    f"[ERROR] Failed to extract connected input '{input_name}': {e}"
+                )
                 # Continue with other connections rather than failing completely
                 continue
         
@@ -291,22 +318,28 @@ class ProcessorNodeHandler(NodeExecutionHandler):
             # 1. Try to get cached output first (most common case)
             cached_result = self._get_cached_output(node_id, input_name, state)
             if cached_result is not None:
-                print(f"[DEBUG] Using cached output for processor {node_id}")
+                logger.debug(f"[DEBUG] Using cached output for processor {node_id}")
                 return cached_result
             
             # 2. If no cache, need to re-execute processor node
-            print(f"[DEBUG] No cached output found for {node_id}, performing re-execution")
-            
+            logger.debug(
+                f"[DEBUG] No cached output found for {node_id}, performing re-execution"
+            )
+
             # Inject user_id if supported
             self._inject_user_context(source_node_instance, state, node_id)
             
             return self._re_execute_processor(source_node_instance, gnode_instance, state)
             
         except Exception as e:
-            print(f"[ERROR] Failed to extract processor node {node_id}: {e}")
-            raise RuntimeError(f"Processor node extraction failed for {node_id}: {str(e)}")
-    
-    def _get_cached_output(self, node_id: str, input_name: str, state: FlowState) -> Optional[Any]:
+            logger.error(f"[ERROR] Failed to extract processor node {node_id}: {e}")
+            raise RuntimeError(
+                f"Processor node extraction failed for {node_id}: {str(e)}"
+            )
+
+    def _get_cached_output(
+        self, node_id: str, input_name: str, state: FlowState
+    ) -> Optional[Any]:
         """
         Intelligent cached output retrieval with multiple fallback strategies.
         
@@ -315,29 +348,33 @@ class ProcessorNodeHandler(NodeExecutionHandler):
         2. Common fallbacks (documents, output)
         3. Full stored result
         """
-        if not (hasattr(state, 'node_outputs') and node_id in state.node_outputs):
+        if not (hasattr(state, "node_outputs") and node_id in state.node_outputs):
             return None
         
         stored_result = state.node_outputs[node_id]
-        print(f"[DEBUG] Found stored result for {node_id}: {type(stored_result)}")
-        
+        logger.debug(
+            f"[DEBUG] Found stored result for {node_id}: {type(stored_result)}"
+        )
+
         # Try specific input_name first
         if isinstance(stored_result, dict):
             if input_name in stored_result:
-                print(f"[DEBUG] Found specific output '{input_name}' in stored result")
+                logger.debug(
+                    f"[DEBUG] Found specific output '{input_name}' in stored result"
+                )
                 return stored_result[input_name]
             
             # Common fallbacks
             if "documents" in stored_result:
-                print(f"[DEBUG] Using 'documents' fallback for {input_name}")
+                logger.debug(f"[DEBUG] Using 'documents' fallback for {input_name}")
                 return stored_result["documents"]
             
             if "output" in stored_result:
-                print(f"[DEBUG] Using 'output' fallback for {input_name}")
+                logger.debug(f"[DEBUG] Using 'output' fallback for {input_name}")
                 return stored_result["output"]
         
         # Return full result as last fallback
-        print(f"[DEBUG] Using full stored result as fallback")
+        logger.debug("[DEBUG] Using full stored result as fallback")
         return stored_result
     
     def _re_execute_processor(self, source_node_instance: Any, gnode_instance: Any, state: FlowState) -> Any:
@@ -346,8 +383,9 @@ class ProcessorNodeHandler(NodeExecutionHandler):
         
         This builds the proper input context and connected_nodes for execution.
         """
-        print(f"[DEBUG] Re-executing processor node {source_node_instance.__class__.__name__}")
-        
+        logger.debug(
+            f"[DEBUG] Re-executing processor node {source_node_instance.__class__.__name__}"
+        )
         # Extract user inputs for processor
         processor_inputs = self._extract_processor_inputs(source_node_instance, state)
         
@@ -355,10 +393,12 @@ class ProcessorNodeHandler(NodeExecutionHandler):
         processor_connected_nodes = self._build_connected_nodes_for_processor(
             source_node_instance, gnode_instance, state
         )
-        
-        print(f"[DEBUG] Processor inputs: {list(processor_inputs.keys())}")
-        print(f"[DEBUG] Processor connected nodes: {list(processor_connected_nodes.keys())}")
-        
+
+        logger.debug(f"[DEBUG] Processor inputs: {list(processor_inputs.keys())}")
+        logger.debug(
+            f"[DEBUG] Processor connected nodes: {list(processor_connected_nodes.keys())}"
+        )
+
         # Execute processor with proper context
         result = source_node_instance.execute(processor_inputs, processor_connected_nodes)
         print(f"[DEBUG] Processor re-execution completed: {type(result)}")
@@ -404,8 +444,7 @@ class ProcessorNodeHandler(NodeExecutionHandler):
         # This is a simplified version - in full implementation,
         # we might need to inject the main handler registry here
         # For now, we skip deep recursion to avoid complexity
-        print(f"[DEBUG] Processor connected nodes building skipped for safety")
-        
+        logger.debug("[DEBUG] Processor connected nodes building skipped for safety")
         return connected_nodes
     
     def _extract_result_output(self, result: Any) -> Any:

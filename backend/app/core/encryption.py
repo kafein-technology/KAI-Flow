@@ -1,4 +1,5 @@
 import os
+import logging
 import json
 import base64
 from typing import Dict, Any, Union, Optional
@@ -26,8 +27,10 @@ class CredentialEncryption:
             # Generate a new key if none exists (for development)
             # In production, this should be provided via environment
             self.master_key = base64.urlsafe_b64encode(os.urandom(32)).decode()
-            print("⚠️  Generated new encryption key. Set CREDENTIAL_MASTER_KEY environment variable!")
-        
+            logging.warning(
+                "  Generated new encryption key. Set CREDENTIAL_MASTER_KEY environment variable!"
+            )
+
         # Create Fernet cipher
         self.cipher = self._create_cipher()
     
@@ -43,7 +46,7 @@ class CredentialEncryption:
                 key = self.master_key.encode()
             else:
                 # Derive key from master key using PBKDF2
-                salt = b'salt_'  # In production, use a random salt stored separately
+                salt = b"salt_"  # In production, use a random salt stored separately
                 kdf = PBKDF2HMAC(
                     algorithm=hashes.SHA256(),
                     length=32,
@@ -53,7 +56,7 @@ class CredentialEncryption:
                 key = base64.urlsafe_b64encode(kdf.derive(self.master_key.encode()))
             
             return Fernet(key)
-            
+
         except Exception as e:
             raise ValueError(f"Invalid encryption key: {e}")
     
@@ -104,7 +107,12 @@ class CredentialEncryption:
                 return {"value": decrypted_str}
                 
         except Exception as e:
-            raise ValueError(f"Decryption failed: {e}")
+            error_msg = (
+                f"Decryption failed: {e}. This likely means the CREDENTIAL_MASTER_KEY has changed. "
+                "Please re-save your credentials in the UI to re-encrypt them with the new key."
+            )
+            logging.error(f"  {error_msg}")
+            raise ValueError(error_msg)
     
     def rotate_key(self, new_master_key: str, old_encrypted_data: bytes) -> bytes:
         """
@@ -119,7 +127,7 @@ class CredentialEncryption:
         """
         # Decrypt with old key
         decrypted_data = self.decrypt(old_encrypted_data)
-        
+
         # Create new cipher with new key
         old_master_key = self.master_key
         self.master_key = new_master_key

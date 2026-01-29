@@ -91,9 +91,13 @@ class NodeExecutor:
                     
                     credentials = credential_provider.get_credentials_sync(user_uuid)
                     gnode.node_instance.credentials = credentials
-                    logger.debug(f"Injected {len(credentials)} credentials for user {state.user_id} into node {node_id}")
+                    logger.debug(
+                        f"Injected {len(credentials)} credentials for user {state.user_id} into node {node_id}"
+                    )
                 except Exception as e:
-                    logger.warning(f"Failed to inject credentials for node {node_id}: {e}")
+                    logger.warning(
+                        f"Failed to inject credentials for node {node_id}: {e}"
+                    )
 
             # Setup session for ReAct Agents and Tool Agents
             if gnode.type in PROCESSOR_NODE_TYPES and hasattr(gnode.node_instance, 'session_id'):
@@ -115,8 +119,10 @@ class NodeExecutor:
                         session_id = f"session_{node_id}_{uuid.uuid4().hex[:8]}"
                     
                     gnode.node_instance.session_id = session_id
-                    logger.debug(f"Set session_id on memory node {node_id}: {session_id}")
-                    
+                    logger.debug(
+                        f"Set session_id on memory node {node_id}: {session_id}"
+                    )
+
         except Exception as e:
             logger.warning(f"Failed to setup session for node {node_id}: {e}")
     
@@ -136,16 +142,22 @@ class NodeExecutor:
             NodeExecutionError: If processor execution fails
         """
         try:
-            logger.info(f"[PROCESSING] Executing processor node: {node_id} ({gnode.type})")
-            
+            logger.info(
+                f"[PROCESSING] Executing processor node: {node_id} ({gnode.type})"
+            )
+
             # Extract user inputs for processor
             user_inputs = self.extract_user_inputs_for_processor(gnode, state)
-            logger.debug(f"User inputs extracted: {list(user_inputs.keys()) if user_inputs else 'None'}")
-            
+            logger.debug(
+                f"User inputs extracted: {list(user_inputs.keys()) if user_inputs else 'None'}"
+            )
+
             # Apply node-output templating so processor inputs can reference upstream node outputs
             user_inputs = self._apply_node_output_templating(gnode, user_inputs, state)
-            logger.debug(f"Templated user inputs: {list(user_inputs.keys()) if user_inputs else 'None'}")
-            
+            logger.debug(
+                f"Templated user inputs: {list(user_inputs.keys()) if user_inputs else 'None'}"
+            )
+
             # Extract connected node instances
             connected_nodes = self.extract_connected_node_instances(gnode, state)
             logger.debug(f"Connected nodes extracted: {list(connected_nodes.keys())}")
@@ -169,9 +181,11 @@ class NodeExecutor:
                     # Get the first connection value (typically 'target' for EndNode)
                     first_connection = next(iter(connected_nodes.values()), None)
                     previous_node = first_connection
-                
-                logger.debug(f"[TERMINATOR] Calling {node_id} with previous_node type: {type(previous_node)}")
-                
+
+                logger.debug(
+                    f"[TERMINATOR] Calling {node_id} with previous_node type: {type(previous_node)}"
+                )
+
                 if inspect.iscoroutinefunction(execute_method):
                     result = self._execute_async_method_terminator(execute_method, previous_node, user_inputs, node_id)
                 else:
@@ -341,7 +355,9 @@ class NodeExecutor:
                     logger.debug(f"No value found for required input {input_spec.name}, using default if any")
                     
         # Also include properties from user_data (for nodes with properties like ReactAgent)
-        if hasattr(gnode.node_instance, 'metadata') and hasattr(gnode.node_instance.metadata, 'properties'):
+        if hasattr(gnode.node_instance, "metadata") and hasattr(
+            gnode.node_instance.metadata, "properties"
+        ):
             properties = gnode.node_instance.metadata.properties
             if properties is not None:  # Fix: properties can be None
                 for prop in properties:
@@ -461,9 +477,11 @@ class NodeExecutor:
             if hasattr(state, 'webhook_data') and state.webhook_data:
                 context['webhook_data'] = state.webhook_data
                 # webhook_trigger = the actual payload data for easy access
-                webhook_payload = state.webhook_data.get('data', state.webhook_data)
-                context['webhook_trigger'] = webhook_payload
-                logger.info(f"[TEMPLATE] Added webhook_trigger to context: {list(webhook_payload.keys()) if isinstance(webhook_payload, dict) else type(webhook_payload)}")
+                webhook_payload = state.webhook_data.get("data", state.webhook_data)
+                context["webhook_trigger"] = webhook_payload
+                logger.info(
+                    f"[TEMPLATE] Added webhook_trigger to context: {list(webhook_payload.keys()) if isinstance(webhook_payload, dict) else type(webhook_payload)}"
+                )
 
             for other_node_id in state.node_outputs.keys():
                 graph_node = self._nodes_registry.get(other_node_id)
@@ -532,9 +550,11 @@ class NodeExecutor:
                 try:
                     if hasattr(graph_node, 'type') and graph_node.type == 'StartNode':
                         is_start_node = True
-                        if 'input' not in context:  # Don't overwrite if already set
-                            context['input'] = primary_value
-                            print(f"[TEMPLATE DEBUG] Added 'input' context from StartNode output: {primary_value}")
+                        if "input" not in context:  # Don't overwrite if already set
+                            context["input"] = primary_value
+                            logger.debug(
+                                f"[TEMPLATE DEBUG] Added 'input' context from StartNode output: {primary_value}"
+                            )
                 except Exception:
                     pass
 
@@ -561,7 +581,9 @@ class NodeExecutor:
                     )
             
             if not context:
-                logger.debug(f"[TEMPLATE] No context built for node {gnode.id}; skipping templating")
+                logger.debug(
+                    f"[TEMPLATE] No context built for node {gnode.id}; skipping templating"
+                )
                 return user_inputs
             
             logger.debug(
@@ -574,10 +596,8 @@ class NodeExecutor:
             for key, value in user_inputs.items():
                 if isinstance(value, str) and "{{" in value and "}}" in value:
                     original = value
-                    rendered = self._render_template_string(
-                        original, context, gnode.id
-                    )
-                    print(
+                    rendered = self._render_template_string(original, context, gnode.id)
+                    logger.debug(
                         f"[TEMPLATE DEBUG] Node {gnode.id} input '{key}' "
                         f"before='{original}' after='{rendered}'"
                     )
@@ -715,8 +735,10 @@ class NodeExecutor:
                     runnable_input = {"input": runnable_input}
                 elif not isinstance(runnable_input, dict):
                     runnable_input = {"input": str(runnable_input)}
-                
-                logger.debug(f"Executing Runnable for {node_id} with input: {runnable_input}")
+
+                logger.debug(
+                    f"Executing Runnable for {node_id} with input: {runnable_input}"
+                )
                 executed_result = result.invoke(runnable_input)
                 logger.debug(f"Runnable execution result: {executed_result}")
                 return executed_result
@@ -724,10 +746,16 @@ class NodeExecutor:
                 # Enhanced error logging for debugging connection format issues
                 error_msg = str(e)
                 if "string indices must be integers" in error_msg:
-                    logger.error(f"CRITICAL: Agent connection format error for {node_id}")
-                    logger.error(f"This usually indicates tools connection returned dict instead of List[BaseTool]")
-                    logger.error(f"Check provider nodes connected to this agent for proper output format")
-                
+                    logger.error(
+                        f"CRITICAL: Agent connection format error for {node_id}"
+                    )
+                    logger.error(
+                        f"This usually indicates tools connection returned dict instead of List[BaseTool]"
+                    )
+                    logger.error(
+                        f"Check provider nodes connected to this agent for proper output format"
+                    )
+
                 logger.error(f"Failed to execute Runnable for {node_id}: {e}")
                 import traceback
                 logger.error(f"Full traceback: {traceback.format_exc()}")
@@ -1149,5 +1177,7 @@ class NodeExecutor:
         # This will be called by the main GraphBuilder to provide access to nodes
         if hasattr(self.connection_extractor, 'set_nodes_registry'):
             self.connection_extractor.set_nodes_registry(nodes_registry)
-            
-        logger.debug(f"🔧 NodeExecutor: nodes_registry set with {len(nodes_registry)} nodes")
+
+        logger.debug(
+            f" NodeExecutor: nodes_registry set with {len(nodes_registry)} nodes"
+        )

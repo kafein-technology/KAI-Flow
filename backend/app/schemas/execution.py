@@ -1,7 +1,7 @@
 import uuid
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 # --- Workflow Execution Schemas ---
 
@@ -14,6 +14,8 @@ class WorkflowExecutionBase(BaseModel):
 class WorkflowExecutionCreate(WorkflowExecutionBase):
     workflow_id: uuid.UUID
     user_id: uuid.UUID
+    started_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class WorkflowExecutionUpdate(BaseModel):
     status: Optional[str] = None
@@ -28,7 +30,7 @@ class WorkflowExecutionResponse(WorkflowExecutionBase):
     user_id: uuid.UUID
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

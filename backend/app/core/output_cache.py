@@ -72,8 +72,10 @@ class NodeOutputCache:
                 return None
             
             stored_result = state.node_outputs[node_id]
-            print(f"[CACHE] Found stored result for {node_id}: {type(stored_result)}")
-            
+            logger.debug(
+                f"[CACHE] Found stored result for {node_id}: {type(stored_result)}"
+            )
+
             # Strategy 1: Direct input name match
             result = self._try_direct_match(stored_result, input_name)
             if result is not None:
@@ -87,12 +89,16 @@ class NodeOutputCache:
                 return result
             
             # Strategy 3: Full result fallback
-            print(f"[CACHE] Using full stored result as fallback for {input_name}")
+            logger.debug(
+                f"[CACHE] Using full stored result as fallback for {input_name}"
+            )
             self._record_cache_hit(node_id, input_name, "full_result")
             return stored_result
             
         except Exception as e:
-            print(f"[CACHE ERROR] Failed to retrieve cached output for {node_id}: {e}")
+            logger.error(
+                f"[CACHE ERROR] Failed to retrieve cached output for {node_id}: {e}"
+            )
             self._record_cache_error(node_id, input_name, str(e))
             return None
         finally:
@@ -110,9 +116,11 @@ class NodeOutputCache:
         """Try to find direct match for input_name in stored result."""
         if isinstance(stored_result, dict) and input_name in stored_result:
             result = stored_result[input_name]
-            print(f"[CACHE] Direct match found for '{input_name}': {type(result)}")
+            logger.debug(
+                f"[CACHE] Direct match found for '{input_name}': {type(result)}"
+            )
             if input_name == "documents" and isinstance(result, list):
-                print(f"[CACHE] Documents list length: {len(result)}")
+                logger.debug(f"[CACHE] Documents list length: {len(result)}")
             return result
         return None
     
@@ -133,7 +141,9 @@ class NodeOutputCache:
         for fallback_key in fallback_keys.get(input_name, ["documents", "output"]):
             if fallback_key in stored_result:
                 result = stored_result[fallback_key]
-                print(f"[CACHE] Fallback match '{fallback_key}' for '{input_name}': {type(result)}")
+                logger.debug(
+                    f"[CACHE] Fallback match '{fallback_key}' for '{input_name}': {type(result)}"
+                )
                 return result
         
         return None
@@ -164,17 +174,17 @@ class NodeOutputCache:
             }
             
             state.node_outputs[node_id] = output  # Keep simple for compatibility
-            print(f"[CACHE] Stored output for {node_id}: {type(output)}")
-            
+            logger.debug(f"[CACHE] Stored output for {node_id}: {type(output)}")
+
         except Exception as e:
-            print(f"[CACHE ERROR] Failed to store output for {node_id}: {e}")
-    
+            logger.error(f"[CACHE ERROR] Failed to store output for {node_id}: {e}")
+
     def clear_cache_for_node(self, node_id: str, state: FlowState):
         """Clear cached output for a specific node."""
         if hasattr(state, 'node_outputs') and node_id in state.node_outputs:
             del state.node_outputs[node_id]
-            print(f"[CACHE] Cleared cache for {node_id}")
-    
+            logger.debug(f"[CACHE] Cleared cache for {node_id}")
+
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache performance statistics."""
         return {
@@ -280,12 +290,14 @@ class NodeConnectionExtractor:
         connected = {}
         
         # Validate input connections exist
-        if not hasattr(gnode.node_instance, '_input_connections'):
-            print(f"[DEBUG] No input connections found for {gnode.id}")
+        if not hasattr(gnode.node_instance, "_input_connections"):
+            logger.debug(f"[DEBUG] No input connections found for {gnode.id}")
             return connected
-        
-        print(f"[DEBUG] Extracting {len(gnode.node_instance._input_connections)} connections for {gnode.id}")
-        
+
+        logger.debug(
+            f"[DEBUG] Extracting {len(gnode.node_instance._input_connections)} connections for {gnode.id}"
+        )
+
         # Process each input connection
         for input_name, connection_info in gnode.node_instance._input_connections.items():
             try:
@@ -293,18 +305,25 @@ class NodeConnectionExtractor:
                 
                 if result is not None:
                     connected[input_name] = result
-                    connection_count = len(connection_info) if isinstance(connection_info, list) else 1
-                    print(f"[DEBUG] Successfully connected {input_name} with {connection_count} connection(s)")
+                    connection_count = (
+                        len(connection_info) if isinstance(connection_info, list) else 1
+                    )
+                    logger.debug(
+                        f"[DEBUG] Successfully connected {input_name} with {connection_count} connection(s)"
+                    )
                 else:
-                    print(f"[DEBUG] No result for connection {input_name}")
+                    logger.debug(f"[DEBUG] No result for connection {input_name}")
 
             except Exception as e:
-                print(f"[ERROR] Failed to extract connection {input_name}: {e}")
+                logger.error(f"[ERROR] Failed to extract connection {input_name}: {e}")
                 import traceback
-                print(f"[ERROR] Stack trace: {traceback.format_exc()}")
+
+                logger.error(f"[ERROR] Stack trace: {traceback.format_exc()}")
                 continue
-        
-        print(f"[DEBUG] Extraction completed: {len(connected)} connections established")
+
+        logger.debug(
+            f"[DEBUG] Extraction completed: {len(connected)} connections established"
+        )
         return connected
     
     def _process_connection(self,
@@ -323,10 +342,12 @@ class NodeConnectionExtractor:
             Processed connection result (single value or aggregated for multiple)
         """
         if isinstance(connection_info, list):
-            print(f"[DEBUG] Processing {len(connection_info)} multiple connections for {input_name}")
+            logger.debug(
+                f"[DEBUG] Processing {len(connection_info)} multiple connections for {input_name}"
+            )
             return self._extract_many_connections(input_name, connection_info, state)
         else:
-            print(f"[DEBUG] Processing single connection for {input_name}")
+            logger.debug(f"[DEBUG] Processing single connection for {input_name}")
             return self._extract_single_connection(input_name, connection_info, state)
     
     def _extract_single_connection(self,
@@ -338,7 +359,7 @@ class NodeConnectionExtractor:
         
         # Get source node instance
         if source_node_id not in self.nodes_registry:
-            print(f"[ERROR] Source node {source_node_id} not found in registry")
+            logger.error(f"[ERROR] Source node {source_node_id} not found in registry")
             return None
         
         gnode_instance = self.nodes_registry[source_node_id]
@@ -348,7 +369,7 @@ class NodeConnectionExtractor:
         # Get appropriate handler
         handler = self.handler_registry.get_handler(node_type)
         if not handler:
-            print(f"[ERROR] No handler found for node type: {node_type}")
+            logger.error(f"[ERROR] No handler found for node type: {node_type}")
             return None
         
         # Pass nodes_registry to handler for connected input resolution
@@ -359,8 +380,10 @@ class NodeConnectionExtractor:
         result = handler.extract_connected_instance(
             connection_info, source_node_instance, gnode_instance, state
         )
-        
-        print(f"[DEBUG] Single connection result for {input_name} from {source_node_id}: {type(result)}")
+
+        logger.debug(
+            f"[DEBUG] Single connection result for {input_name} from {source_node_id}: {type(result)}"
+        )
         return result
 
     def _extract_many_connections(self,
@@ -382,50 +405,64 @@ class NodeConnectionExtractor:
             Aggregated result from multiple connections
         """
         if not connection_list:
-            print(f"[DEBUG] Empty connection list for {input_name}")
+            logger.debug(f"[DEBUG] Empty connection list for {input_name}")
             return None
-            
-        print(f"[DEBUG] Processing {len(connection_list)} connections for {input_name}")
-        
+
+        logger.debug(
+            f"[DEBUG] Processing {len(connection_list)} connections for {input_name}"
+        )
+
         # Extract results from each connection
         results = []
         for i, connection_info in enumerate(connection_list):
             try:
                 if not isinstance(connection_info, dict):
-                    print(f"[ERROR] Invalid connection format at index {i}: {type(connection_info)}")
+                    logger.error(
+                        f"[ERROR] Invalid connection format at index {i}: {type(connection_info)}"
+                    )
                     continue
                 
                 source_node_id = connection_info.get("source_node_id")
                 if not source_node_id:
-                    print(f"[ERROR] Missing source_node_id in connection {i}")
+                    logger.error(f"[ERROR] Missing source_node_id in connection {i}")
                     continue
-                
-                print(f"[DEBUG] Processing connection {i+1}/{len(connection_list)}: {source_node_id}")
-                
+
+                logger.debug(
+                    f"[DEBUG] Processing connection {i + 1}/{len(connection_list)}: {source_node_id}"
+                )
+
                 # Extract single connection result
                 result = self._extract_single_connection(input_name, connection_info, state)
                 if result is not None:
-                    results.append({
-                        'source': source_node_id,
-                        'handle': connection_info.get('source_handle', 'output'),
-                        'data': result
-                    })
-                    print(f"[DEBUG] ✓ Connection {i+1} successful: {source_node_id}")
+                    results.append(
+                        {
+                            "source": source_node_id,
+                            "handle": connection_info.get("source_handle", "output"),
+                            "data": result,
+                        }
+                    )
+                    logger.debug(f"✓ Connection {i + 1} successful: {source_node_id}")
                 else:
-                    print(f"[DEBUG] ✗ Connection {i+1} returned None: {source_node_id}")
-                    
+                    logger.debug(
+                        f"✗ Connection {i + 1} returned None: {source_node_id}"
+                    )
+
             except Exception as e:
-                print(f"[ERROR] Failed to process connection {i}: {e}")
+                logger.error(f"Failed to process connection {i}: {e}")
                 continue
         
         if not results:
-            print(f"[DEBUG] No successful connections for {input_name}")
+            logger.debug(f"No successful connections for {input_name}")
             return None
         
         # Aggregate the results using intelligent strategies
-        aggregated = self._aggregate_multiple_results(input_name, results, connection_list)
-        print(f"[DEBUG] Aggregated {len(results)} results for {input_name}: {type(aggregated)}")
-        
+        aggregated = self._aggregate_multiple_results(
+            input_name, results, connection_list
+        )
+        logger.debug(
+            f"[DEBUG] Aggregated {len(results)} results for {input_name}: {type(aggregated)}"
+        )
+
         return aggregated
     
     def _aggregate_multiple_results(self,
@@ -452,7 +489,7 @@ class NodeConnectionExtractor:
         # Extract just the data values for processing
         data_values = [result['data'] for result in results]
         
-        print(f"[DEBUG] Aggregating {len(data_values)} results for {input_name}")
+        logger.debug(f"[DEBUG] Aggregating {len(data_values)} results for {input_name}")
         
         # Strategy 1: Tool aggregation (for tools input)
         if input_name.lower() in ['tools', 'tool', 'tool_list']:
@@ -468,18 +505,22 @@ class NodeConnectionExtractor:
         
         # Strategy 4: String concatenation
         elif all(isinstance(val, str) for val in data_values):
-            print(f"[DEBUG] Using string concatenation for {input_name}")
+            logger.debug(f"Using string concatenation for {input_name}")
             return self._aggregate_strings(data_values)
         
         # Strategy 5: Dictionary merging
         elif all(isinstance(val, dict) for val in data_values):
-            print(f"[DEBUG] Using dictionary merging for {input_name}")
+            logger.debug(f"Using dictionary merging for {input_name}")
             return self._aggregate_dicts(data_values)
-        
+
         # Fallback: Return as list for further processing
         else:
-            print(f"[DEBUG] Fallback aggregation: returning list of {len(data_values)} items")
-            print(f"[DEBUG] Data types: {[type(val).__name__ for val in data_values]}")
+            logger.debug(
+                f"[DEBUG] Fallback aggregation: returning list of {len(data_values)} items"
+            )
+            logger.debug(
+                f"[DEBUG] Data types: {[type(val).__name__ for val in data_values]}"
+            )
             return data_values
     
     def _aggregate_tools(self, data_values: List[Any], results: List[Dict[str, Any]]) -> List[Any]:
@@ -490,30 +531,40 @@ class NodeConnectionExtractor:
             
             if isinstance(data, list):
                 tools.extend(data)
-                print(f"[DEBUG] Added {len(data)} tools from list in {source}")
+                logger.debug(f"[DEBUG] Added {len(data)} tools from list in {source}")
             elif isinstance(data, dict):
                 # Handle dict responses from providers (CRITICAL FIX for "string indices" error)
                 if "tools" in data:
                     tool_data = data["tools"]
                     if isinstance(tool_data, list):
                         tools.extend(tool_data)
-                        print(f"[DEBUG] Added {len(tool_data)} tools from dict.tools in {source}")
+                        logger.debug(
+                            f"[DEBUG] Added {len(tool_data)} tools from dict.tools in {source}"
+                        )
                     else:
                         tools.append(tool_data)
-                        print(f"[DEBUG] Added single tool from dict.tools in {source}")
+                        logger.debug(
+                            f"[DEBUG] Added single tool from dict.tools in {source}"
+                        )
                 elif "tool" in data:
                     # Alternative key for single tools
                     tools.append(data["tool"])
-                    print(f"[DEBUG] Added single tool from dict.tool in {source}")
+                    logger.debug(
+                        f"[DEBUG] Added single tool from dict.tool in {source}"
+                    )
                 else:
                     # Dict might be the tool itself (for some tool types)
-                    print(f"[WARNING] Dict without 'tools' key from {source}, treating as tool object")
+                    logger.warning(
+                        f"[WARNING] Dict without 'tools' key from {source}, treating as tool object"
+                    )
                     tools.append(data)
             else:
                 tools.append(data)
-                print(f"[DEBUG] Added single tool ({type(data).__name__}) from {source}")
-                
-        print(f"[DEBUG] Tool aggregation complete: {len(tools)} total tools")
+                logger.debug(
+                    f"[DEBUG] Added single tool ({type(data).__name__}) from {source}"
+                )
+
+        logger.debug(f"[DEBUG] Tool aggregation complete: {len(tools)} total tools")
         return tools
     
     def _aggregate_documents(self, data_values: List[Any]) -> List[Any]:
@@ -546,7 +597,7 @@ class NodeConnectionExtractor:
 
     def set_nodes_registry(self, nodes_registry: Dict[str, Any]):
         """
-        🔧 FIX: Set the nodes registry for connection extraction.
+        FIX: Set the nodes registry for connection extraction.
         
         This method is called by GraphBuilder to inject the nodes registry
         so that connection extraction can find source nodes.
@@ -557,8 +608,10 @@ class NodeConnectionExtractor:
         for handler in self.handler_registry._handlers.values():
             if hasattr(handler, 'nodes_registry'):
                 handler.nodes_registry = nodes_registry
-        
-        logger.info(f"🔧 Nodes registry set: {len(nodes_registry)} nodes available for connection extraction")
+
+        logger.info(
+            f"Nodes registry set: {len(nodes_registry)} nodes available for connection extraction"
+        )
 
 
 # Global instance for use in GraphBuilder

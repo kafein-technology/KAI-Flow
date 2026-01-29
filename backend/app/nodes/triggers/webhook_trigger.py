@@ -99,11 +99,15 @@ async def find_workflow(
             if len(workflows) > 1:
                 logger.warning(f" FOUND MULTIPLE WORKFLOWS for webhook_id '{webhook_id}':")
                 for w in workflows:
-                    logger.warning(f"   - ID: {w.id}, Name: {w.name}, User: {w.user_id}")
+                    logger.warning(
+                        f"   - ID: {w.id}, Name: {w.name}, User: {w.user_id}"
+                    )
                 logger.warning(f"   Using first match: {workflows[0].id}")
             
             workflow = workflows[0]
-            logger.info(f"Found workflow by webhook_id in flow_data: {webhook_id} -> {workflow.id} ({workflow.name})")
+            logger.info(
+                f"Found workflow by webhook_id in flow_data: {webhook_id} -> {workflow.id} ({workflow.name})"
+            )
             return workflow
         else:
             # Debug: Log that we didn't find it but query succeeded
@@ -283,8 +287,8 @@ async def handle_webhook_request(
         # Auto-create webhook entry for valid webhook IDs
         webhook_events[webhook_id] = []
         webhook_subscribers[webhook_id] = []
-        logger.info(f"🔧 Auto-created webhook storage for {webhook_id}")
-    
+        logger.info(f"Auto-created webhook storage for {webhook_id}")
+
     correlation_id = str(uuid.uuid4())
     received_at = datetime.now(timezone.utc)
     
@@ -395,7 +399,9 @@ async def handle_webhook_request(
                     except HTTPException:
                         raise
                     except Exception as e:
-                        logger.error(f"Error validating Header Auth: {e}", exc_info=True)
+                        logger.error(
+                            f"Error validating Header Auth: {e}", exc_info=True
+                        )
                         raise HTTPException(
                             status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Authentication failed",
@@ -489,7 +495,7 @@ async def handle_webhook_request(
         webhook_response_data = None
         result = None
         try:
-            logger.info(f"🚀 Starting synchronous workflow execution for webhook: {webhook_id}")
+            logger.info(f"Starting synchronous workflow execution for webhook: {webhook_id}")
 
             async with get_db_session_context() as session:
                 executor = get_workflow_executor()
@@ -650,8 +656,10 @@ async def handle_webhook_request(
                     # Fallback: if not a generator, use as result
                     result = result_stream
 
-                logger.info(f"✅ Workflow executed successfully: workflow={workflow.id}, webhook={webhook_id}, events={len(collected_events)}")
-                
+                logger.info(
+                    f"Workflow executed successfully: workflow={workflow.id}, webhook={webhook_id}, events={len(collected_events)}"
+                )
+
                 # Extract webhook_response from result
                 # Check multiple possible locations for webhook_response
                 if isinstance(result, dict):
@@ -685,7 +693,7 @@ async def handle_webhook_request(
                 logger.debug(f"Webhook response data: {webhook_response_data}")
 
         except Exception as e:
-            logger.error(f"❌ Workflow execution error for webhook {webhook_id}: {e}")
+            logger.error(f"Workflow execution error for webhook {webhook_id}: {e}")
             logger.error(traceback.format_exc())
             # Fall back to error response
             webhook_response_data = {
@@ -721,9 +729,11 @@ async def handle_webhook_request(
                 if not content_type:
                     content_type = webhook_response_data.get("content_type", "application/json")
                     headers["Content-Type"] = content_type
-                
-                logger.info(f"📤 Sending custom webhook response: status={status_code}, content_type={content_type}")
-                
+
+                logger.info(
+                    f"Sending custom webhook response: status={status_code}, content_type={content_type}"
+                )
+
                 # Determine response class based on content type
                 if "application/json" in content_type:
                     # Ensure body is JSON-serializable
@@ -754,11 +764,11 @@ async def handle_webhook_request(
                         media_type=content_type
                     )
             except Exception as e:
-                logger.error(f"❌ Error creating custom webhook response: {e}")
+                logger.error(f" Error creating custom webhook response: {e}")
                 # Fall through to default response
         
         # Default: return only node outputs as HTTP response (without node IDs)
-        logger.info(f"📤 Returning node outputs as webhook response (flattened)")
+        logger.info(f"Returning node outputs as webhook response (flattened)")
         
         if result and isinstance(result, dict):
             # Extract node_outputs from result
@@ -768,12 +778,12 @@ async def handle_webhook_request(
             if "state" in result:
                 state = result.get("state", {})
                 node_outputs = state.get("node_outputs", {})
-                logger.debug(f"📊 Found {len(node_outputs)} node outputs in state")
+                logger.debug(f" Found {len(node_outputs)} node outputs in state")
             
             # If not in state, try directly in result
             if not node_outputs and "node_outputs" in result:
                 node_outputs = result.get("node_outputs", {})
-                logger.debug(f"📊 Found {len(node_outputs)} node outputs in result")
+                logger.debug(f" Found {len(node_outputs)} node outputs in result")
             
             # Flatten node_outputs: remove node IDs and merge all outputs
             flattened_output = {}
@@ -806,7 +816,7 @@ async def handle_webhook_request(
             )
         else:
             # Fallback if result is not a dict (e.g., plain string from LLM)
-            logger.info(f"📤 Returning raw result as webhook response (non-dict result type={type(result).__name__})")
+            logger.info(f" Returning raw result as webhook response (non-dict result type={type(result).__name__})")
             
             # If result is a simple value, wrap it in an 'output' field
             if result is None:
@@ -829,7 +839,7 @@ async def handle_webhook_request(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Webhook processing error: {str(e)}")
+        logger.error(f" Webhook processing error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Webhook processing failed: {str(e)}"
@@ -898,7 +908,7 @@ async def webhook_stream_test(webhook_id: str):
     if webhook_id not in webhook_events:
         webhook_events[webhook_id] = []
         webhook_subscribers[webhook_id] = []
-        logger.info(f"🔧 Auto-created webhook storage for stream: {webhook_id}")
+        logger.info(f" Auto-created webhook storage for stream: {webhook_id}")
     
     async def event_stream():
         queue = asyncio.Queue(maxsize=MAX_QUEUE_LENGTH)
@@ -1402,7 +1412,7 @@ class WebhookTriggerNode(TerminatorNode):
         Returns:
             Dict containing webhook data and configuration
         """
-        logger.info(f"🔧 Executing Webhook Trigger: {self.webhook_id}")
+        logger.info(f" Executing Webhook Trigger: {self.webhook_id}")
         
         # Get webhook payload from user data or latest event
         webhook_payload = self.user_data.get("webhook_payload", {})
@@ -1460,7 +1470,7 @@ class WebhookTriggerNode(TerminatorNode):
         Returns:
             Dict with webhook endpoint, token, runnable, and config
         """
-        logger.info(f"🔧 Configuring Webhook Trigger: {self.webhook_id}")
+        logger.info(f" Configuring Webhook Trigger: {self.webhook_id}")
         
         # Store user configuration
         self.user_data.update(kwargs)
@@ -1491,7 +1501,7 @@ class WebhookTriggerNode(TerminatorNode):
         # Create webhook runnable
         webhook_runnable = self._create_webhook_runnable()
         
-        logger.info(f"✅ Webhook trigger configured: {full_endpoint}")
+        logger.info(f" Webhook trigger configured: {full_endpoint}")
         
         return {
             "webhook_endpoint": full_endpoint,
@@ -1528,7 +1538,7 @@ class WebhookTriggerNode(TerminatorNode):
                 webhook_subscribers[self.webhook_id].append(queue)
                 
                 try:
-                    logger.info(f"🔄 Webhook streaming started: {self.webhook_id}")
+                    logger.info(f"Webhook streaming started: {self.webhook_id}")
                     
                     # Yield any existing events first
                     existing_events = webhook_events.get(self.webhook_id, [])
@@ -1558,7 +1568,7 @@ class WebhookTriggerNode(TerminatorNode):
                             webhook_subscribers[self.webhook_id].remove(queue)
                         except ValueError:
                             pass
-                    logger.info(f"🔄 Webhook streaming ended: {self.webhook_id}")
+                    logger.info(f" Webhook streaming ended: {self.webhook_id}")
         
         # Add LangSmith tracing if enabled
         runnable = WebhookRunnable(self.webhook_id)
@@ -1662,15 +1672,15 @@ with custom data payloads.
 KEY FEATURES:
 ============
 
-✅ **Automatic Endpoint Generation**: Each node creates a unique webhook endpoint
-✅ **Secure Authentication**: Bearer token authentication with configurable requirements  
-✅ **Event Type Filtering**: Restrict allowed event types for security
-✅ **Payload Validation**: Size limits and content type validation
-✅ **CORS Support**: Cross-origin requests for web applications
-✅ **Rate Limiting**: Configurable request rate limits per minute
-✅ **Event Storage**: Automatic storage and statistics for webhook events
-✅ **LangChain Integration**: Full Runnable support for streaming and composition
-✅ **Workflow Orchestration**: Seamless connection to Start nodes and workflow chains
+ **Automatic Endpoint Generation**: Each node creates a unique webhook endpoint
+ **Secure Authentication**: Bearer token authentication with configurable requirements  
+ **Event Type Filtering**: Restrict allowed event types for security
+ **Payload Validation**: Size limits and content type validation
+ **CORS Support**: Cross-origin requests for web applications
+ **Rate Limiting**: Configurable request rate limits per minute
+ **Event Storage**: Automatic storage and statistics for webhook events
+ **LangChain Integration**: Full Runnable support for streaming and composition
+ **Workflow Orchestration**: Seamless connection to Start nodes and workflow chains
 
 NODE POSITIONING & WORKFLOW INTEGRATION:
 =======================================
@@ -1695,7 +1705,7 @@ Connection Pattern:
 CONFIGURATION PARAMETERS:
 ========================
 
-📋 INPUT PARAMETERS (7 total):
+ INPUT PARAMETERS (7 total):
 
 • http_method (select): HTTP method for webhook endpoint (default: POST, options: GET, POST, PUT, PATCH, DELETE, HEAD)
 • authentication_required (boolean): Require bearer token auth (default: true)
@@ -1705,7 +1715,7 @@ CONFIGURATION PARAMETERS:
 • enable_cors (boolean): Enable cross-origin requests (default: true)
 • webhook_timeout (number): Processing timeout in seconds (default: 30, max: 300)
 
-📤 OUTPUT PARAMETERS (4 total):
+ OUTPUT PARAMETERS (4 total):
 
 • webhook_endpoint (string): Full webhook URL for external systems
 • webhook_runnable (runnable): LangChain Runnable for event processing
@@ -1925,23 +1935,23 @@ Pattern 5: Data Pipeline Trigger
 SECURITY FEATURES:
 =================
 
-🔒 Authentication & Authorization:
+Authentication & Authorization:
 • Bearer token authentication with unique tokens per webhook
 • Configurable authentication requirements (can be disabled for internal use)
 • Token-based access control for external systems
 
-🔒 Input Validation:
+Input Validation:
 • Event type filtering with whitelist approach
 • Payload size limits (1KB - 10MB configurable)
 • JSON payload validation and sanitization
 • Request source tracking (IP, User-Agent)
 
-🔒 Rate Limiting:
+Rate Limiting:
 • Configurable requests per minute (0-1000)
 • Automatic rate limit enforcement
 • Protection against DoS attacks
 
-🔒 CORS Security:
+CORS Security:
 • Configurable cross-origin resource sharing
 • Secure headers for web application integration
 • Origin validation and control
@@ -1949,7 +1959,7 @@ SECURITY FEATURES:
 MONITORING & OBSERVABILITY:
 ==========================
 
-📊 Built-in Analytics:
+ Built-in Analytics:
 
 • Total webhook events received
 • Event type distribution and statistics  
@@ -1958,7 +1968,7 @@ MONITORING & OBSERVABILITY:
 • Error rates and failure analysis
 • Recent event history (last 10 events)
 
-📊 Available Metrics:
+ Available Metrics:
 
 • webhook_id: Unique webhook identifier
 • total_events: Total number of events processed
@@ -1998,34 +2008,34 @@ PERFORMANCE CHARACTERISTICS:
 TROUBLESHOOTING GUIDE:
 =====================
 
-❌ Common Issues & Solutions:
+ Common Issues & Solutions:
 
-🔧 "Authentication Failed" (401):
+ "Authentication Failed" (401):
 • Verify webhook_token matches the bearer token in request
 • Check Authorization header format: "Bearer <token>"
 • Ensure authentication_required setting matches usage
 
-🔧 "Event Type Not Allowed" (400):
+ "Event Type Not Allowed" (400):
 • Check allowed_event_types configuration
 • Verify event_type in payload matches allowed list
 • Empty allowed_event_types allows all event types
 
-🔧 "Payload Too Large" (413):
+ "Payload Too Large" (413):
 • Reduce payload size or increase max_payload_size setting
 • Check actual payload size vs configured limit
 • Consider chunking large payloads across multiple requests
 
-🔧 "Rate Limit Exceeded" (429):
+ "Rate Limit Exceeded" (429):
 • Reduce request frequency or increase rate_limit_per_minute
 • Implement exponential backoff in external system
 • Monitor request patterns and adjust limits
 
-🔧 "Webhook Processing Timeout":
+ "Webhook Processing Timeout":
 • Increase webhook_timeout setting for complex workflows
 • Optimize downstream node processing
 • Consider asynchronous processing patterns
 
-🔧 "CORS Error" in Browser:
+ "CORS Error" in Browser:
 • Enable enable_cors setting in webhook configuration
 • Verify request origin is allowed
 • Check browser developer tools for specific CORS errors
@@ -2074,7 +2084,7 @@ ab -n 100 -c 10 -p payload.json -T application/json \
 PRODUCTION DEPLOYMENT:
 =====================
 
-✅ Production Checklist:
+ Production Checklist:
 
 1. **Security Configuration**:
    - Enable authentication_required for external webhooks
@@ -2106,13 +2116,13 @@ PRODUCTION DEPLOYMENT:
 VERSION COMPATIBILITY:
 =====================
 
-✅ KAI-Fusion Platform: 2.1.0+
-✅ FastAPI: 0.104.0+
-✅ Python: 3.11+
-✅ LangChain: 0.1.0+
-✅ Pydantic: 2.5.0+
+ KAI-Fusion Platform: 2.1.0+
+ FastAPI: 0.104.0+
+ Python: 3.11+
+ LangChain: 0.1.0+
+ Pydantic: 2.5.0+
 
-STATUS: ✅ PRODUCTION READY
+STATUS:  PRODUCTION READY
 LAST_UPDATED: 2025-08-04
 AUTHORS: KAI-Fusion Integration Architecture Team
 

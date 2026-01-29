@@ -32,9 +32,9 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
         # Perform comprehensive workflow analysis
         analysis_result = analyzer.analyze_workflow(flow_data)
         
-        logger.info(f"✅ Dynamic analysis complete - Found {len(analysis_result.node_types)} node types")
-        logger.info(f"📋 Environment variables: {len(analysis_result.environment_variables)} total")
-        logger.info(f"📦 Package dependencies: {len(analysis_result.package_dependencies)} packages")
+        logger.info(f"Dynamic analysis complete - Found {len(analysis_result.node_types)} node types")
+        logger.info(f"Environment variables: {len(analysis_result.environment_variables)} total")
+        logger.info(f"Package dependencies: {len(analysis_result.package_dependencies)} packages")
         
         # Convert DynamicAnalysisResult to WorkflowDependencies format
         required_env_vars = []
@@ -63,8 +63,8 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
         # Define standard API endpoints
         api_endpoints = [
             f"POST /{API_START}/workflow/execute",
-            f"GET /{API_START}/workflow/status/{execution_id}",
-            f"GET /{API_START}/workflow/result/{execution_id}",
+            f"GET /{API_START}/workflow/status/{{execution_id}}",
+            f"GET /{API_START}/workflow/result/{{execution_id}}",
             f"GET /{API_START}/health",
             f"GET /{API_START}/workflow/info",
             f"GET /{API_START}/workflow/external/info",
@@ -72,7 +72,7 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
             f"GET /{API_START}/workflow/external/metrics"
         ]
         
-        logger.info(f"🎯 Dynamic analysis summary:")
+        logger.info(f" Dynamic analysis summary:")
         logger.info(f"   • Node types: {', '.join(analysis_result.node_types)}")
         logger.info(f"   • Critical credentials detected: {len([v for v in analysis_result.environment_variables if v.security_level in ['critical', 'high']])}")
         logger.info(f"   • Package dependencies: {len(analysis_result.package_dependencies)}")
@@ -87,15 +87,15 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
         )
         
     except Exception as e:
-        logger.error(f"❌ Dynamic workflow analysis failed: {e}", exc_info=True)
-        logger.warning("🔄 Falling back to legacy static analysis")
+        logger.error(f" Dynamic workflow analysis failed: {e}", exc_info=True)
+        logger.warning(" Falling back to legacy static analysis")
         
         # Fallback to simplified static analysis for safety
         return _fallback_static_analysis(flow_data)
 
 def _fallback_static_analysis(flow_data: Dict[str, Any]) -> WorkflowDependencies:
     """Fallback static analysis for error conditions."""
-    logger.info("🔄 Executing fallback static analysis")
+    logger.info(" Executing fallback static analysis")
     
     nodes = flow_data.get("nodes", [])
     node_types = list(set(node.get("type", "") for node in nodes if node.get("type")))
@@ -137,7 +137,7 @@ def _fallback_static_analysis(flow_data: Dict[str, Any]) -> WorkflowDependencies
     # API endpoints
     api_endpoints = [
         f"POST /{API_START}/workflow/execute",
-        f"GET /{API_START}/workflow/status/{execution_id}",
+        f"GET /{API_START}/workflow/status/{{execution_id}}",
         f"GET /{API_START}/health",
         f"GET /{API_START}/workflow/info"
     ]

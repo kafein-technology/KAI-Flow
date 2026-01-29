@@ -70,12 +70,14 @@ from uuid import UUID
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body
 from fastapi.responses import JSONResponse
+from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db_session
 from app.services.document_service import DocumentService
 from app.auth.dependencies import get_current_user
 from app.models.user import User
+from app.models.document import Document, DocumentCollection
 from app.schemas.document import (
     DocumentCreate,
     DocumentResponse,
@@ -111,7 +113,7 @@ async def create_collection(
             collection_data=collection_data.dict()
         )
         
-        logger.info(f"📁 Created collection '{collection.name}' for user {current_user.id}")
+        logger.info(f"Created collection '{collection.name}' for user {current_user.id}")
         
         return CollectionResponse(
             id=collection.id,
@@ -125,7 +127,7 @@ async def create_collection(
         )
         
     except Exception as e:
-        logger.error(f"❌ Failed to create collection: {str(e)}")
+        logger.error(f"Failed to create collection: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create collection: {str(e)}")
 
 @router.get("/collections", response_model=List[CollectionResponse])
@@ -171,11 +173,11 @@ async def list_collections(
             for collection, doc_count in collections_data
         ]
         
-        logger.info(f"📋 Listed {len(collections)} collections for user {current_user.id}")
+        logger.info(f"Listed {len(collections)} collections for user {current_user.id}")
         return collections
         
     except Exception as e:
-        logger.error(f"❌ Failed to list collections: {str(e)}")
+        logger.error(f"Failed to list collections: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to list collections: {str(e)}")
 
 @router.get("/collections/{collection_id}/analytics", response_model=DocumentAnalyticsResponse)
@@ -198,12 +200,12 @@ async def get_collection_analytics(
             collection_id=collection_id
         )
         
-        logger.info(f"📊 Generated analytics for collection {collection_id}")
+        logger.info(f"Generated analytics for collection {collection_id}")
         
         return DocumentAnalyticsResponse(**analytics)
         
     except Exception as e:
-        logger.error(f"❌ Failed to generate analytics: {str(e)}")
+        logger.error(f"Failed to generate analytics: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate analytics: {str(e)}")
 
 @router.post("/search", response_model=DocumentSearchResponse)
@@ -251,7 +253,7 @@ async def search_documents(
             for doc in documents
         ]
         
-        logger.info(f"🔍 Search completed: {len(documents)}/{search_metadata['total_count']} documents")
+        logger.info(f"Search completed: {len(documents)}/{search_metadata['total_count']} documents")
         
         return DocumentSearchResponse(
             documents=document_responses,
@@ -259,11 +261,11 @@ async def search_documents(
             returned_count=search_metadata["returned_count"],
             limit=search_metadata["limit"],
             offset=search_metadata["offset"],
-            search_params=search_metadata["search_params"]
+            search_params=search_metadata["search_params"],
         )
         
     except Exception as e:
-        logger.error(f"❌ Document search failed: {str(e)}")
+        logger.error(f"Document search failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Document search failed: {str(e)}")
 
 @router.get("/{document_id}", response_model=DocumentResponse)
@@ -288,7 +290,7 @@ async def get_document(
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
         
-        logger.info(f"📄 Retrieved document {document_id} for user {current_user.id}")
+        logger.info(f"Retrieved document {document_id} for user {current_user.id}")
         
         return DocumentResponse(
             id=document.id,
@@ -314,7 +316,7 @@ async def get_document(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to get document {document_id}: {str(e)}")
+        logger.error(f"Failed to get document {document_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve document: {str(e)}")
 
 @router.delete("/{document_id}")
@@ -339,14 +341,14 @@ async def delete_document(
         if not success:
             raise HTTPException(status_code=404, detail="Document not found")
         
-        logger.info(f"🗑️ Deleted document {document_id} for user {current_user.id}")
+        logger.info(f"Deleted document {document_id} for user {current_user.id}")
         
         return {"message": "Document deleted successfully", "document_id": str(document_id)}
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to delete document {document_id}: {str(e)}")
+        logger.error(f" Failed to delete document {document_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
 @router.post("/bulk-store")
@@ -371,7 +373,7 @@ async def bulk_store_documents(
             collection_id=collection_id
         )
         
-        logger.info(f"💾 Bulk stored {len(stored_documents)} documents for user {current_user.id}")
+        logger.info(f"Bulk stored {len(stored_documents)} documents for user {current_user.id}")
         
         return {
             "message": f"Successfully stored {len(stored_documents)} documents",
@@ -381,7 +383,7 @@ async def bulk_store_documents(
         }
         
     except Exception as e:
-        logger.error(f"❌ Bulk document storage failed: {str(e)}")
+        logger.error(f"Bulk document storage failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Bulk storage failed: {str(e)}")
 
 @router.post("/{document_id}/chunks")
@@ -415,7 +417,7 @@ async def store_document_chunks(
             chunks_data=chunks_data
         )
         
-        logger.info(f"🧩 Stored {len(stored_chunks)} chunks for document {document_id}")
+        logger.info(f"Stored {len(stored_chunks)} chunks for document {document_id}")
         
         return {
             "message": f"Successfully stored {len(stored_chunks)} chunks",
@@ -427,7 +429,7 @@ async def store_document_chunks(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to store chunks for document {document_id}: {str(e)}")
+        logger.error(f"Failed to store chunks for document {document_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to store chunks: {str(e)}")
 
 @router.get("/stats/overview")
@@ -488,11 +490,11 @@ async def get_document_stats(
             "generated_at": datetime.now().isoformat()
         }
         
-        logger.info(f"📈 Generated document stats for user {current_user.id}")
+        logger.info(f"Generated document stats for user {current_user.id}")
         return stats
         
     except Exception as e:
-        logger.error(f"❌ Failed to generate document stats: {str(e)}")
+        logger.error(f"Failed to generate document stats: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate statistics: {str(e)}")
 
 # Export router

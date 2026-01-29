@@ -776,15 +776,21 @@ class WorkflowTracer:
                                                self._calculate_complexity_score(node_count, connection_count))
         
         if ENABLE_WORKFLOW_TRACING:
-            logger.info(f"🔍 Enhanced workflow trace started: {workflow_id}")
-            logger.info(f"📊 Trace ID: {self.trace_context.trace_id if self.trace_context else 'N/A'}")
-            logger.info(f"🔗 Correlation ID: {self.trace_context.correlation_id if self.trace_context else 'N/A'}")
-            
-    def start_node_execution(self, 
-                            node_id: str, 
-                            node_type: str, 
-                            inputs: Dict[str, Any],
-                            parent_span_id: Optional[str] = None):
+            logger.info(f" Enhanced workflow trace started: {workflow_id}")
+            logger.info(
+                f" Trace ID: {self.trace_context.trace_id if self.trace_context else 'N/A'}"
+            )
+            logger.info(
+                f" Correlation ID: {self.trace_context.correlation_id if self.trace_context else 'N/A'}"
+            )
+
+    def start_node_execution(
+        self,
+        node_id: str,
+        node_type: str,
+        inputs: Dict[str, Any],
+        parent_span_id: Optional[str] = None,
+    ):
         """Start tracking a node execution with enhanced distributed tracing."""
         # Create distributed trace span for node execution
         if self.trace_context:
@@ -820,18 +826,20 @@ class WorkflowTracer:
         self.node_executions[node_id] = execution_id
         
         if ENABLE_WORKFLOW_TRACING:
-            logger.info(f"🎯 Node execution started: {node_id} ({node_type})")
-            logger.info(f"📝 Inputs: {list(inputs.keys())}")
+            logger.info(f" Node execution started: {node_id} ({node_type})")
+            logger.info(f" Inputs: {list(inputs.keys())}")
             if self.trace_context:
-                logger.info(f"🔗 Span ID: {self.node_spans.get(node_id, {}).span_id if node_id in self.node_spans else 'N/A'}")
-            
+                logger.info(
+                    f" Span ID: {self.node_spans.get(node_id, {}).span_id if node_id in self.node_spans else 'N/A'}"
+                )
+
         # Also maintain original behavior for backward compatibility
         self.node_timings[node_id] = time.time()
         
         if TRACE_AGENT_REASONING and node_type == "ReactAgent":
             logger.info(f"🤖 Agent reasoning started: {node_id}")
-            logger.info(f"📝 Agent inputs: {list(inputs.keys())}")
-            
+            logger.info(f" Agent inputs: {list(inputs.keys())}")
+
             # Add special tracing for agent reasoning
             if node_id in self.node_spans:
                 self.node_spans[node_id].add_tag("agent.reasoning", True)
@@ -909,23 +917,31 @@ class WorkflowTracer:
             del self.node_executions[node_id]
         
         if ENABLE_WORKFLOW_TRACING:
-            status = "✅ SUCCESS" if success else "❌ FAILED"
-            logger.info(f"🎯 Node execution completed: {node_id} ({node_type}) - {status}")
+            status = " SUCCESS" if success else " FAILED"
+            logger.info(
+                f" Node execution completed: {node_id} ({node_type}) - {status}"
+            )
             if error_message:
-                logger.error(f"❌ Error: {error_message}")
+                logger.error(f" Error: {error_message}")
                 # Log error pattern frequency
                 if self.error_patterns:
-                    most_common_error = max(self.error_patterns.items(), key=lambda x: x[1])
-                    logger.warning(f"🔍 Most common error pattern: {most_common_error[0]} ({most_common_error[1]} occurrences)")
-        
+                    most_common_error = max(
+                        self.error_patterns.items(), key=lambda x: x[1]
+                    )
+                    logger.warning(
+                        f" Most common error pattern: {most_common_error[0]} ({most_common_error[1]} occurrences)"
+                    )
+
         # Also maintain original behavior for backward compatibility
         if node_id in self.node_timings:
             duration = time.time() - self.node_timings[node_id]
             
             if TRACE_AGENT_REASONING and node_type == "ReactAgent":
-                logger.info(f"🤖 Agent reasoning completed: {node_id} ({duration:.2f}s)")
-                logger.info(f"📤 Agent outputs: {list(outputs.keys())}")
-                
+                logger.info(
+                    f" Agent reasoning completed: {node_id} ({duration:.2f}s)"
+                )
+                logger.info(f" Agent outputs: {list(outputs.keys())}")
+
                 # Add agent-specific metrics
                 if node_id in self.node_spans:
                     self.node_spans[node_id].add_log("info", "Agent reasoning completed", 
@@ -990,9 +1006,9 @@ class WorkflowTracer:
             }
             self.memory_operations.append(memory_op)
             
-            logger.info(f"🧠 Memory {operation}: {node_id} ({len(content)} chars)")
+            logger.info(f" Memory {operation}: {node_id} ({len(content)} chars)")
             if metadata:
-                logger.debug(f"📊 Memory metadata: {metadata}")
+                logger.debug(f" Memory metadata: {metadata}")
     
     def track_connection_resolution(self, node_count: int, connection_count: int, resolution_time: float):
         """Track connection resolution performance."""
@@ -1075,20 +1091,24 @@ class WorkflowTracer:
         
         if self.workflow_start_time:
             total_duration = time.time() - self.workflow_start_time
-            
-            status = "✅ SUCCESS" if success else "❌ FAILED"
-            logger.info(f"🏁 Enhanced workflow completed in {total_duration:.2f}s - {status}")
-            
+
+            status = " SUCCESS" if success else " FAILED"
+            logger.info(
+                f" Enhanced workflow completed in {total_duration:.2f}s - {status}"
+            )
+
             if error:
-                logger.error(f"❌ Workflow error: {error}")
-            
+                logger.error(f" Workflow error: {error}")
+
             # Log error analysis summary
             if self.error_history:
-                logger.warning(f"🔍 Workflow errors: {len(self.error_history)} total")
+                logger.warning(f" Workflow errors: {len(self.error_history)} total")
                 if self.error_patterns:
                     top_pattern = max(self.error_patterns.items(), key=lambda x: x[1])
-                    logger.warning(f"🔍 Most frequent error: {top_pattern[0]} ({top_pattern[1]}x)")
-            
+                    logger.warning(
+                        f" Most frequent error: {top_pattern[0]} ({top_pattern[1]}x)"
+                    )
+
             # Log performance summary (backward compatibility)
             if self.node_timings:
                 logger.info(f"⏱️ Node execution summary:")
@@ -1098,23 +1118,29 @@ class WorkflowTracer:
             
             # Log memory operations summary (backward compatibility)
             if self.memory_operations:
-                logger.info(f"🧠 Memory operations: {len(self.memory_operations)}")
+                logger.info(f" Memory operations: {len(self.memory_operations)}")
                 for op in self.memory_operations[-5:]:  # Show last 5 operations
-                    logger.info(f"  {op['operation']}: {op['node_id']} ({op['content_length']} chars)")
-            
+                    logger.info(
+                        f"  {op['operation']}: {op['node_id']} ({op['content_length']} chars)"
+                    )
+
             # Log distributed tracing summary
             if self.trace_context:
-                logger.info(f"🔗 Trace completed: {self.trace_context.trace_id}")
-                logger.info(f"📊 Custom metrics: {len(self.trace_context.custom_metrics)}")
-                logger.info(f"📈 Total spans: {len(self.trace_context.get_all_spans())}")
-    
+                logger.info(f" Trace completed: {self.trace_context.trace_id}")
+                logger.info(
+                    f" Custom metrics: {len(self.trace_context.custom_metrics)}"
+                )
+                logger.info(
+                    f" Total spans: {len(self.trace_context.get_all_spans())}"
+                )
+
     def add_business_metric(self, name: str, value: float):
         """Add a custom business metric."""
         self.business_metrics[name] = value
         if self.trace_context:
             self.trace_context.add_custom_metric(f"business.{name}", value)
-        logger.info(f"📊 Business metric: {name} = {value}")
-    
+        logger.info(f" Business metric: {name} = {value}")
+
     def get_error_analysis(self) -> Dict[str, Any]:
         """Get comprehensive error analysis."""
         if not self.error_history:
@@ -1168,11 +1194,13 @@ class WorkflowTracer:
         """Export spans to logs."""
         if not ENABLE_WORKFLOW_TRACING:
             return
-        
-        logger.info(f"📤 Exporting {len(spans)} spans to logs")
+
+        logger.info(f" Exporting {len(spans)} spans to logs")
         for span in spans:
-            logger.debug(f"📋 Span: {span.operation_name} ({span.span_type.value}) - {span.status} - {span.duration_ms}ms")
-    
+            logger.debug(
+                f" Span: {span.operation_name} ({span.span_type.value}) - {span.status} - {span.duration_ms}ms"
+            )
+
     def _langsmith_exporter(self, spans: List[Span]):
         """Export spans to LangSmith."""
         if not LANGCHAIN_TRACING_V2:
@@ -1180,7 +1208,7 @@ class WorkflowTracer:
         
         try:
             # Convert spans to LangSmith format and send
-            logger.info(f"📤 Exporting {len(spans)} spans to LangSmith")
+            logger.info(f"Exporting {len(spans)} spans to LangSmith")
             # Implementation would depend on LangSmith SDK
         except Exception as e:
             logger.error(f"Failed to export spans to LangSmith: {e}")
@@ -1317,8 +1345,10 @@ def trace_node_execution(func):
             return result
             
         except Exception as e:
-            tracer.end_node_execution(node_id, node_type, {}, success=False, error_message=str(e))
-            logger.error(f"❌ Enhanced node {node_id} failed: {str(e)}")
+            tracer.end_node_execution(
+                node_id, node_type, {}, success=False, error_message=str(e)
+            )
+            logger.error(f" Enhanced node {node_id} failed: {str(e)}")
             raise
     
     return wrapper
@@ -1336,7 +1366,7 @@ def trace_memory_operation(operation: str):
             try:
                 result = func(self, *args, **kwargs)
             except Exception as e:
-                logger.error(f"❌ Memory operation {operation} execution failed: {str(e)}")
+                logger.error(f" Memory operation {operation} execution failed: {str(e)}")
                 raise
             
             # Try to trace the operation, but don't fail if tracing fails
@@ -1358,7 +1388,7 @@ def trace_memory_operation(operation: str):
                 
             except Exception as trace_error:
                 # Log tracing error but don't fail the operation
-                logger.warning(f"⚠️ Memory operation tracing failed for {operation}: {str(trace_error)}")
+                logger.warning(f"Memory operation tracing failed for {operation}: {str(trace_error)}")
             
             return result
         

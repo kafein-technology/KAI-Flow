@@ -23,7 +23,7 @@ try:
     from app.core.node_registry import node_registry
     from app.routes.export import analyze_workflow_dependencies, filter_requirements_for_nodes
 except ImportError as e:
-    print(f"❌ Import error: {e}")
+    print(f"Import error: {e}")
     print("Make sure you're running this from the project root directory")
     sys.exit(1)
 
@@ -36,7 +36,7 @@ def test_node_discovery():
         node_registry.discover_nodes()
         all_nodes = node_registry.get_all_nodes()
         
-        print(f"✅ Discovered {len(all_nodes)} nodes")
+        print(f"Discovered {len(all_nodes)} nodes")
         
         # Group by category
         categories = {}
@@ -46,7 +46,7 @@ def test_node_discovery():
                 categories[category] = []
             categories[category].append(node.name)
         
-        print("📋 Node Categories:")
+        print("Node Categories:")
         for category, nodes in categories.items():
             print(f"   {category}: {len(nodes)} nodes")
             for node_name in nodes[:3]:  # Show first 3
@@ -56,7 +56,7 @@ def test_node_discovery():
         
         return True, len(all_nodes)
     except Exception as e:
-        print(f"❌ Node discovery failed: {e}")
+        print(f"Node discovery failed: {e}")
         traceback.print_exc()
         return False, 0
 
@@ -122,20 +122,20 @@ def test_dynamic_analyzer():
         # Analyze workflow
         result = analyzer.analyze_workflow(test_workflow)
         
-        print(f"✅ Analysis completed!")
-        print(f"   📦 Node types: {result.node_types}")
-        print(f"   🔐 Required env vars: {len(result.required_env_vars)}")
-        print(f"   ⚙️ Optional env vars: {len(result.optional_env_vars)}")
-        print(f"   📚 Package dependencies: {len(result.package_dependencies)}")
+        print(f"Analysis completed!")
+        print(f"Node types: {result.node_types}")
+        print(f"Required env vars: {len(result.required_env_vars)}")
+        print(f"Optional env vars: {len(result.optional_env_vars)}")
+        print(f"Package dependencies: {len(result.package_dependencies)}")
         
         # Show detected credentials
-        print("\n🔐 Detected Credentials:")
+        print("\nDetected Credentials:")
         for env_var in result.required_env_vars:
             security_level = getattr(env_var, 'security_level', 'unknown')
             print(f"   • {env_var.name} ({security_level}) - {env_var.description[:50]}...")
         
         # Show package dependencies
-        print(f"\n📦 Package Dependencies ({len(result.package_dependencies)}):")
+        print(f"\nPackage Dependencies ({len(result.package_dependencies)}):")
         for pkg in result.package_dependencies[:10]:  # Show first 10
             print(f"   • {pkg}")
         if len(result.package_dependencies) > 10:
@@ -143,13 +143,13 @@ def test_dynamic_analyzer():
         
         return True, result
     except Exception as e:
-        print(f"❌ Dynamic analyzer failed: {e}")
+        print(f"Dynamic analyzer failed: {e}")
         traceback.print_exc()
         return False, None
 
 def test_export_integration():
     """Test export system integration."""
-    print("\n🐳 Testing Export System Integration...")
+    print("\n Testing Export System Integration...")
     
     try:
         # Test workflow for export
@@ -180,31 +180,31 @@ def test_export_integration():
         # Test analyze_workflow_dependencies (now uses dynamic analyzer)
         dependencies = analyze_workflow_dependencies(test_workflow)
         
-        print("✅ Export dependency analysis completed!")
-        print(f"   📋 Nodes: {dependencies.nodes}")
-        print(f"   🔐 Required vars: {len(dependencies.required_env_vars)}")
-        print(f"   📦 Packages: {len(dependencies.python_packages)}")
+        print("Export dependency analysis completed!")
+        print(f"Nodes: {dependencies.nodes}")
+        print(f"Required vars: {len(dependencies.required_env_vars)}")
+        print(f"Packages: {len(dependencies.python_packages)}")
         
         # Test filter_requirements_for_nodes (now uses dynamic analyzer)
         requirements = filter_requirements_for_nodes(dependencies.nodes)
         
-        print("✅ Requirements filtering completed!")
+        print("Requirements filtering completed!")
         req_lines = requirements.split('\n')
-        print(f"   📦 Generated {len(req_lines)} package entries")
-        print("   📋 Key packages:")
+        print(f"Generated {len(req_lines)} package entries")
+        print("Key packages:")
         for line in req_lines[:5]:
             if line.strip():
                 print(f"      • {line}")
         
         return True, dependencies
     except Exception as e:
-        print(f"❌ Export integration failed: {e}")
+        print(f"Export integration failed: {e}")
         traceback.print_exc()
         return False, None
 
 def test_credential_detection():
     """Test credential detection capabilities."""
-    print("\n🔐 Testing Credential Detection...")
+    print("\n Testing Credential Detection...")
     
     try:
         analyzer = DynamicNodeAnalyzer(node_registry)
@@ -245,19 +245,19 @@ def test_credential_detection():
         credential_vars = [var for var in result.required_env_vars 
                          if var.security_level in ['critical', 'high']]
         
-        print(f"✅ Detected {len(credential_vars)} credentials")
+        print(f"Detected {len(credential_vars)} credentials")
         for var in credential_vars:
             print(f"   🔑 {var.name} ({var.security_level}) from {var.source_node}")
         
         return True, len(credential_vars)
     except Exception as e:
-        print(f"❌ Credential detection failed: {e}")
+        print(f"Credential detection failed: {e}")
         traceback.print_exc()
         return False, 0
 
 def test_package_analysis():
     """Test package dependency analysis."""
-    print("\n📦 Testing Package Analysis...")
+    print("\nTesting Package Analysis...")
     
     try:
         analyzer = DynamicNodeAnalyzer(node_registry)
@@ -276,7 +276,7 @@ def test_package_analysis():
         result = analyzer.analyze_workflow(test_workflow)
         packages = result.package_dependencies
         
-        print(f"✅ Analyzed {len(packages)} packages")
+        print(f"Analyzed {len(packages)} packages")
         
         # Check for expected packages
         expected_packages = [
@@ -292,23 +292,23 @@ def test_package_analysis():
         found_packages = 0
         for pkg_pattern, description in expected_packages:
             if any(pkg_pattern in pkg for pkg in packages):
-                print(f"   ✅ {description}: Found")
+                print(f"{description}: Found")
                 found_packages += 1
             else:
-                print(f"   ❌ {description}: Missing")
+                print(f"{description}: Missing")
         
         coverage = (found_packages / len(expected_packages)) * 100
-        print(f"   📊 Package coverage: {coverage:.1f}%")
+        print(f"Package coverage: {coverage:.1f}%")
         
         return True, coverage
     except Exception as e:
-        print(f"❌ Package analysis failed: {e}")
+        print(f"Package analysis failed: {e}")
         traceback.print_exc()
         return False, 0
 
 def main():
     """Run all tests."""
-    print("🧪 KAI-Fusion Dynamic Node Analyzer Test Suite")
+    print("KAI-Fusion Dynamic Node Analyzer Test Suite")
     print("=" * 50)
     
     results = {}
@@ -335,31 +335,31 @@ def main():
     
     # Summary
     print("\n" + "=" * 50)
-    print("📊 TEST SUMMARY")
+    print("TEST SUMMARY")
     print("=" * 50)
     
     total_tests = len(results)
     passed_tests = sum(1 for success, _ in results.values() if success)
     
     for test_name, (success, metric) in results.items():
-        status = "✅ PASS" if success else "❌ FAIL"
+        status = "PASS" if success else " FAIL"
         print(f"{status} {test_name.replace('_', ' ').title()}")
         
         if success and metric is not None:
             if test_name == 'node_discovery':
-                print(f"     📋 Discovered {metric} nodes")
+                print(f"Discovered {metric} nodes")
             elif test_name == 'credential_detection':
-                print(f"     🔐 Detected {metric} credentials")
+                print(f"Detected {metric} credentials")
             elif test_name == 'package_analysis':
-                print(f"     📦 Package coverage: {metric:.1f}%")
+                print(f"Package coverage: {metric:.1f}%")
     
-    print(f"\n🎯 Overall Result: {passed_tests}/{total_tests} tests passed")
+    print(f"\nOverall Result: {passed_tests}/{total_tests} tests passed")
     
     if passed_tests == total_tests:
-        print("🎉 All tests passed! Dynamic analyzer is working correctly.")
+        print("All tests passed! Dynamic analyzer is working correctly.")
         return True
     else:
-        print("⚠️ Some tests failed. Check the output above for details.")
+        print("Some tests failed. Check the output above for details.")
         return False
 
 if __name__ == "__main__":

@@ -16,7 +16,8 @@ import string
 import time
 import uuid
 import json
-from datetime import datetime
+import asyncio
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Union, AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -164,6 +165,7 @@ class WorkflowExecutor:
         user: User,
         execution_inputs: Dict[str, Any],
         clean_pending: bool = True,
+        use_workflow_owner: bool = False,
     ) -> WorkflowExecution:
         """
         Create execution record in database.
@@ -202,11 +204,15 @@ class WorkflowExecutor:
                 await db.rollback()
         
         # Create new execution record
+        # For webhook executions, use workflow owner's id so executions appear in their dashboard
+        execution_user_id = workflow.user_id if use_workflow_owner else user.id
         execution_create = WorkflowExecutionCreate(
             workflow_id=workflow.id,
-            user_id=user.id,
+            user_id=execution_user_id,
             status="pending",
             inputs=execution_inputs,
+            started_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
         )
         
         execution = await self.execution_service.create_execution(db, execution_in=execution_create)
@@ -335,12 +341,15 @@ class WorkflowExecutor:
         
         # Create execution record if not already exists
         if not execution_id:
+            # For webhook executions, use workflow owner's id so executions appear in their dashboard
+            is_webhook = ctx.user_context.get("is_webhook", False)
             execution = await self.create_execution_record(
                 db,
                 ctx.workflow,
                 ctx.user,
                 ctx.execution_inputs,
                 clean_pending=True,
+                use_workflow_owner=is_webhook,
             )
             execution_id = execution.id
             ctx.execution_id = execution_id
@@ -351,7 +360,7 @@ class WorkflowExecutor:
                 db,
                 execution_id,
                 status="running",
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
             )
         except Exception as e:
             logger.error(f"Failed to update execution status to running: {e}")
@@ -406,7 +415,7 @@ class WorkflowExecutor:
                 # Add webhook_response to result for easy access
                 if webhook_response:
                     result["webhook_response"] = webhook_response
-                    logger.info(f"✅ Extracted webhook_response from workflow execution")
+                    logger.info(f"Extracted webhook_response from workflow execution")
             
             # Update execution status to completed
             try:
@@ -423,7 +432,7 @@ class WorkflowExecutor:
                     execution_id,
                     status="completed",
                     outputs=outputs,
-                    completed_at=datetime.utcnow(),
+                    completed_at=datetime.now(timezone.utc),
                 )
             except Exception as e:
                 logger.error(f"Failed to update execution status to completed: {e}")

@@ -146,6 +146,7 @@ LICENSE: Proprietary - KAI-Fusion Platform
 """
 
 from ..base import MemoryNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
+import logging
 from langchain.memory import ConversationBufferMemory
 from langchain_core.runnables import Runnable
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
@@ -154,6 +155,8 @@ from sqlalchemy.orm import Session
 from app.core.tracing import trace_memory_operation
 from app.services.memory import save_memory, get_memories_by_session, get_memory_count_by_session
 from app.core.database import get_db
+
+logger = logging.getLogger(__name__)
 
 # ================================================================================
 # BUFFER MEMORY NODE - ENTERPRISE COMPLETE HISTORY MANAGEMENT
@@ -236,14 +239,14 @@ class BufferMemoryNode(MemoryNode):
         Retrieves or creates a persistent, session-aware memory instance.
         """
         session_id = self.session_id
-        print(f"BufferMemoryNode session_id: {session_id}")
+        logger.debug(f"BufferMemoryNode session_id: {session_id}")
         
         try:
             memory = self.get_memory_instance(session_id, **kwargs)
             self._track_memory_operation(session_id, memory)
             return cast(Runnable, memory)
         except Exception as e:
-            print(f"Error in BufferMemoryNode.execute: {e}")
+            logger.error(f"Error in BufferMemoryNode.execute: {e}")
             # Fallback to a non-persistent memory instance in case of DB error
             return ConversationBufferMemory(
                 memory_key=kwargs.get("memory_key", "memory"),
@@ -289,13 +292,13 @@ class BufferMemoryNode(MemoryNode):
         """
         try:
             db = next(get_db())
-            print(f"Loading messages for session {session_id} from database...")
+            logger.info(f"Loading messages for session {session_id} from database...")
             db_memories = get_memories_by_session(db, session_id, limit=5)
             messages = [self._convert_db_memory_to_message(mem) for mem in db_memories]
             # Filter out any None values that may result from conversion errors
             return [msg for msg in messages if msg is not None]
         except Exception as e:
-            print(f"Warning: Failed to load conversation history for session {session_id}: {e}")
+            logger.warning(f"Failed to load conversation history for session {session_id}: {e}")
             return []
 
     def save_messages(self, session_id: str, messages: List[BaseMessage], **kwargs) -> None:
@@ -305,7 +308,7 @@ class BufferMemoryNode(MemoryNode):
         try:
             db = next(get_db())
             user_id = kwargs.get('user_id') or getattr(self, 'user_id', None)
-            print(f"Saving {len(messages)} messages for session {session_id} to database...")
+            logger.info(f"Saving {len(messages)} messages for session {session_id} to database...")
             
             for message in messages:
                 if isinstance(message, HumanMessage):
@@ -328,9 +331,9 @@ class BufferMemoryNode(MemoryNode):
                         source_type="buffer_memory"
                     )
                 except Exception as e:
-                    print(f"Warning: Failed to persist a message to the database: {e}")
+                    logger.warning(f"Failed to persist a message to the database: {e}")
         except Exception as e:
-            print(f"Warning: Database not available, skipping message persistence: {e}")
+            logger.warning(f"Database not available, skipping message persistence: {e}")
 
     def _convert_db_memory_to_message(self, db_memory) -> Optional[BaseMessage]:
         """Converts a database memory record to a LangChain message object."""
@@ -347,7 +350,7 @@ class BufferMemoryNode(MemoryNode):
             else:
                 return HumanMessage(content=content)  # Default assumption
         except Exception as e:
-            print(f"Warning: Failed to convert database memory to message: {e}")
+            logger.warning(f"Failed to convert database memory to message: {e}")
             return None
 
     def _track_memory_operation(self, session_id: str, memory) -> None:

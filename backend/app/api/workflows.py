@@ -290,7 +290,7 @@ import logging
 import uuid
 from typing import Any, Dict, Optional, AsyncGenerator, List
 from datetime import datetime, timedelta
-from sqlalchemy import and_
+from sqlalchemy import and_, func as sql_func
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
@@ -841,6 +841,7 @@ async def get_dashboard_stats(
     """
     user_id = current_user.id
     now = datetime.utcnow()
+    today = now.date()
     periods = {
         "7days": 7,
         "30days": 30,
@@ -849,16 +850,21 @@ async def get_dashboard_stats(
     stats = {}
     for label, days in periods.items():
         since = now - timedelta(days=days)
+        # Use COALESCE to fallback to created_at when started_at is NULL
+        effective_started_at = sql_func.coalesce(
+            WorkflowExecution.started_at, 
+            WorkflowExecution.created_at
+        )
         # Get all executions for this user and period (include completed_at for runtime)
         executions_q = await db.execute(
             select(
-                WorkflowExecution.started_at,
+                effective_started_at.label('effective_started_at'),
                 WorkflowExecution.completed_at,
                 WorkflowExecution.status,
             ).where(
                 and_(
                     WorkflowExecution.user_id == user_id,
-                    WorkflowExecution.started_at >= since,
+                    effective_started_at >= since,
                 )
             )
         )
@@ -929,7 +935,7 @@ async def execute_adhoc_workflow(
     chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
     session_id = req.session_id or str(chatflow_id)
     
-    # 🔥 CRITICAL: session_id must always be present
+    # CRITICAL: session_id must always be present
     if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
         session_id = str(chatflow_id)
         logger.warning(f"Invalid session_id in workflow execution, using chatflow_id: {session_id}")
