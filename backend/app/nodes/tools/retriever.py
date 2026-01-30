@@ -359,9 +359,9 @@ class RetrieverProvider(ProviderNode):
                 if database and username and password:
                     # Build connection string
                     database_connection = f"postgresql://{username}:{password}@{host}:{port}/{database}"
-                    logger.info(f"✅ Connected to vector database: {host}:{port}/{database}")
+                    logger.info(f"Connected to vector database: {host}:{port}/{database}")
                 else:
-                    logger.warning("❌ Missing required database credentials (database, username, or password)")
+                    logger.warning("Missing required database credentials (database, username, or password)")
 
             # Validation
             if not database_connection:
@@ -409,7 +409,7 @@ class RetrieverProvider(ProviderNode):
                 retriever, collection_name, search_config
             )
 
-            logger.info(f"[SUCCESS] Retriever tool created for collection '{collection_name}' with {search_type}")
+            logger.info(f"Retriever tool created for collection '{collection_name}' with {search_type}")
 
             return {
                 "pg_retriever":{"tool": retriever_tool}
@@ -439,7 +439,7 @@ class RetrieverProvider(ProviderNode):
                 embeddings=embedder,
             )
 
-            logger.info(f"[SUCCESS] Connected to vector database collection: {collection_name}")
+            logger.info(f"Connected to vector database collection: {collection_name}")
             return retriever
 
         except Exception as e:
@@ -460,7 +460,7 @@ class RetrieverProvider(ProviderNode):
         # Auto-convert similarity to similarity_score_threshold if threshold is provided
         if search_type == "similarity" and raw_threshold and float(raw_threshold) > 0:
             search_type = "similarity_score_threshold"
-            logger.info(f"[CONVERT] Auto-converted search_type from 'similarity' to 'similarity_score_threshold' due to score_threshold={raw_threshold}")
+            logger.info(f"Auto-converted search_type from 'similarity' to 'similarity_score_threshold' due to score_threshold={raw_threshold}")
 
         # Always cap returned results by k unless the underlying retriever ignores it
         k = int(search_config.get("search_k", 4))
@@ -510,7 +510,7 @@ class RetrieverProvider(ProviderNode):
             "lambda_mult": search_kwargs.get("lambda_mult"),
             "has_filter": "filter" in search_kwargs
         }
-        logger.info(f"[SUCCESS] Created retriever search_type={search_type} details={details}")
+        logger.info(f"Created retriever search_type={search_type} details={details}")
         return retriever
 
     def _create_retriever_tool(self, retriever: BaseRetriever, collection_name: str, search_config: Dict[str, Any]) -> Tool:
@@ -583,7 +583,11 @@ class RetrieverProvider(ProviderNode):
                 return f"""[SEARCH] SEARCH RESULTS - {collection_name}
     Query: A technical issue occurred while searching for '{query}'.
     
-    [WARNING] ERROR DETAILS:
+    # WARNING: ERROR DETAILS:
+<<<<<<< HEAD
+=======
+    logger.warning("ERROR DETAILS:")
+>>>>>>> 1d60ab3d09dee3c7342b3417ca162d19832e7f31
     {error_msg}
     
     SEARCH SUMMARY:

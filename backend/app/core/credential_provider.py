@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any, Optional, Set, List
 from datetime import datetime, timedelta
 import threading
@@ -11,17 +12,17 @@ import base64
 # ------------------------------------------------------------------
 # Legacy Supabase dependency – replaced by SQLAlchemy layer.
 # ------------------------------------------------------------------
-
+logger = logging.getLogger(__name__)
 
 class CredentialProvider:
     """
     Singleton credential provider for secure access to encrypted credentials
     Implements caching and lazy loading for performance
     """
-    
+
     _instance = None
     _lock = threading.Lock()
-    
+
     def __new__(cls):
         if cls._instance is None:
             with cls._lock:
@@ -29,15 +30,15 @@ class CredentialProvider:
                     cls._instance = super().__new__(cls)
                     cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self):
-        if not hasattr(self, '_initialized') or not self._initialized:
+        if not hasattr(self, "_initialized") or not self._initialized:
             self.cache: Dict[str, Dict[str, Any]] = {}
             self.cache_timestamps: Dict[str, datetime] = {}
             self.cache_ttl = timedelta(minutes=5)  # Cache for 5 minutes
             self.user_contexts: Dict[str, str] = {}  # Maps context_id to user_id
             self._initialized = True
-    
+
     def set_user_context(self, context_id: str, user_id: str):
         """
         Set user context for credential access
@@ -80,7 +81,7 @@ class CredentialProvider:
             return cred
             
         except Exception as e:
-            print(f"Error fetching credential {credential_id}: {e}")
+            logger.error(f"Error fetching credential {credential_id}: {e}")
             return None
     
     def _process_credential_data(self, credential: UserCredential) -> Dict[str, Any]:
@@ -98,7 +99,7 @@ class CredentialProvider:
                 "updated_at": credential.updated_at
             }
         except Exception as e:
-            print(f"Decryption failed: {e}")
+            logger.error(f"{e}")
             # Return credential with empty secret if decryption fails
             return {
                 "id": credential.id,
@@ -118,8 +119,8 @@ class CredentialProvider:
         Synchronous version of get_credential for use in non-async contexts (e.g. Nodes)
         """
         if not SessionLocal:
-             print("Database not initialized for sync access")
-             return None
+            logger.error("Database not initialized for sync access")
+            return None
 
         session = SessionLocal()
         try:
@@ -143,7 +144,7 @@ class CredentialProvider:
         Get all credentials for a user
         """
         if not SessionLocal:
-            print("Database not initialized for sync access")
+            logger.error("Database not initialized for sync access")
             return []
 
         session = SessionLocal()
@@ -151,7 +152,7 @@ class CredentialProvider:
             credentials = session.query(UserCredential).filter_by(user_id=user_id).all()
             return [self._process_credential_data(credential) for credential in credentials]
         except Exception as e:
-            print(f"Error fetching credentials for user {user_id}: {e}")
+            logger.error(f"Error fetching credentials for user {user_id}: {e}")
             return []
         finally:
             session.close()
@@ -203,9 +204,9 @@ class CredentialProvider:
             return None
             
         except Exception as e:
-            print(f"Error fetching credential for service {service_type}: {e}")
-            return None    
-    
+            logger.error(f"Error fetching credential for service {service_type}: {e}")
+            return None
+
     async def _fetch_credential(
         self, 
         credential_id: uuid.UUID, 

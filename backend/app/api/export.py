@@ -97,9 +97,9 @@ async def export_workflows(
     - flows/*.json (individual workflow flow data)
     - README.md (import instructions)
     """
-    logger.info(f"🚀 Export request from user: {current_user.email}")
-    logger.info(f"   Workflow IDs: {request.workflow_ids}")
-    
+    logger.info(f"Export request from user: {current_user.email}")
+    logger.info(f"Workflow IDs: {request.workflow_ids}")
+
     if not request.workflow_ids:
         raise HTTPException(status_code=400, detail="No workflow IDs provided")
     

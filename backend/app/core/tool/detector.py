@@ -77,7 +77,7 @@ class AutoToolDetector:
         if node_class_name in self.detection_cache:
             return self.detection_cache[node_class_name]
         
-        logger.debug(f"🔍 Analyzing tool compatibility for {node_class_name}")
+        logger.debug(f"Analyzing tool compatibility for {node_class_name}")
         
         # Strategy 1: Check IAgentTool interface implementation
         if isinstance(node_instance, IAgentTool):

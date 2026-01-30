@@ -316,14 +316,14 @@ class ChatService:
                 logger.error("No workflow found")
                 return "I apologize, but no workflow is configured for this chat."
             
-            # 🔥 SESSION ID BASED CONTEXT - use chatflow_id as session_id
-            # 🔥 CRITICAL: session_id must always be set
+            # SESSION ID BASED CONTEXT - use chatflow_id as session_id
+            # CRITICAL: session_id must always be set
             session_id = str(chatflow_id)
             
             # Ensure session_id is valid
             if not session_id or session_id == 'None' or len(session_id.strip()) == 0:
                 session_id = f"chat_session_{uuid.uuid4().hex[:8]}"
-                print(f"⚠️  Invalid session_id, generated: {session_id}")
+                logger.warning(f"Invalid session_id, generated: {session_id}")
             
             user_context = {
                 "session_id": session_id,

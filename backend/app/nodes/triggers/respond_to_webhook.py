@@ -200,7 +200,7 @@ class RespondToWebhookNode(TerminatorNode):
             ],
         }
         
-        logger.info("✅ RespondToWebhook node created")
+        logger.info("RespondToWebhook node created")
 
     def execute(self, **kwargs) -> Dict[str, Any]:
         """
@@ -219,7 +219,7 @@ class RespondToWebhookNode(TerminatorNode):
         Returns:
             Dict with webhook response configuration
         """
-        logger.info(f"🔧 Configuring RespondToWebhook node")
+        logger.info(f"Configuring RespondToWebhook node")
         
         # Extract inputs from kwargs (inputs dict contains all node properties)
         inputs = kwargs.get("inputs", {})
@@ -306,7 +306,7 @@ class RespondToWebhookNode(TerminatorNode):
         if "content-type" not in headers_lower:
             webhook_response["headers"]["Content-Type"] = content_type
         
-        logger.info(f"✅ RespondToWebhook configured: status_code={webhook_response['status_code']}, content_type={content_type}")
+        logger.info(f"RespondToWebhook configured: status_code={webhook_response['status_code']}, content_type={content_type}")
         
         # Return both the basic config and webhook_response for easy extraction
         return {

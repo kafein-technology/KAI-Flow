@@ -110,9 +110,9 @@ class PerformanceMonitor:
             "error_rate_warning": 0.1,  # 10%
             "error_rate_critical": 0.25,  # 25%
         }
-        
-        logger.info("📊 PerformanceMonitor initialized")
-    
+
+        logger.info("PerformanceMonitor initialized")
+
     def start_workflow_monitoring(
         self, 
         workflow_id: str, 
@@ -132,7 +132,7 @@ class PerformanceMonitor:
             
             self._workflow_metrics[session_id] = workflow_metrics
             
-            logger.info(f"📊 Started workflow monitoring: {workflow_id} (session: {session_id})")
+            logger.info(f"Started workflow monitoring: {workflow_id} (session: {session_id})")
             return session_id
     
     def end_workflow_monitoring(
@@ -170,7 +170,7 @@ class PerformanceMonitor:
                 }
             )
             
-            logger.info(f"📊 Workflow completed: {workflow_metrics.workflow_id} "
+            logger.info(f"Workflow completed: {workflow_metrics.workflow_id} "
                        f"({workflow_metrics.total_duration:.3f}s, success: {success})")
     
     def start_node_execution(
@@ -198,8 +198,8 @@ class PerformanceMonitor:
                 "start_time": time.time(),
                 "start_memory": self._get_memory_usage()
             }
-            
-            logger.debug(f"📊 Started node execution: {node_id}")
+
+            logger.debug(f"Started node execution: {node_id}")
             return execution_id
     
     def end_node_execution(
@@ -273,7 +273,7 @@ class PerformanceMonitor:
             # Clean up
             del self._active_executions[execution_id]
             
-            logger.debug(f"📊 Node execution completed: {node_id} "
+            logger.debug(f"Node execution completed: {node_id} "
                         f"({execution_time:.3f}s, success: {success})")
     
     def record_connection_resolution_time(

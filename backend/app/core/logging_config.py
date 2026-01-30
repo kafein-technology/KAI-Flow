@@ -206,7 +206,7 @@ def setup_comprehensive_logging():
     
     # Log startup message
     logger = logging.getLogger(__name__)
-    logger.info("📊 Console logging system initialized", extra={
+    logger.info("Console logging system initialized", extra={
         "environment": ENVIRONMENT,
         "log_level": LOG_LEVEL,
         "handlers_count": len(root_logger.handlers)
@@ -285,7 +285,7 @@ def log_performance(func_name: str, duration: float, **extra_context: Any):
 def log_security_event(event_type: str, details: Dict[str, Any], severity: str = "info"):
     """
     Log security-related events.
-    
+
     Args:
         event_type: Type of security event
         details: Event details

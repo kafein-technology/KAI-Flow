@@ -250,8 +250,8 @@ class ChunkSplitterNode(ProcessorNode):
 
     def _create_splitter(self, strategy: str, **config) -> Any:
         """Create the appropriate text splitter based on strategy and configuration."""
-        print(f"[DEBUG] _create_splitter called with strategy: {strategy}")
-        print(f"[DEBUG] _create_splitter config: {config}")
+        logger.debug(f"_create_splitter called with strategy: {strategy}")
+        logger.debug(f"_create_splitter config: {config}")
         
         if strategy not in _SPLITTER_STRATEGIES:
             raise ValueError(f"Unsupported split strategy: {strategy}")
@@ -264,18 +264,18 @@ class ChunkSplitterNode(ProcessorNode):
             "chunk_size": config.get("chunk_size", 1000),
             "chunk_overlap": config.get("chunk_overlap", 200),
         }
-        print(f"[DEBUG] Base splitter_params: {splitter_params}")
+        logger.debug(f"Base splitter_params: {splitter_params}")
         
         # Add strategy-specific parameters
         if splitter_info["supports_separators"] and config.get("separators"):
             # Parse separators, handling escape sequences
             separators_str = config["separators"]
-            print(f"[DEBUG] Separators config type: {type(separators_str)}")
-            print(f"[DEBUG] Separators config value: {separators_str}")
+            logger.debug(f"Separators config type: {type(separators_str)}")
+            logger.debug(f"Separators config value: {separators_str}")
             
             # Handle case where separators might be a list instead of string
             if isinstance(separators_str, list):
-                print(f"[DEBUG] Separators is already a list, using as-is")
+                logger.debug("Separators is already a list, using as-is")
                 separators = separators_str
             else:
                 separators = [s.strip().replace("\\n", "\n").replace("\\t", "\t")
@@ -283,7 +283,7 @@ class ChunkSplitterNode(ProcessorNode):
             
             if separators:
                 splitter_params["separators"] = separators
-                print(f"[DEBUG] Final separators: {separators}")
+                logger.debug(f"Final separators: {separators}")
         
         if splitter_info["supports_headers"] and config.get("header_levels"):
             # Parse header levels for markdown/html splitters
@@ -559,17 +559,17 @@ class ChunkSplitterNode(ProcessorNode):
         if not documents:
             raise ValueError("No documents provided. Connect a document loader or document source.")
         
-        print(f"[DEBUG] ChunkSplitter received documents: {type(documents)}")
+        logger.debug(f"ChunkSplitter received documents: {type(documents)}")
         if isinstance(documents, list):
-            print(f"[DEBUG] Documents list length: {len(documents)}")
+            logger.debug(f"Documents list length: {len(documents)}")
             if documents:
-                print(f"[DEBUG] First document type: {type(documents[0])}")
+                logger.debug(f"First document type: {type(documents[0])}")
                 if hasattr(documents[0], 'page_content'):
-                    print(f"[DEBUG] First document content preview: {str(documents[0].page_content)[:100]}...")
+                    logger.debug(f"First document content preview: {str(documents[0].page_content)[:100]}...")
         else:
-            print(f"[DEBUG] Single document type: {type(documents)}")
+            logger.debug(f"Single document type: {type(documents)}")
             if hasattr(documents, 'page_content'):
-                print(f"[DEBUG] Single document content preview: {str(documents.page_content)[:100]}...")
+                logger.debug(f"Single document content preview: {str(documents.page_content)[:100]}...")
         
         if not isinstance(documents, list):
             documents = [documents]
@@ -577,19 +577,19 @@ class ChunkSplitterNode(ProcessorNode):
         # Validate documents
         doc_objects = []
         for i, doc in enumerate(documents):
-            print(f"[DEBUG] Processing document {i}: {type(doc)}")
+            logger.debug(f"Processing document {i}: {type(doc)}")
             if isinstance(doc, Document):
-                print(f"[DEBUG] Document {i} is already a Document object")
+                logger.debug(f"Document {i} is already a Document object")
                 doc_objects.append(doc)
             elif isinstance(doc, dict) and "page_content" in doc:
-                print(f"[DEBUG] Document {i} is a dict with page_content")
+                logger.debug(f"Document {i} is a dict with page_content")
                 # Convert dict to Document if needed
                 doc_objects.append(Document(
                     page_content=doc["page_content"],
                     metadata=doc.get("metadata", {})
                 ))
             elif isinstance(doc, dict) and "documents" in doc:
-                print(f"[DEBUG] Document {i} is a dict with nested documents")
+                logger.debug(f"Document {i} is a dict with nested documents")
                 # Handle nested documents structure
                 nested_docs = doc["documents"]
                 if isinstance(nested_docs, list):
@@ -615,7 +615,7 @@ class ChunkSplitterNode(ProcessorNode):
                         metadata={"source": f"string_input_{i}", "original_type": "string"}
                     ))
             elif isinstance(doc, str):
-                print(f"[DEBUG] Document {i} is a string")
+                logger.debug(f"Document {i} is a string")
                 # Convert string directly to Document
                 if doc.strip():  # Only if non-empty
                     doc_objects.append(Document(
@@ -626,7 +626,7 @@ class ChunkSplitterNode(ProcessorNode):
                 else:
                     logger.warning(f"Skipping empty string document at index {i}")
             else:
-                print(f"[DEBUG] Document {i} is unrecognized type: {type(doc)}")
+                logger.debug(f"Document {i} is unrecognized type: {type(doc)}")
                 logger.warning(f"Skipping invalid document at index {i}: {type(doc)}")
                 logger.debug(f"Document content preview: {str(doc)[:100]}...")
         
@@ -653,15 +653,15 @@ class ChunkSplitterNode(ProcessorNode):
         
         try:
             # Create the appropriate splitter
-            print(f"[DEBUG] About to create splitter with config: {config}")
+            logger.debug(f"About to create splitter with config: {config}")
             splitter = self._create_splitter(config["split_strategy"], **config)
-            print(f"[DEBUG] Splitter created successfully: {type(splitter)}")
+            logger.debug(f"Splitter created successfully: {type(splitter)}")
             
             # Split the documents
-            print(f"[DEBUG] About to split {len(doc_objects)} documents")
-            print(f"[DEBUG] Document types: {[type(doc) for doc in doc_objects[:3]]}")
+            logger.debug(f"About to split {len(doc_objects)} documents")
+            logger.debug(f"Document types: {[type(doc) for doc in doc_objects[:3]]}")
             chunks = splitter.split_documents(doc_objects)
-            print(f"[DEBUG] Documents split successfully, got {len(chunks)} chunks")
+            logger.debug(f"Documents split successfully, got {len(chunks)} chunks")
             
             # Add comprehensive metadata to each chunk
             total_chunks = len(chunks)

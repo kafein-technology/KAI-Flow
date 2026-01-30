@@ -60,8 +60,8 @@ class ConnectionMapper:
             connections = []
             
             if edges:
-                logger.info(f"🔗 PARSING CONNECTIONS ({len(edges)} edges)")
-                
+                logger.info(f"PARSING CONNECTIONS ({len(edges)} edges)")
+
             for edge in edges:
                 source = edge.get("source", "")
                 target = edge.get("target", "")
@@ -84,12 +84,12 @@ class ConnectionMapper:
                 )
                 
                 connections.append(conn)
-                logger.debug(f"   📤 {source}[{source_handle}] ➜ {target}[{target_handle}]")
+                logger.debug(f"{source}[{source_handle}] ➜ {target}[{target_handle}]")
             
             # Store connections for later use
             self.connections = connections
-            
-            logger.info(f"✅ Parsed {len(connections)} connections successfully")
+
+            logger.info(f"Parsed {len(connections)} connections successfully")
             return connections
             
         except Exception as e:
@@ -117,8 +117,9 @@ class ConnectionMapper:
             ConnectionError: If enhanced mapping fails
         """
         try:
+            logger.info("Building enhanced connection mappings")
 
-            logger.info("🔗 Building enhanced connection mappings")
+            logger.info("Building enhanced connection mappings")
             
             # Use ConnectionManager to build mappings
             core_mappings = self.connection_manager.build_connection_mappings(
@@ -133,10 +134,10 @@ class ConnectionMapper:
             
             # Store connection statistics
             self._connection_stats = self.connection_manager.get_connection_stats()
-            
-            logger.info(f"✅ Enhanced connection mappings built successfully")
-            logger.info(f"📊 Connection Stats: {self._connection_stats}")
-            
+
+            logger.info(f"Enhanced connection mappings built successfully")
+            logger.info(f"Connection Stats: {self._connection_stats}")
+
             return enhanced_mappings
             
         except Exception as e:
@@ -159,7 +160,7 @@ class ConnectionMapper:
         """
         try:
             pool_enabled = self._is_pool_enabled()
-            logger.info(f"🔗 Applying connection mappings with pool {'enabled' if pool_enabled else 'disabled'}")
+            logger.info(f"Applying connection mappings with pool {'enabled' if pool_enabled else 'disabled'}")
             
             for node_id, connection_map in connection_mappings.items():
                 if node_id not in nodes:
@@ -239,9 +240,9 @@ class ConnectionMapper:
                 output_count = sum(len(conns) for conns in output_connections.values())
                 
                 if pool_enabled and total_input_connections > input_count:
-                    logger.info(f"   🔗 {node_id}: {input_count} handles, {total_input_connections} input connections, {output_count} outputs [MANY-TO-MANY]")
+                    logger.info(f"{node_id}: {input_count} handles, {total_input_connections} input connections, {output_count} outputs [MANY-TO-MANY]")
                 else:
-                    logger.info(f"   🔗 {node_id}: {input_count} inputs, {output_count} outputs [TRADITIONAL]")
+                    logger.info(f"{node_id}: {input_count} inputs, {output_count} outputs [TRADITIONAL]")
                 
         except Exception as e:
             logger.error(f"Failed to apply connection mappings: {e}")
@@ -266,7 +267,7 @@ class ConnectionMapper:
             nodes: Dictionary of GraphNodeInstance objects
         """
         try:
-            logger.info("🔄 Using basic connection mapping (fallback)")
+            logger.info("Using basic connection mapping (fallback)")
             
             for node_id, gnode in nodes.items():
                 # Build basic connection mapping
@@ -300,7 +301,7 @@ class ConnectionMapper:
                 
                 # Log instantiation
                 config_keys = list(gnode.user_data.keys()) if gnode.user_data else []
-                logger.info(f"   ✅ {node_id} ({gnode.type}) | Config: {len(config_keys)} | I/O: {len(input_connections)}/{len(output_connections)}")
+                logger.info(f"{node_id} ({gnode.type}) | Config: {len(config_keys)} | I/O: {len(input_connections)}/{len(output_connections)}")
             
             # Create basic stats
             self._connection_stats = {
@@ -310,7 +311,7 @@ class ConnectionMapper:
                 "nodes_with_outputs": sum(1 for _, gnode in nodes.items() if hasattr(gnode.node_instance, '_output_connections') and gnode.node_instance._output_connections)
             }
             
-            logger.info("✅ Basic connection mapping completed")
+            logger.info("Basic connection mapping completed")
             
         except Exception as e:
             logger.error(f"Basic connection mapping failed: {e}")

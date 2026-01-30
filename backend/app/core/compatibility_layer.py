@@ -56,7 +56,7 @@ class CompatibilitySet:
             try:
                 self._cached_set = self.fetch_function()
                 self._cache_invalidated = False
-                logger.debug(f"🔄 Refreshed {self.set_name}: {len(self._cached_set)} items")
+                logger.debug(f" Refreshed {self.set_name}: {len(self._cached_set)} items")
             except Exception as e:
                 logger.warning(f"Failed to refresh {self.set_name}: {e}")
                 # Fallback to empty set
@@ -151,7 +151,7 @@ class BackwardCompatibilityLayer:
         self._initialized = False
         self._setup_compatibility_sets()
         
-        logger.info("🔄 Phase 2: Backward Compatibility Layer initialized")
+        logger.info(" Phase 2: Backward Compatibility Layer initialized")
     
     def _setup_compatibility_sets(self):
         """Setup all compatibility sets for legacy hardcoded mappings"""
@@ -177,26 +177,26 @@ class BackwardCompatibilityLayer:
         }
         
         self._initialized = True
-        logger.debug("✅ Compatibility sets initialized")
+        logger.debug("Compatibility sets initialized")
     
     @property
     def PROCESSOR_NODE_TYPES(self) -> CompatibilitySet:
-        """🔄 COMPATIBILITY: Dynamic replacement for hardcoded PROCESSOR_NODE_TYPES"""
+        """COMPATIBILITY: Dynamic replacement for hardcoded PROCESSOR_NODE_TYPES"""
         return self._compatibility_sets['PROCESSOR_NODE_TYPES']
     
     @property
     def MEMORY_NODE_TYPES(self) -> CompatibilitySet:
-        """🔄 COMPATIBILITY: Dynamic replacement for hardcoded MEMORY_NODE_TYPES"""
+        """COMPATIBILITY: Dynamic replacement for hardcoded MEMORY_NODE_TYPES"""
         return self._compatibility_sets['MEMORY_NODE_TYPES']
         
     @property
     def PROVIDER_NODE_TYPES(self) -> CompatibilitySet:
-        """🔄 COMPATIBILITY: Dynamic replacement for hardcoded PROVIDER_NODE_TYPES"""
+        """COMPATIBILITY: Dynamic replacement for hardcoded PROVIDER_NODE_TYPES"""
         return self._compatibility_sets['PROVIDER_NODE_TYPES']
         
     @property
     def CONTROL_FLOW_NODE_TYPES(self) -> CompatibilitySet:
-        """🔄 COMPATIBILITY: Dynamic replacement for hardcoded CONTROL_FLOW_NODE_TYPES"""
+        """COMPATIBILITY: Dynamic replacement for hardcoded CONTROL_FLOW_NODE_TYPES"""
         return self._compatibility_sets['CONTROL_FLOW_NODE_TYPES']
     
     def refresh_all_sets(self):
@@ -204,7 +204,7 @@ class BackwardCompatibilityLayer:
         for compat_set in self._compatibility_sets.values():
             compat_set.invalidate_cache()
         
-        logger.info("🔄 All compatibility sets refreshed")
+        logger.info("All compatibility sets refreshed")
     
     def get_compatibility_stats(self) -> Dict[str, Any]:
         """Get statistics about compatibility layer usage"""
@@ -252,10 +252,10 @@ class BackwardCompatibilityLayer:
         
         return validation
 
-# 🌍 Global instance for Phase 2 - provides the compatibility interface
+#  Global instance for Phase 2 - provides the compatibility interface
 compatibility_layer = BackwardCompatibilityLayer(dynamic_type_detector)
 
-# 🔄 BACKWARD COMPATIBILITY EXPORTS
+#  BACKWARD COMPATIBILITY EXPORTS
 # These provide drop-in replacement for existing hardcoded imports
 PROCESSOR_NODE_TYPES = compatibility_layer.PROCESSOR_NODE_TYPES
 MEMORY_NODE_TYPES = compatibility_layer.MEMORY_NODE_TYPES  
@@ -264,13 +264,13 @@ CONTROL_FLOW_NODE_TYPES = compatibility_layer.CONTROL_FLOW_NODE_TYPES
 
 def refresh_node_types():
     """
-    🔄 UTILITY: Refresh all node types (useful after new nodes are registered)
+    UTILITY: Refresh all node types (useful after new nodes are registered)
     
     This function can be called by the node registry or other components
     when new nodes are discovered to ensure compatibility sets are updated.
     """
     compatibility_layer.refresh_all_sets()
-    logger.info("🔄 Node types refreshed via compatibility layer")
+    logger.info("Node types refreshed via compatibility layer")
 
 # Export convenience functions for external use
 __all__ = [

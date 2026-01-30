@@ -61,11 +61,15 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql.sqltypes import TypeEngine
 from dotenv import load_dotenv
 
+load_dotenv()
 # Backend dizinini Python path'ine ekle
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, backend_dir)
 
-# Logging konfigürasyonu
+
+# Logging konfigürasyonu (emoji kaldırıldı, seviye dinamik)
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+numeric_level = getattr(logging, LOG_LEVEL, logging.INFO)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -155,11 +159,11 @@ class DatabaseSetup:
                 expire_on_commit=False
             )
 
-            logger.info("✅ Veritabanı bağlantısı başarıyla kuruldu")
+            logger.info("Veritabanı bağlantısı başarıyla kuruldu")
             return True
 
         except Exception as e:
-            logger.error(f"❌ Veritabanı bağlantısı kurulamadı: {e}")
+            logger.error(f"Veritabanı bağlantısı kurulamadı: {e}")
             return False
 
     async def check_connection(self) -> bool:
@@ -173,13 +177,13 @@ class DatabaseSetup:
                 result = await conn.execute(text("SELECT 1 as test"))
                 row = result.fetchone()
                 if row and row[0] == 1:
-                    logger.info("✅ Veritabanı bağlantısı başarılı")
+                    logger.info("Veritabanı bağlantısı başarılı")
                     return True
                 else:
-                    logger.error("❌ Veritabanı bağlantı testi başarısız")
+                    logger.error("Veritabanı bağlantı testi başarısız")
                     return False
         except Exception as e:
-            logger.error(f"❌ Veritabanı bağlantı testi hatası: {e}")
+            logger.error(f"Veritabanı bağlantı testi hatası: {e}")
             return False
 
     async def get_existing_tables(self) -> List[str]:
@@ -200,16 +204,16 @@ class DatabaseSetup:
 
                 # Tekrarlanan tabloları kontrol et
                 if len(tables) != len(set(tables)):
-                    logger.warning("⚠️ Tekrarlanan tablo isimleri tespit edildi!")
+                    logger.warning("Tekrarlanan tablo isimleri tespit edildi!")
                     logger.warning(f"Ham liste: {tables}")
                     # Tekrarları kaldır
                     tables = list(dict.fromkeys(tables))  # Sırayı koruyarak tekrarları kaldır
                     logger.info(f"Tekrarlar kaldırıldı: {tables}")
 
-                logger.info(f"📋 Mevcut tablolar: {', '.join(tables) if tables else 'Hiç tablo yok'}")
+                logger.info(f"Mevcut tablolar: {', '.join(tables) if tables else 'Hiç tablo yok'}")
                 return tables
         except Exception as e:
-            logger.error(f"❌ Tablo listesi alınamadı: {e}")
+            logger.error(f"Tablo listesi alınamadı: {e}")
             return []
 
     async def check_table_structure(self, table_name: str) -> Dict[str, Any]:
@@ -254,7 +258,7 @@ class DatabaseSetup:
                 return {"exists": True, "columns": columns}
 
         except Exception as e:
-            logger.error(f"❌ {table_name} tablosu yapısı kontrol edilemedi: {e}")
+            logger.error(f"{table_name} tablosu yapısı kontrol edilemedi: {e}")
             return {"exists": False, "columns": []}
 
     def get_model_columns(self, table_name: str) -> Dict[str, Any]:
@@ -320,7 +324,7 @@ class DatabaseSetup:
                 pass
 
             if table_name not in model_mapping:
-                logger.warning(f"⚠️ {table_name} için model bulunamadı")
+                logger.warning(f"{table_name} için model bulunamadı")
                 return {"exists": False, "columns": []}
 
             model_class = model_mapping[table_name]
@@ -339,7 +343,7 @@ class DatabaseSetup:
             return {"exists": True, "columns": model_columns}
 
         except Exception as e:
-            logger.error(f"❌ {table_name} model sütunları alınamadı: {e}")
+            logger.error(f"{table_name} model sütunları alınamadı: {e}")
             return {"exists": False, "columns": []}
 
     def _sqlalchemy_type_to_postgres(self, sqlalchemy_type: TypeEngine) -> str:
@@ -436,7 +440,7 @@ class DatabaseSetup:
 
                     # Primary key sütunları için özel işlem
                     if column.get("primary_key"):
-                        logger.info(f"⚠️ Primary key sütunu {col_name} atlanıyor (manuel müdahale gerekli)")
+                        logger.info(f"Primary key sütunu {col_name} atlanıyor (manuel müdahale gerekli)")
                         continue
 
                     # Default değer varsa ekle
@@ -446,14 +450,14 @@ class DatabaseSetup:
 
                     alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type} {nullable}{default_clause}"
 
-                    logger.info(f"📝 Sütun ekleniyor: {table_name}.{col_name}")
+                    logger.info(f"Sütun ekleniyor: {table_name}.{col_name}")
                     await conn.execute(text(alter_sql))
 
-            logger.info(f"✅ {table_name} tablosuna {len(missing_columns)} sütun eklendi")
+            logger.info(f"{table_name} tablosuna {len(missing_columns)} sütun eklendi")
             return True
 
         except Exception as e:
-            logger.error(f"❌ {table_name} tablosuna sütun ekleme hatası: {e}")
+            logger.error(f"{table_name} tablosuna sütun ekleme hatası: {e}")
             return False
 
     async def remove_extra_columns(self, table_name: str, extra_columns: List[Dict[str, Any]]) -> bool:
@@ -468,56 +472,56 @@ class DatabaseSetup:
 
                     # Kritik sütunları koruma
                     if col_name in ['id', 'created_at', 'updated_at']:
-                        logger.info(f"⚠️ Kritik sütun {col_name} korunuyor")
+                        logger.info(f"Kritik sütun {col_name} korunuyor")
                         continue
 
                     alter_sql = f"ALTER TABLE {table_name} DROP COLUMN {col_name}"
 
-                    logger.info(f"🗑️ Sütun siliniyor: {table_name}.{col_name}")
+                    logger.info(f"Sütun siliniyor: {table_name}.{col_name}")
                     await conn.execute(text(alter_sql))
 
-            logger.info(f"✅ {table_name} tablosundan {len(extra_columns)} sütun silindi")
+            logger.info(f"{table_name} tablosundan {len(extra_columns)} sütun silindi")
             return True
 
         except Exception as e:
-            logger.error(f"❌ {table_name} tablosundan sütun silme hatası: {e}")
+            logger.error(f"{table_name} tablosundan sütun silme hatası: {e}")
             return False
 
     async def sync_table_columns(self, table_name: str, add_missing: bool = True, remove_extra: bool = True) -> bool:
         """Tablo sütunlarını model ile senkronize eder."""
-        logger.info(f"🔄 {table_name} sütun senkronizasyonu başlatılıyor...")
+        logger.info(f"{table_name} sütun senkronizasyonu başlatılıyor...")
 
         comparison = await self.compare_table_columns(table_name)
 
         if not comparison["table_exists"] or not comparison["model_exists"]:
-            logger.error(f"❌ {table_name} senkronizasyonu için tablo veya model mevcut değil")
+            logger.error(f"{table_name} senkronizasyonu için tablo veya model mevcut değil")
             return False
 
         success = True
 
         # Eksik sütunları ekle
         if add_missing and comparison["missing_columns"]:
-            logger.info(f"📝 {len(comparison['missing_columns'])} eksik sütun ekleniyor...")
+            logger.info(f"{len(comparison['missing_columns'])} eksik sütun ekleniyor...")
             if not await self.add_missing_columns(table_name, comparison["missing_columns"]):
                 success = False
 
         # Fazla sütunları sil
         if remove_extra and comparison["extra_columns"]:
-            logger.info(f"🗑️ {len(comparison['extra_columns'])} fazla sütun siliniyor...")
+            logger.info(f"{len(comparison['extra_columns'])} fazla sütun siliniyor...")
             if not await self.remove_extra_columns(table_name, comparison["extra_columns"]):
                 success = False
 
         # Tür uyumsuzlukları hakkında uyar
         if comparison["type_mismatches"]:
-            logger.warning(f"⚠️ {table_name} tablosunda {len(comparison['type_mismatches'])} tür uyumsuzluğu var:")
+            logger.warning(f"{table_name} tablosunda {len(comparison['type_mismatches'])} tür uyumsuzluğu var:")
             for mismatch in comparison["type_mismatches"]:
                 logger.warning(
                     f"   - {mismatch['column_name']}: DB={mismatch['db_type']} ≠ Model={mismatch['model_type']}")
 
         if success:
-            logger.info(f"✅ {table_name} sütun senkronizasyonu tamamlandı")
+            logger.info(f"{table_name} sütun senkronizasyonu tamamlandı")
         else:
-            logger.error(f"❌ {table_name} sütun senkronizasyonu başarısız")
+            logger.error(f"{table_name} sütun senkronizasyonu başarısız")
 
         return success
 
@@ -545,25 +549,25 @@ class DatabaseSetup:
             # API Key modelini kontrol et
             try:
                 from app.models.api_key import APIKey
-                logger.info("✅ API Key modeli bulundu")
+                logger.info("API Key modeli bulundu")
             except ImportError:
-                logger.warning("⚠️ API Key modeli bulunamadı, atlanıyor")
+                logger.warning("API Key modeli bulunamadı, atlanıyor")
 
             if force:
-                logger.warning("⚠️ FORCE modu: Tüm tablolar silinecek ve yeniden oluşturulacak")
+                logger.warning("FORCE modu: Tüm tablolar silinecek ve yeniden oluşturulacak")
                 async with self.engine.begin() as conn:
                     await conn.run_sync(Base.metadata.drop_all)
-                logger.info("🗑️ Tüm tablolar silindi")
+                logger.info("Tüm tablolar silindi")
 
             # Tabloları oluştur
             async with self.engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
 
-            logger.info("✅ Tüm tablolar başarıyla oluşturuldu")
+            logger.info("Tüm tablolar başarıyla oluşturuldu")
             return True
 
         except Exception as e:
-            logger.error(f"❌ Tablo oluşturma hatası: {e}")
+            logger.error(f"Tablo oluşturma hatası: {e}")
             return False
 
     async def drop_all_tables(self):
@@ -578,11 +582,11 @@ class DatabaseSetup:
             async with self.engine.begin() as conn:
                 await conn.run_sync(Base.metadata.drop_all)
 
-            logger.info("🗑️ Tüm tablolar silindi")
+            logger.info("Tüm tablolar silindi")
             return True
 
         except Exception as e:
-            logger.error(f"❌ Tablo silme hatası: {e}")
+            logger.error(f"Tablo silme hatası: {e}")
             return False
 
     async def validate_tables(self, check_columns: bool = True) -> Dict[str, Any]:
@@ -621,7 +625,7 @@ class DatabaseSetup:
                              sync_columns: bool = True, add_missing_columns: bool = True,
                              remove_extra_columns: bool = False):
         """Ana veritabanı kurulum fonksiyonu."""
-        logger.info("🚀 KAI-Fusion Veritabanı Kurulum Scripti Başlatılıyor...")
+        logger.info("KAI-Fusion Veritabanı Kurulum Scripti Başlatılıyor...")
 
         # Başlatma
         if not await self.initialize():
@@ -633,14 +637,14 @@ class DatabaseSetup:
 
         # Sadece kontrol modu
         if check_only:
-            logger.info("🔍 Sadece kontrol modu - tablolar oluşturulmayacak")
+            logger.info("Sadece kontrol modu - tablolar oluşturulmayacak")
             validation = await self.validate_tables(check_columns=sync_columns)
             self._print_validation_results(validation)
             return True
 
         # Tüm tabloları sil
         if drop_all:
-            logger.warning("⚠️ DROP_ALL modu: Tüm tablolar silinecek!")
+            logger.warning("DROP_ALL modu: Tüm tablolar silinecek!")
             if not await self.drop_all_tables():
                 return False
 
@@ -651,27 +655,27 @@ class DatabaseSetup:
         # Eksik tablolar varsa oluştur
         if validation["missing_tables"] or force:
             if validation["missing_tables"]:
-                logger.info(f"📝 Eksik tablolar oluşturuluyor: {', '.join(validation['missing_tables'])}")
+                logger.info(f"Eksik tablolar oluşturuluyor: {', '.join(validation['missing_tables'])}")
 
             if not await self.create_tables(force=force):
                 return False
 
             # Oluşturma sonrası kontrol
-            logger.info("🔍 Tablo oluşturma sonrası kontrol...")
+            logger.info("Tablo oluşturma sonrası kontrol...")
             post_validation = await self.validate_tables(check_columns=sync_columns)
             self._print_validation_results(post_validation)
 
             if post_validation["missing_tables"]:
-                logger.error(f"❌ Hala eksik tablolar var: {', '.join(post_validation['missing_tables'])}")
+                logger.error(f"Hala eksik tablolar var: {', '.join(post_validation['missing_tables'])}")
                 return False
             else:
-                logger.info("✅ Tüm tablolar başarıyla oluşturuldu ve doğrulandı")
+                logger.info("Tüm tablolar başarıyla oluşturuldu ve doğrulandı")
         else:
-            logger.info("✅ Tüm tablolar zaten mevcut")
+            logger.info("Tüm tablolar zaten mevcut")
 
         # Sütun senkronizasyonu
         if sync_columns and validation["column_issues"]:
-            logger.info("🔄 Sütun senkronizasyonu başlatılıyor...")
+            logger.info("Sütun senkronizasyonu başlatılıyor...")
 
             for table_name, issues in validation["column_issues"].items():
                 await self.sync_table_columns(
@@ -681,66 +685,66 @@ class DatabaseSetup:
                 )
 
             # Senkronizasyon sonrası son kontrol
-            logger.info("🔍 Sütun senkronizasyonu sonrası kontrol...")
+            logger.info("Sütun senkronizasyonu sonrası kontrol...")
             final_validation = await self.validate_tables(check_columns=True)
             self._print_validation_results(final_validation)
 
             if final_validation["column_issues"]:
                 remaining_issues = len(final_validation["column_issues"])
-                logger.warning(f"⚠️ {remaining_issues} tabloda hala sütun sorunları var")
+                logger.warning(f"{remaining_issues} tabloda hala sütun sorunları var")
             else:
-                logger.info("✅ Tüm sütunlar başarıyla senkronize edildi")
+                logger.info("Tüm sütunlar başarıyla senkronize edildi")
 
         return True
 
     def _print_validation_results(self, validation: Dict[str, Any]):
         """Doğrulama sonuçlarını yazdırır."""
         logger.info("=" * 60)
-        logger.info("📊 VERİTABANI DURUM RAPORU")
+        logger.info("VERİTABANI DURUM RAPORU")
         logger.info("=" * 60)
         logger.info(f"Beklenen tablo sayısı: {validation['total_expected']}")
         logger.info(f"Mevcut tablo sayısı: {validation['total_existing']}")
 
         if validation["missing_tables"]:
-            logger.warning(f"❌ Eksik tablolar ({len(validation['missing_tables'])}):")
+            logger.warning(f"Eksik tablolar ({len(validation['missing_tables'])}):")
             for table in validation["missing_tables"]:
                 logger.warning(f"   - {table}")
         else:
-            logger.info("✅ Tüm beklenen tablolar mevcut")
+            logger.info("Tüm beklenen tablolar mevcut")
 
         # Mevcut tabloları düzenli şekilde göster
         if validation['existing_tables']:
-            logger.info("📋 Mevcut tablolar:")
+            logger.info("Mevcut tablolar:")
             # Tabloları alfabetik sıraya göre grupla
             sorted_tables = sorted(validation['existing_tables'])
             for i, table in enumerate(sorted_tables, 1):
                 logger.info(f"   {i:2d}. {table}")
         else:
-            logger.info("📋 Mevcut tablo yok")
+            logger.info("Mevcut tablo yok")
 
         # Sütun sorunlarını göster
         if validation.get("column_issues"):
-            logger.warning(f"⚠️ Sütun sorunları olan tablolar ({len(validation['column_issues'])}):")
+            logger.warning(f"Sütun sorunları olan tablolar ({len(validation['column_issues'])}):")
             for table_name, issues in validation["column_issues"].items():
-                logger.warning(f"   📋 {table_name}:")
+                logger.warning(f"   {table_name}:")
 
                 if issues["missing_columns"]:
-                    logger.warning(f"      ➕ Eksik sütunlar ({len(issues['missing_columns'])}):")
+                    logger.warning(f"      Eksik sütunlar ({len(issues['missing_columns'])}):")
                     for col in issues["missing_columns"]:
                         logger.warning(f"         - {col['name']} ({col['type']})")
 
                 if issues["extra_columns"]:
-                    logger.warning(f"      ➖ Fazla sütunlar ({len(issues['extra_columns'])}):")
+                    logger.warning(f"      Fazla sütunlar ({len(issues['extra_columns'])}):")
                     for col in issues["extra_columns"]:
                         logger.warning(f"         - {col['name']} ({col['type']})")
 
                 if issues["type_mismatches"]:
-                    logger.warning(f"      🔄 Tür uyumsuzlukları ({len(issues['type_mismatches'])}):")
+                    logger.warning(f"      Tür uyumsuzlukları ({len(issues['type_mismatches'])}):")
                     for mismatch in issues["type_mismatches"]:
                         logger.warning(
                             f"         - {mismatch['column_name']}: DB={mismatch['db_type']} ≠ Model={mismatch['model_type']}")
         elif validation.get("column_issues") is not None:
-            logger.info("✅ Tüm sütunlar modellerle uyumlu")
+            logger.info("Tüm sütunlar modellerle uyumlu")
 
         logger.info("=" * 60)
 
@@ -760,19 +764,19 @@ async def main():
 
     # Environment kontrolü
     if not CREATE_DATABASE:
-        logger.error("❌ CREATE_DATABASE environment variable 'true' olarak ayarlanmamış")
-        logger.info("💡 Çözüm: export CREATE_DATABASE=true")
+        logger.error("CREATE_DATABASE environment variable 'true' olarak ayarlanmamış")
+        logger.info("Çözüm: export CREATE_DATABASE=true")
         sys.exit(1)
 
     if not DATABASE_URL:
-        logger.error("❌ DATABASE_URL environment variable ayarlanmamış")
-        logger.info("💡 Çözüm: export DATABASE_URL='your_database_url'")
+        logger.error("DATABASE_URL environment variable ayarlanmamış")
+        logger.info("Çözüm: export DATABASE_URL='your_database_url'")
         sys.exit(1)
 
     # Sütun silme uyarısı
     if args.remove_extra_columns:
-        logger.warning("⚠️ DIKKAT: --remove-extra-columns parametresi fazla sütunları siler!")
-        logger.warning("⚠️ Bu işlem geri alınamaz ve veri kaybına sebep olabilir!")
+        logger.warning("DIKKAT: --remove-extra-columns parametresi fazla sütunları siler!")
+        logger.warning("Bu işlem geri alınamaz ve veri kaybına sebep olabilir!")
 
     # Database setup başlat
     db_setup = DatabaseSetup()
@@ -788,17 +792,17 @@ async def main():
         )
 
         if success:
-            logger.info("🎉 Veritabanı kurulumu başarıyla tamamlandı!")
+            logger.info("Veritabanı kurulumu başarıyla tamamlandı!")
             sys.exit(0)
         else:
-            logger.error("❌ Veritabanı kurulumu başarısız!")
+            logger.error("Veritabanı kurulumu başarısız!")
             sys.exit(1)
 
     except KeyboardInterrupt:
-        logger.info("⏹️ Kullanıcı tarafından durduruldu")
+        logger.info("Kullanıcı tarafından durduruldu")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"❌ Beklenmeyen hata: {e}")
+        logger.error(f"Beklenmeyen hata: {e}")
         sys.exit(1)
 
 

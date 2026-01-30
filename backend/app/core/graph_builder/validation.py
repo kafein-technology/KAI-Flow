@@ -68,8 +68,8 @@ class ValidationEngine:
             ValidationError: If validation fails critically
         """
         try:
-            logger.info("🔍 Validating workflow structure")
-            
+            logger.info("Validating workflow structure")
+
             # Initialize validation result
             result = ValidationResult(
                 valid=True,
@@ -107,14 +107,14 @@ class ValidationEngine:
             
             # Log results
             status = "VALID" if result.valid else "INVALID"
-            logger.info(f"✅ Validation complete: {status}")
-            
+            logger.info(f"Validation complete: {status}")
+
             if result.errors:
-                logger.error(f"❌ Validation errors: {result.errors}")
-            
+                logger.error(f"Validation errors: {result.errors}")
+
             if result.warnings:
-                logger.warning(f"⚠️ Validation warnings: {result.warnings}")
-            
+                logger.warning(f"Validation warnings: {result.warnings}")
+
             return result
             
         except Exception as e:
@@ -269,7 +269,7 @@ class ValidationEngine:
             result: ValidationResult to update
         """
         try:
-            logger.debug("🔍 Validating many-to-many connections")
+            logger.debug("Validating many-to-many connections")
             
             # Group edges by target (node_id + handle)
             target_groups = defaultdict(list)
@@ -296,7 +296,7 @@ class ValidationEngine:
             
             # Log summary
             if many_to_many_targets > 0:
-                logger.info(f"✅ Many-to-many validation: {many_to_many_targets} targets with multiple connections")
+                logger.info(f"Many-to-many validation: {many_to_many_targets} targets with multiple connections")
             else:
                 logger.debug("No many-to-many connections found")
                 

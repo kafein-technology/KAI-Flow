@@ -70,7 +70,7 @@ class EnhancedMemoryManager:
         # Start cleanup thread
         self._start_cleanup_thread()
         
-        logger.info(f"🧠 EnhancedMemoryManager initialized with policy: {self.cleanup_policy}")
+        logger.info(f"EnhancedMemoryManager initialized with policy: {self.cleanup_policy}")
     
     def get_or_create_memory(
         self,
@@ -107,11 +107,11 @@ class EnhancedMemoryManager:
                     node_type=node_type
                 )
                 
-                logger.info(f"🧠 Created new memory session: {session_id}")
+                logger.info(f"Created new memory session: {session_id}")
             else:
                 memory = self._session_memories[session_id]
-                logger.info(f"🧠 Reusing existing memory session: {session_id}")
-            
+                logger.info(f"Reusing existing memory session: {session_id}")
+
             # Update access metrics
             self._update_access_metrics(session_id)
             
@@ -136,7 +136,7 @@ class EnhancedMemoryManager:
                 del self._memory_metrics[session_id]
             
             self._total_cleanups += 1
-            logger.info(f"🧹 Cleaned up memory session {session_id} (reason: {reason})")
+            logger.info(f"Cleaned up memory session {session_id} (reason: {reason})")
             
             return True
     
@@ -179,7 +179,7 @@ class EnhancedMemoryManager:
             daemon=True
         )
         self._cleanup_thread.start()
-        logger.info("🧹 Memory cleanup thread started")
+        logger.info("Memory cleanup thread started")
     
     def _cleanup_worker(self):
         """Background cleanup worker."""
@@ -226,19 +226,16 @@ class EnhancedMemoryManager:
                 memory_mb = metrics.memory_size_bytes / (1024 * 1024)
                 if memory_mb > self.cleanup_policy.max_memory_mb_per_session:
                     reasons.append(f"memory ({memory_mb:.1f}MB)")
-                
                 if reasons:
                     cleanup_candidates.append((session_id, reasons))
-            
             # Perform cleanups
             cleaned_count = 0
             for session_id, reasons in cleanup_candidates:
                 reason_str = ", ".join(reasons)
                 if self.cleanup_memory(session_id, f"policy: {reason_str}"):
                     cleaned_count += 1
-            
             if cleaned_count > 0:
-                logger.info(f"🧹 Automatic memory cleanup: {cleaned_count} sessions")
+                logger.info(f"Automatic memory cleanup: {cleaned_count} sessions")
     
     def _force_cleanup(self):
         """Force cleanup of oldest memory sessions."""
@@ -258,7 +255,7 @@ class EnhancedMemoryManager:
             for session_id, _ in sorted_sessions[:cleanup_count]:
                 self.cleanup_memory(session_id, "force cleanup")
             
-            logger.warning(f"🧹 Force memory cleanup: {cleanup_count} sessions")
+            logger.warning(f"Force memory cleanup: {cleanup_count} sessions")
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get comprehensive memory management statistics."""
@@ -303,7 +300,7 @@ class EnhancedMemoryManager:
     def optimize_memory(self):
         """Perform memory optimization."""
         with self._lock:
-            logger.info("🔧 Starting memory optimization")
+            logger.info("Starting memory optimization")
             
             # Update all memory metrics
             for session_id in self._session_memories.keys():
@@ -311,7 +308,7 @@ class EnhancedMemoryManager:
             
             # Log memory statistics
             stats = self.get_statistics()
-            logger.info(f"📊 Memory optimization complete: {stats['total_memory_mb']:.1f}MB across {stats['active_memory_sessions']} sessions")
+            logger.info(f"Memory optimization complete: {stats['total_memory_mb']:.1f}MB across {stats['active_memory_sessions']} sessions")
     
     def get_session_info(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a specific session."""
@@ -345,8 +342,8 @@ class EnhancedMemoryManager:
     
     def shutdown(self):
         """Shutdown the memory manager."""
-        logger.info("🛑 Shutting down EnhancedMemoryManager")
-        
+        logger.info("Shutting down EnhancedMemoryManager")
+
         # Signal shutdown
         self._shutdown_event.set()
         
@@ -360,7 +357,7 @@ class EnhancedMemoryManager:
             for session_id in session_ids:
                 self.cleanup_memory(session_id, "shutdown")
         
-        logger.info("✅ EnhancedMemoryManager shutdown complete")
+        logger.info("EnhancedMemoryManager shutdown complete")
 
 
 # Global memory manager instance

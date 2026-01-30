@@ -1,8 +1,11 @@
 """Start Node - Entry point for workflows."""
 
 from typing import Dict, Any
+import logging
 from app.nodes.base import TerminatorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
 from app.core.state import FlowState
+
+logger = logging.getLogger(__name__)
 
 
 class StartNode(TerminatorNode):
@@ -78,7 +81,7 @@ class StartNode(TerminatorNode):
         if not initial_input:
             initial_input = "Workflow started"
         
-        print(f"[StartNode] Starting workflow with input: {initial_input}")
+        logger.info(f"Starting workflow with input: {initial_input}")
         
         return {
             "output": initial_input,

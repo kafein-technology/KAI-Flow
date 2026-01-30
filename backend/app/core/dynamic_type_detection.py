@@ -184,7 +184,7 @@ def performance_monitor(func):
 
 class DynamicTypeDetector:
     """
-    🔥 PHASE 1: Core Dynamic Type Detection Service
+    PHASE 1: Core Dynamic Type Detection Service
     
     Sophisticated metadata-driven node type detection system that replaces
     hardcoded static mappings with dynamic analysis of node metadata.
@@ -202,7 +202,7 @@ class DynamicTypeDetector:
         self._type_cache: Dict[str, NodeTypeInfo] = {}
         self._stats = DetectionStats()
         
-        # 🔄 FALLBACK: Legacy compatibility mappings (transitional only)
+        # FALLBACK: Legacy compatibility mappings (transitional only)
         self._legacy_mappings = {
             # Processor nodes
             'ReactAgent': NodeType.PROCESSOR,
@@ -227,45 +227,45 @@ class DynamicTypeDetector:
             'ParallelNode': NodeType.PROCESSOR,
         }
         
-        logger.info("🔥 Dynamic Type Detector initialized - Phase 1")
+        logger.info("Dynamic Type Detector initialized - Phase 1")
     
     @performance_monitor
     def get_node_type_info(self, node_type_name: str) -> Optional[NodeTypeInfo]:
         """
-        🔥 CORE METHOD: Get comprehensive node type information from metadata
+          METHOD: Get comprehensive node type information from metadata
         
         Returns NodeTypeInfo with complete type classification and metadata.
         Uses multi-level detection strategy: cache -> dynamic -> fallback -> error
         """
         
-        # 🚀 LEVEL 1: Cache lookup
+        #LEVEL 1: Cache lookup
         if node_type_name in self._type_cache:
             cached_info = self._type_cache[node_type_name]
             cached_info.detection_source = "cache"
             return cached_info
         
-        # 🔥 LEVEL 2: Dynamic detection from node registry
+        #LEVEL 2: Dynamic detection from node registry
         try:
             type_info = self._detect_from_metadata(node_type_name)
             if type_info:
                 type_info.detection_source = "dynamic"
                 # Cache the successful detection
                 self._type_cache[node_type_name] = type_info
-                logger.debug(f"✅ DYNAMIC: {node_type_name} -> {type_info.node_type.value}")
+                logger.debug(f"DYNAMIC: {node_type_name} -> {type_info.node_type.value}")
                 return type_info
         
         except Exception as e:
             logger.warning(f"Dynamic detection failed for {node_type_name}: {e}")
         
-        # 🔄 LEVEL 3: Fallback to legacy mappings
+        #LEVEL 3: Fallback to legacy mappings
         fallback_info = self._get_fallback_type_info(node_type_name)
         if fallback_info:
             fallback_info.detection_source = "legacy_fallback"
             self._type_cache[node_type_name] = fallback_info
             return fallback_info
         
-        # ❌ LEVEL 4: Error fallback
-        logger.error(f"❌ Could not detect type for {node_type_name} - all methods failed")
+        #LEVEL 4: Error fallback
+        logger.error(f"Could not detect type for {node_type_name} - all methods failed")
         error_info = NodeTypeInfo(
             node_type=NodeType.PROVIDER,  # Safe default
             category="Unknown",
@@ -276,7 +276,7 @@ class DynamicTypeDetector:
         return error_info
     
     def _detect_from_metadata(self, node_type_name: str) -> Optional[NodeTypeInfo]:
-        """🔥 DYNAMIC: Core metadata-based type detection"""
+        """DYNAMIC: Core metadata-based type detection"""
         
         # Get node class from registry
         node_class = self.node_registry.get_node(node_type_name)
@@ -298,7 +298,7 @@ class DynamicTypeDetector:
                 metadata=metadata.model_dump()
             )
             
-            logger.info(f"🔥 DYNAMIC: {node_type_name} classified as {type_info.node_type.value} "
+            logger.info(f"DYNAMIC: {node_type_name} classified as {type_info.node_type.value} "
                        f"({type_info.category}){' [CONTROL_FLOW]' if type_info.is_control_flow else ''}")
             
             return type_info
@@ -308,8 +308,8 @@ class DynamicTypeDetector:
             return None
     
     def _analyze_control_flow_indicators(self, node_name: str, metadata) -> bool:
-        """🎯 SMART: Analyze if node is a control flow node using multiple indicators"""
-        
+        """SMART: Analyze if node is a control flow node using multiple indicators"""
+
         control_flow_keywords = [
             'conditional', 'condition', 'if', 'branch', 'switch', 'case',
             'loop', 'while', 'for', 'repeat', 'iterate', 
@@ -320,28 +320,28 @@ class DynamicTypeDetector:
         # 1. Check node name
         node_name_lower = node_name.lower()
         if any(keyword in node_name_lower for keyword in control_flow_keywords):
-            logger.debug(f"🎯 CONTROL_FLOW detected via node name: {node_name}")
+            logger.debug(f"CONTROL_FLOW detected via node name: {node_name}")
             return True
         
         # 2. Check category
         category_lower = metadata.category.lower()
         control_flow_categories = ['control', 'flow', 'routing', 'logic', 'decision']
         if any(cat in category_lower for cat in control_flow_categories):
-            logger.debug(f"🎯 CONTROL_FLOW detected via category: {metadata.category}")
+            logger.debug(f"CONTROL_FLOW detected via category: {metadata.category}")
             return True
         
         # 3. Check tags if available
         if hasattr(metadata, 'tags') and metadata.tags:
             tags_text = ' '.join(metadata.tags).lower()
             if any(keyword in tags_text for keyword in control_flow_keywords):
-                logger.debug(f"🎯 CONTROL_FLOW detected via tags: {metadata.tags}")
+                logger.debug(f"CONTROL_FLOW detected via tags: {metadata.tags}")
                 return True
         
         # 4. Check description for control flow patterns
         if hasattr(metadata, 'description') and metadata.description:
             description_lower = metadata.description.lower()
             if any(keyword in description_lower for keyword in control_flow_keywords):
-                logger.debug(f"🎯 CONTROL_FLOW detected via description")
+                logger.debug(f"CONTROL_FLOW detected via description")
                 return True
         
         return False
@@ -352,12 +352,12 @@ class DynamicTypeDetector:
         return node_type in session_aware_types
     
     def _get_fallback_type_info(self, node_type_name: str) -> Optional[NodeTypeInfo]:
-        """🔄 FALLBACK: Use legacy mappings when dynamic detection fails"""
+        """FALLBACK: Use legacy mappings when dynamic detection fails"""
         
         if node_type_name in self._legacy_mappings:
             fallback_type = self._legacy_mappings[node_type_name]
             
-            logger.warning(f"🔄 FALLBACK: Using legacy mapping {node_type_name} -> {fallback_type.value}")
+            logger.warning(f"FALLBACK: Using legacy mapping {node_type_name} -> {fallback_type.value}")
             
             return NodeTypeInfo(
                 node_type=fallback_type,
@@ -369,22 +369,22 @@ class DynamicTypeDetector:
         
         return None
     
-    # 🎯 PUBLIC API: Replacement methods for hardcoded sets
+    # PUBLIC API: Replacement methods for hardcoded sets
     
     def get_processor_node_types(self) -> Set[str]:
-        """🔥 DYNAMIC: Get all processor node types"""
+        """DYNAMIC: Get all processor node types"""
         return self._get_nodes_by_type(NodeType.PROCESSOR)
     
     def get_memory_node_types(self) -> Set[str]:
-        """🔥 DYNAMIC: Get all memory node types"""
+        """DYNAMIC: Get all memory node types"""
         return self._get_nodes_by_type(NodeType.MEMORY)
     
     def get_provider_node_types(self) -> Set[str]:
-        """🔥 DYNAMIC: Get all provider node types"""
+        """ DYNAMIC: Get all provider node types"""
         return self._get_nodes_by_type(NodeType.PROVIDER)
     
     def get_control_flow_node_types(self) -> Set[str]:
-        """🔥 DYNAMIC: Get all control flow node types"""
+        """ DYNAMIC: Get all control flow node types"""
         control_flow_nodes = set()
         
         # Get all registered nodes and check each one
@@ -395,7 +395,7 @@ class DynamicTypeDetector:
             if type_info and type_info.is_control_flow:
                 control_flow_nodes.add(metadata.name)
         
-        logger.info(f"🎯 DYNAMIC: Found {len(control_flow_nodes)} control flow nodes: {control_flow_nodes}")
+        logger.info(f"DYNAMIC: Found {len(control_flow_nodes)} control flow nodes: {control_flow_nodes}")
         return control_flow_nodes
     
     def _get_nodes_by_type(self, target_type: NodeType) -> Set[str]:
@@ -417,12 +417,12 @@ class DynamicTypeDetector:
                 # Only add if not already in registry (avoid duplicates)
                 if node_name not in registry_node_names:
                     nodes_of_type.add(node_name)
-                    logger.debug(f"🔄 Added legacy node {node_name} to {target_type.value} set")
+                    logger.debug(f"Added legacy node {node_name} to {target_type.value} set")
         
-        logger.debug(f"🔍 DYNAMIC+LEGACY: Found {len(nodes_of_type)} {target_type.value} nodes")
+        logger.debug(f"DYNAMIC+LEGACY: Found {len(nodes_of_type)} {target_type.value} nodes")
         return nodes_of_type
     
-    # 🎯 CONVENIENCE METHODS: Boolean checks
+    # CONVENIENCE METHODS: Boolean checks
     
     def is_processor_node(self, node_type_name: str) -> bool:
         """Check if node is a processor type"""
@@ -449,12 +449,12 @@ class DynamicTypeDetector:
         type_info = self.get_node_type_info(node_type_name)
         return type_info and type_info.is_control_flow
     
-    # 🔧 MANAGEMENT METHODS
+    #  MANAGEMENT METHODS
     
     def clear_cache(self):
         """Clear the type detection cache"""
         self._type_cache.clear()
-        logger.info("🔄 Dynamic type detection cache cleared")
+        logger.info("Dynamic type detection cache cleared")
     
     def refresh_node_types(self):
         """Refresh cached node types (useful after new nodes are registered)"""
@@ -464,9 +464,9 @@ class DynamicTypeDetector:
         all_nodes = self.node_registry.get_all_nodes()
         for metadata in all_nodes:
             self.get_node_type_info(metadata.name)
-        
-        logger.info(f"🔄 Cache pre-warmed with {len(all_nodes)} node types")
-    
+
+        logger.info(f"Cache pre-warmed with {len(all_nodes)} node types")
+
     def get_stats(self) -> Dict[str, Any]:
         """Get comprehensive performance and usage statistics"""
         return {
@@ -506,5 +506,5 @@ class DynamicTypeDetector:
         
         return health
 
-# 🌍 Global instance for Phase 1
+#Global instance for Phase 1
 dynamic_type_detector = DynamicTypeDetector(node_registry)
