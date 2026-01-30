@@ -257,13 +257,11 @@ def setup_comprehensive_logging():
 
     # Log startup message
     logger = logging.getLogger(__name__)
-<<<<<<< HEAD
     logger.info("Console logging system initialized", extra={
         "environment": ENVIRONMENT,
         "log_level": LOG_LEVEL,
         "handlers_count": len(root_logger.handlers)
     })
-=======
     logger.info(
         " Console logging system initialized",
         extra={
@@ -272,8 +270,6 @@ def setup_comprehensive_logging():
             "handlers_count": len(root_logger.handlers),
         },
     )
->>>>>>> serialization_fixes
-
 
 def configure_third_party_loggers():
     """Configure logging levels for third-party libraries."""

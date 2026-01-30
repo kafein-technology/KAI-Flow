@@ -408,11 +408,8 @@ class WorkflowLogger:
         )
 
         logger.info(
-<<<<<<< HEAD
             f" {phase.value.upper()} {status_text} in {elapsed:.2f}s"
-=======
             f"{status_symbol} {phase.value.upper()} {status_text} in {elapsed:.2f}s"
->>>>>>> serialization_fixes
         )
         if details:
             for key, value in details.items():
@@ -425,10 +422,6 @@ class WorkflowLogger:
         """Log node execution with smart filtering."""
         # Filter inputs to avoid embedding dumps
         filtered_inputs = self.data_filter.filter_dict(inputs)
-<<<<<<< HEAD
-=======
-
->>>>>>> serialization_fixes
         # Create clean input summary
         input_summary = []
         for key, value in filtered_inputs.items():

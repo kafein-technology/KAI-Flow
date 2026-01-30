@@ -72,11 +72,8 @@ class AutoToolManager:
         Returns:
             Dictionary with discovery results and statistics
         """
-<<<<<<< HEAD
         logger.info(f"Starting tool discovery for {len(node_instances)} nodes")
-=======
         logger.info(f" Starting tool discovery for {len(node_instances)} nodes")
->>>>>>> serialization_fixes
 
         # Reset stats for this batch
         batch_stats = {
@@ -112,11 +109,8 @@ class AutoToolManager:
         self.stats["tools_discovered"] += batch_stats["tools_found"]
         self.stats["tools_converted"] += batch_stats["tools_registered"]
 
-<<<<<<< HEAD
         logger.info(f"Discovery complete: {batch_stats['tools_registered']} tools registered from {batch_stats['nodes_processed']} nodes")
-=======
         logger.info(f" Discovery complete: {batch_stats['tools_registered']} tools registered from {batch_stats['nodes_processed']} nodes")
->>>>>>> serialization_fixes
 
         return {
             "batch_results": batch_stats,
@@ -253,11 +247,8 @@ class AutoToolManager:
         """
         if tool_name in self.registered_tools:
             del self.registered_tools[tool_name]
-<<<<<<< HEAD
             logger.info(f"Unregistered tool: {tool_name}")
-=======
             logger.info(f" Unregistered tool: {tool_name}")
->>>>>>> serialization_fixes
             return True
 
         return False
@@ -273,11 +264,8 @@ class AutoToolManager:
             "conversion_failures": 0,
             "cache_hits": 0
         }
-<<<<<<< HEAD
         logger.info("Tool registry cleared")
-=======
         logger.info(" Tool registry cleared")
->>>>>>> serialization_fixes
 
     def get_statistics(self) -> Dict[str, Any]:
         """
@@ -309,12 +297,8 @@ class AutoToolManager:
         Returns:
             Discovery results with workflow-specific analysis
         """
-<<<<<<< HEAD
         logger.info(f"Scanning workflow with {len(workflow_nodes)} nodes")
-=======
         logger.info(f" Scanning workflow with {len(workflow_nodes)} nodes")
->>>>>>> serialization_fixes
-
         # Basic discovery
         results = self.discover_and_register_tools(workflow_nodes)
 

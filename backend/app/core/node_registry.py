@@ -550,11 +550,8 @@ class NodeRegistry:
                 pass
         except Exception as e:  # noqa: BLE001
             # Skip nodes that cannot be instantiated (likely abstract bases)
-<<<<<<< HEAD
             logger.warning(f"Skipping node {node_class.__name__}: {e}")
-=======
             logger.warning(f"  Skipping node {node_class.__name__}: {e}")
->>>>>>> serialization_fixes
 
     def get_node(self, node_name: str) -> Optional[Type[BaseNode]]:
         """Get a node class by name"""
@@ -615,10 +612,7 @@ class NodeRegistry:
                                 
                     except Exception as e:
                         logger.error(f"Error loading node from {module_path}: {e}")
-<<<<<<< HEAD
-=======
 
->>>>>>> serialization_fixes
     def clear(self):
         """Clear all registered nodes"""
         self.nodes.clear()

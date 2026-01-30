@@ -554,13 +554,10 @@ async def handle_webhook_request(
         webhook_response_data = None
         result = None
         try:
-<<<<<<< HEAD
             logger.info(f"Starting synchronous workflow execution for webhook: {webhook_id}")
-=======
             logger.info(
                 f"Starting synchronous workflow execution for webhook: {webhook_id}"
             )
->>>>>>> serialization_fixes
 
             async with get_db_session_context() as session:
                 executor = get_workflow_executor()
@@ -872,11 +869,6 @@ async def handle_webhook_request(
 
         # Default: return only node outputs as HTTP response (without node IDs)
         logger.info(f"Returning node outputs as webhook response (flattened)")
-<<<<<<< HEAD
-        
-=======
-
->>>>>>> serialization_fixes
         if result and isinstance(result, dict):
             # Extract node_outputs from result
             node_outputs = {}
@@ -885,23 +877,19 @@ async def handle_webhook_request(
             if "state" in result:
                 state = result.get("state", {})
                 node_outputs = state.get("node_outputs", {})
-<<<<<<< HEAD
                 logger.debug(f" Found {len(node_outputs)} node outputs in state")
             
             # If not in state, try directly in result
             if not node_outputs and "node_outputs" in result:
                 node_outputs = result.get("node_outputs", {})
                 logger.debug(f" Found {len(node_outputs)} node outputs in result")
-            
-=======
+
                 logger.debug(f"Found {len(node_outputs)} node outputs in state")
 
             # If not in state, try directly in result
             if not node_outputs and "node_outputs" in result:
                 node_outputs = result.get("node_outputs", {})
                 logger.debug(f"Found {len(node_outputs)} node outputs in result")
-
->>>>>>> serialization_fixes
             # Flatten node_outputs: remove node IDs and merge all outputs
             flattened_output = {}
             for node_id, node_output in node_outputs.items():
@@ -939,15 +927,11 @@ async def handle_webhook_request(
             )
         else:
             # Fallback if result is not a dict (e.g., plain string from LLM)
-<<<<<<< HEAD
             logger.info(f" Returning raw result as webhook response (non-dict result type={type(result).__name__})")
-            
-=======
+
             logger.info(
                 f"Returning raw result as webhook response (non-dict result type={type(result).__name__})"
             )
-
->>>>>>> serialization_fixes
             # If result is a simple value, wrap it in an 'output' field
             if result is None:
                 content = {}
@@ -971,11 +955,8 @@ async def handle_webhook_request(
     except HTTPException:
         raise
     except Exception as e:
-<<<<<<< HEAD
         logger.error(f" Webhook processing error: {str(e)}")
-=======
         logger.error(f"Webhook processing error: {str(e)}")
->>>>>>> serialization_fixes
         raise HTTPException(
             status_code=500, detail=f"Webhook processing failed: {str(e)}"
         )
@@ -1074,13 +1055,8 @@ async def webhook_stream_test(webhook_id: str):
     if webhook_id not in webhook_events:
         webhook_events[webhook_id] = []
         webhook_subscribers[webhook_id] = []
-<<<<<<< HEAD
         logger.info(f" Auto-created webhook storage for stream: {webhook_id}")
-    
-=======
         logger.info(f"Auto-created webhook storage for stream: {webhook_id}")
-
->>>>>>> serialization_fixes
     async def event_stream():
         queue = asyncio.Queue(maxsize=MAX_QUEUE_LENGTH)
         if webhook_id not in webhook_subscribers:
@@ -1702,13 +1678,8 @@ class WebhookTriggerNode(TerminatorNode):
         Returns:
             Dict with webhook endpoint, token, runnable, and config
         """
-<<<<<<< HEAD
         logger.info(f" Configuring Webhook Trigger: {self.webhook_id}")
-        
-=======
         logger.info(f"Configuring Webhook Trigger: {self.webhook_id}")
-
->>>>>>> serialization_fixes
         # Store user configuration
         self.user_data.update(kwargs)
 
@@ -1741,15 +1712,8 @@ class WebhookTriggerNode(TerminatorNode):
 
         # Create webhook runnable
         webhook_runnable = self._create_webhook_runnable()
-<<<<<<< HEAD
-        
         logger.info(f" Webhook trigger configured: {full_endpoint}")
-        
-=======
-
         logger.info(f"Webhook trigger configured: {full_endpoint}")
-
->>>>>>> serialization_fixes
         return {
             "webhook_endpoint": full_endpoint,
             "webhook_runnable": webhook_runnable,
@@ -1825,13 +1789,8 @@ class WebhookTriggerNode(TerminatorNode):
                             webhook_subscribers[self.webhook_id].remove(queue)
                         except ValueError:
                             pass
-<<<<<<< HEAD
                     logger.info(f" Webhook streaming ended: {self.webhook_id}")
-        
-=======
                     logger.info(f"Webhook streaming ended: {self.webhook_id}")
-
->>>>>>> serialization_fixes
         # Add LangSmith tracing if enabled
         runnable = WebhookRunnable(self.webhook_id)
 

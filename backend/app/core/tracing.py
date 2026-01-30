@@ -870,7 +870,7 @@ class WorkflowTracer:
         self.node_timings[node_id] = time.time()
 
         if TRACE_AGENT_REASONING and node_type == "ReactAgent":
-            logger.info(f"🤖 Agent reasoning started: {node_id}")
+            logger.info(f" Agent reasoning started: {node_id}")
             logger.info(f" Agent inputs: {list(inputs.keys())}")
 
             # Add special tracing for agent reasoning
@@ -976,11 +976,8 @@ class WorkflowTracer:
 
             if TRACE_AGENT_REASONING and node_type == "ReactAgent":
                 logger.info(
-<<<<<<< HEAD
                     f" Agent reasoning completed: {node_id} ({duration:.2f}s)"
-=======
-                    f"🤖 Agent reasoning completed: {node_id} ({duration:.2f}s)"
->>>>>>> serialization_fixes
+                    f" Agent reasoning completed: {node_id} ({duration:.2f}s)"
                 )
                 logger.info(f" Agent outputs: {list(outputs.keys())}")
 
@@ -1060,14 +1057,11 @@ class WorkflowTracer:
                 "metadata": metadata or {},
             }
             self.memory_operations.append(memory_op)
-<<<<<<< HEAD
-            
             logger.info(f" Memory {operation}: {node_id} ({len(content)} chars)")
             if metadata:
                 logger.debug(f" Memory metadata: {metadata}")
-    
+
     def track_connection_resolution(self, node_count: int, connection_count: int, resolution_time: float):
-=======
 
             logger.info(f" Memory {operation}: {node_id} ({len(content)} chars)")
             if metadata:
@@ -1076,7 +1070,6 @@ class WorkflowTracer:
     def track_connection_resolution(
         self, node_count: int, connection_count: int, resolution_time: float
     ):
->>>>>>> serialization_fixes
         """Track connection resolution performance."""
         self.performance_monitor.record_connection_resolution_time(
             node_count, connection_count, resolution_time, self.session_id
@@ -1230,11 +1223,8 @@ class WorkflowTracer:
                     f" Custom metrics: {len(self.trace_context.custom_metrics)}"
                 )
                 logger.info(
-<<<<<<< HEAD
                     f" Total spans: {len(self.trace_context.get_all_spans())}"
-=======
                     f"📈 Total spans: {len(self.trace_context.get_all_spans())}"
->>>>>>> serialization_fixes
                 )
 
     def add_business_metric(self, name: str, value: float):
@@ -1322,11 +1312,8 @@ class WorkflowTracer:
 
         try:
             # Convert spans to LangSmith format and send
-<<<<<<< HEAD
             logger.info(f"Exporting {len(spans)} spans to LangSmith")
-=======
             logger.info(f" Exporting {len(spans)} spans to LangSmith")
->>>>>>> serialization_fixes
             # Implementation would depend on LangSmith SDK
         except Exception as e:
             logger.error(f"Failed to export spans to LangSmith: {e}")
@@ -1497,13 +1484,10 @@ def trace_memory_operation(operation: str):
             try:
                 result = func(self, *args, **kwargs)
             except Exception as e:
-<<<<<<< HEAD
                 logger.error(f" Memory operation {operation} execution failed: {str(e)}")
-=======
                 logger.error(
                     f" Memory operation {operation} execution failed: {str(e)}"
                 )
->>>>>>> serialization_fixes
                 raise
 
             # Try to trace the operation, but don't fail if tracing fails
@@ -1525,15 +1509,10 @@ def trace_memory_operation(operation: str):
 
             except Exception as trace_error:
                 # Log tracing error but don't fail the operation
-<<<<<<< HEAD
                 logger.warning(f"Memory operation tracing failed for {operation}: {str(trace_error)}")
-            
-=======
                 logger.warning(
                     f" Memory operation tracing failed for {operation}: {str(trace_error)}"
                 )
-
->>>>>>> serialization_fixes
             return result
 
         return wrapper

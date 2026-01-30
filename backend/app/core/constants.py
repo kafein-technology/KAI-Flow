@@ -147,11 +147,8 @@ _default_credential_key = "dev-only-insecure-key-change-me"
 CREDENTIAL_MASTER_KEY = os.getenv("CREDENTIAL_MASTER_KEY", _default_credential_key)
 if CREDENTIAL_MASTER_KEY == _default_credential_key:
     logging.warning(
-<<<<<<< HEAD
         " WARNING: Using default CREDENTIAL_MASTER_KEY. Set CREDENTIAL_MASTER_KEY environment variable in production!"
-=======
-        "⚠️  WARNING: Using default CREDENTIAL_MASTER_KEY. Set CREDENTIAL_MASTER_KEY environment variable in production!"
->>>>>>> serialization_fixes
+        " WARNING: Using default CREDENTIAL_MASTER_KEY. Set CREDENTIAL_MASTER_KEY environment variable in production!"
     )
 # Logging
 LOG_LEVEL = "DEBUG"
