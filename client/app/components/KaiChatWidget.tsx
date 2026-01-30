@@ -21,7 +21,7 @@ import {
   ExternalLink,
   RefreshCcw,
   Quote,
-} from "lucide-react";
+} from "~/components/common/Icon";
 import { motion, AnimatePresence } from "motion/react";
 import { v4 as uuidv4 } from "uuid";
 import { config } from "../lib/config";

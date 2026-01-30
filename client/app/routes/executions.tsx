@@ -10,7 +10,7 @@ import {
   Filter,
   Search,
   RotateCcw,
-} from "lucide-react";
+} from "~/components/common/Icon";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";

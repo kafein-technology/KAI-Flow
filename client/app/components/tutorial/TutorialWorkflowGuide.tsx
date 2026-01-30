@@ -10,7 +10,7 @@ import {
   Lightbulb,
   Code,
   Zap,
-} from "lucide-react";
+} from "~/components/common/Icon";
 import {
   TUTORIAL_WORKFLOWS,
   type TutorialWorkflow,

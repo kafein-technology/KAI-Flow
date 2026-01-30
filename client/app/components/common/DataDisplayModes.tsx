@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Code, Table, FileText, ChevronDown, Copy, Check } from 'lucide-react';
+import { Code, Table, FileText, ChevronDown, Copy, Check } from './Icon';
 
 export type DisplayMode = 'schema' | 'table' | 'json';
 

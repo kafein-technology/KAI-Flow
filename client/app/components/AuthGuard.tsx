@@ -1,5 +1,5 @@
 // components/AuthGuard.tsx
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "~/components/common/Icon";
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { apiClient } from "~/lib/api-client";

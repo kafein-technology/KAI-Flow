@@ -34,7 +34,7 @@ import type {
 
 type NodeStatus = "success" | "failed" | "pending";
 
-import { Loader } from "lucide-react";
+import { Loader } from "../common/Icon";
 import ChatComponent from "./ChatComponent";
 import ChatHistorySidebar from "./ChatHistorySidebar";
 import SidebarToggleButton from "./SidebarToggleButton";

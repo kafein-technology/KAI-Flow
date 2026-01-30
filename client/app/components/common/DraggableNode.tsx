@@ -1,6 +1,6 @@
 import React from "react";
 import type { ReactElement } from "react";
-import { Box } from "lucide-react";
+import { Box } from "./Icon";
 import { getNodeTypeIconPath, hasNodeTypeIcon } from "~/lib/iconUtils";
 
 interface NodeType {
@@ -120,7 +120,7 @@ function DraggableNode({ nodeType, icon }: DraggableNodeProps) {
       onDragStart={onDragStart}
       className="text-gray-100 flex items-center gap-2 p-3 hover:bg-gray-700/50 transition-all select-none cursor-grab rounded-2xl border border-transparent hover:border-gray-600"
     >
-      <div className={`flex items-center justify-center ${ICON_CONTAINER_SIZE} m-2 shrink-0 [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain`}>
+      <div className={`flex items-center justify-center ${ICON_CONTAINER_SIZE} m-2 shrink-0 [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain [&>img]:brightness-0 [&>img]:invert`}>
         {getNodeIcon(nodeType.type) || <></>}
       </div>
       <div className="flex flex-col gap-2">

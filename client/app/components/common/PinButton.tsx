@@ -1,5 +1,5 @@
 import React from "react";
-import { Heart, HeartOff } from "lucide-react";
+import { Heart, HeartOff } from "./Icon";
 import { usePinnedItems } from "~/stores/pinnedItems";
 import { useSnackbar } from "notistack";
 

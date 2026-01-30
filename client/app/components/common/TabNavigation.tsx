@@ -1,10 +1,12 @@
 import React from "react";
-import { type LucideIcon } from "lucide-react";
+
+// Type for icon component (since we're using local icons now)
+type IconComponent = React.ComponentType<{ className?: string; size?: number }>;
 
 interface Tab {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   description?: string;
 }
 

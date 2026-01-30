@@ -1,5 +1,5 @@
 import React from "react";
-import { Power, PowerOff } from "lucide-react";
+import { Power, PowerOff } from "./Icon";
 
 interface ToggleSwitchProps {
   isActive: boolean;

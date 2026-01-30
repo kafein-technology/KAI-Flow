@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus } from "../common/Icon";
 
 interface SidebarToggleButtonProps {
   isSidebarOpen: boolean;

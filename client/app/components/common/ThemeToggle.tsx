@@ -1,5 +1,5 @@
 import { useThemeStore } from "~/stores/theme";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon } from "./Icon";
 
 export function ThemeToggle() {
   const mode = useThemeStore((s) => s.mode);

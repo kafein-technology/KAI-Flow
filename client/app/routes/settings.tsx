@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { User, Save, X } from "lucide-react";
+import { User, Save, X } from "~/components/common/Icon";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useAuth } from "~/stores/auth";
 import { useSnackbar } from "notistack";
