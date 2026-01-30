@@ -163,11 +163,14 @@ LICENSE: Proprietary - KAI-Fusion Platform
 """
 
 import os
+import logging
 from typing import Dict, Any, Optional, List
 from ..base import NodeProperty, ProviderNode, NodeInput, NodeOutput, NodeType, NodePosition, NodePropertyType
 from app.models.node import NodeCategory
 from langchain_tavily import TavilySearch
 from langchain_core.tools import Tool
+
+logger = logging.getLogger(__name__)
 
 # ================================================================================
 # TAVILY SEARCH NODE - ENTERPRISE WEB INTELLIGENCE PROVIDER
@@ -521,7 +524,7 @@ class TavilySearchNode(ProviderNode):
 
         Following the RetrieverProvider pattern for consistent tool creation.
         """
-        print("\nTAVILY SEARCH SETUP")
+        logger.info("\nTAVILY SEARCH SETUP")
 
         try:
             # Get API key from user configuration (database/UI)
@@ -532,9 +535,9 @@ class TavilySearchNode(ProviderNode):
             if not api_key:
                 api_key = os.getenv("TAVILY_API_KEY")
             
-            print(f"   API Key: {'Found' if api_key else 'Missing'}")
+            logger.info(f"   API Key: {'Found' if api_key else 'Missing'}")
             if api_key:
-                print(f"   Source: {'User Config' if self.user_data.get('tavily_api_key') else 'Environment'}")
+                logger.info(f"   Source: {'User Config' if self.user_data.get('tavily_api_key') else 'Environment'}")
             
             if not api_key:
                 raise ValueError(
@@ -573,14 +576,14 @@ class TavilySearchNode(ProviderNode):
             # 6. Test the API connection
             try:
                 test_result = tavily_search.run("test query")
-                print(f"   API Test: Success ({len(str(test_result))} chars)")
+                logger.info(f"   API Test: Success ({len(str(test_result))} chars)")
             except Exception as test_error:
-                print(f"   API Test: Failed ({str(test_error)[:50]}...)")
+                logger.error(f"   API Test: Failed ({str(test_error)[:50]}...)")
 
             # 7. Create agent-ready tool
             search_tool = self._create_search_tool(tavily_search, search_config)
 
-            print(f"   Tool Created: {search_tool.name} | Max Results: {max_results} | Depth: {search_depth}")
+            logger.info(f"   Tool Created: {search_tool.name} | Max Results: {max_results} | Depth: {search_depth}")
 
             return {
                 "taviliy_web_search": {"tool": search_tool}
@@ -588,7 +591,7 @@ class TavilySearchNode(ProviderNode):
 
         except Exception as e:
             error_msg = f"TavilySearchNode execution failed: {str(e)}"
-            print(f"{error_msg}")
+            logger.error(f"{error_msg}")
             raise ValueError(error_msg) from e
 
     def _create_tavily_search(self, api_key: str, search_config: Dict[str, Any]) -> TavilySearch:
@@ -621,7 +624,7 @@ class TavilySearchNode(ProviderNode):
         def tavily_web_search(query: str) -> str:
             """Web search function that agents will call."""
             try:
-                print(f"Agent performing web search for: {query}")
+                logger.info(f"Agent performing web search for: {query}")
 
                 # Perform search using Tavily
                 raw_results = tavily_search.run(query)

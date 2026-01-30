@@ -811,7 +811,7 @@ class VectorStoreOrchestrator(ProcessorNode):
             else:
                 connection_string = f"postgresql://{host}:{port}/{database}"
             
-            logger.info(f"🔑 Built connection string from credential: {credential['name']}")
+            logger.info(f"Built connection string from credential: {credential['name']}")
         else:
             # Fallback to direct connection_string input (for backward compatibility)
             connection_string = inputs.get("connection_string")

@@ -56,8 +56,8 @@ class EnhancedWorkflowTracer:
                 "version": "2.1.0"
             }
             
-            logger.info(f"🔍 Enhanced workflow trace started: {workflow_id}")
-            logger.info(f"📊 Metadata: {metadata}")
+            logger.info(f"Enhanced workflow trace started: {workflow_id}")
+            logger.info(f"Metadata: {metadata}")
             
     def start_node_execution(self, node_id: str, node_type: str, inputs: Dict[str, Any]):
         """Start tracking a node execution with performance monitoring."""
@@ -68,8 +68,8 @@ class EnhancedWorkflowTracer:
         self.node_executions[node_id] = execution_id
         
         if ENABLE_WORKFLOW_TRACING:
-            logger.info(f"🎯 Node execution started: {node_id} ({node_type})")
-            logger.info(f"📝 Inputs: {list(inputs.keys())}")
+            logger.info(f"Node execution started: {node_id} ({node_type})")
+            logger.info(f"Inputs: {list(inputs.keys())}")
     
     def end_node_execution(self, node_id: str, node_type: str, outputs: Dict[str, Any], 
                           success: bool = True, error_message: Optional[str] = None):
@@ -94,10 +94,10 @@ class EnhancedWorkflowTracer:
             del self.node_executions[node_id]
         
         if ENABLE_WORKFLOW_TRACING:
-            status = "✅ SUCCESS" if success else "❌ FAILED"
-            logger.info(f"🎯 Node execution completed: {node_id} ({node_type}) - {status}")
+            status = "SUCCESS" if success else "FAILED"
+            logger.info(f"Node execution completed: {node_id} ({node_type}) - {status}")
             if error_message:
-                logger.error(f"❌ Error: {error_message}")
+                logger.error(f"Error: {error_message}")
     
     def track_memory_operation(self, operation: str, node_id: str, content: str, session_id: str):
         """Track memory operations with enhanced monitoring."""
@@ -111,8 +111,7 @@ class EnhancedWorkflowTracer:
                 )
             except Exception:
                 pass
-            
-            logger.info(f"🧠 Memory {operation}: {node_id} ({len(content)} chars)")
+            logger.info(f"Memory {operation}: {node_id} ({len(content)} chars)")
     
     def track_connection_resolution(self, node_count: int, connection_count: int, resolution_time: float):
         """Track connection resolution performance."""
@@ -131,12 +130,12 @@ class EnhancedWorkflowTracer:
         if self.workflow_start_time:
             total_duration = time.time() - self.workflow_start_time
             
-            status = "✅ SUCCESS" if success else "❌ FAILED"
-            logger.info(f"🏁 Enhanced workflow completed in {total_duration:.2f}s - {status}")
+            status = "SUCCESS" if success else "FAILED"
+            logger.info(f"Enhanced workflow completed in {total_duration:.2f}s - {status}")
             
             if error:
-                logger.error(f"❌ Workflow error: {error}")
-    
+                logger.error(f"Workflow error: {error}")
+
     def get_callback_manager(self) -> Optional[CallbackManager]:
         """Get callback manager for LangSmith integration."""
         if LANGCHAIN_TRACING_V2:
@@ -250,7 +249,7 @@ def enhanced_trace_node_execution(func):
             
         except Exception as e:
             tracer.end_node_execution(node_id, node_type, {}, success=False, error_message=str(e))
-            logger.error(f"❌ Enhanced node {node_id} failed: {str(e)}")
+            logger.error(f"Enhanced node {node_id} failed: {str(e)}")
             raise
     
     return wrapper
@@ -280,7 +279,7 @@ def enhanced_trace_memory_operation(operation: str):
                 return result
                 
             except Exception as e:
-                logger.error(f"❌ Enhanced memory operation {operation} failed: {str(e)}")
+                logger.error(f"Enhanced memory operation {operation} failed: {str(e)}")
                 raise
         
         return wrapper
@@ -298,12 +297,12 @@ def setup_enhanced_tracing():
         try:
             from app.core.config import setup_langsmith
             setup_langsmith()
-            logger.info("🔍 Enhanced workflow tracing initialized with LangSmith")
+            logger.info("Enhanced workflow tracing initialized with LangSmith")
         except Exception as e:
             logger.warning(f"LangSmith setup failed: {e}")
-            logger.info("🔍 Enhanced workflow tracing initialized (local only)")
+            logger.info("Enhanced workflow tracing initialized (local only)")
     else:
-        logger.info("🔍 Enhanced workflow tracing initialized (local only)")
+        logger.info("Enhanced workflow tracing initialized (local only)")
 
 
 # Backward compatibility aliases

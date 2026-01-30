@@ -12,6 +12,7 @@ The heavy lifting is done by the export package modules:
 
 # Import everything from the modular export package
 from .export import *
+import logging
 
 # The router is now defined in routes.py and imported here
 # This ensures backward compatibility while providing a clean modular structure
@@ -27,9 +28,9 @@ SYSTEM_ENV_VARS = {
     "REQUIRE_API_KEY": "API key authentication required"
 }
 
-logger.info("🔥 MODULAR EXPORT: Loaded from modular export package")
-logger.info(f"📁 Available functions: {len(__all__)} functions exported")
-logger.info(f"🎯 Router: {router}")
+logger.info("MODULAR EXPORT: Loaded from modular export package")
+logger.info(f"Available functions: {len(__all__)} functions exported")
+logger.info(f"Router: {router}")
 
 # Export the router for main app.py to use
 __all__ = ["router"] + list(locals().keys())

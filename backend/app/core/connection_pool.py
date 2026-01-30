@@ -145,7 +145,7 @@ class ConnectionPool:
             "pool_created_at": time.time()
         }
         
-        logger.info("🔗 ConnectionPool initialized")
+        logger.info("ConnectionPool initialized")
 
     def add_connection(
         self, 
@@ -238,7 +238,7 @@ class ConnectionPool:
             self._stats["connections_added"] += 1
             
             logger.info(
-                f"✅ Connection added: {connection_key}",
+                f"Connection added: {connection_key}",
                 extra={
                     "connection_id": connection_id,
                     "source": f"{source_node_id}:{source_handle}",
@@ -390,7 +390,7 @@ class ConnectionPool:
             self._stats["connections_removed"] += 1
             
             logger.info(
-                f"🗑️ Connection removed: {connection_key}",
+                f"Connection removed: {connection_key}",
                 extra={
                     "connection_id": connection_id,
                     "source": f"{connection.source_node_id}:{connection.source_handle}",
@@ -524,7 +524,7 @@ class ConnectionPool:
             self._stats["total_connections"] = 0
             
             logger.info(
-                f"🧹 ConnectionPool cleared: {connection_count} connections removed",
+                f" ConnectionPool cleared: {connection_count} connections removed",
                 extra={"connections_cleared": connection_count}
             )
             

@@ -3,9 +3,12 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+import logging
 
 from .repo import MemoryRepo
 from app.models.memory import Memory
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryItem:
@@ -192,7 +195,7 @@ class MemoryService:
             return relevant_memories[:limit]
 
         except Exception as e:
-            print(f"Semantic search failed: {e}")
+            logger.error(f"Semantic search failed: {e}")
             return memories[:limit]
     
     def _analyze_word_frequency(self, memories: List[Memory]) -> List[Dict[str, Any]]:

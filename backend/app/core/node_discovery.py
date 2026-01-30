@@ -8,7 +8,7 @@ the advanced NodeRegistry architecture. This module is officially deprecated and
 provides comprehensive migration guidance and compatibility bridges for existing
 integrations requiring seamless transition to the modern node management system.
 
-⚠️  DEPRECATION NOTICE:
+  DEPRECATION NOTICE:
 =====================
 
 **THIS MODULE IS OFFICIALLY DEPRECATED AND WILL BE REMOVED IN FUTURE VERSIONS**

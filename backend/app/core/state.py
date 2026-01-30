@@ -25,6 +25,8 @@ IMPLEMENTATION DETAILS:
 from pydantic import BaseModel, Field
 from typing import Any, List, Dict, Optional, Union, Annotated
 from datetime import datetime
+import logging
+
 
 def merge_node_outputs(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -181,7 +183,7 @@ class FlowState(BaseModel):
         if not self.session_id or self.session_id == 'None' or len(str(self.session_id).strip()) == 0:
             import uuid
             self.session_id = f"state_session_{uuid.uuid4().hex[:8]}"
-            print(f"[WARNING] No valid session_id in FlowState, generated: {self.session_id}")
+            logging.warning(f"[WARNING] No valid session_id in FlowState, generated: {self.session_id}")
         
     def add_message(self, message: str, role: str = "user") -> None:
         """Add a message to chat history"""

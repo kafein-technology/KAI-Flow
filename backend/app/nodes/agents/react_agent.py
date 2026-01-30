@@ -113,7 +113,10 @@ from langgraph.graph.state import CompiledStateGraph
 import re
 import sys
 import os
+import logging
 from langchain_core.callbacks import BaseCallbackHandler
+
+logger = logging.getLogger(__name__)
 
 # ================================================================================
 # DEBUG CALLBACK HANDLER (Console step-by-step traces for LLM and Tool calls)
@@ -343,7 +346,7 @@ class ReactAgentNode(ProcessorNode):
                 displayName="Agent Type",
                 type=NodePropertyType.SELECT,
                 options=[
-                    {"label": "ReAct Agent ⭐", "value": "react"},
+                    {"label": "ReAct Agent +", "value": "react"},
                     {"label": "Conversational Agent", "value": "conversational"},
                     {"label": "Task-Oriented Agent", "value": "task_oriented"},
                 ],

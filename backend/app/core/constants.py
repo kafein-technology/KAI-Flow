@@ -100,7 +100,9 @@ IMPLEMENTATION DETAILS:
 • Features: Centralized management, monitoring, scaling, performance optimization
 ──────────────────────────────────────────────────────────────
 """
+
 import os
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -115,7 +117,7 @@ root_env_file = root_dir / '.env'
 if root_env_file.exists():
     load_dotenv(dotenv_path=root_env_file)
 else:
-    print("Root .env file not found")
+    logging.info("Root .env file not found")
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
@@ -144,7 +146,7 @@ DB_POOL_PRE_PING = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
 _default_credential_key = "dev-only-insecure-key-change-me"
 CREDENTIAL_MASTER_KEY = os.getenv("CREDENTIAL_MASTER_KEY", _default_credential_key)
 if CREDENTIAL_MASTER_KEY == _default_credential_key:
-    print("⚠️  WARNING: Using default CREDENTIAL_MASTER_KEY. Set CREDENTIAL_MASTER_KEY environment variable in production!")
+    print("WARNING: Using default CREDENTIAL_MASTER_KEY. Set CREDENTIAL_MASTER_KEY environment variable in production!")
 # Logging
 LOG_LEVEL = "DEBUG"
 DEBUG = os.getenv("BACKEND_DEBUG", "false").lower() in ("true", "1", "t")

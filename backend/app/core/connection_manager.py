@@ -73,7 +73,7 @@ class ConnectionManager:
         # CHANGED: Auto-enable connection pool by default
         self._pool_enabled = True
         self._connection_pool = ConnectionPool()
-        logger.info("🚀 Connection Pool auto-enabled - Many-to-many connections now active by default")
+        logger.info("Connection Pool auto-enabled - Many-to-many connections now active by default")
     
     def build_connection_mappings(
         self, 
@@ -90,7 +90,7 @@ class ConnectionManager:
         Returns:
             Dictionary mapping node_id to NodeConnectionMap
         """
-        logger.info(f"🔗 Building connection mappings for {len(nodes)} nodes")
+        logger.info(f"Building connection mappings for {len(nodes)} nodes")
         
         # Clear previous mappings
         self._connection_cache.clear()
@@ -100,7 +100,7 @@ class ConnectionManager:
         # Clear connection pool to prevent duplicates
         if self._pool_enabled and self._connection_pool is not None:
             self._connection_pool.clear()
-            logger.debug("🧹 Connection pool cleared to prevent duplicates")
+            logger.debug("Connection pool cleared to prevent duplicates")
         
         # Initialize node mappings
         for node_id in nodes.keys():
@@ -134,7 +134,7 @@ class ConnectionManager:
         # Validate overall graph structure
         self._validate_graph_structure()
         
-        logger.info(f"✅ Connection mapping complete: {valid_connections} valid, {invalid_connections} invalid")
+        logger.info(f"Connection mapping complete: {valid_connections} valid, {invalid_connections} invalid")
         return self._connection_cache.copy()
     
     def _create_connection_info(self, conn: Any) -> ConnectionInfo:
@@ -298,7 +298,7 @@ class ConnectionManager:
         
         # Add to connection pool if enabled
         if self._pool_enabled and self._connection_pool is not None:
-            logger.debug(f"🔗 Attempting to add connection to pool: {conn_info.source_node_id}:{conn_info.source_handle} -> {conn_info.target_node_id}:{conn_info.target_handle}")
+            logger.debug(f"Attempting to add connection to pool: {conn_info.source_node_id}:{conn_info.source_handle} -> {conn_info.target_node_id}:{conn_info.target_handle}")
             try:
                 pool_conn_id = self._connection_pool.add_connection(
                     source_node_id=conn_info.source_node_id,
@@ -308,23 +308,23 @@ class ConnectionManager:
                     data_type=conn_info.data_type,
                     priority=0  # Default priority
                 )
-                logger.info(f"🔗 Connection added to pool: {pool_conn_id}")
+                logger.info(f"Connection added to pool: {pool_conn_id}")
             except Exception as e:
-                logger.warning(f"❌ Failed to add connection to pool: {e}")
+                logger.warning(f"Failed to add connection to pool: {e}")
                 # Log the detailed error for debugging
                 import traceback
                 logger.warning(f"Pool add error details: {traceback.format_exc()}")
         else:
-            logger.debug(f"🔗 Pool not enabled or not initialized: enabled={self._pool_enabled}, pool={self._connection_pool is not None}")
-        
+            logger.debug(f"Pool not enabled or not initialized: enabled={self._pool_enabled}, pool={self._connection_pool is not None}")
+
         # Update timestamps
         target_map.last_updated = time.time()
         source_map.last_updated = time.time()
     
     def _validate_graph_structure(self):
         """Validate overall graph structure."""
-        logger.info("🔍 Validating graph structure")
-        
+        logger.info("Validating graph structure")
+
         # Check for isolated nodes
         isolated_nodes = []
         for node_id, node_map in self._connection_cache.items():
@@ -378,7 +378,7 @@ class ConnectionManager:
                 
             self._connection_pool = ConnectionPool()
             self._pool_enabled = True
-            logger.info("🚀 Connection Pool enabled - Many-to-many connections now active")
+            logger.info("Connection Pool enabled - Many-to-many connections now active")
         except Exception as e:
             logger.error(f"Failed to enable connection pool: {e}")
             raise
@@ -395,7 +395,7 @@ class ConnectionManager:
                 self._pool_enabled = False
                 if self._connection_pool:
                     self._connection_pool.clear()
-                logger.info("🔗 Connection pool disabled - reverted to one-to-one connections")
+                logger.info("Connection pool disabled - reverted to one-to-one connections")
             else:
                 logger.info("Connection pool is already disabled")
         except Exception as e:
@@ -526,6 +526,6 @@ class ConnectionManager:
         # Clear connection pool when clearing cache to prevent duplicates
         if self._pool_enabled and self._connection_pool is not None:
             self._connection_pool.clear()
-            logger.debug("🧹 Connection pool cleared with cache")
+            logger.debug("Connection pool cleared with cache")
         
-        logger.info("🧹 Connection validation cache cleared")
+        logger.info("Connection validation cache cleared")
