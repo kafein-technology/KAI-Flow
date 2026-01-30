@@ -10,7 +10,7 @@ import {
   FileText,
   Quote,
   CheckCircle,
-} from "lucide-react";
+} from "./Icon";
 import { useAuth } from "~/stores/auth";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";

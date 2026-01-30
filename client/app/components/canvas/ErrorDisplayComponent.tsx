@@ -1,13 +1,5 @@
 import React, { useState } from "react";
-import {
-  AlertTriangle,
-  X,
-  RefreshCw,
-  Info,
-  AlertCircle,
-  Bug,
-  Zap,
-} from "lucide-react";
+import { AlertTriangle, AlertCircle, Bug, Zap, RefreshCw, Info, X } from "../common/Icon";
 
 interface ErrorDetails {
   message: string;

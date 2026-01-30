@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BookOpen, Play, Star, Clock, Tag } from "lucide-react";
+import { BookOpen, Play, Star, Clock, Tag } from "~/components/common/Icon";
 import {
   TUTORIAL_WORKFLOWS,
   type TutorialWorkflow,

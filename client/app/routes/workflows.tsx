@@ -17,7 +17,7 @@ import {
   Eye,
   X,
   Download,
-} from "lucide-react";
+} from "~/components/common/Icon";
 import React, { useState, useEffect } from "react";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";

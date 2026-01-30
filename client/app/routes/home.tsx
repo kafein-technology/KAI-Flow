@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Calendar, TrendingUp, Activity, Zap } from "lucide-react";
+import { Calendar, TrendingUp, Activity, Zap } from "~/components/common/Icon";
 import AuthGuard from "~/components/AuthGuard";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import DashboardChart from "../components/DashboardChart";

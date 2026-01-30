@@ -1,13 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Eraser,
-  History,
-  MessageSquare,
-  Maximize2,
-  Minimize2,
-} from "lucide-react";
 import ChatBubble from "../common/ChatBubble";
 import { useChatStore } from "~/stores/chat";
+import { MessageSquare, Minimize2, Maximize2, History, Eraser } from "../common/Icon";
 
 interface ChatComponentProps {
   chatOpen: boolean;

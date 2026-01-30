@@ -1,11 +1,13 @@
 import React, { useMemo } from "react";
 import { Position } from "@xyflow/react";
 import { NeonHandle } from "~/components/common/NeonHandle";
-import { Box, Download, Square, Trash, Copy, Play, Zap } from "lucide-react";
+import { Box, Download, Square, Trash, Copy, Play, Zap } from "../common/Icon";
 import type { GenericData } from "./types";
 import type { NodeMetadata } from "../../types/api";
-import * as LucideIcons from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
+
+
+type IconComponent = React.ComponentType<{ className?: string; size?: number }>;
 
 interface GenericVisualProps {
   data: GenericData;
@@ -68,7 +70,7 @@ function GenericVisual({
     }
   };
 
-  const getIconComponent = (icon: NodeMetadata["icon"]) => {
+  const getIconComponent = (icon: NodeMetadata["icon"]): IconComponent => {
     if (icon?.path) {
       const iconPath = resolveIconPath(icon.path);
       return (props: any) => (
@@ -82,14 +84,7 @@ function GenericVisual({
     }
     if (!icon?.name) return Box;
 
-    let Icon = (LucideIcons as any)[icon.name];
-    for (const [key, value] of Object.entries(LucideIcons)) {
-      if (key.toLowerCase() === icon.name.replace(/-/g, "").toLowerCase()) {
-        Icon = value;
-        break;
-      }
-    }
-    return Icon || Box;
+    return (props: any) => <Icon name={icon.name} {...props} />;
   };
 
   const Icon = useMemo(

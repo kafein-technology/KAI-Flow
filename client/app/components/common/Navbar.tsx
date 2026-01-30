@@ -8,7 +8,7 @@ import {
   Loader,
   Clock,
   MessageSquare,
-} from "lucide-react";
+} from "./Icon";
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
@@ -173,7 +173,7 @@ const Navbar: React.FC<NavbarProps> = ({
     <>
       <header className="w-full h-16 bg-[#18181B] text-foreground  fixed top-0 left-0 z-20 ">
         <nav className="flex justify-between items-center p-4 bg-background text-foreground m-auto">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative z-50">
             <Link
               to="/workflows"
               className="flex items-center"
@@ -184,7 +184,7 @@ const Navbar: React.FC<NavbarProps> = ({
                 }
               }}
             >
-              <ArrowLeft className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500" />
+              <ArrowLeft className="text-white cursor-pointer w-10 h-10 p-2 rounded-full hover:bg-gray-700 transition duration-200 brightness-0 invert" />
             </Link>
           </div>
 
@@ -289,29 +289,37 @@ const Navbar: React.FC<NavbarProps> = ({
 
             <div>
               {isLoading ? (
-                <Loader className="animate-spin text-white cursor-pointer w-10 h-10 p-2 rounded-4xl" />
+                <div className="w-10 h-10 p-2 rounded-4xl flex items-center justify-center">
+                  <Loader className="animate-spin text-white brightness-0 invert" size={24} />
+                </div>
               ) : (
-                <Save
-                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                <button
+                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
                   onClick={onSave}
-                />
+                >
+                  <Save size={24} className="brightness-0 invert" />
+                </button>
               )}
             </div>
 
             {/* Auto-save settings button */}
             {onAutoSaveSettings && (
               <div>
-                <Clock
-                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                <button
+                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
                   onClick={onAutoSaveSettings}
-                />
+                >
+                  <Clock size={24} className="brightness-0 invert" />
+                </button>
               </div>
             )}
             <div className="text-xs text-foreground relative">
-              <Settings
-                className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+              <button
+                className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
                 onClick={() => setIsDropdownOpen((v) => !v)}
-              />
+              >
+                <Settings size={24} className="brightness-0 invert" />
+              </button>
               {isDropdownOpen && (
                 <div
                   ref={dropdownRef}

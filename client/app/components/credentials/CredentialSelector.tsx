@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "../common/Icon";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialById } from "~/services/userCredentialService";
 import ServiceSelectionModal from "~/components/credentials/ServiceSelectionModal";

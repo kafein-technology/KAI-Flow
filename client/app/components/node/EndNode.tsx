@@ -13,7 +13,7 @@ import {
   Zap,
   Clock,
   Power,
-} from "lucide-react";
+} from "../common/Icon";
 
 interface EndNodeProps {
   data: any;

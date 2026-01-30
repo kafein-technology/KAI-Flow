@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageCircle, Bot, User, Clock, Loader, Plus, History, RefreshCw, Trash2, ChevronDown } from 'lucide-react';
+import { Send, MessageCircle, Bot, User, Clock, Loader, Plus, History, RefreshCw, Trash2, ChevronDown } from '~/components/common/Icon';
 import { externalWorkflowService, exportedWorkflowService } from '~/services/externalWorkflowService';
 import type { ExternalWorkflowInfo } from '~/types/external-workflows';
 

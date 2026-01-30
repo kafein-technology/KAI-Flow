@@ -11,7 +11,7 @@ import {
   X,
   Save,
   Edit,
-} from "lucide-react";
+} from "~/components/common/Icon";
 import AuthGuard from "~/components/AuthGuard";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useVariableStore } from "~/stores/variables";

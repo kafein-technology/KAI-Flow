@@ -5,7 +5,7 @@ import {
   RefreshCw,
   Sparkles,
   Settings,
-} from "lucide-react";
+} from "./Icon";
 import DraggableNode from "../common/DraggableNode";
 import { useNodes } from "~/stores/nodes";
 import { useSmartSuggestions } from "~/stores/smartSuggestions";
@@ -143,7 +143,7 @@ function Sidebar({ onClose }: SidebarProps) {
               className="p-1 text-gray-400 hover:text-white transition-colors"
               title="Smart Suggestions Settings"
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="h-4 w-4 brightness-0 invert" />
             </button>
 
             {/* Smart Suggestions Toggle */}
@@ -160,7 +160,7 @@ function Sidebar({ onClose }: SidebarProps) {
                   : "Enable Smart Suggestions"
               }
             >
-              <Sparkles className="h-3 w-3" />
+              <Sparkles className="h-3 w-3 brightness-0 invert" />
               <span>Smart</span>
             </button>
           </div>
@@ -168,7 +168,7 @@ function Sidebar({ onClose }: SidebarProps) {
 
         {/* Search Input */}
         <label className="input w-full rounded-2xl bg-transparent text-gray-100 border border-gray-600 flex items-center gap-2 px-2 py-1 mb-3 focus-within:border-purple-400">
-          <Search className="h-4 w-4 text-gray-400" />
+          <Search className="h-4 w-4 brightness-0 invert opacity-50" />
           <input
             type="search"
             className="grow bg-transparent text-gray-100 placeholder-gray-400 focus:outline-none"
