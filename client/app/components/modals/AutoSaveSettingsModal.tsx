@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { Save, Clock, ToggleLeft, ToggleRight } from "lucide-react";
+import { Save, Clock, ToggleLeft, ToggleRight } from "~/components/common/Icon";
 
 interface AutoSaveSettingsModalProps {
   autoSaveEnabled: boolean;

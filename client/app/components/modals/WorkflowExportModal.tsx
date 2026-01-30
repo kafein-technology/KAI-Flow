@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Download, Package, Check, Square, CheckSquare } from "lucide-react";
+import { X, Download, Package, Check, Square, CheckSquare } from "../common/Icon";
 import { exportWorkflows } from "~/services/exportService";
 import type { Workflow } from "~/types/api";
 

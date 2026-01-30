@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Save, FileText, Globe, Lock, Pencil } from "lucide-react";
+import { X, Save, FileText, Globe, Lock, Pencil } from "../common/Icon";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 
 interface WorkflowFormValues {

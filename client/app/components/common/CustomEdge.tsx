@@ -6,7 +6,7 @@ import {
   useReactFlow,
   type EdgeProps,
 } from "@xyflow/react";
-import { X } from "lucide-react";
+import { X } from "./Icon";
 
 interface CustomAnimatedEdgeProps extends EdgeProps {
   isActive?: boolean;

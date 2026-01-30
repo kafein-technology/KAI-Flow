@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Eye, Loader, AlertCircle, Globe, MessageCircle, Clock, Settings, Zap } from 'lucide-react';
+import { X, Eye, Loader, AlertCircle, Globe, MessageCircle, Clock, Settings, Zap } from '../common/Icon';
 import { externalWorkflowService } from '~/services/externalWorkflowService';
 import type { ExternalWorkflowInfo } from '~/types/external-workflows';
 

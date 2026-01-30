@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { Pencil, Trash } from "lucide-react";
+import Icon, { Pencil, Trash } from "../common/Icon";
 import { timeAgo } from "~/lib/dateFormatter";
-import { resolveIconPath } from "~/lib/iconUtils";
 import { getServiceDefinition } from "~/types/credentials";
 import type { UserCredential } from "~/types/api";
 
@@ -18,25 +17,17 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const serviceDefinition = getServiceDefinition(credential.service_type);
-  const [iconFailed, setIconFailed] = useState(false);
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <div className="w-6 h-6 flex items-center justify-center">
-            {!iconFailed && (
-              <img
-                src={resolveIconPath(`icons/${credential.service_type}.svg`)}
-                alt={`${serviceDefinition?.name || credential.service_type
-                  } logo`}
-                className="w-6 h-6 object-contain"
-                onError={() => setIconFailed(true)}
-              />
-            )}
-            {iconFailed && (
-              <div className="text-xl">{serviceDefinition?.icon || "🔑"}</div>
-            )}
+            <Icon 
+              name={credential.service_type} 
+              className="w-6 h-6 object-contain"
+              alt={`${serviceDefinition?.name || credential.service_type} logo`}
+            />
           </div>
           <div>
             <h3 className="text-base font-semibold text-gray-900 leading-tight">

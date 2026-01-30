@@ -60,54 +60,54 @@ export function resolveIconPath(iconPath: string | undefined | null): string | u
 export function getNodeTypeIconPath(nodeType: string): string {
     const relativePaths: Record<string, string> = {
         // Flow Control
-        StartNode: "icons/rocket.svg",
-        start: "icons/rocket.svg",
-        TimerStart: "icons/clock.svg",
-        EndNode: "icons/flag.svg",
-        ConditionalChain: "icons/git-compare.svg",
-        RouterChain: "icons/git-branch.svg",
+        StartNode: "icons/actions/rocket.svg",
+        start: "icons/actions/rocket.svg",
+        TimerStart: "icons/time/clock.svg",
+        EndNode: "icons/navigation/flag.svg",
+        ConditionalChain: "icons/misc/git-compare.svg",
+        RouterChain: "icons/misc/git-branch.svg",
 
         // AI & Embedding
-        Agent: "icons/bot.svg",
-        CohereEmbeddings: "icons/cohere.svg",
-        OpenAIEmbedder: "icons/openai.svg",
+        Agent: "icons/communication/bot.svg",
+        CohereEmbeddings: "icons/providers/cohere.svg",
+        OpenAIEmbedder: "icons/providers/openai.svg",
 
         // Memory
-        BufferMemory: "icons/database.svg",
-        ConversationMemory: "icons/message-circle.svg",
+        BufferMemory: "icons/file/database.svg",
+        ConversationMemory: "icons/communication/message-circle.svg",
 
         // Documents & Data
-        TextDataLoader: "icons/file-text.svg",
-        DocumentLoader: "icons/file-input.svg",
-        ChunkSplitter: "icons/scissors.svg",
-        StringInputNode: "icons/type.svg",
-        PGVectorStore: "icons/postgresql_vectorstore.svg",
-        VectorStoreOrchestrator: "icons/postgresql_vectorstore.svg",
-        IntelligentVectorStore: "icons/postgresql_vectorstore.svg",
+        TextDataLoader: "icons/file/file-text.svg",
+        DocumentLoader: "icons/file/file-input.svg",
+        ChunkSplitter: "icons/file/scissors.svg",
+        StringInputNode: "icons/file/type.svg",
+        PGVectorStore: "icons/providers/postgresql_vectorstore.svg",
+        VectorStoreOrchestrator: "icons/providers/postgresql_vectorstore.svg",
+        IntelligentVectorStore: "icons/providers/postgresql_vectorstore.svg",
 
         // Web & APIs
-        TavilySearch: "icons/tavily-nonbrand.svg",
-        WebScraper: "icons/pickaxe.svg",
-        HttpRequest: "icons/globe.svg",
-        WebhookTrigger: "icons/webhook.svg",
-        RespondToWebhook: "icons/webhook.svg",
+        TavilySearch: "icons/providers/tavily-nonbrand.svg",
+        WebScraper: "icons/misc/pickaxe.svg",
+        HttpRequest: "icons/misc/globe.svg",
+        WebhookTrigger: "icons/providers/webhook.svg",
+        RespondToWebhook: "icons/providers/webhook.svg",
 
         // RAG & QA
-        RetrievalQA: "icons/book-open.svg",
-        Reranker: "icons/cohere.svg",
-        CohereRerankerProvider: "icons/cohere.svg",
-        RetrieverProvider: "icons/file-stack.svg",
-        RetrieverNode: "icons/search.svg",
-        OpenAIEmbeddingsProvider: "icons/openai.svg",
+        RetrievalQA: "icons/misc/book-open.svg",
+        Reranker: "icons/providers/cohere.svg",
+        CohereRerankerProvider: "icons/providers/cohere.svg",
+        RetrieverProvider: "icons/file/file-stack.svg",
+        RetrieverNode: "icons/ui_elements/search.svg",
+        OpenAIEmbeddingsProvider: "icons/providers/openai.svg",
 
         // LLM Providers
-        OpenAICompatibleNode: "icons/openai.svg",
-        OpenAIChat: "icons/openai.svg",
-        OpenAIEmbeddings: "icons/openai.svg",
+        OpenAICompatibleNode: "icons/providers/openai.svg",
+        OpenAIChat: "icons/providers/openai.svg",
+        OpenAIEmbeddings: "icons/providers/openai.svg",
 
         // Processing Nodes
-        CodeNode: "icons/code.svg",
-        ConditionNode: "icons/condition.svg",
+        CodeNode: "icons/file/code.svg",
+        ConditionNode: "icons/misc/condition.svg",
     };
 
     const relativePath = relativePaths[nodeType];

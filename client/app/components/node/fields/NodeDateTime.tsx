@@ -1,6 +1,6 @@
 import { Field } from "formik";
 import type { NodeProperty } from "../types";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays } from "../../common/Icon";
 
 interface NodeDateTimeProps {
   property: NodeProperty;

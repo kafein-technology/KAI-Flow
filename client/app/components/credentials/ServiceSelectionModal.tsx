@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Search, Plus, ArrowRight } from "lucide-react";
+import Icon, { Search, Plus, ArrowRight } from "../common/Icon";
 import {
   SERVICE_DEFINITIONS,
   getServicesByCategory,
@@ -40,21 +40,9 @@ const ServiceSelectionModal: React.FC<ServiceSelectionModalProps> = ({
   const [iconErrorMap, setIconErrorMap] = useState<Record<string, boolean>>({});
 
   const renderServiceIcon = (service: ServiceDefinition) => {
-    const iconSrc = resolveIconPath(`icons/${service.id}.svg`);
-    const failed = iconErrorMap[service.id];
     return (
       <div className="w-10 h-10 flex items-center justify-center">
-        {!failed && (
-          <img
-            src={iconSrc}
-            alt={`${service.name} logo`}
-            className="w-10 h-10 object-contain"
-            onError={() =>
-              setIconErrorMap((prev) => ({ ...prev, [service.id]: true }))
-            }
-          />
-        )}
-        {failed && <div className="text-3xl">{service.icon}</div>}
+        <Icon name={service.id} className="w-10 h-10 object-contain" />
       </div>
     );
   };

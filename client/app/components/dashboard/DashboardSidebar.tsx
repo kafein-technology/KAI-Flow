@@ -12,7 +12,7 @@ import {
   X,
   Clock,
   Heart,
-} from "lucide-react";
+} from "~/components/common/Icon";
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
@@ -265,7 +265,7 @@ const Sidebar = () => {
 
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 brightness-0 invert opacity-50" />
           <input
             type="text"
             placeholder="Search workflows, executions, credentials..."
@@ -280,7 +280,7 @@ const Sidebar = () => {
               onClick={clearSearch}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 hover:text-slate-300 transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 brightness-0 invert" />
             </button>
           )}
 
@@ -370,7 +370,7 @@ const Sidebar = () => {
               if (pinnedItems.length > 0) {
                 return (
                   <SidebarLink
-                    icon={<Heart className="w-5 h-5" />}
+                    icon={<Heart className="w-5 h-5 brightness-0 invert" />}
                     label="Pinned Items"
                     path="/pinned"
                     active={location.pathname === "/pinned"}
@@ -382,25 +382,25 @@ const Sidebar = () => {
             })()}
 
             <SidebarLink
-              icon={<Play className="w-5 h-5" />}
+              icon={<Play className="w-5 h-5 brightness-0 invert" />}
               label="Workflows"
               path="/workflows"
               active={location.pathname === "/workflows"}
             />
             <SidebarLink
-              icon={<BarChart2 className="w-5 h-5" />}
+              icon={<BarChart2 className="w-5 h-5 brightness-0 invert" />}
               label="Executions"
               path="/executions"
               active={location.pathname === "/executions"}
             />
             <SidebarLink
-              icon={<Key className="w-5 h-5" />}
+              icon={<Key className="w-5 h-5 brightness-0 invert" />}
               label="Credentials"
               path="/credentials"
               active={location.pathname === "/credentials"}
             />
             <SidebarLink
-              icon={<Store className="w-5 h-5" />}
+              icon={<Store className="w-5 h-5 brightness-0 invert" />}
               label="Marketplace"
               path="/marketplace"
               active={location.pathname === "/marketplace"}
@@ -415,7 +415,7 @@ const Sidebar = () => {
                 Quick Actions
               </h3>
               <SidebarLink
-                icon={<Zap className="w-5 h-5" />}
+                icon={<Zap className="w-5 h-5 brightness-0 invert" />}
                 label="New Workflow"
                 path="/canvas"
                 active={false}
@@ -455,7 +455,7 @@ const Sidebar = () => {
           onClick={handleLogOut}
           className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 group"
         >
-          <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
+          <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform duration-200 brightness-0 invert" />
           <span className="text-sm font-medium">Logout</span>
         </button>
       </div>
@@ -501,7 +501,7 @@ function SidebarLink({
         ${getVariantStyles()}
       `}
     >
-      <span className="flex items-center justify-center min-w-[20px] group-hover:scale-110 transition-transform duration-200">
+      <span className="flex items-center justify-center min-w-[20px] group-hover:scale-110 transition-transform duration-200 [&>img]:brightness-0 [&>img]:invert">
         {icon}
       </span>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AlertCircle, CheckCircle, Code } from "lucide-react";
+import { AlertCircle, CheckCircle, Code } from "./Icon";
 
 interface JSONEditorProps {
   value: string;

@@ -11,7 +11,7 @@ import {
   Power,
   ArrowRight,
   Loader,
-} from "lucide-react";
+} from "../common/Icon";
 
 import NeonHandle from "../common/NeonHandle";
 

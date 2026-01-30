@@ -1,5 +1,5 @@
 import React from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "~/components/common/Icon";
 
 type LoadingProps = {
   fullscreen?: boolean; // Tam ekran mı

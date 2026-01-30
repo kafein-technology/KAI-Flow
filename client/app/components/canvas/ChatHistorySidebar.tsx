@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { MessageSquare, Plus, Trash2, Clock, Heart } from "lucide-react";
 import { useChatStore } from "../../stores/chat";
 import { usePinnedItems } from "../../stores/pinnedItems";
 import type { ChatMessage } from "../../types/api";
 import PinButton from "../common/PinButton";
+import { MessageSquare, Plus, Trash2, Clock, Heart } from "../common/Icon";
 
 interface ChatHistorySidebarProps {
   isOpen: boolean;
