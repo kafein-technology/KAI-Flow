@@ -71,11 +71,6 @@ function GenericVisual({
   };
 
   const getIconComponent = (icon: NodeMetadata["icon"]): IconComponent => {
-    // Prioritize Icon component if name is available, as it renders inline SVG
-    // and supports CSS color classes (text-white, etc.) via currentColor
-    if (icon?.name) {
-      return (props: any) => <IconComponent name={icon.name} {...props} />;
-    }
     if (icon?.path) {
       const iconPath = resolveIconPath(icon.path);
       return (props: any) => (
@@ -87,7 +82,9 @@ function GenericVisual({
         />
       );
     }
-    return Box;
+    if (!icon?.name) return Box;
+
+    return (props: any) => <IconComponent name={icon.name} {...props} />;
   };
 
   const Icon = useMemo(
