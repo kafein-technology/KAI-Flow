@@ -1,15 +1,39 @@
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { resolveIconPath } from "~/lib/iconUtils";
 
-/**
- * Icon component that loads SVG icons from public/icons directory.
- * Replaces lucide-react icons with local SVG files.
- */
 interface IconProps {
   name: string;
   className?: string;
   size?: number;
   alt?: string;
+}
+
+// Global SVG content cache
+const svgCache = new Map<string, string>();
+// Dedup in-flight fetches
+const fetchPromises = new Map<string, Promise<string>>();
+
+function loadSvg(url: string): Promise<string> {
+  if (svgCache.has(url)) return Promise.resolve(svgCache.get(url)!);
+
+  if (!fetchPromises.has(url)) {
+    fetchPromises.set(
+      url,
+      fetch(url)
+        .then((res) => res.text())
+        .then((text) => {
+          svgCache.set(url, text);
+          fetchPromises.delete(url);
+          return text;
+        })
+        .catch((err) => {
+          fetchPromises.delete(url);
+          throw err;
+        })
+    );
+  }
+
+  return fetchPromises.get(url)!;
 }
 
 // Map icon names to their paths in public/icons
@@ -129,10 +153,10 @@ const iconPaths: Record<string, string> = {
   tavily: "icons/providers/tavily-nonbrand.svg",
   tavily_search: "icons/providers/tavily-nonbrand.svg", // Alias for credentials
   webhook: "icons/providers/webhook.svg",
-  
+
   // Auth types (aliased to globe/lock if needed, or specific icons)
   basic_auth: "icons/social_interaction/key.svg",
-  header_auth: "icons/data/code.svg", 
+  header_auth: "icons/data/code.svg",
 
   // Misc
   box: "icons/misc/box.svg",
@@ -148,42 +172,85 @@ const iconPaths: Record<string, string> = {
   network: "icons/misc/network.svg",
   pickaxe: "icons/misc/pickaxe.svg",
   "chart-column": "icons/misc/chart-column.svg",
-  
+
   // Fallbacks
-  "bar-chart-2": "icons/misc/chart-column.svg", 
+  "bar-chart-2": "icons/misc/chart-column.svg",
   bell: "icons/status/info.svg", // fallback
   store: "icons/file/package.svg", // fallback
   "log-out": "icons/actions/power-off.svg", // fallback
   "toggle-right": "icons/theme/toggle-left.svg", // fallback
 };
 
-export default function Icon({ name, className = "", size = 16, alt }: IconProps) {
+function getIconPath(name: string): string | undefined {
   let iconPath = iconPaths[name.toLowerCase()];
-  
   if (!iconPath) {
-    // Try fuzzy match (e.g. ArrowRight -> arrow-right)
     const normalizedName = name.toLowerCase().replace(/-/g, "");
-    const foundKey = Object.keys(iconPaths).find(k => k.replace(/-/g, "") === normalizedName);
+    const foundKey = Object.keys(iconPaths).find(
+      (k) => k.replace(/-/g, "") === normalizedName
+    );
     if (foundKey) {
       iconPath = iconPaths[foundKey];
     }
   }
-  
-  if (!iconPath) {
+  return iconPath;
+}
+
+export default function Icon({ name, className = "", size = 16, alt }: IconProps) {
+  const iconPath = getIconPath(name);
+  const resolvedPath = iconPath ? resolveIconPath(iconPath) : undefined;
+
+  // Initialize from cache synchronously to avoid flicker
+  const [svgContent, setSvgContent] = useState<string | null>(
+    resolvedPath && svgCache.has(resolvedPath)
+      ? svgCache.get(resolvedPath)!
+      : null
+  );
+
+  useEffect(() => {
+    if (!resolvedPath) return;
+
+    if (svgCache.has(resolvedPath)) {
+      setSvgContent(svgCache.get(resolvedPath)!);
+      return;
+    }
+
+    let cancelled = false;
+    loadSvg(resolvedPath)
+      .then((text) => {
+        if (!cancelled) setSvgContent(text);
+      })
+      .catch((err) => {
+        console.warn(`Failed to load icon "${name}":`, err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedPath, name]);
+
+  // Process SVG: inject className and size into the <svg> element
+  const processedSvg = useMemo(() => {
+    if (!svgContent) return null;
+    return svgContent.replace(/<svg([^>]*)>/, (_, attrs) => {
+      const cleanAttrs = attrs
+        .replace(/\s*width="[^"]*"/g, "")
+        .replace(/\s*height="[^"]*"/g, "")
+        .replace(/\s*class="[^"]*"/g, "");
+      return `<svg${cleanAttrs} width="${size}" height="${size}" class="inline-block ${className}">`;
+    });
+  }, [svgContent, size, className]);
+
+  if (!resolvedPath) {
     console.warn(`Icon "${name}" not found in icon paths`);
     return null;
   }
 
-  const resolvedPath = resolveIconPath(iconPath);
+  if (!processedSvg) return null;
 
   return (
-    <img
-      src={resolvedPath}
-      alt={alt || name}
-      width={size}
-      height={size}
-      className={`inline-block ${className}`}
-      style={{ width: size, height: size }}
+    <span
+      dangerouslySetInnerHTML={{ __html: processedSvg }}
+      style={{ display: "contents" }}
     />
   );
 }

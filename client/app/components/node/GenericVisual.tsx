@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Position } from "@xyflow/react";
 import { NeonHandle } from "~/components/common/NeonHandle";
-import { Box, Download, Square, Trash, Copy, Play, Zap } from "../common/Icon";
+import IconComponent, { Box, Download, Square, Trash, Copy, Play, Zap } from "../common/Icon";
 import type { GenericData } from "./types";
 import type { NodeMetadata } from "../../types/api";
 import { resolveIconPath } from "~/lib/iconUtils";
@@ -71,6 +71,11 @@ function GenericVisual({
   };
 
   const getIconComponent = (icon: NodeMetadata["icon"]): IconComponent => {
+    // Prioritize Icon component if name is available, as it renders inline SVG
+    // and supports CSS color classes (text-white, etc.) via currentColor
+    if (icon?.name) {
+      return (props: any) => <IconComponent name={icon.name} {...props} />;
+    }
     if (icon?.path) {
       const iconPath = resolveIconPath(icon.path);
       return (props: any) => (
@@ -82,9 +87,7 @@ function GenericVisual({
         />
       );
     }
-    if (!icon?.name) return Box;
-
-    return (props: any) => <Icon name={icon.name} {...props} />;
+    return Box;
   };
 
   const Icon = useMemo(
