@@ -203,11 +203,40 @@ export default function Icon({ name, className = "", size, alt, color, strokeWid
     };
   }, [resolvedPath, name]);
 
-  // Process SVG: Native Tailwind approach (Lucide-compatible)
+  // Process SVG: Native Tailwind approach with smart defaults
+  // - Converts fixed colors to currentColor for Tailwind text-* class compatibility
+  // - Preserves "none" values (fill="none", stroke="none") as they control shape visibility
+  // - Allows explicit color prop to override everything
   const processedSvg = useMemo(() => {
     if (!svgContent) return null;
+
+    // Extract original attribute values from SVG root element
+    const strokeMatch = svgContent.match(/<svg[^>]*\sstroke="([^"]*)"/);
+    const fillMatch = svgContent.match(/<svg[^>]*\sfill="([^"]*)"/);
+    const strokeWidthMatch = svgContent.match(/<svg[^>]*\sstroke-width="([^"]*)"/);
+
+    const originalStroke = strokeMatch?.[1];
+    const originalFill = fillMatch?.[1];
+    const originalStrokeWidth = strokeWidthMatch?.[1];
+
+    // Convert to currentColor for Tailwind compatibility
+    // Only preserve "none" as it controls shape visibility, not color
+    const toCurrentColor = (original: string | undefined): string => {
+      if (color) return color; // Explicit color prop always wins
+      if (original === "none") return "none"; // Preserve "none" for shape control
+      return "currentColor"; // Everything else becomes currentColor for Tailwind
+    };
+
+    // Calculate final values
+    const finalStroke = toCurrentColor(originalStroke);
+    const finalFill = toCurrentColor(originalFill);
+    const finalStrokeWidth = strokeWidth !== undefined
+      ? strokeWidth
+      : originalStrokeWidth;
+
     return svgContent.replace(/<svg([^>]*)>/, (_, attrs) => {
-      // Remove width/height/class/style/stroke/fill to allow full Tailwind control
+      // Remove width/height/class/style to allow full Tailwind control
+      // Also remove stroke/fill/stroke-width as we'll add them back with computed values
       const cleanAttrs = attrs
         .replace(/\s*width="[^"]*"/g, "")
         .replace(/\s*height="[^"]*"/g, "")
@@ -215,15 +244,14 @@ export default function Icon({ name, className = "", size, alt, color, strokeWid
         .replace(/\s*style="[^"]*"/g, "")
         .replace(/\s*stroke="[^"]*"/g, "")
         .replace(/\s*fill="[^"]*"/g, "")
-        .replace(/\s*stroke-width="[^"]*"/g, strokeWidth !== undefined ? "" : "$&");
+        .replace(/\s*stroke-width="[^"]*"/g, "");
 
-      // Use explicit color prop, or default to currentColor for Tailwind compatibility
-      const finalColor = color || "currentColor";
-      const strokeWidthAttr = strokeWidth !== undefined ? ` stroke-width="${strokeWidth}"` : "";
+      // Build attribute string with computed values
+      const strokeAttr = ` stroke="${finalStroke}"`;
+      const fillAttr = ` fill="${finalFill}"`;
+      const strokeWidthAttr = finalStrokeWidth ? ` stroke-width="${finalStrokeWidth}"` : "";
 
-      // Add both stroke and fill with currentColor for compatibility with both icon types
-      // Individual paths can override with fill="none" or stroke="none"
-      return `<svg${cleanAttrs} stroke="${finalColor}" fill="${finalColor}"${strokeWidthAttr} width="100%" height="100%">`;
+      return `<svg${cleanAttrs}${strokeAttr}${fillAttr}${strokeWidthAttr} width="100%" height="100%">`;
     });
   }, [svgContent, color, strokeWidth]);
 
@@ -239,9 +267,9 @@ export default function Icon({ name, className = "", size, alt, color, strokeWid
     ? className // If size prop exists, className is only for additional styling
     : className || "w-4 h-4"; // If no size prop, className controls size (default w-4 h-4)
 
-  const wrapperStyle = size
-    ? { width: `${size}px`, height: `${size}px`, display: "inline-block" }
-    : { display: "inline-block" };
+  const wrapperStyle: React.CSSProperties = size
+    ? { width: `${size}px`, height: `${size}px`, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }
+    : { display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
 
   return (
     <span
