@@ -58,6 +58,7 @@ const iconPaths: Record<string, string> = {
   "chevron-left": "icons/ui_elements/chevron-left.svg",
   "chevron-right": "icons/ui_elements/chevron-right.svg",
   "chevron-down": "icons/ui_elements/chevron-down.svg",
+  "chevron-up": "icons/ui_elements/chevron-up.svg",
   "arrow-left": "icons/ui_elements/arrow-left.svg",
   "arrow-right": "icons/ui_elements/arrow-right.svg",
   "maximize-2": "icons/ui_elements/maximize-2.svg",
