@@ -67,6 +67,7 @@ const iconPaths: Record<string, string> = {
   eye: "icons/ui_elements/eye.svg",
   hash: "icons/ui_elements/hash.svg",
   "toggle-left": "icons/ui_elements/toggle-left.svg",
+  "log-out": "icons/ui_elements/log-out.svg",
 
   // Actions
   play: "icons/actions/play.svg",
@@ -177,7 +178,6 @@ const iconPaths: Record<string, string> = {
   "bar-chart-2": "icons/misc/chart-column.svg",
   bell: "icons/status/info.svg", // fallback
   store: "icons/file/package.svg", // fallback
-  "log-out": "icons/actions/power-off.svg", // fallback
   "toggle-right": "icons/theme/toggle-left.svg", // fallback
 };
 
