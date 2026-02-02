@@ -6,6 +6,16 @@ interface IconProps {
   className?: string;
   size?: number;
   alt?: string;
+  /**
+   * Override icon color (CSS color value)
+   * @default "currentColor" - inherits from parent
+   */
+  color?: string;
+  /**
+   * Override stroke width
+   * @default undefined - uses SVG's original value
+   */
+  strokeWidth?: number | string;
 }
 
 // Global SVG content cache
@@ -195,7 +205,7 @@ function getIconPath(name: string): string | undefined {
   return iconPath;
 }
 
-export default function Icon({ name, className = "", size = 16, alt }: IconProps) {
+export default function Icon({ name, className = "", size = 16, alt, color, strokeWidth }: IconProps) {
   const iconPath = getIconPath(name);
   const resolvedPath = iconPath ? resolveIconPath(iconPath) : undefined;
 
@@ -228,17 +238,23 @@ export default function Icon({ name, className = "", size = 16, alt }: IconProps
     };
   }, [resolvedPath, name]);
 
-  // Process SVG: inject className and size into the <svg> element
+  // Process SVG: inject className, size, color, and strokeWidth into the <svg> element
   const processedSvg = useMemo(() => {
     if (!svgContent) return null;
     return svgContent.replace(/<svg([^>]*)>/, (_, attrs) => {
       const cleanAttrs = attrs
         .replace(/\s*width="[^"]*"/g, "")
         .replace(/\s*height="[^"]*"/g, "")
-        .replace(/\s*class="[^"]*"/g, "");
-      return `<svg${cleanAttrs} width="${size}" height="${size}" class="inline-block ${className}">`;
+        .replace(/\s*class="[^"]*"/g, "")
+        .replace(/\s*stroke="[^"]*"/g, color ? "" : " $&") // Remove stroke only if color override
+        .replace(/\s*stroke-width="[^"]*"/g, strokeWidth !== undefined ? "" : " $&"); // Remove stroke-width only if override
+
+      const colorAttr = color ? ` stroke="${color}"` : "";
+      const strokeWidthAttr = strokeWidth !== undefined ? ` stroke-width="${strokeWidth}"` : "";
+
+      return `<svg${cleanAttrs} width="${size}" height="${size}" class="inline-block ${className}"${colorAttr}${strokeWidthAttr}>`;
     });
-  }, [svgContent, size, className]);
+  }, [svgContent, size, className, color, strokeWidth]);
 
   if (!resolvedPath) {
     console.warn(`Icon "${name}" not found in icon paths`);
