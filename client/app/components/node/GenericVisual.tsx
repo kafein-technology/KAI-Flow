@@ -87,9 +87,7 @@ function GenericVisual({
         />
       );
     }
-    if (!icon?.name) return Box;
-
-    return (props: any) => <IconComponent name={icon.name} {...props} />;
+    return Box;
   };
 
   const Icon = useMemo(
