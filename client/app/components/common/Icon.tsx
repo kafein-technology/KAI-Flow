@@ -156,7 +156,7 @@ const iconPaths: Record<string, string> = {
 
   // Auth types (aliased to globe/lock if needed, or specific icons)
   basic_auth: "icons/social_interaction/key.svg",
-  header_auth: "icons/data/code.svg",
+  header_auth: "icons/file/code.svg",
 
   // Misc
   box: "icons/misc/box.svg",

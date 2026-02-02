@@ -186,7 +186,6 @@ const Navbar: React.FC<NavbarProps> = ({
                 }}
               >
                 <ArrowLeft className="text-white cursor-pointer w-10 h-10 p-2 rounded-full hover:bg-gray-700 transition duration-200 brightness-0 invert" />
-                <ArrowLeft className="text-white cursor-pointer w-10 h-10 p-2 rounded-full hover:bg-gray-700 transition duration-200 brightness-0 invert" />
               </Link>
             </div>
 
@@ -291,121 +290,105 @@ const Navbar: React.FC<NavbarProps> = ({
 
               <div>
                 {isLoading ? (
-                <div className="w-10 h-10 p-2 rounded-4xl flex items-center justify-center">
-                  <Loader className="animate-spin text-white brightness-0 invert" size={24} />
-                </div>
-                <div className="w-10 h-10 p-2 rounded-4xl flex items-center justify-center">
-                  <Loader className="animate-spin text-white brightness-0 invert" size={24} />
-                </div>
+                  <div className="w-10 h-10 p-2 rounded-4xl flex items-center justify-center">
+                    <Loader className="animate-spin text-white brightness-0 invert" size={24} />
+                  </div>
                 ) : (
-                <button
-                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
-                <button
-                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
-                  onClick={onSave}
-                >
-                  <Save size={24} className="brightness-0 invert" />
-                </button>
+                  <button
+                    className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
+                    onClick={onSave}
                   >
-                  <Save size={24} className="brightness-0 invert" />
-                </button>
-              )}
-            </div>
+                    <Save size={24} className="brightness-0 invert" />
+                  </button>
+                )}
+              </div>
 
             {/* Auto-save settings button */}
             {onAutoSaveSettings && (
               <div>
                 <button
                   className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
-                <button
-                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
                   onClick={onAutoSaveSettings}
                 >
                   <Clock size={24} className="brightness-0 invert" />
                 </button>
-                >
-                <Clock size={24} className="brightness-0 invert" />
-              </button>
               </div>
             )}
-          <div className="text-xs text-foreground relative">
-            <button
-              className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
-              <button
-              className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
-              onClick={() => setIsDropdownOpen((v) => !v)}
-            >
-              <Settings size={24} className="brightness-0 invert" />
-            </button>
-              >
-            <Settings size={24} className="brightness-0 invert" />
-          </button>
-          {isDropdownOpen && (
-            <div
-              ref={dropdownRef}
-              className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2"
-            >
-              {/* Load */}
-              <button
-                className="w-full font-medium text-black text-left px-3 py-2 hover:bg-blue-50 rounded flex gap-3 justify-start items-center transition-colors duration-200"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <FileUp className="w-5 h-5 text-blue-600" />
-                Load Workflow
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json"
-                className="hidden"
-                onChange={handleLoad}
-              />
-              {/* Export JSON */}
-              <button
-                className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
-                onClick={handleExport}
-              >
-                <Download className="w-5 h-5" />
-                Export JSON
-              </button>
 
-              {/* Export Widget */}
+            <div className="text-xs text-foreground relative">
               <button
-                className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  setTimeout(
-                    () => widgetExportDialogRef.current?.showModal(),
-                    100
-                  );
-                }}
+                className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 flex items-center justify-center"
+                onClick={() => setIsDropdownOpen((v) => !v)}
               >
-                <MessageSquare className="w-5 h-5" />
-                Export Widget
+                <Settings size={24} className="brightness-0 invert" />
               </button>
+              {isDropdownOpen && (
+                <div
+                  ref={dropdownRef}
+                  className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2"
+                >
+                  {/* Load */}
+                  <button
+                    className="w-full font-medium text-black text-left px-3 py-2 hover:bg-blue-50 rounded flex gap-3 justify-start items-center transition-colors duration-200"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <FileUp className="w-5 h-5 text-blue-600" />
+                    Load Workflow
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/json"
+                    className="hidden"
+                    onChange={handleLoad}
+                  />
+                  {/* Export JSON */}
+                  <button
+                    className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
+                    onClick={handleExport}
+                  >
+                    <Download className="w-5 h-5" />
+                    Export JSON
+                  </button>
 
-              {/* Delete */}
-              <button
-                className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded flex gap-3 justify-start items-center transition-colors duration-200"
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  setTimeout(
-                    () => deleteDialogRef.current?.showModal(),
-                    100
-                  );
-                }}
-              >
-                <Trash className="w-5 h-5 text-red-600" />
-                Delete Workflow
-              </button>
+                  {/* Export Widget */}
+                  <button
+                    className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setTimeout(
+                        () => widgetExportDialogRef.current?.showModal(),
+                        100
+                      );
+                    }}
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    Export Widget
+                  </button>
+
+                  {/* Delete */}
+                  <button
+                    className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded flex gap-3 justify-start items-center transition-colors duration-200"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setTimeout(
+                        () => deleteDialogRef.current?.showModal(),
+                        100
+                      );
+                    }}
+                  >
+                    <Trash className="w-5 h-5 text-red-600" />
+                    Delete Workflow
+                  </button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
-    </nav >
-      </header >
-  {/* Delete Workflow Modal */ }
-  < dialog ref = { deleteDialogRef } className = "modal" >
+      </nav>
+    </header>
+      {/* Delete Workflow Modal */}
+      <dialog ref={deleteDialogRef} className="modal">
     <div className="modal-box bg-white border border-gray-200 rounded-lg shadow-xl">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
@@ -443,7 +426,7 @@ const Navbar: React.FC<NavbarProps> = ({
         </form>
       </div>
     </div>
-      </dialog >
+      </dialog>
 
   <WidgetExportModal
     ref={widgetExportDialogRef}

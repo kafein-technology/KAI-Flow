@@ -6,7 +6,7 @@
   "colorTo": "to-cyan-600",
   "icon": {
     "name": "message-square",
-    "path": "icons/message-square.svg",
+    "path": "icons/communication/message-square.svg",
     "alt": "Message Square Icon"
   },
   "flow_data": {
@@ -621,7 +621,7 @@
           "icon": {
             "alt": "openaiicons",
             "name": "openai",
-            "path": "icons/openai.svg"
+            "path": "icons/providers/openai.svg"
           },
           "name": "openai_gpt",
           "inputs": [
@@ -725,7 +725,7 @@
             "icon": {
               "alt": "openaiicons",
               "name": "openai",
-              "path": "icons/openai.svg"
+              "path": "icons/providers/openai.svg"
             },
             "name": "OpenAIChat",
             "tags": [],

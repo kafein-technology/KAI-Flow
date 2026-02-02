@@ -6,7 +6,7 @@
   "colorTo": "to-purple-600",
   "icon": {
     "name": "search",
-    "path": "icons/search.svg",
+    "path": "icons/ui_elements/search.svg",
     "alt": "Search Icon"
   },
   "flow_data": {
@@ -497,7 +497,7 @@
           "icon": {
             "alt": "openaiicons",
             "name": "openai",
-            "path": "icons/openai.svg"
+            "path": "icons/providers/openai.svg"
           },
           "name": "openai_gpt",
           "inputs": [
@@ -601,7 +601,7 @@
             "icon": {
               "alt": "openaiicons",
               "name": "openai",
-              "path": "icons/openai.svg"
+              "path": "icons/providers/openai.svg"
             },
             "name": "OpenAIChat",
             "tags": [],
@@ -1271,7 +1271,7 @@
           "icon": {
             "alt": "openaiicons",
             "name": "openai",
-            "path": "icons/openai.svg"
+            "path": "icons/providers/openai.svg"
           },
           "name": "openai_embeddings_provider",
           "inputs": [
@@ -1322,7 +1322,7 @@
             "icon": {
               "alt": "openaiicons",
               "name": "openai",
-              "path": "icons/openai.svg"
+              "path": "icons/providers/openai.svg"
             },
             "name": "OpenAIEmbeddingsProvider",
             "tags": [],
@@ -1486,7 +1486,7 @@
           "icon": {
             "alt": "coherererankericons",
             "name": "cohere",
-            "path": "icons/cohere.svg"
+            "path": "icons/providers/cohere.svg"
           },
           "name": "cohere_reranker_provider",
           "inputs": [
@@ -1521,7 +1521,7 @@
             "icon": {
               "alt": "coherererankericons",
               "name": "cohere",
-              "path": "icons/cohere.svg"
+              "path": "icons/providers/cohere.svg"
             },
             "name": "CohereRerankerProvider",
             "tags": [],

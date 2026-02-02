@@ -2,7 +2,6 @@ import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "re
 import { MessageSquare, Copy, Check, Code, Globe, Type, Key, Eye, Bot } from "lucide-react";
 import { config as appConfig } from "../../lib/config";
 import { KaiChatWidget } from "@kaifusion/widget";
-import "@kaifusion/widget/dist/index.css";
 
 interface WidgetExportModalProps {
   workflowId: string;
@@ -65,8 +64,7 @@ const WidgetExportModal = forwardRef<HTMLDialogElement, WidgetExportModalProps>(
       const iconLine = config.showCustomIcon ? `\n      icon={<Bot className="w-7 h-7" />}` : "";
       const iconImport = config.showCustomIcon ? `\nimport { Bot } from "lucide-react";` : "";
 
-      return `import { KaiChatWidget } from "@kaifusion/widget";
-import "@kaifusion/widget/dist/index.css";${iconImport}
+      return `import { KaiChatWidget } from "@kaifusion/widget";${iconImport}
 
 function App() {
   return (

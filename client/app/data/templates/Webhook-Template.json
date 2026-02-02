@@ -6,7 +6,7 @@
   "colorTo": "to-green-600",
   "icon": {
     "name": "webhook",
-    "path": "icons/webhook-flow.svg",
+    "path": "icons/providers/webhook-flow.svg",
     "alt": "Webhook Icon"
   },
   "flow_data": {
@@ -1182,7 +1182,7 @@
           "icon": {
             "alt": "openaiicons",
             "name": "openai",
-            "path": "icons/openai.svg"
+            "path": "icons/providers/openai.svg"
           },
           "name": "openai_gpt",
           "inputs": [
@@ -1286,7 +1286,7 @@
             "icon": {
               "alt": "openaiicons",
               "name": "openai",
-              "path": "icons/openai.svg"
+              "path": "icons/providers/openai.svg"
             },
             "name": "OpenAIChat",
             "tags": [],

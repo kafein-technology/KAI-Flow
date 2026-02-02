@@ -6,7 +6,7 @@
   "colorTo": "to-teal-600",
   "icon": {
     "name": "chart-column",
-    "path": "icons/chart-column.svg",
+    "path": "icons/misc/chart-column.svg",
     "alt": "Chart Column Icon"
   },
   "flow_data": {
@@ -798,7 +798,7 @@
           "icon": {
             "alt": "vectorsotreicons",
             "name": "postgresql_vectorstore",
-            "path": "icons/postgresql_vectorstore.svg"
+            "path": "icons/providers/postgresql_vectorstore.svg"
           },
           "name": "vector_store_orchestrator",
           "inputs": [
@@ -936,7 +936,7 @@
             "icon": {
               "alt": "vectorsotreicons",
               "name": "postgresql_vectorstore",
-              "path": "icons/postgresql_vectorstore.svg"
+              "path": "icons/providers/postgresql_vectorstore.svg"
             },
             "name": "VectorStoreOrchestrator",
             "tags": [],
@@ -1263,7 +1263,7 @@
           "icon": {
             "alt": "openaiicons",
             "name": "openai",
-            "path": "icons/openai.svg"
+            "path": "icons/providers/openai.svg"
           },
           "name": "openai_embeddings_provider",
           "inputs": [
@@ -1314,7 +1314,7 @@
             "icon": {
               "alt": "openaiicons",
               "name": "openai",
-              "path": "icons/openai.svg"
+              "path": "icons/providers/openai.svg"
             },
             "name": "OpenAIEmbeddingsProvider",
             "tags": [],
