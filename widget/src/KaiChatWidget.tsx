@@ -70,6 +70,7 @@ export default function KaiChatWidget({
   );
   const [isTokenValidating, setIsTokenValidating] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   const effectiveToken = authToken || userProvidedToken;
   const handleTokenSubmit = async (token: string) => {
@@ -680,12 +681,20 @@ export default function KaiChatWidget({
             {/* Input Alanı */}
             {effectiveToken ? (
               <div className="p-4 bg-white border-t border-gray-100">
-                <div className="flex gap-2 items-center bg-gray-50 rounded-full px-4 py-2 border border-gray-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
+                <div
+                  className="flex gap-2 items-center bg-gray-50 rounded-full px-4 py-2 border border-gray-200 transition-all"
+                  style={{
+                    borderColor: isInputFocused ? color : undefined,
+                    boxShadow: isInputFocused ? `0 0 0 1px ${color}` : undefined,
+                  }}
+                >
                   <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                    onFocus={() => setIsInputFocused(true)}
+                    onBlur={() => setIsInputFocused(false)}
                     placeholder="Mesajınızı yazın..."
                     className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm py-1 text-black"
                     disabled={isLoading}
@@ -694,9 +703,12 @@ export default function KaiChatWidget({
                     onClick={sendMessage}
                     disabled={isLoading || !input.trim()}
                     className={`p-2 rounded-full transition-all ${input.trim() && !isLoading
-                      ? "text-blue-600 hover:bg-blue-50"
+                      ? "hover:bg-gray-100"
                       : "text-gray-400"
                       }`}
+                    style={{
+                      color: input.trim() && !isLoading ? color : undefined,
+                    }}
                   >
                     {isLoading ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -721,8 +733,14 @@ export default function KaiChatWidget({
                     <input
                       type="password"
                       placeholder="Access Token"
-                      className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm text-gray-800 ${tokenError ? "border-red-500" : "border-gray-300"
+                      className={`flex-1 px-4 py-2 border rounded-lg outline-none text-sm text-gray-800 transition-all ${tokenError ? "border-red-500" : "border-gray-300"
                         }`}
+                      style={{
+                        borderColor: isInputFocused ? (tokenError ? undefined : color) : undefined,
+                        boxShadow: isInputFocused && !tokenError ? `0 0 0 1px ${color}` : undefined
+                      }}
+                      onFocus={() => setIsInputFocused(true)}
+                      onBlur={() => setIsInputFocused(false)}
                       disabled={isTokenValidating}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
@@ -731,7 +749,11 @@ export default function KaiChatWidget({
                       }}
                     />
                     <button
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[60px]"
+                      className={`font-medium px-4 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[60px] ${!color
+                        ? "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "text-white hover:opacity-90"
+                        }`}
+                      style={{ backgroundColor: color }}
                       disabled={isTokenValidating}
                       onClick={(e) => {
                         const inputEl = e.currentTarget

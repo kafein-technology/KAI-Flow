@@ -1,9 +1,10 @@
 {
   "name": "@kaifusion/widget",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "type": "module",
-  "main": "./dist/index.es.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.es.js",
+  "style": "./dist/index.css",
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
@@ -11,10 +12,12 @@
   ],
   "exports": {
     ".": {
+      "style": "./dist/index.css",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.es.js",
-      "require": "./dist/index.es.js"
-    }
+      "require": "./dist/index.cjs"
+    },
+    "./dist/index.css": "./dist/index.css"
   },
   "scripts": {
     "dev": "vite",
@@ -50,6 +53,7 @@
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
-    "vite-plugin-dts": "^3.7.0"
+    "vite-plugin-dts": "^3.7.0",
+    "vite-plugin-lib-inject-css": "^2.2.2"
   }
 }

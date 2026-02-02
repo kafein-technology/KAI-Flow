@@ -7,11 +7,13 @@ import {
   Trash,
   Loader,
   Clock,
+  MessageSquare,
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
 import ToggleSwitch from "./ToggleSwitch";
+import WidgetExportModal from "../modals/WidgetExportModal";
 
 interface NavbarProps {
   workflowName: string;
@@ -55,6 +57,7 @@ const Navbar: React.FC<NavbarProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
+  const widgetExportDialogRef = useRef<HTMLDialogElement>(null);
 
   // Dışarı tıklayınca dropdown'u kapat
   useEffect(() => {
@@ -329,13 +332,28 @@ const Navbar: React.FC<NavbarProps> = ({
                     className="hidden"
                     onChange={handleLoad}
                   />
-                  {/* Export */}
+                  {/* Export JSON */}
                   <button
                     className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
                     onClick={handleExport}
                   >
                     <Download className="w-5 h-5" />
                     Export JSON
+                  </button>
+
+                  {/* Export Widget */}
+                  <button
+                    className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setTimeout(
+                        () => widgetExportDialogRef.current?.showModal(),
+                        100
+                      );
+                    }}
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    Export Widget
                   </button>
 
                   {/* Delete */}
@@ -398,6 +416,11 @@ const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </dialog>
+
+      <WidgetExportModal
+        ref={widgetExportDialogRef}
+        workflowId={currentWorkflow?.id || ""}
+      />
 
 
     </>
