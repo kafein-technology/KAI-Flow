@@ -18,34 +18,6 @@ interface IconProps {
   strokeWidth?: number | string;
 }
 
-// Global SVG content cache
-const svgCache = new Map<string, string>();
-// Dedup in-flight fetches
-const fetchPromises = new Map<string, Promise<string>>();
-
-function loadSvg(url: string): Promise<string> {
-  if (svgCache.has(url)) return Promise.resolve(svgCache.get(url)!);
-
-  if (!fetchPromises.has(url)) {
-    fetchPromises.set(
-      url,
-      fetch(url)
-        .then((res) => res.text())
-        .then((text) => {
-          svgCache.set(url, text);
-          fetchPromises.delete(url);
-          return text;
-        })
-        .catch((err) => {
-          fetchPromises.delete(url);
-          throw err;
-        })
-    );
-  }
-
-  return fetchPromises.get(url)!;
-}
-
 // Map icon names to their paths in public/icons
 const iconPaths: Record<string, string> = {
   // UI Elements
@@ -206,27 +178,19 @@ function getIconPath(name: string): string | undefined {
   return iconPath;
 }
 
-export default function Icon({ name, className = "", size = 16, alt, color, strokeWidth }: IconProps) {
+export default function Icon({ name, className = "", size, alt, color, strokeWidth }: IconProps) {
   const iconPath = getIconPath(name);
   const resolvedPath = iconPath ? resolveIconPath(iconPath) : undefined;
 
-  // Initialize from cache synchronously to avoid flicker
-  const [svgContent, setSvgContent] = useState<string | null>(
-    resolvedPath && svgCache.has(resolvedPath)
-      ? svgCache.get(resolvedPath)!
-      : null
-  );
+  const [svgContent, setSvgContent] = useState<string | null>(null);
 
   useEffect(() => {
     if (!resolvedPath) return;
 
-    if (svgCache.has(resolvedPath)) {
-      setSvgContent(svgCache.get(resolvedPath)!);
-      return;
-    }
-
     let cancelled = false;
-    loadSvg(resolvedPath)
+
+    fetch(resolvedPath)
+      .then((res) => res.text())
       .then((text) => {
         if (!cancelled) setSvgContent(text);
       })
@@ -239,23 +203,29 @@ export default function Icon({ name, className = "", size = 16, alt, color, stro
     };
   }, [resolvedPath, name]);
 
-  // Process SVG: inject className, size, color, and strokeWidth into the <svg> element
+  // Process SVG: Native Tailwind approach (Lucide-compatible)
   const processedSvg = useMemo(() => {
     if (!svgContent) return null;
     return svgContent.replace(/<svg([^>]*)>/, (_, attrs) => {
+      // Remove width/height/class/style/stroke/fill to allow full Tailwind control
       const cleanAttrs = attrs
         .replace(/\s*width="[^"]*"/g, "")
         .replace(/\s*height="[^"]*"/g, "")
         .replace(/\s*class="[^"]*"/g, "")
-        .replace(/\s*stroke="[^"]*"/g, color ? "" : " $&") // Remove stroke only if color override
-        .replace(/\s*stroke-width="[^"]*"/g, strokeWidth !== undefined ? "" : " $&"); // Remove stroke-width only if override
+        .replace(/\s*style="[^"]*"/g, "")
+        .replace(/\s*stroke="[^"]*"/g, "")
+        .replace(/\s*fill="[^"]*"/g, "")
+        .replace(/\s*stroke-width="[^"]*"/g, strokeWidth !== undefined ? "" : "$&");
 
-      const colorAttr = color ? ` stroke="${color}"` : "";
+      // Use explicit color prop, or default to currentColor for Tailwind compatibility
+      const finalColor = color || "currentColor";
       const strokeWidthAttr = strokeWidth !== undefined ? ` stroke-width="${strokeWidth}"` : "";
 
-      return `<svg${cleanAttrs} width="${size}" height="${size}" class="inline-block ${className}"${colorAttr}${strokeWidthAttr}>`;
+      // Add both stroke and fill with currentColor for compatibility with both icon types
+      // Individual paths can override with fill="none" or stroke="none"
+      return `<svg${cleanAttrs} stroke="${finalColor}" fill="${finalColor}"${strokeWidthAttr} width="100%" height="100%">`;
     });
-  }, [svgContent, size, className, color, strokeWidth]);
+  }, [svgContent, color, strokeWidth]);
 
   if (!resolvedPath) {
     console.warn(`Icon "${name}" not found in icon paths`);
@@ -264,10 +234,20 @@ export default function Icon({ name, className = "", size = 16, alt, color, stro
 
   if (!processedSvg) return null;
 
+  // Build wrapper className: size from props or Tailwind classes
+  const wrapperClasses = size
+    ? className // If size prop exists, className is only for additional styling
+    : className || "w-4 h-4"; // If no size prop, className controls size (default w-4 h-4)
+
+  const wrapperStyle = size
+    ? { width: `${size}px`, height: `${size}px`, display: "inline-block" }
+    : { display: "inline-block" };
+
   return (
     <span
+      className={wrapperClasses}
+      style={wrapperStyle}
       dangerouslySetInnerHTML={{ __html: processedSvg }}
-      style={{ display: "contents" }}
     />
   );
 }
