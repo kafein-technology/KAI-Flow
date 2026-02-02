@@ -178,7 +178,7 @@ function getIconPath(name: string): string | undefined {
   return iconPath;
 }
 
-export default function Icon({ name, className = "", size, alt, color, strokeWidth }: IconProps) {
+export default function Icon({ name, className = "", size = 16, alt, color, strokeWidth }: IconProps) {
   const iconPath = getIconPath(name);
   const resolvedPath = iconPath ? resolveIconPath(iconPath) : undefined;
 
@@ -251,9 +251,9 @@ export default function Icon({ name, className = "", size, alt, color, strokeWid
       const fillAttr = ` fill="${finalFill}"`;
       const strokeWidthAttr = finalStrokeWidth ? ` stroke-width="${finalStrokeWidth}"` : "";
 
-      return `<svg${cleanAttrs}${strokeAttr}${fillAttr}${strokeWidthAttr} width="100%" height="100%">`;
+      return `<svg${cleanAttrs} width="${size}" height="${size}"${strokeAttr}${fillAttr}${strokeWidthAttr} class="inline-block ${className}">`;
     });
-  }, [svgContent, color, strokeWidth]);
+  }, [svgContent, color, strokeWidth, size, className]);
 
   if (!resolvedPath) {
     console.warn(`Icon "${name}" not found in icon paths`);
@@ -262,20 +262,10 @@ export default function Icon({ name, className = "", size, alt, color, strokeWid
 
   if (!processedSvg) return null;
 
-  // Build wrapper className: size from props or Tailwind classes
-  const wrapperClasses = size
-    ? className // If size prop exists, className is only for additional styling
-    : className || "w-4 h-4"; // If no size prop, className controls size (default w-4 h-4)
-
-  const wrapperStyle: React.CSSProperties = size
-    ? { width: `${size}px`, height: `${size}px`, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }
-    : { display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
-
   return (
     <span
-      className={wrapperClasses}
-      style={wrapperStyle}
       dangerouslySetInnerHTML={{ __html: processedSvg }}
+      style={{ display: "contents" }}
     />
   );
 }
