@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AlertTriangle, AlertCircle, Bug, Zap, RefreshCw, Info, X } from "../common/Icon";
+import { TriangleAlertIcon as AlertTriangle, CircleAlertIcon as AlertCircle, BugIcon as Bug, ZapIcon as Zap, RefreshCwIcon as RefreshCw, InfoIcon as Info, XIcon as X } from "../../icons/index";
 
 interface ErrorDetails {
   message: string;

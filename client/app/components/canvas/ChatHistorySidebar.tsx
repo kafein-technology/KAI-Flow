@@ -3,7 +3,7 @@ import { useChatStore } from "../../stores/chat";
 import { usePinnedItems } from "../../stores/pinnedItems";
 import type { ChatMessage } from "../../types/api";
 import PinButton from "../common/PinButton";
-import { MessageSquare, Plus, Trash2, Clock, Heart } from "../common/Icon";
+import { MessageSquareIcon as MessageSquare, PlusIcon as Plus, Trash2Icon as Trash2, ClockIcon as Clock, HeartIcon as Heart } from "../../icons/index";
 
 interface ChatHistorySidebarProps {
   isOpen: boolean;

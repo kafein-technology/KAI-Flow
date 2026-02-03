@@ -1,6 +1,6 @@
 import { Field } from "formik";
 import type { NodeProperty } from "../types";
-import { CalendarDays } from "../../common/Icon";
+import { CalendarDaysIcon as CalendarDays } from "../../../icons/index";
 
 interface NodeDateTimeProps {
   property: NodeProperty;

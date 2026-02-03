@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ChatBubble from "../common/ChatBubble";
 import { useChatStore } from "~/stores/chat";
-import { MessageSquare, Minimize2, Maximize2, History, Eraser } from "../common/Icon";
+import { MessageSquareIcon as MessageSquare, Minimize2Icon as Minimize2, Maximize2Icon as Maximize2, HistoryIcon as History, EraserIcon as Eraser } from "../../icons/index";
 
 interface ChatComponentProps {
   chatOpen: boolean;
@@ -144,8 +144,8 @@ export default function ChatComponent({
   return (
     <div
       className={`fixed bottom-20 right-4 bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700 transition-all duration-300 ${isExpanded
-          ? "w-[calc(100vw-2rem)] h-[calc(100vh-6rem)] left-4"
-          : "w-148 h-[600px]"
+        ? "w-[calc(100vw-2rem)] h-[calc(100vh-6rem)] left-4"
+        : "w-148 h-[600px]"
         }`}
     >
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">

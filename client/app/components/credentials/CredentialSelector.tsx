@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2 } from "../common/Icon";
+import { Loader2Icon as Loader2 } from "../../icons/index";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialById } from "~/services/userCredentialService";
 import ServiceSelectionModal from "~/components/credentials/ServiceSelectionModal";

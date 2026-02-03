@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Icon, { Pencil, Trash } from "../common/Icon";
+import { PencilIcon as Pencil, TrashIcon as Trash } from "../../icons/index";
 import { timeAgo } from "~/lib/dateFormatter";
 import { getServiceDefinition } from "~/types/credentials";
 import type { UserCredential } from "~/types/api";

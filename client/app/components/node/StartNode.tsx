@@ -11,7 +11,7 @@ import {
   Power,
   ArrowRight,
   Loader,
-} from "../common/Icon";
+} from "../../icons/index";
 
 import NeonHandle from "../common/NeonHandle";
 

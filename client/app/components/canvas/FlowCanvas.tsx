@@ -34,7 +34,7 @@ import type {
 
 type NodeStatus = "success" | "failed" | "pending";
 
-import { Loader } from "../common/Icon";
+import { LoaderIcon as Loader } from "../../icons/index";
 import ChatComponent from "./ChatComponent";
 import ChatHistorySidebar from "./ChatHistorySidebar";
 import SidebarToggleButton from "./SidebarToggleButton";

@@ -13,7 +13,7 @@ import {
   Zap,
   Clock,
   Power,
-} from "../common/Icon";
+} from "../../icons/index";
 
 interface EndNodeProps {
   data: any;

@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Position } from "@xyflow/react";
 import { NeonHandle } from "~/components/common/NeonHandle";
-import IconComponent, { Box, Download, Square, Trash, Copy, Play, Zap } from "../common/Icon";
+import { BoxIcon as Box, DownloadIcon as Download, SquareIcon as Square, TrashIcon as Trash, CopyIcon as Copy, PlayIcon as Play, ZapIcon as Zap } from "../../icons/index";
 import type { GenericData } from "./types";
 import type { NodeMetadata } from "../../types/api";
 import { resolveIconPath } from "~/lib/iconUtils";

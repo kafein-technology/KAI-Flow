@@ -36,6 +36,7 @@ export interface NodeProperty {
   type: string;
   placeholder?: string;
   required?: boolean;
+  optional?: boolean;
   maxLength?: number;
   serviceType?: string;
   rows?: number;

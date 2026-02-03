@@ -7,21 +7,21 @@ import rehypeRaw from "rehype-raw";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import {
-  MessageSquare,
-  X,
-  Send,
-  Maximize2,
-  Minimize2,
-  Loader2,
-  Bot,
-  Copy,
-  CheckCircle,
-  Terminal,
-  FileText,
-  ExternalLink,
-  RefreshCcw,
-  Quote,
-} from "~/components/common/Icon";
+  MessageSquareIcon,
+  XIcon,
+  SendIcon,
+  Maximize2Icon,
+  Minimize2Icon,
+  Loader2Icon,
+  BotIcon,
+  CopyIcon,
+  CheckCircleIcon,
+  TerminalIcon,
+  FileTextIcon,
+  ExternalLinkIcon,
+  RefreshCcwIcon,
+  QuoteIcon,
+} from "@/icons";
 import { motion, AnimatePresence } from "motion/react";
 import { v4 as uuidv4 } from "uuid";
 import { config } from "../lib/config";
@@ -259,7 +259,7 @@ export default function KaiChatWidget({
               style={{ background: color }}
             >
               <div className="flex items-center gap-2 font-semibold">
-                <Bot className="w-5 h-5" />
+                <BotIcon className="w-5 h-5" />
                 {title}
               </div>
               <div className="flex items-center gap-1">
@@ -268,16 +268,16 @@ export default function KaiChatWidget({
                   className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
                   title="Sohbeti Temizle"
                 >
-                  <RefreshCcw className="w-4 h-4" />
+                  <RefreshCcwIcon className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setIsMaximized(!isMaximized)}
                   className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
                 >
                   {isMaximized ? (
-                    <Minimize2 className="w-4 h-4" />
+                    <Minimize2Icon className="w-4 h-4" />
                   ) : (
-                    <Maximize2 className="w-4 h-4" />
+                    <Maximize2Icon className="w-4 h-4" />
                   )}
                 </button>
               </div>
@@ -330,7 +330,7 @@ export default function KaiChatWidget({
                                   }}
                                 >
                                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <Terminal className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                                    <TerminalIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
                                     <span className="font-medium capitalize truncate">
                                       {language || "plaintext"}
                                     </span>
@@ -342,12 +342,12 @@ export default function KaiChatWidget({
                                   >
                                     {copiedCode === codeContent ? (
                                       <>
-                                        <CheckCircle className="w-3 h-3 text-green-400" />
+                                        <CheckCircleIcon className="w-3 h-3 text-green-400" />
                                         <span>Kopyalandı!</span>
                                       </>
                                     ) : (
                                       <>
-                                        <Copy className="w-3 h-3" />
+                                        <CopyIcon className="w-3 h-3" />
                                         <span>Kopyala</span>
                                       </>
                                     )}
@@ -477,7 +477,7 @@ export default function KaiChatWidget({
                               rel="noopener noreferrer"
                             >
                               <span className="break-all">{children}</span>
-                              <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                              <ExternalLinkIcon className="w-3 h-3 flex-shrink-0" />
                             </a>
                           ),
 
@@ -485,7 +485,7 @@ export default function KaiChatWidget({
                           blockquote: ({ children }: any) => (
                             <blockquote className="relative my-2 sm:my-4 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg shadow-sm -mx-1 sm:mx-0">
                               <div className="absolute top-2 sm:top-3 left-2 sm:left-3">
-                                <Quote className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400 opacity-60" />
+                                <QuoteIcon className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400 opacity-60" />
                               </div>
                               <div className="pl-4 sm:pl-6">
                                 <div className="text-blue-600 text-[10px] sm:text-xs font-semibold mb-1 uppercase tracking-wide">
@@ -496,7 +496,7 @@ export default function KaiChatWidget({
                                 </div>
                               </div>
                               <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3">
-                                <Quote className="w-2 h-2 sm:w-3 sm:h-3 text-blue-300 opacity-40 rotate-180" />
+                                <QuoteIcon className="w-2 h-2 sm:w-3 sm:h-3 text-blue-300 opacity-40 rotate-180" />
                               </div>
                             </blockquote>
                           ),
@@ -517,7 +517,7 @@ export default function KaiChatWidget({
                           th: ({ children }: any) => (
                             <th className="px-2 sm:px-4 py-1.5 sm:py-2 text-left font-semibold text-gray-900 border-b border-gray-200 first:rounded-tl-lg last:rounded-tr-lg">
                               <div className="flex items-center gap-1">
-                                <FileText className="w-3 h-3 text-gray-500 hidden sm:block" />
+                                <FileTextIcon className="w-3 h-3 text-gray-500 hidden sm:block" />
                                 <span className="truncate">{children}</span>
                               </div>
                             </th>
@@ -665,9 +665,9 @@ export default function KaiChatWidget({
                     }`}
                 >
                   {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2Icon className="w-5 h-5 animate-spin" />
                   ) : (
-                    <Send className="w-5 h-5" />
+                    <SendIcon className="w-5 h-5" />
                   )}
                 </button>
               </div>
@@ -691,9 +691,9 @@ export default function KaiChatWidget({
         style={{ backgroundColor: color }}
       >
         {isOpen ? (
-          <X className="w-7 h-7" />
+          <XIcon className="w-7 h-7" />
         ) : (
-          icon || <MessageSquare className="w-7 h-7" />
+          icon || <MessageSquareIcon className="w-7 h-7" />
         )}
       </motion.button>
     </div>

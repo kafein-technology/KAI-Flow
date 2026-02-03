@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Save, FileText, Globe, Lock, Pencil } from "../common/Icon";
+import { XIcon as X, SaveIcon as Save, FileTextIcon as FileText, GlobeIcon as Globe, LockIcon as Lock, PencilIcon as Pencil } from "../../icons/index";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 
 interface WorkflowFormValues {

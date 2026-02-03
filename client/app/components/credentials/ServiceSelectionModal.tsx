@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Icon, { Search, Plus, ArrowRight } from "../common/Icon";
+import { SearchIcon as Search, PlusIcon as Plus, ArrowRightIcon as ArrowRight } from "../../icons/index";
 import {
   SERVICE_DEFINITIONS,
   getServicesByCategory,
