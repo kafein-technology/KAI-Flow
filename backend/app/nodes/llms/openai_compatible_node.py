@@ -158,7 +158,7 @@ class OpenAICompatibleNode(BaseNode):
                     tabName="basic",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select API Key",
-                    required=False, # Some local servers don't need keys
+                    required=True,
                     hint="Required for commercial providers, optional for some local servers",
                     serviceType="openai",
                 ),
@@ -278,11 +278,16 @@ class OpenAICompatibleNode(BaseNode):
         model_name = self.user_data.get("model_name", "anthropic/claude-3.5-sonnet")
         temperature = float(self.user_data.get("temperature", 0.7))
         max_tokens = int(self.user_data.get("max_tokens", 4096))
-        top_p = float(self.user_data.get("top_p", 1.0))
-        frequency_penalty = float(self.user_data.get("frequency_penalty", 0.0))
-        presence_penalty = float(self.user_data.get("presence_penalty", 0.0))
-        timeout = int(self.user_data.get("timeout", 60))
-        streaming = bool(self.user_data.get("streaming", False))
+
+        # Determine which optional fields the user explicitly enabled
+        active_optional = set(self.user_data.get("_active_optional_fields", []))
+
+        # Optional parameters - only use if explicitly activated by the user
+        top_p = float(self.user_data["top_p"]) if "top_p" in active_optional and "top_p" in self.user_data else None
+        frequency_penalty = float(self.user_data["frequency_penalty"]) if "frequency_penalty" in active_optional and "frequency_penalty" in self.user_data else None
+        presence_penalty = float(self.user_data["presence_penalty"]) if "presence_penalty" in active_optional and "presence_penalty" in self.user_data else None
+        timeout = int(self.user_data["timeout"]) if "timeout" in active_optional and "timeout" in self.user_data else None
+        streaming = bool(self.user_data["streaming"]) if "streaming" in active_optional and "streaming" in self.user_data else False
         
         # OpenRouter specific params
         site_url = self.user_data.get("site_url", "")
@@ -323,15 +328,21 @@ class OpenAICompatibleNode(BaseNode):
             "openai_api_key": SecretStr(api_key_value),
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "top_p": top_p,
-            "frequency_penalty": frequency_penalty,
-            "presence_penalty": presence_penalty,
-            "timeout": timeout,
             "streaming": streaming,
-            "model_kwargs": {
-                "extra_headers": extra_headers
-            } if extra_headers else {}
         }
+
+        # Only include optional parameters if explicitly set by user
+        if top_p is not None:
+            llm_config["top_p"] = top_p
+        if frequency_penalty is not None:
+            llm_config["frequency_penalty"] = frequency_penalty
+        if presence_penalty is not None:
+            llm_config["presence_penalty"] = presence_penalty
+        if timeout is not None:
+            llm_config["timeout"] = timeout
+
+        if extra_headers:
+            llm_config["model_kwargs"] = {"extra_headers": extra_headers}
         
         try:
             llm = ChatOpenAI(**llm_config)

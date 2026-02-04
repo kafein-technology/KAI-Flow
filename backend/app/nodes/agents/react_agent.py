@@ -354,19 +354,19 @@ class ReactAgentNode(ProcessorNode):
                 required=True,
             ),
             NodeProperty(
-                name="system_prompt",
-                displayName="System Prompt",
-                type=NodePropertyType.TEXT_AREA,
-                default="You are a helpful assistant. Use tools to answer questions.",
-                hint="Define agent behavior and capabilities. This is the core system instruction.",
-                required=True,
-            ),
-            NodeProperty(
                 name="user_prompt_template",
                 displayName="User Prompt Template",
                 type=NodePropertyType.TEXT_AREA,
                 default="${{input}}",
                 hint="Template for user input using ${{variable}} syntax",
+                required=True,
+            ),
+            NodeProperty(
+                name="system_prompt",
+                displayName="System Prompt",
+                type=NodePropertyType.TEXT_AREA,
+                default="You are a helpful assistant. Use tools to answer questions.",
+                hint="Define agent behavior and capabilities. This is the core system instruction.",
                 required=False,
             ),
             NodeProperty(

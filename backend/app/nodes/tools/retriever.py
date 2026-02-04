@@ -238,7 +238,7 @@ class RetrieverProvider(ProviderNode):
                     displayName="Select Credential",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
-                    required=False
+                    required=True
                 ),
                 NodeProperty(
                     name="collection_name",
