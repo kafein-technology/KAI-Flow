@@ -185,15 +185,15 @@ function MarketplaceLayout() {
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
-                <div>
+              <div className="flex flex-row items-end justify-between gap-6 mb-6">
+                <div className="flex flex-col gap-1">
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                     Marketplace
                   </h1>
                   <p className="text-gray-600 text-lg">
                     Discover amazing workflows created by our community
                   </p>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
                     <span className="flex items-center gap-1">
                       <TrendingUp className="w-4 h-4" />
                       {publicWorkflows.length} workflows available
@@ -206,24 +206,24 @@ function MarketplaceLayout() {
                 </div>
 
                 {/* Search and Controls */}
-                <div className="flex flex-col gap-4">
-                  <div className="relative w-full sm:w-auto">
+                <div className="flex flex-col items-end gap-3">
+                  <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type="search"
-                      className="pl-10 pr-4 py-2.5 w-full sm:w-72 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                      placeholder="Search workflows, templates, or keywords..."
+                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Search workflows..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-start gap-3">
+                  <div className="flex items-center gap-3">
                     {/* View Mode Toggle */}
                     <div className="flex items-center bg-gray-100 rounded-lg p-1">
                       <button
                         onClick={() => setViewMode("grid")}
-                        className={`p-2 rounded-md transition-all duration-200 ${viewMode === "grid"
+                        className={`p-1.5 rounded-md transition-all duration-200 ${viewMode === "grid"
                           ? "bg-white shadow-sm text-purple-600"
                           : "text-gray-600 hover:text-gray-800"
                           }`}
@@ -232,7 +232,7 @@ function MarketplaceLayout() {
                       </button>
                       <button
                         onClick={() => setViewMode("list")}
-                        className={`p-2 rounded-md transition-all duration-200 ${viewMode === "list"
+                        className={`p-1.5 rounded-md transition-all duration-200 ${viewMode === "list"
                           ? "bg-white shadow-sm text-purple-600"
                           : "text-gray-600 hover:text-gray-800"
                           }`}
@@ -249,83 +249,64 @@ function MarketplaceLayout() {
                       <RefreshCw
                         className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
                       />
-                      <span className="hidden sm:inline">Refresh</span>
+                      <span>Refresh</span>
                     </button>
                   </div>
                 </div>
               </div>
 
               {/* Filters Row */}
-              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 w-full lg:w-auto">
+              <div className="flex flex-row items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex flex-row items-center gap-3">
                   <span className="text-sm font-medium text-gray-700">
                     Filters:
                   </span>
 
-                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    {/* Category Filter */}
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent w-full sm:w-auto"
-                    >
-                      <option value="all">All Categories</option>
-                      <option value="automation">Automation</option>
-                      <option value="data-processing">Data Processing</option>
-                      <option value="ai-ml">AI & ML</option>
-                      <option value="integration">Integration</option>
-                    </select>
+                  {/* Category Filter */}
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="automation">Automation</option>
+                    <option value="data-processing">Data Processing</option>
+                    <option value="ai-ml">AI & ML</option>
+                    <option value="integration">Integration</option>
+                  </select>
 
-                    {/* Sort Filter */}
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent w-full sm:w-auto"
-                    >
-                      <option value="newest">Newest First</option>
-                      <option value="oldest">Oldest First</option>
-                      <option value="popular">Most Popular</option>
-                      <option value="alphabetical">A-Z</option>
-                    </select>
+                  {/* Sort Filter */}
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="popular">Most Popular</option>
+                    <option value="alphabetical">A-Z</option>
+                  </select>
 
-                    {/* Clear Filters Button */}
-                    {(searchQuery ||
-                      category !== "all" ||
-                      sortBy !== "newest") && (
-                        <button
-                          onClick={() => {
-                            setSearchQuery("");
-                            setCategory("all");
-                            setSortBy("newest");
-                          }}
-                          className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto"
-                        >
-                          Clear All
-                        </button>
-                      )}
-                  </div>
+                  {/* Clear Filters Button */}
+                  {(searchQuery ||
+                    category !== "all" ||
+                    sortBy !== "newest") && (
+                      <button
+                        onClick={() => {
+                          setSearchQuery("");
+                          setCategory("all");
+                          setSortBy("newest");
+                        }}
+                        className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Clear All
+                      </button>
+                    )}
                 </div>
 
-                <div className="flex items-center justify-between w-full lg:w-auto">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Filter className="w-4 h-4" />
-                    {filteredWorkflows.length} results
-                  </div>
-
-                  {/* Items per page selector on mobile */}
-                  <div className="flex items-center gap-2 lg:hidden">
-                    <span className="text-sm text-gray-600">Show:</span>
-                    <select
-                      value={itemsPerPage}
-                      onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                      className="px-2 py-1 text-sm border border-gray-300 rounded bg-white"
-                    >
-                      <option value={6}>6</option>
-                      <option value={9}>9</option>
-                      <option value={12}>12</option>
-                      <option value={18}>18</option>
-                    </select>
-                  </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Filter className="w-4 h-4" />
+                  {filteredWorkflows.length} results
                 </div>
               </div>
             </div>

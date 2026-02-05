@@ -110,7 +110,7 @@ class OpenAIEmbeddingsProvider(ProviderNode):
                     displayName="Select Credential",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
-                    required=False,
+                    required=True,
                     serviceType="openai",
                 ),
                 NodeProperty(

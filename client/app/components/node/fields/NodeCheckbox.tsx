@@ -1,4 +1,4 @@
-import { Field } from "formik";
+import { useField } from "formik";
 import type { NodeProperty } from "../types";
 import { ErrorMessage } from "formik";
 
@@ -8,6 +8,7 @@ interface NodeCheckboxProps {
 }
 
 export const NodeCheckbox = ({ property, values }: NodeCheckboxProps) => {
+  const [field, , helpers] = useField(property.name);
   const displayOptions = property?.displayOptions || {};
   const show = displayOptions.show || {};
 
@@ -20,23 +21,34 @@ export const NodeCheckbox = ({ property, values }: NodeCheckboxProps) => {
     }
   }
 
+  const isChecked = Boolean(field.value);
+
   return (
     <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
-      <label className="text-white text-sm font-medium mb-3 flex items-center gap-3">
-        <Field
-          name={property.name}
-          type="checkbox"
-          className="w-4 h-4 text-blue-600 bg-slate-900 border-white/20 rounded focus:ring-blue-500"
-          onMouseDown={(e: any) => e.stopPropagation()}
-          onTouchStart={(e: any) => e.stopPropagation()}
-        />
-        <div className="text-white text-xs mt-2">
-          <div className="font-medium">{property.displayName}</div>
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col">
+          <span className="text-sm text-slate-200">{property.displayName}</span>
           {property.hint && (
-            <div className="text-xs text-slate-400">{property.hint}</div>
+            <span className="text-xs text-slate-400">{property.hint}</span>
           )}
         </div>
-      </label>
+        {/* Toggle Switch */}
+        <button
+          type="button"
+          onClick={() => helpers.setValue(!isChecked)}
+          onMouseDown={(e: any) => e.stopPropagation()}
+          onTouchStart={(e: any) => e.stopPropagation()}
+          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+            isChecked ? "bg-blue-500" : "bg-slate-600"
+          }`}
+        >
+          <span
+            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${
+              isChecked ? "translate-x-5" : "translate-x-0"
+            }`}
+          />
+        </button>
+      </div>
       <ErrorMessage
         name={property.name}
         component="div"

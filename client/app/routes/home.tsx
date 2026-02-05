@@ -44,15 +44,18 @@ function DashboardLayout() {
 
   const chartConfig = {
     prodexec: {
-      label: "Prod. executions",
+      label: "Total Prod. executions",
+      tooltipLabel: "Todays Prod. executions",
       color: "#2563eb",
     },
     failedprod: {
-      label: "Failed Prod. executions",
+      label: "Total Failed Prod. executions",
+      tooltipLabel: "Todays Failed Prod. executions",
       color: "#ef4444",
     },
     avg_runtime_ms: {
-      label: "Avg runtime (ms)",
+      label: "Total Avg runtime (s)",
+      tooltipLabel: "Todays Avg runtime (s)",
       color: "#10b981",
     },
   };
@@ -66,7 +69,7 @@ function DashboardLayout() {
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex flex-row items-center justify-between gap-6">
                 <div>
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                     Dashboard
@@ -176,7 +179,7 @@ function DashboardLayout() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-600">
-                          Avg Runtime
+                          Total Avg Runtime
                         </p>
                         <p className="text-2xl font-bold text-gray-900">
                           {(() => {

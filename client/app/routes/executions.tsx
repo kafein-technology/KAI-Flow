@@ -30,6 +30,35 @@ interface Execution {
   error_message?: string;
 }
 
+
+const getInputText = (execution: any) => {
+  // String değerleri kontrol et
+  if (execution.input_text && typeof execution.input_text === "string") {
+    return execution.input_text;
+  }
+
+  // Eğer inputs objesi varsa, içindeki input değerini al
+  if (execution.inputs && typeof execution.inputs === "object") {
+    if (
+      execution.inputs.input &&
+      typeof execution.inputs.input === "string"
+    ) {
+      return execution.inputs.input;
+    }
+  }
+
+  // Eğer input objesi varsa, içindeki değeri al
+  if (execution.input) {
+    if (typeof execution.input === "string") {
+      return execution.input;
+    } else if (typeof execution.input === "object" && execution.input.input) {
+      return execution.input.input;
+    }
+  }
+
+  return "No input provided";
+};
+
 function ExecutionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -57,6 +86,11 @@ function ExecutionsPage() {
   const { executions, loading, error, fetchAllExecutions, deleteExecution } =
     useExecutionsStore();
   const { workflows, fetchWorkflows } = useWorkflows();
+
+  const getWorkflowName = (workflowId: string) => {
+    const workflow = workflows.find((w) => w.id === workflowId);
+    return workflow ? workflow.name : "Unknown Workflow";
+  };
 
   useEffect(() => {
     fetchWorkflows();
@@ -154,10 +188,7 @@ function ExecutionsPage() {
     }
   };
 
-  const getWorkflowName = (workflowId: string) => {
-    const workflow = workflows.find((w) => w.id === workflowId);
-    return workflow ? workflow.name : "Unknown Workflow";
-  };
+
 
   const formatDuration = (startedAt: string, completedAt?: string) => {
     if (!startedAt) return "-";
@@ -177,33 +208,7 @@ function ExecutionsPage() {
     return `${minutes}m ${seconds} s`;
   };
 
-  const getInputText = (execution: any) => {
-    // String değerleri kontrol et
-    if (execution.input_text && typeof execution.input_text === "string") {
-      return execution.input_text;
-    }
 
-    // Eğer inputs objesi varsa, içindeki input değerini al
-    if (execution.inputs && typeof execution.inputs === "object") {
-      if (
-        execution.inputs.input &&
-        typeof execution.inputs.input === "string"
-      ) {
-        return execution.inputs.input;
-      }
-    }
-
-    // Eğer input objesi varsa, içindeki değeri al
-    if (execution.input) {
-      if (typeof execution.input === "string") {
-        return execution.input;
-      } else if (typeof execution.input === "object" && execution.input.input) {
-        return execution.input.input;
-      }
-    }
-
-    return "No input provided";
-  };
 
   const handleDeleteClick = (executionId: string) => {
     setDeleteModal({
@@ -316,7 +321,7 @@ function ExecutionsPage() {
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex flex-row items-center justify-between gap-6">
                 <div>
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                     Executions
@@ -327,7 +332,7 @@ function ExecutionsPage() {
                 </div>
 
                 {/* Filter Controls */}
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-row items-center gap-3">
                   {/* Search */}
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -344,9 +349,8 @@ function ExecutionsPage() {
 
                   {/* Status Filter */}
                   <div className="relative">
-                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <select
-                      className="pl-10 pr-4 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
+                      className="pl-4 pr-10 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
                       value={filters.status}
                       onChange={(e) =>
                         handleFilterChange("status", e.target.value)
@@ -358,43 +362,50 @@ function ExecutionsPage() {
                       <option value="running">Running</option>
                       <option value="pending">Pending</option>
                     </select>
+                    <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                   </div>
 
                   {/* Workflow Filter */}
-                  <select
-                    className="px-4 py-2 w-48 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
-                    value={filters.workflowId}
-                    onChange={(e) =>
-                      handleFilterChange("workflowId", e.target.value)
-                    }
-                  >
-                    <option value="all">All Workflows</option>
-                    {workflows.map((workflow) => (
-                      <option key={workflow.id} value={workflow.id}>
-                        {workflow.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      className="pl-4 pr-10 py-2 w-48 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
+                      value={filters.workflowId}
+                      onChange={(e) =>
+                        handleFilterChange("workflowId", e.target.value)
+                      }
+                    >
+                      <option value="all">All Workflows</option>
+                      {workflows.map((workflow) => (
+                        <option key={workflow.id} value={workflow.id}>
+                          {workflow.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  </div>
 
                   {/* Date Range Filter */}
-                  <select
-                    className="px-4 py-2 w-32 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
-                    value={filters.dateRange}
-                    onChange={(e) =>
-                      handleFilterChange("dateRange", e.target.value)
-                    }
-                  >
-                    <option value="all">All Time</option>
-                    <option value="today">Today</option>
-                    <option value="week">Last Week</option>
-                    <option value="month">Last Month</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      className="pl-4 pr-10 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
+                      value={filters.dateRange}
+                      onChange={(e) =>
+                        handleFilterChange("dateRange", e.target.value)
+                      }
+                    >
+                      <option value="all">All Time</option>
+                      <option value="today">Today</option>
+                      <option value="week">Last Week</option>
+                      <option value="month">Last Month</option>
+                    </select>
+                    <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  </div>
 
                   {/* Clear Filters */}
                   {hasActiveFilters && (
                     <button
                       onClick={clearFilters}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200 whitespace-nowrap"
                       title="Clear all filters"
                     >
                       <RotateCcw className="w-4 h-4" />

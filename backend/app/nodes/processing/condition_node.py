@@ -147,7 +147,7 @@ class ConditionNode(ProcessorNode):
                     type=NodePropertyType.TEXT,
                     description="First value for comparison. Use {{node_name}} for Jinja templating to access connected node output.",
                     default="",
-                    required=False,
+                    required=True,
                     placeholder="Enter value or use {{node_name}}",
                     tabName="basic"
                 ),
@@ -181,7 +181,7 @@ class ConditionNode(ProcessorNode):
                     type=NodePropertyType.TEXT,
                     description="Second value for comparison (not used for Is Empty/Not Empty operations)",
                     default="",
-                    required=False,
+                    required=True,
                     placeholder="Enter comparison value",
                     tabName="basic"
                 ),

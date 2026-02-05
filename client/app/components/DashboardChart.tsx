@@ -13,6 +13,7 @@ import {
 export type ChartConfig = {
   [k: string]: {
     label?: React.ReactNode;
+    tooltipLabel?: React.ReactNode;
     color?: string;
   };
 };
@@ -66,7 +67,7 @@ const CustomTooltip = ({ active, payload, label, dataKeys, config }: any) => {
                 style={{ backgroundColor: config[key]?.color || "#2563eb" }}
               />
               <span className="text-xs text-gray-600">
-                {config[key]?.label || key}
+                {config[key]?.tooltipLabel || config[key]?.label || key}
               </span>
               <span className="ml-auto font-bold text-gray-900 text-sm">
                 {formatValue(key, entry.value)}
@@ -128,26 +129,26 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
     <div
       className={`rounded-xl border border-gray-200  bg-background shadow-sm ${className}`}
     >
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-gray-200  px-6 py-4">
+      <div className="flex flex-row items-center justify-between gap-2 border-b border-gray-200  px-6 py-4">
         <div>
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           {description && (
             <p className="text-sm text-muted-foreground mt-1">{description}</p>
           )}
         </div>
-        <div className="flex mt-2 md:mt-0">
+        <div className="flex">
           {dataKeys.map((key) => (
             <button
               key={key}
               onClick={() => setActiveDataKey(key)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 ${activeDataKey === key
-                ? "bg-blue-100 dark:bg-blue-600 text-blue-700 dark:text-blue-300"
+                ? "bg-blue-600 text-white shadow-sm"
                 : "hover:bg-gray-100 dark:hover:bg-gray-500 text-foreground"
                 }`}
               style={{ marginLeft: key !== dataKeys[0] ? 8 : 0 }}
             >
               <span>{config[key]?.label || key}</span>
-              <span className="block text-xs text-muted-foreground font-normal">
+              <span className={`block text-xs font-normal ${activeDataKey === key ? "text-blue-100" : "text-muted-foreground"}`}>
                 {formatTotalValue(key, totals[key])}
               </span>
             </button>

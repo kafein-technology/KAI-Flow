@@ -36,7 +36,6 @@ export interface NodeProperty {
   type: string;
   placeholder?: string;
   required?: boolean;
-  optional?: boolean;
   maxLength?: number;
   serviceType?: string;
   rows?: number;
@@ -50,16 +49,16 @@ export interface GenericData {
   name?: string;
   colors?: string[];
   description?: string;
-  
+
   // Node yapılandırma verileri
   inputs?: NodeInput[];
   outputs?: NodeOutput[];
   metadata?: NodeMetadata;
   properties?: NodeProperty[];
-  
+
   // Validasyon durumu
   validationStatus?: "success" | "error" | "pending";
-  
+
   // Diğer dinamik alanlar (text_input, model_name, vs.)
   [key: string]: any;
 }
