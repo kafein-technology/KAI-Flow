@@ -88,7 +88,7 @@ class ConditionNode(ProcessorNode):
             ),
             "category": "Processing",
             "node_type": NodeType.PROCESSOR,
-            "icon": {"name": None, "path": "icons/condition.svg", "alt": "condition"},
+            "icon": {"name": "Condition", "path": "icons/condition.svg", "alt": "condition"},
             "colors": ["yellow-500", "orange-500"],
 
             # Single connection input

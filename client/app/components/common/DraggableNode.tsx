@@ -80,6 +80,7 @@ const nodeIconColorMap: Record<string, string> = {
   HttpRequest: "text-blue-400",
   WebhookTrigger: "text-emerald-400",
   RespondToWebhook: "text-emerald-400",
+  RespondWebhook: "text-emerald-400",
 
   // RAG & QA
   RetrievalQA: "text-purple-400",

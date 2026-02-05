@@ -109,6 +109,12 @@ function GenericVisual({
     const nodeType = data.node_type?.toLowerCase() || data.nodeType?.toLowerCase() || '';
     const name = data.name?.toLowerCase() || '';
 
+    // Exclude these nodes from being treated as providers (will show white icons)
+    const excludeFromProvider = ['retrieverprovider', 'retriever provider', 'retriever'];
+    if (excludeFromProvider.some(exclude => name.includes(exclude))) {
+      return false;
+    }
+
     // Provider categories and patterns
     const providerPatterns = ['provider', 'llm', 'embedding', 'reranker', 'retriever'];
     return providerPatterns.some(pattern =>
@@ -225,15 +231,15 @@ function GenericVisual({
         <>
           {/* Silme butonu */}
           <button
-            className="absolute -top-3 -right-3 w-8 h-8 
+            className="absolute -top-2 -right-2 w-5 h-5 
               bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500
-              text-white rounded-full border border-white/30 shadow-xl 
+              text-white rounded-full border border-white/30 shadow-lg 
               transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
               backdrop-blur-sm"
             onClick={onDelete}
             title="Node'u Sil"
           >
-            <Trash size={14} />
+            <Trash size={12} />
           </button>
         </>
       )}
