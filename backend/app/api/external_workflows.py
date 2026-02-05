@@ -212,7 +212,7 @@ async def register_external_workflow(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Register an external Docker workflow with KAI-Fusion."""
+    """Register an external Docker workflow with KAI-Flow."""
     logger.info(f"User {current_user.id} attempting to register external workflow: {config.name}")
     
     try:

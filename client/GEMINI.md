@@ -1,10 +1,10 @@
-# KAI-Fusion Client
+# KAI-Flow Client
 
-This document provides an overview of the KAI-Fusion client project, its structure, and key commands.
+This document provides an overview of the KAI-Flow client project, its structure, and key commands.
 
 ## Overview
 
-This project is a React-based web client for KAI-Fusion, a workflow management tool. It uses React Router for navigation, Zustand for state management, and Vite for the build tooling. The application features a canvas for building flows, various modals for configuration, and a dashboard for managing workflows.
+This project is a React-based web client for KAI-Flow, a workflow management tool. It uses React Router for navigation, Zustand for state management, and Vite for the build tooling. The application features a canvas for building flows, various modals for configuration, and a dashboard for managing workflows.
 
 ## Commands
 

@@ -1,4 +1,4 @@
-# ⏰ KAI-Fusion Timer Trigger Kullanım Kılavuzu
+# ⏰ KAI-Flow Timer Trigger Kullanım Kılavuzu
 
 ## 📋 İçindekiler
 - [Genel Bakış](#genel-bakış)
@@ -15,7 +15,7 @@
 
 ## 🎯 Genel Bakış
 
-KAI-Fusion Timer Trigger Node, belirli zaman aralıklarında veya programlanmış zamanlarda workflow'ları otomatik olarak başlatan gelişmiş bir tetikleme sistemidir. Timer expire olduğunda manuel start butonuna tıklanmış gibi workflow'u başlatır ve complete processing chain'i execute eder.
+KAI-Flow Timer Trigger Node, belirli zaman aralıklarında veya programlanmış zamanlarda workflow'ları otomatik olarak başlatan gelişmiş bir tetikleme sistemidir. Timer expire olduğunda manuel start butonuna tıklanmış gibi workflow'u başlatır ve complete processing chain'i execute eder.
 
 ### ✨ Temel Özellikler
 - ⏰ **Çoklu Zamanlama Modları**: Interval, Cron, Once, Manual
@@ -679,7 +679,7 @@ export TIMER_CLEANUP_INTERVAL=3600
 
 # LangChain integration
 export LANGCHAIN_TRACING_V2="true"
-export LANGCHAIN_PROJECT="kai-fusion-timers"
+export LANGCHAIN_PROJECT="KAI-Flow-timers"
 ```
 
 ### Production Settings
@@ -744,9 +744,9 @@ def setup_timer_monitoring():
 - Monitoring ve alerting setup edin
 
 ### Contact
-- GitHub Issues: [KAI-Fusion Issues](https://github.com/kai-fusion/issues)
-- Email: support@kai-fusion.com
-- Discord: KAI-Fusion Community
+- GitHub Issues: [KAI-Flow Issues](https://github.com/KAI-Flow/issues)
+- Email: support@KAI-Flow.com
+- Discord: KAI-Flow Community
 
 ---
 

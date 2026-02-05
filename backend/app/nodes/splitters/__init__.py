@@ -1,8 +1,8 @@
 """
-KAI-Fusion Text Splitters - Document Segmentation & Preprocessing
+KAI-Flow Text Splitters - Document Segmentation & Preprocessing
 ===============================================================
 
-This module provides intelligent document splitting capabilities for the KAI-Fusion platform,
+This module provides intelligent document splitting capabilities for the KAI-Flow platform,
 offering various strategies for optimal text segmentation for RAG pipelines and vector embeddings.
 
 Available Splitters:

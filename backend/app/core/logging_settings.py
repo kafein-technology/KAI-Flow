@@ -1,5 +1,5 @@
 """
-KAI-Fusion Enhanced Logging Settings - User Configuration Interface
+KAI-Flow Enhanced Logging Settings - User Configuration Interface
 ===================================================================
 
 This module provides user-configurable settings for the enhanced logging system.

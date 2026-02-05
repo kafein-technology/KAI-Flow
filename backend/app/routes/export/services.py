@@ -215,7 +215,7 @@ def create_clean_node_file(node_source: str, node_type: str) -> str:
     
     # Simple header
     header = f'''# -*- coding: utf-8 -*-
-"""{node_type} Node - Extracted from KAI-Fusion"""
+"""{node_type} Node - Extracted from KAI-Flow"""
 
 from nodes import BaseNode, ProviderNode, ProcessorNode, TerminatorNode, NodeType, NodeInput, NodeOutput
 from typing import Dict, Any, Optional, List
@@ -877,7 +877,7 @@ def generate_ready_to_run_readme(workflow_name: str, env_config) -> str:
     
     return f"""# {workflow_name} - Docker Export
 
-Ready-to-run Docker export of your KAI-Fusion workflow.
+Ready-to-run Docker export of your KAI-Flow workflow.
 
 ## Quick Start
 

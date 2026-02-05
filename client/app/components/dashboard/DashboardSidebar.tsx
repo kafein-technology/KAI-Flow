@@ -256,7 +256,7 @@ const Sidebar = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                KAI-Fusion
+                KAI-Flow
               </h1>
               <p className="text-xs text-slate-400">AI Workflow Platform</p>
             </div>
@@ -307,12 +307,12 @@ const Sidebar = () => {
                         </span>
                         <span
                           className={`px-2 py-0.5 text-xs rounded-full ${result.type === "workflow"
-                              ? "bg-blue-500/20 text-blue-300"
-                              : result.type === "execution"
-                                ? "bg-green-500/20 text-green-300"
-                                : result.type === "credential"
-                                  ? "bg-orange-500/20 text-orange-300"
-                                  : "bg-purple-500/20 text-purple-300"
+                            ? "bg-blue-500/20 text-blue-300"
+                            : result.type === "execution"
+                              ? "bg-green-500/20 text-green-300"
+                              : result.type === "credential"
+                                ? "bg-orange-500/20 text-orange-300"
+                                : "bg-purple-500/20 text-purple-300"
                             }`}
                         >
                           {result.type}

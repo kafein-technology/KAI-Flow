@@ -1,5 +1,5 @@
 """
-KAI-Fusion Enhanced State Management System
+KAI-Flow Enhanced State Management System
 ==========================================
 
 Advanced state management with cleanup, monitoring, and lifecycle management.

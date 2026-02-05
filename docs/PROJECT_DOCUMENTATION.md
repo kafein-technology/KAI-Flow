@@ -1,4 +1,4 @@
-# KAI-Fusion: Comprehensive Project Documentation
+# KAI-Flow: Comprehensive Project Documentation
 
 ## Table of Contents
 1. [Project Overview](#project-overview)
@@ -18,7 +18,7 @@
 
 ## Project Overview
 
-**KAI-Fusion** is a comprehensive AI workflow automation platform that enables users to create complex AI-powered workflows through an intuitive visual interface. The platform combines a drag-and-drop workflow builder with powerful backend execution capabilities, supporting 55+ integrated AI models, tools, and data processing nodes.
+**KAI-Flow** is a comprehensive AI workflow automation platform that enables users to create complex AI-powered workflows through an intuitive visual interface. The platform combines a drag-and-drop workflow builder with powerful backend execution capabilities, supporting 55+ integrated AI models, tools, and data processing nodes.
 
 ### Key Features
 - **Visual Workflow Builder**: ReactFlow-based drag-and-drop interface
@@ -43,7 +43,7 @@
 
 ## Architecture Overview
 
-KAI-Fusion follows a modern microservices-inspired architecture with clear separation between frontend and backend concerns:
+KAI-Flow follows a modern microservices-inspired architecture with clear separation between frontend and backend concerns:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -84,7 +84,7 @@ KAI-Fusion follows a modern microservices-inspired architecture with clear separ
 ```python
 # Application Entry Point
 app = FastAPI(
-    title="KAI-Fusion API",
+    title="KAI-Flow API",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
@@ -808,7 +808,7 @@ engine = create_async_engine(
     pool_recycle=3600,                   # Recycle connections every hour
     connect_args={
         "server_settings": {
-            "application_name": "kai-fusion-api",
+            "application_name": "KAI-Flow-api",
             "jit": "off",                # Disable JIT for consistent performance
         }
     }
@@ -1213,7 +1213,7 @@ ALLOWED_ORIGINS=["http://localhost:5173", "https://yourdomain.com"]
 ```env
 VITE_API_BASE_URL=http://localhost:8001
 VITE_API_VERSION=/{API_START}/{API_VERSION_ONLY}
-VITE_APP_NAME=KAI-Fusion
+VITE_APP_NAME=KAI-Flow
 VITE_ENABLE_ANALYTICS=false
 ```
 
@@ -1337,4 +1337,4 @@ async def log_requests(request: Request, call_next):
 
 ---
 
-This documentation provides a comprehensive overview of the KAI-Fusion platform architecture, implementation details, and development practices. For specific API endpoint documentation, refer to the accompanying `API_DOCUMENTATION.md` file.
+This documentation provides a comprehensive overview of the KAI-Flow platform architecture, implementation details, and development practices. For specific API endpoint documentation, refer to the accompanying `API_DOCUMENTATION.md` file.

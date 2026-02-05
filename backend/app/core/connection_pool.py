@@ -1,5 +1,5 @@
 """
-KAI-Fusion Connection Pool System
+KAI-Flow Connection Pool System
 ================================
 
 Advanced connection pooling system for managing many-to-many connections between workflow nodes.

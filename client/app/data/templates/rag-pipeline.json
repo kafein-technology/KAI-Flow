@@ -249,7 +249,7 @@
             {
               "name": "user_agent",
               "type": "str",
-              "default": "Mozilla/5.0 (compatible; KAI-Fusion/2.1.0; Web-Scraper)",
+              "default": "Mozilla/5.0 (compatible; KAI-Flow/2.1.0; Web-Scraper)",
               "required": false,
               "description": "User agent string for web requests",
               "is_connection": false
@@ -312,7 +312,7 @@
               {
                 "name": "user_agent",
                 "type": "str",
-                "default": "Mozilla/5.0 (compatible; KAI-Fusion/2.1.0; Web-Scraper)",
+                "default": "Mozilla/5.0 (compatible; KAI-Flow/2.1.0; Web-Scraper)",
                 "required": false,
                 "description": "User agent string for web requests",
                 "is_connection": false
@@ -373,7 +373,7 @@
                 "tabName": "basic",
                 "required": true,
                 "displayName": "User Agent",
-                "placeholder": "Default KAI-Fusion"
+                "placeholder": "Default KAI-Flow"
               },
               {
                 "hint": "CSS selectors to remove from scraped content",

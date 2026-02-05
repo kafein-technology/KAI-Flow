@@ -1,9 +1,9 @@
 version: "3"
 services:
-  kaifusion-be:
+  kaiflow-be:
     build: .
-    image: kaifusion:latest
-    container_name: kai-fusion-backend
+    image: kaiflow:latest
+    container_name: KAI-Flow-backend
     ports:
       - "${BACKEND_PORT:-23056}:8000"
     environment:
@@ -41,7 +41,7 @@ services:
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
-      KEYCLOAK_VERIFY_SSL: ${KEYCLOAK_VERIFY_SSL}      
+      KEYCLOAK_VERIFY_SSL: ${KEYCLOAK_VERIFY_SSL}
 
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     networks:
@@ -50,7 +50,7 @@ services:
     restart: always
     tty: true
 
-  kaifusion-fe:
+  kaiflow-fe:
     build:
       context: ./client
       dockerfile: Dockerfile
@@ -64,7 +64,7 @@ services:
         VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
         VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
         VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
-    container_name: kai-fusion-frontend
+    container_name: KAI-Flow-frontend
     ports:
       - "23058:3000"
     environment:
@@ -80,7 +80,7 @@ services:
       - kai_network
     restart: unless-stopped
     depends_on:
-      - kaifusion-be
+      - kaiflow-be
 
 networks:
   kai_network:

@@ -48,7 +48,7 @@ jobs:
       uses: 8398a7/action-slack@v3
       with:
         status: success
-        text: 'KAI-Fusion deployed successfully to production! 🚀'
+        text: 'KAI-Flow deployed successfully to production! 🚀'
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     
@@ -57,6 +57,6 @@ jobs:
       uses: 8398a7/action-slack@v3
       with:
         status: failure
-        text: 'KAI-Fusion deployment failed! ❌'
+        text: 'KAI-Flow deployment failed! ❌'
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

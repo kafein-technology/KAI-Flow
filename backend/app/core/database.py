@@ -1,5 +1,5 @@
 """
-KAI-Fusion Database Management - Clean & Simple Implementation
+KAI-Flow Database Management - Clean & Simple Implementation
 ============================================================
 
 Simple, standard SQLAlchemy database configuration with proper session management.

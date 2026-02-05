@@ -1,5 +1,5 @@
 """
-KAI-Fusion Retriever Provider - Agent-Ready Vector Search Tool Creator
+KAI-Flow Retriever Provider - Agent-Ready Vector Search Tool Creator
 =====================================================================
 
 This module implements a RetrieverProvider node that creates retriever tools
@@ -32,7 +32,7 @@ LangChain Search Algorithms Supported:
    - Provides similarity scores for ranking
    - Useful for confidence analysis
 
-Authors: KAI-Fusion Development Team
+Authors: KAI-Flow Development Team
 Version: 1.0.0
 Last Updated: 2025-01-13
 """

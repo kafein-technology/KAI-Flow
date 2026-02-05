@@ -1,8 +1,8 @@
-# KAI-Fusion Docker Export Implementation Guide
+# KAI-Flow Docker Export Implementation Guide
 
 ## Overview
 
-This document describes the complete implementation of the KAI-Fusion Workflow Docker Export feature, which allows users to export their workflows as standalone Docker containers with all necessary dependencies and configurations.
+This document describes the complete implementation of the KAI-Flow Workflow Docker Export feature, which allows users to export their workflows as standalone Docker containers with all necessary dependencies and configurations.
 
 ## System Architecture
 
@@ -133,7 +133,7 @@ Optional performance monitoring and tracing.
 1. User enters Docker workflow host/port
 2. System tests connection to `/health` and `/{API_START}/workflow/external/info`
 3. Workflow registered as read-only external workflow
-4. Can be executed remotely from KAI-Fusion
+4. Can be executed remotely from KAI-Flow
 
 ### Management Features
 - Connection status monitoring
@@ -145,7 +145,7 @@ Optional performance monitoring and tracing.
 
 ### Basic Export
 ```bash
-# 1. User exports workflow from KAI-Fusion UI
+# 1. User exports workflow from KAI-Flow UI
 # 2. Provides OpenAI API key
 # 3. Downloads package
 # 4. Deploys:
@@ -176,7 +176,7 @@ curl -X POST http://localhost:8000/{API_START}/workflow/execute \
 
 ### External Workflow Registration
 ```typescript
-// From KAI-Fusion UI
+// From KAI-Flow UI
 const config = {
   name: "My Remote Workflow",
   host: "192.168.1.100",
@@ -283,4 +283,4 @@ docker-compose exec workflow-api printenv
 
 ---
 
-*This implementation provides a complete Docker export solution for KAI-Fusion workflows, enabling standalone deployment and management of AI workflows in any Docker-compatible environment.*
+*This implementation provides a complete Docker export solution for KAI-Flow workflows, enabling standalone deployment and management of AI workflows in any Docker-compatible environment.*

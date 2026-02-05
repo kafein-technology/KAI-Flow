@@ -1,4 +1,4 @@
-# KAI-Fusion API Documentation
+# KAI-Flow API Documentation
 
 ## Table of Contents
 1. [API Overview](#api-overview)
@@ -866,7 +866,7 @@ Content-Type: application/json
 **Response** (200 OK):
 ```json
 {
-  "name": "KAI-Fusion API",
+  "name": "KAI-Flow API",
   "version": "1.0.0",
   "description": "AI Workflow Automation Platform",
   "documentation": "http://localhost:8001/docs",
@@ -1251,4 +1251,4 @@ const executeWorkflowStream = async (workflowId, inputText) => {
 
 ---
 
-This comprehensive API documentation covers all endpoints, request/response formats, error handling, and practical examples for integrating with the KAI-Fusion platform. The API is designed to be RESTful, well-documented, and developer-friendly with consistent patterns across all endpoints.
+This comprehensive API documentation covers all endpoints, request/response formats, error handling, and practical examples for integrating with the KAI-Flow platform. The API is designed to be RESTful, well-documented, and developer-friendly with consistent patterns across all endpoints.

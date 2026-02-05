@@ -116,7 +116,7 @@ async def get_current_user_or_master_api_key(
         # Map master calls to a dedicated system user to satisfy FK constraints
         # (executions.user_id is non-nullable).
         # NOTE: Must be a syntactically valid, non-special-use domain for EmailStr.
-        master_email = "master@kai-fusion.ai"
+        master_email = "master@KAI-Flow.ai"
         user = await user_service.get_by_email(db, email=master_email)
         if user is None:
             random_password = "".join(

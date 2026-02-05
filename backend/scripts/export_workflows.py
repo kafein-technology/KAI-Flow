@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KAI-Fusion Workflow Export Script
+KAI-Flow Workflow Export Script
 ==================================
 
 Export workflows to distributable YAML bundle.
@@ -100,9 +100,9 @@ async def export_workflows(
                     if workflow:
                         workflows_to_export.append(workflow)
                     else:
-                        logger(f"Warning: Workflow not found: {wf_id}")
+                        logger.info(f"Warning: Workflow not found: {wf_id}")
                 except Exception as e:
-                    logger(f"Warning: Invalid workflow ID {wf_id}: {e}")
+                    logger.info(f"Warning: Invalid workflow ID {wf_id}: {e}")
         
         elif user_email:
             user_result = await db.execute(
@@ -110,7 +110,7 @@ async def export_workflows(
             )
             user = user_result.scalar_one_or_none()
             if not user:
-                logger(f"Error: User not found: {user_email}")
+                logger.info(f"Error: User not found: {user_email}")
                 return
             
             wf_result = await db.execute(
@@ -118,14 +118,14 @@ async def export_workflows(
             )
             workflows_to_export = wf_result.scalars().all()
             config["target_user_email"] = user_email
-            logger(f"Exporting all workflows for: {user_email}")
+            logger.info(f"Exporting all workflows for: {user_email}")
         
         else:
-            logger("Error: Please provide --ids or --user-email")
+            logger.info("Error: Please provide --ids or --user-email")
             return
         
         if not workflows_to_export:
-            logger("Error: No workflows to export")
+            logger.info("Error: No workflows to export")
             return
         
         logger(f"\nExporting {len(workflows_to_export)} workflow(s)...\n")
@@ -189,7 +189,7 @@ async def export_workflows(
     (output_path / "workflows_config.yaml").write_text(yaml_content, encoding="utf-8")
     
     # Write README
-    readme = f"""# KAI-Fusion Workflow Export Bundle
+    readme = f"""# KAI-Flow Workflow Export Bundle
 
 Generated: {config['generated_at']}
 
@@ -233,7 +233,7 @@ python -m scripts.import_workflows --config /path/to/workflows_config.yaml
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Export KAI-Fusion workflows to distributable bundle"
+        description="Export KAI-Flow workflows to distributable bundle"
     )
     parser.add_argument("--ids", help="Comma-separated workflow UUIDs to export")
     parser.add_argument("--user-email", help="Export all workflows for this user")

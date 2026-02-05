@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-KAI-Fusion Database Setup Script - Enhanced Column Synchronization
+KAI-Flow Database Setup Script - Enhanced Column Synchronization
 =================================================================
 
-Bu script, KAI-Fusion platformu için veritabanını oluşturur ve günceller.
+Bu script, KAI-Flow platformu için veritabanını oluşturur ve günceller.
 Mevcut tabloları kontrol eder, eksik olanları oluşturur ve sütun farklılıklarını
 yönetir (eksik sütun ekleme/fazla sütun silme).
 
@@ -143,7 +143,7 @@ class DatabaseSetup:
                 pool_pre_ping=True,
                 pool_recycle=3600,
                 connect_args={
-                    "server_settings": {"application_name": "kai-fusion-setup"},
+                    "server_settings": {"application_name": "kai-flow-setup"},
                     "statement_cache_size": 1000,
                     "prepared_statement_cache_size": 100,
                     "command_timeout": 60,
@@ -625,7 +625,7 @@ class DatabaseSetup:
                              sync_columns: bool = True, add_missing_columns: bool = True,
                              remove_extra_columns: bool = False):
         """Ana veritabanı kurulum fonksiyonu."""
-        logger.info("KAI-Fusion Veritabanı Kurulum Scripti Başlatılıyor...")
+        logger.info("KAI-Flow Veritabanı Kurulum Scripti Başlatılıyor...")
 
         # Başlatma
         if not await self.initialize():
@@ -751,7 +751,7 @@ class DatabaseSetup:
 
 async def main():
     """Ana fonksiyon."""
-    parser = argparse.ArgumentParser(description="KAI-Fusion Veritabanı Kurulum Scripti")
+    parser = argparse.ArgumentParser(description="KAI-Flow Veritabanı Kurulum Scripti")
     parser.add_argument("--force", action="store_true", help="Mevcut tabloları silip yeniden oluşturur")
     parser.add_argument("--check-only", action="store_true", help="Sadece mevcut tabloları kontrol eder")
     parser.add_argument("--drop-all", action="store_true", help="Tüm tabloları siler ve yeniden oluşturur")

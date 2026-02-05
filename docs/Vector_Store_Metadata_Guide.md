@@ -1,6 +1,6 @@
 # Vector Store Metadata Kullanım Kılavuzu
 
-Bu kılavuz, KAI-Fusion platformunda vector store'ları kullanırken metadata'yı nasıl kullanacağınızı, ekleyeceğinizi ve yöneteceğinizi açıklar.
+Bu kılavuz, KAI-Flow platformunda vector store'ları kullanırken metadata'yı nasıl kullanacağınızı, ekleyeceğinizi ve yöneteceğinizi açıklar.
 
 ## 📊 Metadata Nedir?
 
@@ -36,7 +36,7 @@ Metadata, dokümanlarınızla birlikte saklanan ek bilgilerdir. Bu bilgiler:
   "metadata_strategy": "merge",
   "preserve_document_metadata": true,
   "custom_metadata": {
-    "project": "kai-fusion",
+    "project": "KAI-Flow",
     "env": "production"
   }
 }
@@ -401,4 +401,4 @@ print(f"Processing time: {stats['processing_time_seconds']}s")
 }
 ```
 
-Bu kılavuz, KAI-Fusion vector store sisteminde metadata'yı etkin şekilde kullanmanız için gerekli tüm bilgileri sağlar. Metadata doğru kullanıldığında, arama performansını artırır ve veri yönetimini kolaylaştırır.
+Bu kılavuz, KAI-Flow vector store sisteminde metadata'yı etkin şekilde kullanmanız için gerekli tüm bilgileri sağlar. Metadata doğru kullanıldığında, arama performansını artırır ve veri yönetimini kolaylaştırır.

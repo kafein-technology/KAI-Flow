@@ -1,5 +1,5 @@
 """
-KAI-Fusion Enhanced Memory Management System
+KAI-Flow Enhanced Memory Management System
 ===========================================
 
 Advanced memory management for conversation nodes with cleanup and monitoring.

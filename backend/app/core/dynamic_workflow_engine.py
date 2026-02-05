@@ -1,5 +1,5 @@
 """
-KAI-Fusion Dynamic Workflow Engine - Fully Dynamic LangGraph-Based Solution
+KAI-Flow Dynamic Workflow Engine - Fully Dynamic LangGraph-Based Solution
 ===========================================================================
 
 This module provides enhanced dynamic workflow capabilities built on top of the existing

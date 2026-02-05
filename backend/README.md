@@ -1,4 +1,4 @@
-# KAI-Fusion Backend - Enterprise AI Workflow Orchestration Platform
+# KAI-Flow Backend - Enterprise AI Workflow Orchestration Platform
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
@@ -8,7 +8,7 @@
 
 ## Overview
 
-KAI-Fusion Backend is a sophisticated enterprise-grade AI workflow orchestration platform built with FastAPI, LangChain, and LangGraph. It provides comprehensive workflow management, node-based processing, and advanced AI integration capabilities for complex business automation scenarios.
+KAI-Flow Backend is a sophisticated enterprise-grade AI workflow orchestration platform built with FastAPI, LangChain, and LangGraph. It provides comprehensive workflow management, node-based processing, and advanced AI integration capabilities for complex business automation scenarios.
 
 ### Key Features
 
@@ -25,7 +25,7 @@ KAI-Fusion Backend is a sophisticated enterprise-grade AI workflow orchestration
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     KAI-Fusion Backend Architecture            │
+│                     KAI-Flow Backend Architecture            │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Client Layer                                                   │
@@ -257,7 +257,7 @@ backend/
 
 ### 1. Workflow Engine (`app/core/engine.py`)
 
-The workflow engine is the heart of KAI-Fusion, providing sophisticated workflow orchestration capabilities:
+The workflow engine is the heart of KAI-Flow, providing sophisticated workflow orchestration capabilities:
 
 ```python
 # Core Engine Interface
@@ -378,7 +378,7 @@ _metadata = {
 
 ### 3. Database Architecture (`app/models/`)
 
-KAI-Fusion uses PostgreSQL with SQLAlchemy for robust data persistence:
+KAI-Flow uses PostgreSQL with SQLAlchemy for robust data persistence:
 
 #### Core Models
 
@@ -471,7 +471,7 @@ async def stream_execution(execution_id: uuid.UUID) -> StreamingResponse
 
 ### 5. LangChain & LangGraph Integration
 
-KAI-Fusion leverages LangChain and LangGraph for advanced AI workflow capabilities:
+KAI-Flow leverages LangChain and LangGraph for advanced AI workflow capabilities:
 
 #### LangChain Integration
 
@@ -815,7 +815,7 @@ TAVILY_API_KEY=your-tavily-api-key
 # LangSmith Configuration (Optional)
 LANGCHAIN_TRACING_V2=false
 LANGCHAIN_API_KEY=your-langsmith-api-key
-LANGCHAIN_PROJECT=kai-fusion-backend
+LANGCHAIN_PROJECT=KAI-Flow-backend
 
 # Application Configuration
 ENVIRONMENT=development
@@ -1013,7 +1013,7 @@ ws.send(JSON.stringify({
 
 ```typescript
 // Frontend API client
-class KAIFusionAPI {
+class kaiflowAPI {
     private baseURL = 'http://localhost:8000/api';
     private token: string | null = null;
 
@@ -1064,7 +1064,7 @@ const WorkflowExecutor: React.FC = () => {
     const executeWorkflow = async (workflowId: string, inputs: any) => {
         setLoading(true);
         try {
-            const api = new KAIFusionAPI();
+            const api = new kaiflowAPI();
             const result = await api.executeWorkflow(workflowId, inputs);
             setExecution(result);
         } catch (error) {
@@ -1215,7 +1215,7 @@ const WorkflowExecutor: React.FC = () => {
 ```bash
 # 1. Clone the repository
 git clone <repository-url>
-cd KAI-Fusion/backend
+cd KAI-Flow/backend
 
 # 2. Create virtual environment
 python -m venv venv
@@ -1658,16 +1658,16 @@ pytest --cov=app --cov-report=html
 
 ## License
 
-This project is proprietary software owned by KAI-Fusion. All rights reserved.
+This project is proprietary software owned by KAI-Flow. All rights reserved.
 
 ## Support
 
 For technical support and questions:
-- Email: support@kai-fusion.com
-- Documentation: https://docs.kai-fusion.com
-- GitHub Issues: https://github.com/kai-fusion/backend/issues
+- Email: support@KAI-Flow.com
+- Documentation: https://docs.KAI-Flow.com
+- GitHub Issues: https://github.com/KAI-Flow/backend/issues
 
 ---
 
-**KAI-Fusion Backend v2.1.0** - Enterprise AI Workflow Orchestration Platform
-Built with ❤️ by the KAI-Fusion Team
+**KAI-Flow Backend v2.1.0** - Enterprise AI Workflow Orchestration Platform
+Built with ❤️ by the KAI-Flow Team

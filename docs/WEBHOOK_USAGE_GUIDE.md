@@ -1,4 +1,4 @@
-# 🌐 KAI-Fusion Webhook Trigger Kullanım Kılavuzu
+# 🌐 KAI-Flow Webhook Trigger Kullanım Kılavuzu
 
 ## 📋 İçindekiler
 - [Genel Bakış](#genel-bakış)
@@ -13,7 +13,7 @@
 
 ## 🎯 Genel Bakış
 
-KAI-Fusion Webhook Trigger Node, external sistemlerin HTTP POST istekleri ile workflow'ları tetiklemesini sağlar. Webhook sanki manuel start butonuna tıklanmış gibi workflow'u başlatır ve complete processing chain'i execute eder.
+KAI-Flow Webhook Trigger Node, external sistemlerin HTTP POST istekleri ile workflow'ları tetiklemesini sağlar. Webhook sanki manuel start butonuna tıklanmış gibi workflow'u başlatır ve complete processing chain'i execute eder.
 
 ### ✨ Temel Özellikler
 - 🔗 **External HTTP Integration**: Dışarıdan API çağrıları kabul eder
@@ -601,9 +601,9 @@ ab -n 100 -c 10 -p payload.json -T application/json \
 - [Security Best Practices](./security-guide.md)
 
 ### Contact
-- GitHub Issues: [KAI-Fusion Issues](https://github.com/kai-fusion/issues)
-- Email: support@kai-fusion.com
-- Discord: KAI-Fusion Community
+- GitHub Issues: [KAI-Flow Issues](https://github.com/KAI-Flow/issues)
+- Email: support@KAI-Flow.com
+- Discord: KAI-Flow Community
 
 ---
 

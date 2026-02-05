@@ -1,10 +1,10 @@
 # Webhook Trigger Node - Kapsamlı Kullanım Kılavuzu
 
-Bu kılavuz, KAI-Fusion platformunda Webhook Trigger Node'un tüm özelliklerini ve kullanım senaryolarını detaylı şekilde açıklar.
+Bu kılavuz, KAI-Flow platformunda Webhook Trigger Node'un tüm özelliklerini ve kullanım senaryolarını detaylı şekilde açıklar.
 
 ## 🎯 Webhook Trigger Node Nedir?
 
-Webhook Trigger Node, dış sistemlerin KAI-Fusion workflow'larını HTTP istekleri ile tetiklememizi sağlayan güçlü bir giriş noktası bileşenidir. REST API endpoint'i oluşturur ve gelen istekleri workflow'a aktarır.
+Webhook Trigger Node, dış sistemlerin KAI-Flow workflow'larını HTTP istekleri ile tetiklememizi sağlayan güçlü bir giriş noktası bileşenidir. REST API endpoint'i oluşturur ve gelen istekleri workflow'a aktarır.
 
 ## ⚙️ Temel Özellikler
 
@@ -586,4 +586,4 @@ curl -X POST "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
 4. **Monitor Logs** - Error mesajları kontrol et
 5. **Test Rate Limits** - Limit aşılmış mı?
 
-Webhook Trigger Node, KAI-Fusion platformunda dış sistemlerle entegrasyon kurmak için güçlü ve esnek bir giriş noktasıdır. Yeni HTTP method desteği ile daha da güçlü hale gelmiştir!
+Webhook Trigger Node, KAI-Flow platformunda dış sistemlerle entegrasyon kurmak için güçlü ve esnek bir giriş noktasıdır. Yeni HTTP method desteği ile daha da güçlü hale gelmiştir!

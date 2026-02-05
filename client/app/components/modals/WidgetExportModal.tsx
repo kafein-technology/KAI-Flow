@@ -1,8 +1,8 @@
 import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
 import { MessageSquare, Copy, Check, Code, Globe, Type, Key, Eye, Bot } from "lucide-react";
 import { config as appConfig } from "../../lib/config";
-import { KaiChatWidget } from "@kaifusion/widget";
-import "@kaifusion/widget/dist/index.css";
+import { KaiChatWidget } from "@kaiflow/widget";
+import "@kaiflow/widget/dist/index.css";
 
 interface WidgetExportModalProps {
   workflowId: string;
@@ -31,7 +31,7 @@ const WidgetExportModal = forwardRef<HTMLDialogElement, WidgetExportModalProps>(
     useEffect(() => {
       const fetchLatestVersion = async () => {
         try {
-          const response = await fetch("https://registry.npmjs.org/@kaifusion/widget/latest");
+          const response = await fetch("https://registry.npmjs.org/@kaiflow/widget/latest");
           if (response.ok) {
             const data = await response.json();
             setLatestVersion(data.version);
@@ -65,8 +65,8 @@ const WidgetExportModal = forwardRef<HTMLDialogElement, WidgetExportModalProps>(
       const iconLine = config.showCustomIcon ? `\n      icon={<Bot className="w-7 h-7" />}` : "";
       const iconImport = config.showCustomIcon ? `\nimport { Bot } from "lucide-react";` : "";
 
-      return `import { KaiChatWidget } from "@kaifusion/widget";
-import "@kaifusion/widget/dist/index.css";${iconImport}
+      return `import { KaiChatWidget } from "@kaiflow/widget";
+import "@kaiflow/widget/dist/index.css";${iconImport}
 
 function App() {
   return (
@@ -84,7 +84,7 @@ function App() {
     const getHtmlCode = () => {
       const authLine = config.apiKey ? `\n  data-auth-token="${config.apiKey}"` : "";
       return `<script
-  src="https://cdn.jsdelivr.net/npm/@kaifusion/widget@${latestVersion}/dist/widget.iife.js"
+  src="https://cdn.jsdelivr.net/npm/@kaiflow/widget@${latestVersion}/dist/widget.iife.js"
   data-title="${config.title}"${authLine}
   data-workflow-id="${config.workflowId}"
   data-target-url="${config.baseUrl}"
@@ -285,7 +285,7 @@ function App() {
               <div className="p-3 bg-gray-900/50 border-t border-gray-800 text-xs text-gray-500">
                 {integrationType === 'html'
                   ? "Place this snippet in your <head> or just before the closing </body> tag."
-                  : "Make sure to install the package: npm install @kaifusion/widget"
+                  : "Make sure to install the package: npm install @kaiflow/widget"
                 }
               </div>
             </div>

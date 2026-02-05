@@ -1,4 +1,4 @@
-# @kaifusion/widget
+# @kaiflow/widget
 
 A customizable, React-based chat widget developed for the KAI Fusion AI platform. This component allows you to easily integrate your KAI Fusion workflows into your website.
 
@@ -15,11 +15,11 @@ A customizable, React-based chat widget developed for the KAI Fusion AI platform
 You can use your favorite package manager to add the package to your project:
 
 ```bash
-npm install @kaifusion/widget
+npm install @kaiflow/widget
 # or
-yarn add @kaifusion/widget
+yarn add @kaiflow/widget
 # or
-pnpm add @kaifusion/widget
+pnpm add @kaiflow/widget
 ```
 
 ## Requirements
@@ -34,8 +34,8 @@ This package requires the following peer dependencies:
 You can add the component to your React application as follows:
 
 ```tsx
-import { KaiChatWidget } from "@kaifusion/widget";
-// import '@kaifusion/widget/dist/style.css'; // Don't forget to include the style file if needed
+import { KaiChatWidget } from "@kaiflow/widget";
+// import '@kaiflow/widget/dist/style.css'; // Don't forget to include the style file if needed
 
 function App() {
   return (
@@ -80,7 +80,7 @@ Add the following script tag to your HTML file:
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js"
+  src="https://cdn.jsdelivr.net/npm/@kaiflow/widget@1.0.6/dist/widget.iife.js"
   data-title="KAI Fusion Assistant"
   data-auth-token="your-auth-token"
   data-workflow-id="your-workflow-id"
@@ -101,7 +101,7 @@ For MkDocs, you can inject the script dynamically using JavaScript.
 document.addEventListener("DOMContentLoaded", function () {
   const script = document.createElement("script");
   script.src =
-    "https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js"; // Adjust URL to your source
+    "https://cdn.jsdelivr.net/npm/@kaiflow/widget@1.0.6/dist/widget.iife.js"; // Adjust URL to your source
   script.dataset.title = "KAI Fusion Assistant";
   script.dataset.authToken = "your-auth-token";
   script.dataset.workflowId = "your-workflow-id";

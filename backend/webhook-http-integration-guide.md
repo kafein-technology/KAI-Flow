@@ -1,8 +1,8 @@
-# 🚀 KAI-Fusion Webhook & HTTP Node Integration Guide
+# 🚀 KAI-Flow Webhook & HTTP Node Integration Guide
 
 ## 📋 Overview
 
-This comprehensive guide explains how to configure external services to trigger KAI-Fusion workflows via webhooks and retrieve data using HTTP nodes. You'll learn how to set up webhook triggers, configure HTTP request nodes, and integrate external systems with your AI workflows.
+This comprehensive guide explains how to configure external services to trigger KAI-Flow workflows via webhooks and retrieve data using HTTP nodes. You'll learn how to set up webhook triggers, configure HTTP request nodes, and integrate external systems with your AI workflows.
 
 ## 🏗️ Architecture Overview
 
@@ -16,7 +16,7 @@ External Service → Webhook Trigger → Start Node → HTTP Request → End Nod
 
 ## 🎯 Part 1: Webhook Trigger Configuration
 
-### 1.1 Webhook Node Setup in KAI-Fusion UI
+### 1.1 Webhook Node Setup in KAI-Flow UI
 
 When creating a webhook trigger node in your workflow:
 
@@ -123,18 +123,18 @@ import requests
 import json
 from datetime import datetime
 
-class KAIFusionWebhookClient:
+class kaiflowWebhookClient:
     def __init__(self, base_url="http://localhost:8000", webhook_token="webhook_token_secure_123"):
         self.base_url = base_url
         self.webhook_token = webhook_token
         self.headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {webhook_token}",
-            "User-Agent": "KAI-Fusion-Client/1.0"
+            "User-Agent": "KAI-Flow-Client/1.0"
         }
     
     def trigger_workflow(self, webhook_id, data, event_type="workflow.trigger"):
-        """Trigger a KAI-Fusion workflow via webhook"""
+        """Trigger a KAI-Flow workflow via webhook"""
         url = f"{self.base_url}/{API_START}/{API_VERSION_ONLY}/webhooks/{webhook_id}"
         
         payload = {
@@ -150,7 +150,7 @@ class KAIFusionWebhookClient:
         return response.json()
 
 # Usage Example
-client = KAIFusionWebhookClient()
+client = kaiflowWebhookClient()
 
 result = client.trigger_workflow(
     webhook_id="wh_your_unique_id_123",
@@ -183,7 +183,7 @@ When configuring the HTTP Request node that follows your webhook trigger:
     "headers": {
       "Content-Type": "application/json",
       "Authorization": "Bearer your-api-key-here",
-      "X-Source": "kai-fusion-workflow",
+      "X-Source": "KAI-Flow-workflow",
       "Accept": "application/json"
     },
     "body_type": "json",
@@ -308,7 +308,7 @@ const app = express();
 
 app.use(express.json());
 
-// Endpoint to receive processed data from KAI-Fusion
+// Endpoint to receive processed data from KAI-Flow
 app.post('/api/receive-processed-data', (req, res) => {
     console.log('Received processed data:', req.body);
     
@@ -324,8 +324,8 @@ app.post('/api/receive-processed-data', (req, res) => {
     });
 });
 
-// Endpoint to trigger KAI-Fusion workflows
-app.post('/trigger-kai-fusion', async (req, res) => {
+// Endpoint to trigger KAI-Flow workflows
+app.post('/trigger-KAI-Flow', async (req, res) => {
     try {
         const response = await axios.post(
             'http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123',
@@ -366,7 +366,7 @@ WEBHOOK_TOKEN = "webhook_token_secure_123"
 
 @app.route('/api/receive-data', methods=['POST'])
 def receive_processed_data():
-    """Receive processed data from KAI-Fusion HTTP node"""
+    """Receive processed data from KAI-Flow HTTP node"""
     data = request.get_json()
     
     print(f"Received processed data at {datetime.now()}")
@@ -387,7 +387,7 @@ def receive_processed_data():
 
 @app.route('/trigger-workflow', methods=['POST'])
 def trigger_kai_fusion_workflow():
-    """Trigger KAI-Fusion workflow from external system"""
+    """Trigger KAI-Flow workflow from external system"""
     payload = {
         'event_type': 'external.system.trigger',
         'data': request.get_json(),
@@ -425,7 +425,7 @@ if __name__ == '__main__':
 
 ```bash
 #!/bin/bash
-echo "🚀 Testing KAI-Fusion Webhook → HTTP Integration"
+echo "🚀 Testing KAI-Flow Webhook → HTTP Integration"
 
 # Test 1: Simple webhook trigger
 echo "Test 1: Basic webhook trigger"
@@ -662,7 +662,7 @@ curl -X GET "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_yo
 
 ## 🚀 Quick Start Checklist
 
-- [ ] Create webhook trigger node in KAI-Fusion UI
+- [ ] Create webhook trigger node in KAI-Flow UI
 - [ ] Note down your `webhook_id` and `secret_token`
 - [ ] Configure external service with webhook URL
 - [ ] Set up HTTP request node for data forwarding  
@@ -676,14 +676,14 @@ curl -X GET "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_yo
 
 ## 📞 Support & Resources
 
-- **Documentation**: Check KAI-Fusion docs for latest updates
+- **Documentation**: Check KAI-Flow docs for latest updates
 - **API Reference**: `/api/docs` for interactive API documentation  
 - **Health Checks**: Use `/health` endpoints for monitoring
 - **Logs**: Check application logs for debugging
-- **Community**: Join KAI-Fusion community for support
+- **Community**: Join KAI-Flow community for support
 
 ---
 
 **Last Updated**: August 10, 2025
 **Version**: 2.1.0
-**Compatibility**: KAI-Fusion Platform v2.x+
+**Compatibility**: KAI-Flow Platform v2.x+

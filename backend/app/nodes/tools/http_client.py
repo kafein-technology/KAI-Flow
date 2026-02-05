@@ -270,7 +270,7 @@ class HttpClientNode(ProcessorNode):
             auth = httpx.BasicAuth(config.auth_username, config.auth_password)
 
         # Add user agent
-        headers.setdefault("User-Agent", "KAI-Fusion-HttpRequest/1.0")
+        headers.setdefault("User-Agent", "KAI-Flow-HttpRequest/1.0")
 
         return headers, auth
 

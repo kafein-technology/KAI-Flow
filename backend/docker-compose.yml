@@ -1,11 +1,11 @@
 version: '3'
 services:
-  kaifusion-backend:
+  kaiflow-backend:
     build:
       context: .
       dockerfile: Dockerfile
-    image: kaifusion:latest
-    container_name: kai-fusion-backend
+    image: kaiflow:latest
+    container_name: KAI-Flow-backend
     ports:
       - "${BACKEND_PORT:-23056}:8000"
     environment:
@@ -74,11 +74,11 @@ services:
     volumes:
       - ./:/app
     networks:
-      - kaifusion-network
+      - kaiflow-network
     stdin_open: true
     restart: always
     tty: true
 
 networks:
-  kaifusion-network:
+  kaiflow-network:
     driver: bridge

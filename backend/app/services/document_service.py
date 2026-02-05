@@ -1,8 +1,8 @@
 """
-KAI-Fusion Document Service - Enterprise Document Management & Storage Service
+KAI-Flow Document Service - Enterprise Document Management & Storage Service
 =============================================================================
 
-This module implements comprehensive document management services for the KAI-Fusion platform,
+This module implements comprehensive document management services for the KAI-Flow platform,
 providing enterprise-grade document storage, retrieval, analytics, and lifecycle management.
 Built for production environments with advanced database integration, full-text search
 capabilities, and intelligent document organization with comprehensive business logic.
@@ -83,10 +83,10 @@ Enterprise Capabilities:
 - Scalability optimization with horizontal scaling support
 - Compliance reporting with automated audit trail generation
 
-AUTHORS: KAI-Fusion Document Management Team
+AUTHORS: KAI-Flow Document Management Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-29
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import List, Dict, Any, Optional, Tuple

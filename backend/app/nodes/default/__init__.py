@@ -1,5 +1,5 @@
 """
-Default nodes for KAI-Fusion workflows.
+Default nodes for KAI-Flow workflows.
 These nodes provide basic workflow structure and control flow.
 """
 

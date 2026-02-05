@@ -1,10 +1,10 @@
 # HTTP Client Node - Kapsamlı Kullanım Kılavuzu
 
-Bu kılavuz, KAI-Fusion platformunda HTTP Client Node'un tüm özelliklerini ve kullanım senaryolarını detaylı şekilde açıklar.
+Bu kılavuz, KAI-Flow platformunda HTTP Client Node'un tüm özelliklerini ve kullanım senaryolarını detaylı şekilde açıklar.
 
 ## 🚀 HTTP Client Node Nedir?
 
-HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönderen güçlü bileşenidir. RESTful API'lere bağlanma, veri çekme/gönderme ve dış sistemlerle entegrasyon için kullanılır.
+HTTP Client Node, KAI-Flow platformunun dış servislere HTTP istekleri gönderen güçlü bileşenidir. RESTful API'lere bağlanma, veri çekme/gönderme ve dış sistemlerle entegrasyon için kullanılır.
 
 ## ⚙️ Temel Özellikler
 
@@ -62,7 +62,7 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
 {
   "headers": {
     "Content-Type": "application/json",
-    "User-Agent": "KAI-Fusion/2.1.0",
+    "User-Agent": "KAI-Flow/2.1.0",
     "Accept": "application/json"
   },
   "body": {
@@ -98,7 +98,7 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
   "method": "POST",
   "content_type": "application/json",
   "body": {
-    "text": "KAI-Fusion notification: {{message}}",
+    "text": "KAI-Flow notification: {{message}}",
     "channel": "#alerts"
   }
 }
@@ -439,7 +439,7 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
   "auth_token": "{{github_token}}",
   "headers": {
     "Accept": "application/vnd.github.v3+json",
-    "User-Agent": "KAI-Fusion-Bot"
+    "User-Agent": "KAI-Flow-Bot"
   }
 }
 ```
@@ -461,4 +461,4 @@ HTTP Client Node, KAI-Fusion platformunun dış servislere HTTP istekleri gönde
 }
 ```
 
-HTTP Client Node, KAI-Fusion platformunda dış sistemlerle entegrasyon kurmak için güçlü ve esnek bir araçtır. Bu kılavuzdaki örnekleri kullanarak kendi API entegrasyonlarınızı kolayca oluşturabilirsiniz.
+HTTP Client Node, KAI-Flow platformunda dış sistemlerle entegrasyon kurmak için güçlü ve esnek bir araçtır. Bu kılavuzdaki örnekleri kullanarak kendi API entegrasyonlarınızı kolayca oluşturabilirsiniz.

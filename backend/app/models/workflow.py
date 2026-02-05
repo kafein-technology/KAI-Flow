@@ -1,9 +1,9 @@
 """
-KAI-Fusion Enterprise Data Models - Advanced Workflow & Template Data Architecture
+KAI-Flow Enterprise Data Models - Advanced Workflow & Template Data Architecture
 =================================================================================
 
 This module implements the sophisticated data models for workflow and template management
-in the KAI-Fusion platform, providing enterprise-grade data persistence, comprehensive
+in the KAI-Flow platform, providing enterprise-grade data persistence, comprehensive
 relationship management, and advanced database optimization. Built for production
 environments with scalable data architecture, intelligent indexing, and enterprise-grade
 data integrity designed for large-scale AI workflow platforms requiring sophisticated
@@ -12,7 +12,7 @@ data management and high-performance database operations.
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Enterprise Data Models serve as the core data persistence layer for KAI-Fusion
+The Enterprise Data Models serve as the core data persistence layer for KAI-Flow
 workflows and templates, providing comprehensive data integrity, advanced relationship
 management, and intelligent database optimization with enterprise-grade performance,
 scalability, and data security for production deployment environments.
@@ -270,10 +270,10 @@ Comprehensive Data Intelligence:
    - Workflow complexity analysis with performance correlation and optimization recommendations
    - User behavior analysis with data access patterns and experience optimization
 
-AUTHORS: KAI-Fusion Data Architecture Team
+AUTHORS: KAI-Flow Data Architecture Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:

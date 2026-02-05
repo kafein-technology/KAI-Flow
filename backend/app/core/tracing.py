@@ -1,8 +1,8 @@
 """
-KAI-Fusion Enterprise Tracing & Observability Framework - Advanced Workflow Intelligence System
+KAI-Flow Enterprise Tracing & Observability Framework - Advanced Workflow Intelligence System
 ===============================================================================================
 
-This module implements the sophisticated tracing and observability framework for the KAI-Fusion
+This module implements the sophisticated tracing and observability framework for the KAI-Flow
 platform, providing enterprise-grade workflow monitoring, comprehensive execution analytics,
 and advanced performance intelligence. Built for production environments with real-time
 observability, distributed tracing, and comprehensive performance optimization designed
@@ -11,7 +11,7 @@ for enterprise-scale AI workflow automation platforms requiring detailed executi
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Enterprise Tracing Framework serves as the central observability hub for KAI-Fusion
+The Enterprise Tracing Framework serves as the central observability hub for KAI-Flow
 workflows, capturing all execution details, performance metrics, and behavioral analytics
 with enterprise-grade monitoring capabilities, comprehensive audit trails, and advanced
 intelligence gathering for production deployment environments requiring detailed insights.
@@ -255,10 +255,10 @@ Advanced Tracing Intelligence:
    - Error prevention strategies with reliability improvement and resilience enhancement
    - User experience optimization with personalization and satisfaction improvement
 
-AUTHORS: KAI-Fusion Observability and Intelligence Team
+AUTHORS: KAI-Flow Observability and Intelligence Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:
@@ -502,7 +502,7 @@ class DistributedTracer:
     """Enhanced distributed tracer with correlation IDs and span tracking."""
     
     def __init__(self, 
-                 service_name: str = "kai-fusion",
+                 service_name: str = "KAI-Flow",
                  sampling_strategy: SamplingStrategy = SamplingStrategy.ALWAYS,
                  **sampling_config):
         self.service_name = service_name
@@ -747,7 +747,7 @@ class WorkflowTracer:
             user_id=self.user_id,
             node_count=node_count,
             edge_count=connection_count,
-            platform="kai-fusion",
+            platform="KAI-Flow",
             version="2.1.0"
         )
         
@@ -1193,7 +1193,7 @@ class WorkflowTracer:
                 if LANGCHAIN_API_KEY:
                     # Create tracer with correlation ID
                     tracer = LangChainTracer(
-                        project_name=LANGCHAIN_PROJECT or "kai-fusion",
+                        project_name=LANGCHAIN_PROJECT or "KAI-Flow",
                         session_id=self.session_id or "default"
                     )
                     

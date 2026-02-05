@@ -1,5 +1,5 @@
 """
-KAI-Fusion Enhanced Connection Management System
+KAI-Flow Enhanced Connection Management System
 ==============================================
 
 Advanced connection mapping with reliability, validation, and caching.

@@ -2,9 +2,9 @@
   <img src="./banner.png" alt="KAI‑Fusion Banner" width="100%" />
 </p>
 
-[![License](https://img.shields.io/github/license/kafein-product-space/KAI-Fusion)](./LICENSE)
-![GitHub Repo stars](https://img.shields.io/github/stars/kafein-product-space/KAI-Fusion?style=social)
-![GitHub forks](https://img.shields.io/github/forks/kafein-product-space/KAI-Fusion?style=social)
+[![License](https://img.shields.io/github/license/kafein-product-space/KAI-Flow)](./LICENSE)
+![GitHub Repo stars](https://img.shields.io/github/stars/kafein-product-space/KAI-Flow?style=social)
+![GitHub forks](https://img.shields.io/github/forks/kafein-product-space/KAI-Flow?style=social)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
 
 KAI‑Fusion is an open‑source, visual workflow builder for AI agents. It features a robust **Python 3.11 (FastAPI 0.116)** backend with **LangChain** and **LangGraph**, a modern **React 19.1 (React Router 7, Vite 6.3, Tailwind 4, DaisyUI 5)** frontend, and uses **PostgreSQL** with **pgvector** for persistence.
@@ -18,7 +18,7 @@ You can run the full stack locally using Docker (with an external DB) or set up 
 <!-- Inline demo video (GitHub renders HTML) -->
 
 <p>
-  <img src="./demo.gif" alt="KAI-Fusion Demo" width="100%" />
+  <img src="./demo.gif" alt="KAI-Flow Demo" width="100%" />
 </p>
 
 <!-- Screenshot -->
@@ -31,9 +31,9 @@ You can run the full stack locally using Docker (with an external DB) or set up 
 
 ### 🔗 Quick Links
 
-* **Website (Preview)**: [https://kai-fusion-blond.vercel.app](https://kai-fusion-blond.vercel.app)
+* **Website (Preview)**: [https://KAI-Flow-blond.vercel.app](https://KAI-Flow-blond.vercel.app)
 * **API Docs (local)**: [http://localhost:8000/docs](http://localhost:8000/docs) (FastAPI Swagger UI)
-* **Star / Fork**: [https://github.com/kafein-product-space/KAI-Fusion](https://github.com/kafein-product-space/KAI-Fusion)
+* **Star / Fork**: [https://github.com/kafein-product-space/KAI-Flow](https://github.com/kafein-product-space/KAI-Flow)
 
 ---
 
@@ -150,7 +150,7 @@ ROOT_PATH="/api/kai"
 # LangSmith / LangChain tracing (optional but recommended for debugging)
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_API_KEY=your_langchain_api_key
-LANGCHAIN_PROJECT=kai-fusion-workflows
+LANGCHAIN_PROJECT=KAI-Flow-workflows
 LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 ENABLE_WORKFLOW_TRACING=true
 TRACE_MEMORY_OPERATIONS=true
@@ -197,8 +197,8 @@ pip install -r backend/requirements.txt
 ### Option B — Conda
 
 ```bash
-conda create -n kai-fusion python=3.11 -y
-conda activate kai-fusion
+conda create -n KAI-Flow python=3.11 -y
+conda activate KAI-Flow
 pip install -r backend/requirements.txt
 ```
 
@@ -236,7 +236,7 @@ npm run dev
 ```
 
 ### Widget (Embeddable)
-A standalone chat widget for embedding KAI-Fusion agents into other sites.
+A standalone chat widget for embedding KAI-Flow agents into other sites.
 
 ```bash
 cd widget
@@ -296,13 +296,13 @@ docker compose stop
 
 ```bash
 # Build the app image from the project root
-docker build --no-cache -t kai-fusion:latest .
+docker build --no-cache -t KAI-Flow:latest .
 
 # Run (example for backend image; adjust ports/envs to your Dockerfile)
-docker run -d --name kai-fusion \
+docker run -d --name KAI-Flow \
   -p 8000:8000 \
   --env-file backend/.env \
-  kai-fusion:latest
+  KAI-Flow:latest
 ```
 
 ---
@@ -310,7 +310,7 @@ docker run -d --name kai-fusion \
 ## 🧱 Project Structure
 
 ```
-KAI-Fusion/
+KAI-Flow/
 ├─ backend/                 # FastAPI 0.116 Backend (Python 3.11)
 │  ├─ app/
 │  │  ├─ api/               # REST API endpoints
@@ -342,7 +342,7 @@ KAI-Fusion/
 │  │  └─ lib/               # Utilities
 │  ├─ package.json          # React Router 7, Vite 6.3
 │  └─ vite.config.ts
-├─ widget/                  # Embeddable Chat Widget (@kaifusion/widget)
+├─ widget/                  # Embeddable Chat Widget (@kaiflow/widget)
 │  ├─ src/                  # Widget source
 │  ├─ widget.js             # Pre-built widget bundle
 │  └─ package.json          # v1.0.6
@@ -360,7 +360,7 @@ KAI-Fusion/
 * **AI/ML Framework**: Integrated LangChain, LangGraph, and LangSmith for building and debugging complex agent flows.
 * **Vector Database**: PostgreSQL with pgvector for embedding storage and semantic search.
 * **Node Types**: LLMs, Agents, Tools (Web Search, Code Execution), Memory, Embeddings, Vector Stores, Document Loaders, Text Splitters, Triggers.
-* **Embeddable Widget**: Export your agents as an embeddable widget (`@kaifusion/widget` on npm).
+* **Embeddable Widget**: Export your agents as an embeddable widget (`@kaiflow/widget` on npm).
 * **Secure**: JWT-based authentication with Keycloak integration support.
 * **Scheduling**: Built-in cron-based workflow scheduling with APScheduler.
 
@@ -370,16 +370,16 @@ KAI-Fusion/
 
 ### ⭐ Star History (auto‑updated)
 
-[![Star History Chart](https://api.star-history.com/svg?repos=kafein-product-space/KAI-Fusion\&type=Date)](https://star-history.com/#kafein-product-space/KAI-Fusion)
+[![Star History Chart](https://api.star-history.com/svg?repos=kafein-product-space/KAI-Flow\&type=Date)](https://star-history.com/#kafein-product-space/KAI-Flow)
 
 ### ⬇️ Downloads — Badges & Table
 
 | Metric                   | Badge                                                                                                                                      |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **All releases (total)** | ![All Downloads](https://img.shields.io/github/downloads/kafein-product-space/KAI-Fusion/total?label=All%20downloads)                      |
-| **Latest release**       | ![Latest Release Downloads](https://img.shields.io/github/downloads/kafein-product-space/KAI-Fusion/latest/total?label=Latest%20downloads) |
-| **Stars (live)**         | ![GitHub Repo stars](https://img.shields.io/github/stars/kafein-product-space/KAI-Fusion?style=social)                                     |
-| **Forks (live)**         | ![GitHub forks](https://img.shields.io/github/forks/kafein-product-space/KAI-Fusion?style=social)                                          |
+| **All releases (total)** | ![All Downloads](https://img.shields.io/github/downloads/kafein-product-space/KAI-Flow/total?label=All%20downloads)                      |
+| **Latest release**       | ![Latest Release Downloads](https://img.shields.io/github/downloads/kafein-product-space/KAI-Flow/latest/total?label=Latest%20downloads) |
+| **Stars (live)**         | ![GitHub Repo stars](https://img.shields.io/github/stars/kafein-product-space/KAI-Flow?style=social)                                     |
+| **Forks (live)**         | ![GitHub forks](https://img.shields.io/github/forks/kafein-product-space/KAI-Flow?style=social)                                          |
 
 
 ## 🙌 Contributing (with user icons)
@@ -393,17 +393,17 @@ We welcome PRs! Please:
 
 ### 👥 Contributors 
 
-<a href="https://github.com/kafein-product-space/KAI-Fusion/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=kafein-product-space/KAI-Fusion" alt="Contributors" />
+<a href="https://github.com/kafein-product-space/KAI-Flow/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=kafein-product-space/KAI-Flow" alt="Contributors" />
 </a>
 
 
 
 ### ⭐ Stargazers & 🍴 Forkers
 
-[⭐ Stargazers repo roster for @kafein-product-space/KAI-Fusion](https://github.com/kafein-product-space/KAI-Fusion/stargazers) 
+[⭐ Stargazers repo roster for @kafein-product-space/KAI-Flow](https://github.com/kafein-product-space/KAI-Flow/stargazers) 
 
-[🍴 Forkers repo roster for @kafein-product-space/KAI-Fusion](https://github.com/kafein-product-space/KAI-Fusion/network/members)
+[🍴 Forkers repo roster for @kafein-product-space/KAI-Flow](https://github.com/kafein-product-space/KAI-Flow/network/members)
 
 
 ## 🆘 Troubleshooting
