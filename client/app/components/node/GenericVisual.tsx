@@ -103,6 +103,19 @@ function GenericVisual({
     [data.metadata?.icon]
   );
 
+  // Check if the node is a provider (should show original icon colors)
+  const isProvider = useMemo(() => {
+    const category = data.metadata?.category?.toLowerCase() || '';
+    const nodeType = data.node_type?.toLowerCase() || data.nodeType?.toLowerCase() || '';
+    const name = data.name?.toLowerCase() || '';
+
+    // Provider categories and patterns
+    const providerPatterns = ['provider', 'llm', 'embedding', 'reranker', 'retriever'];
+    return providerPatterns.some(pattern =>
+      category.includes(pattern) || nodeType.includes(pattern) || name.includes(pattern)
+    );
+  }, [data.metadata?.category, data.node_type, data.nodeType, data.name]);
+
   // Handle configuration for positioning and styling
   const handleConfig = {
     [Position.Left]: {
@@ -195,7 +208,7 @@ function GenericVisual({
       {/* Ana ikon */}
       <div className="relative z-10 mb-2">
         <div className="relative">
-          <NodeIcon className="w-8 h-8 text-white drop-shadow-lg" />
+          <NodeIcon className={`w-8 h-8 drop-shadow-lg ${isProvider ? '' : 'text-white'}`} />
         </div>
       </div>
 
