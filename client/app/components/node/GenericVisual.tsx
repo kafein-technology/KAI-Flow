@@ -74,7 +74,10 @@ function GenericVisual({
     // Prioritize Icon component if name is available, as it renders inline SVG
     // and supports CSS color classes (text-white, etc.) via currentColor
     if (icon?.name) {
-      return (props: any) => <DynamicIcon name={icon.name} {...props} />;
+      return (props: any) => {
+        const component = <DynamicIcon name={icon.name} {...props} />;
+        return component || <Box {...props} />;
+      };
     }
     if (icon?.path) {
       const iconPath = resolveIconPath(icon.path);
@@ -84,6 +87,11 @@ function GenericVisual({
           alt={icon.alt}
           {...props}
           className={`${props.className || ""} object-contain`}
+          onError={(e) => {
+            // Fallback to Box on image load error
+            const target = e.target as HTMLImageElement;
+            target.style.display = 'none';
+          }}
         />
       );
     }

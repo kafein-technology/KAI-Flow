@@ -35,6 +35,7 @@ interface NodeType {
   display_name: string;
   data: any;
   info: string;
+  colors?: string[];
 }
 
 interface DraggableNodeProps {
@@ -44,6 +45,58 @@ interface DraggableNodeProps {
 
 // Fixed icon size - all icons will fit within this container
 const ICON_CONTAINER_SIZE = "w-8 h-8";
+
+// Node type to icon color mapping (for sidebar)
+const nodeIconColorMap: Record<string, string> = {
+  // Flow Control
+  Agent: "text-blue-400",
+  StartNode: "text-green-400",
+  start: "text-green-400",
+  TimerStart: "text-yellow-400",
+  EndNode: "text-white",
+  ConditionalChain: "text-orange-400",
+  RouterChain: "text-lime-400",
+
+  // AI & Embedding
+  CohereEmbeddings: "text-blue-500",
+  OpenAIEmbedder: "text-violet-400",
+
+  // Memory
+  BufferMemory: "text-red-400",
+  ConversationMemory: "text-rose-400",
+
+  // Documents & Data
+  TextDataLoader: "text-pink-400",
+  DocumentLoader: "text-blue-400",
+  ChunkSplitter: "text-pink-400",
+  StringInputNode: "text-blue-400",
+  PGVectorStore: "text-slate-400",
+  VectorStoreOrchestrator: "text-slate-400",
+  IntelligentVectorStore: "text-slate-400",
+
+  // Web & APIs
+  TavilySearch: "text-cyan-400",
+  WebScraper: "text-blue-400",
+  HttpRequest: "text-blue-400",
+  WebhookTrigger: "text-emerald-400",
+  RespondToWebhook: "text-emerald-400",
+
+  // RAG & QA
+  RetrievalQA: "text-purple-400",
+  Reranker: "text-blue-500",
+  CohereRerankerProvider: "text-blue-500",
+  RetrieverProvider: "text-indigo-400",
+  RetrieverNode: "text-sky-400",
+  Retriever: "text-indigo-400",
+  OpenAIEmbeddingsProvider: "text-violet-400",
+
+  // Processing Nodes
+  CodeNode: "text-white",
+  ConditionNode: "text-white",
+
+  // Generic
+  GenericNode: "text-blue-400",
+};
 
 // Node type to icon component mapping
 const nodeIconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
@@ -87,6 +140,8 @@ const nodeIconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGEleme
   RetrieverProvider: FileStack,
   RetrieverNode: Search,
   OpenAIEmbeddingsProvider: Openai,
+  Retriever: FileStack,
+  Condition: Condition,
 
   // LLM Providers
   OpenAICompatibleNode: Openai,
@@ -129,7 +184,7 @@ const staticIcons: Record<string, ReactElement> = {
 /**
  * Gets the icon element for a node type.
  */
-function getNodeIcon(nodeType: string): ReactElement | null {
+function getNodeIcon(nodeType: string, colors?: string[]): ReactElement | null {
   // Check for static icons first (inline SVGs)
   if (staticIcons[nodeType]) {
     return staticIcons[nodeType];
@@ -138,10 +193,20 @@ function getNodeIcon(nodeType: string): ReactElement | null {
   // Check for component-based icons
   const IconComponent = nodeIconMap[nodeType];
   if (IconComponent) {
-    return <IconComponent className="w-6 h-6" />;
+    // Use backend color if available, otherwise use predefined mapping
+    let colorClass = "";
+    if (colors && colors[0]) {
+      // Extract text color from gradient color (e.g., "from-blue-600" -> "text-blue-600")
+      const colorPart = colors[0].replace("from-", "text-");
+      colorClass = colorPart;
+    } else {
+      colorClass = nodeIconColorMap[nodeType] || "";
+    }
+    return <IconComponent className={`w-6 h-6 ${colorClass}`} />;
   }
 
-  return null;
+  // Fallback to Box icon for unknown node types
+  return <Box className="w-6 h-6 text-gray-400" />;
 }
 
 function DraggableNode({ nodeType, icon }: DraggableNodeProps) {
@@ -161,7 +226,7 @@ function DraggableNode({ nodeType, icon }: DraggableNodeProps) {
       className="text-gray-100 flex items-center gap-2 p-3 hover:bg-gray-700/50 transition-all select-none cursor-grab rounded-2xl border border-transparent hover:border-gray-600"
     >
       <div className={`flex items-center justify-center ${ICON_CONTAINER_SIZE} m-2 shrink-0 text-gray-300`}>
-        {getNodeIcon(nodeType.type) || <></>}
+        {getNodeIcon(nodeType.type, nodeType.colors) || <></>}
       </div>
       <div className="flex flex-col gap-2">
         <div>
