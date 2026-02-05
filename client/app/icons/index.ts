@@ -155,6 +155,13 @@ const iconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>
     Edit, Eraser, ExternalLink, Eye, Filter, Grid, Hash,
     List, LogOut, Maximize2, Minimize2, Minus, Pencil, Plus,
     Search, Square, ToggleLeft, ToggleRight, Trash, Trash2, X,
+    // Service ID aliases for credentials
+    openai: Openai,
+    cohere: Cohere,
+    postgresql_vectorstore: PostgresqlVectorstore,
+    tavily_search: TavilyNonbrand,
+    basic_auth: Key,
+    header_auth: Lock,
 };
 
 // Case-insensitive lookup

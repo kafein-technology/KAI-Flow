@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Position } from "@xyflow/react";
 import { NeonHandle } from "~/components/common/NeonHandle";
-import { Box, Download, Square, Trash, Copy, Play, Zap, Icon } from "../../icons/index";
+import { Box, Download, Square, Trash, Copy, Play, Zap, Icon as DynamicIcon } from "../../icons/index";
 import type { GenericData } from "./types";
 import type { NodeMetadata } from "../../types/api";
 import { resolveIconPath } from "~/lib/iconUtils";
@@ -74,7 +74,7 @@ function GenericVisual({
     // Prioritize Icon component if name is available, as it renders inline SVG
     // and supports CSS color classes (text-white, etc.) via currentColor
     if (icon?.name) {
-      return (props: any) => <Icon name={icon.name} {...props} />;
+      return (props: any) => <DynamicIcon name={icon.name} {...props} />;
     }
     if (icon?.path) {
       const iconPath = resolveIconPath(icon.path);
@@ -90,7 +90,7 @@ function GenericVisual({
     return Box;
   };
 
-  const Icon = useMemo(
+  const NodeIcon = useMemo(
     () => getIconComponent(data.metadata?.icon),
     [data.metadata?.icon]
   );
@@ -187,7 +187,7 @@ function GenericVisual({
       {/* Ana ikon */}
       <div className="relative z-10 mb-2">
         <div className="relative">
-          <Icon className="w-8 h-8 text-white drop-shadow-lg" />
+          <NodeIcon className="w-8 h-8 text-white drop-shadow-lg" />
         </div>
       </div>
 
