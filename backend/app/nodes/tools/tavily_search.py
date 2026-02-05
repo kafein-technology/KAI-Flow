@@ -459,11 +459,11 @@ class TavilySearchNode(ProviderNode):
                     required= True,
                 ),
                 NodeProperty(
-                    name="credential",
-                    displayName= "Credential (Optional)",
+                    name="credential_id",
+                    displayName= "Credential",
                     type= NodePropertyType.CREDENTIAL_SELECT,
                     placeholder= "Select Credential",
-                    required= False,
+                    required= True,
                     serviceType="tavily_search",
                 ),
                 NodeProperty(

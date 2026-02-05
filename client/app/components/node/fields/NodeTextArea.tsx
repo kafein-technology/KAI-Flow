@@ -29,7 +29,7 @@ export const NodeTextArea = ({ property, values }: NodeTextAreaProps) => {
         name={property.name}
         placeholder={property.placeholder}
         rows={property.rows}
-        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-vertical"
+        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-[#10182c] border border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 resize-vertical"
         onMouseDown={(e: any) => e.stopPropagation()}
         onTouchStart={(e: any) => e.stopPropagation()}
       />

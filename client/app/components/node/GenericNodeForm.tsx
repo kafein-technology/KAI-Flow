@@ -230,22 +230,104 @@ export default function GenericNodeForm({
               })();
 
               if (!property.required && visibleOptionalFields.has(property.name)) {
+                // Checkbox için kompakt görünüm
+                if (property.type === "checkbox") {
+                  return (
+                    <div key={property.name} className="col-span-2 flex items-center justify-between bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-slate-200">{property.displayName}</span>
+                        {property.hint && (
+                          <span className="text-xs text-slate-400">({property.hint})</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {/* Toggle Switch */}
+                        <button
+                          type="button"
+                          onClick={() => setFieldValue(property.name, !values[property.name])}
+                          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                            values[property.name] ? "bg-blue-500" : "bg-slate-600"
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${
+                              values[property.name] ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                        {/* Remove Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            removeOptionalField(property.name);
+                            setFieldValue(property.name, false);
+                          }}
+                          className="text-slate-400 hover:text-red-400 transition-colors"
+                          title={`Remove ${property.displayName}`}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Number için kompakt görünüm (checkbox gibi)
+                if (property.type === "number") {
+                  return (
+                    <div key={property.name} className="col-span-2 flex items-center justify-between bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-slate-200">{property.displayName}</span>
+                        {property.hint && (
+                          <span className="text-xs text-slate-400">({property.hint})</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="number"
+                          value={values[property.name] ?? property.default ?? ""}
+                          onChange={(e) => setFieldValue(property.name, e.target.value ? Number(e.target.value) : "")}
+                          min={property.min}
+                          max={property.max}
+                          className="w-20 bg-[#10182c] border border-slate-600 rounded-lg px-2 py-1 text-sm text-white text-center focus:outline-none focus:border-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            removeOptionalField(property.name);
+                            setFieldValue(property.name, property.default ?? "");
+                          }}
+                          className="text-slate-400 hover:text-red-400 transition-colors"
+                          title={`Remove ${property.displayName}`}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Diğer field türleri için container stili
                 return (
-                  <div key={property.name} className="relative col-span-2">
+                  <div key={property.name} className="col-span-2 relative bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
                     {fieldComponent}
                     <button
                       type="button"
                       onClick={() => removeOptionalField(property.name)}
-                      className="absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs z-10 transition-colors"
+                      className="absolute top-3 right-4 text-slate-400 hover:text-red-400 transition-colors"
                       title={`Remove ${property.displayName}`}
                     >
-                      <X size={12} />
+                      <X size={16} />
                     </button>
                   </div>
                 );
               }
 
-              return <div key={property.name} className="col-span-2">{fieldComponent}</div>;
+              return (
+                <div key={property.name} className="col-span-2 bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                  {fieldComponent}
+                </div>
+              );
             })}
 
             {/* Add Option Dropdown */}
@@ -268,7 +350,7 @@ export default function GenericNodeForm({
                   </button>
 
                   {optionDropdownOpen && (
-                    <div className="absolute z-50 mt-1 left-2 right-0 bg-slate-900 border border-slate-700 rounded-lg shadow-lg shadow-black/40 overflow-hidden py-1">
+                    <div className="absolute z-50 mt-1 left-0 right-0 bg-slate-900 border border-slate-700 rounded-lg shadow-lg shadow-black/40 overflow-hidden">
                       {getHiddenOptionalProperties(activeTab).map((property: NodeProperty) => (
                         <button
                           key={property.name}
@@ -277,9 +359,9 @@ export default function GenericNodeForm({
                             addOptionalField(property.name);
                             setOptionDropdownOpen(false);
                           }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-300 hover:bg-blue-500/15 hover:text-blue-300 transition-colors duration-150 text-left"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-300 hover:bg-blue-500/20 hover:text-blue-300 transition-colors duration-150 text-left group"
                         >
-                          <Plus size={14} className="text-slate-500 flex-shrink-0" />
+                          <Plus size={14} className="text-slate-500 group-hover:text-blue-300 flex-shrink-0" />
                           {property.displayName}
                         </button>
                       ))}
