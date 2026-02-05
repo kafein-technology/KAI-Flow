@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import Icon, {
+import {
   Copy,
   RefreshCw,
   ChevronLeft,
@@ -15,7 +15,8 @@ import Icon, {
   Grid,
   List,
   Box,
-} from "~/components/common/Icon";
+  Icon,
+} from "~/icons/index";
 import { resolveIconPath } from "~/lib/iconUtils";
 import { prebuiltTemplates } from "~/data/prebuiltTemplates";
 import { useNavigate } from "react-router";
@@ -172,7 +173,7 @@ function MarketplaceLayout() {
         />
       );
     }
-    
+
     return Box;
   };
 

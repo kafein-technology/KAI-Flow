@@ -1,4 +1,4 @@
-import { Loader2 } from "~/components/common/Icon";
+import { Loader2 } from "~/icons/index";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";

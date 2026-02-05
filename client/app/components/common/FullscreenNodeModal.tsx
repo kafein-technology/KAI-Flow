@@ -15,7 +15,7 @@ import {
   Key,
   Database,
   Play,
-} from "./Icon";
+} from "~/icons/index";
 import { motion, AnimatePresence } from "motion/react";
 import { enqueueSnackbar } from "notistack";
 import DataDisplayModes from "./DataDisplayModes";

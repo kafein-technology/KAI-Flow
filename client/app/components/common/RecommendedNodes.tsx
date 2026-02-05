@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles } from "./Icon";
+import { Sparkles } from "~/icons/index";
 import DraggableNode from "./DraggableNode";
 import { useSmartSuggestions } from "~/stores/smartSuggestions";
 import { SmartSuggestionsService } from "~/services/smartSuggestions";

@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, X } from "~/components/common/Icon";
+import { AlertTriangle, X } from "~/icons/index";
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean;
@@ -32,7 +32,7 @@ export default function DeleteConfirmationModal({
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 backdrop-blur-sm z-50 transition-all duration-300" onClick={onClose} />
-      
+
       {/* Modal */}
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl max-w-md w-full">

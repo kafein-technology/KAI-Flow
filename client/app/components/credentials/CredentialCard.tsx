@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PencilIcon as Pencil, TrashIcon as Trash } from "../../icons/index";
+import { Icon, Pencil, Trash } from "../../icons/index";
 import { timeAgo } from "~/lib/dateFormatter";
 import { getServiceDefinition } from "~/types/credentials";
 import type { UserCredential } from "~/types/api";
@@ -23,8 +23,8 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <div className="w-6 h-6 flex items-center justify-center">
-            <Icon 
-              name={credential.service_type} 
+            <Icon
+              name={credential.service_type}
               className="w-6 h-6 object-contain"
               alt={`${serviceDefinition?.name || credential.service_type} logo`}
             />

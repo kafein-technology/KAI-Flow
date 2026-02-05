@@ -1,5 +1,5 @@
 import React from "react";
-import { Power, PowerOff } from "./Icon";
+import { Power, PowerOff } from "~/icons/index";
 
 interface ToggleSwitchProps {
   isActive: boolean;
@@ -51,10 +51,9 @@ export default function ToggleSwitch({
           rounded-full transition-all duration-300 ease-in-out
           focus:outline-none focus:ring-2 focus:ring-offset-2
           ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
-          ${
-            isActive
-              ? "bg-gradient-to-r from-green-500 to-emerald-500 shadow-lg shadow-green-500/25"
-              : "bg-gradient-to-r from-gray-400 to-gray-500 shadow-lg shadow-gray-400/25"
+          ${isActive
+            ? "bg-gradient-to-r from-green-500 to-emerald-500 shadow-lg shadow-green-500/25"
+            : "bg-gradient-to-r from-gray-400 to-gray-500 shadow-lg shadow-gray-400/25"
           }
           hover:shadow-xl
         `}
@@ -90,9 +89,8 @@ export default function ToggleSwitch({
         <div className="flex flex-col">
           {label && (
             <span
-              className={`font-medium ${
-                isActive ? "text-green-700" : "text-gray-600"
-              }`}
+              className={`font-medium ${isActive ? "text-green-700" : "text-gray-600"
+                }`}
             >
               {label}
             </span>

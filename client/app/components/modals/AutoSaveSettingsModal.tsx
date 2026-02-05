@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { Save, Clock, ToggleLeft, ToggleRight } from "~/components/common/Icon";
+import { Save, Clock, ToggleLeft, ToggleRight } from "~/icons/index";
 
 interface AutoSaveSettingsModalProps {
   autoSaveEnabled: boolean;
@@ -90,14 +90,12 @@ const AutoSaveSettingsModal = forwardRef<
               </div>
               <button
                 onClick={() => setLocalAutoSaveEnabled(!localAutoSaveEnabled)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  localAutoSaveEnabled ? "bg-blue-500" : "bg-gray-600"
-                }`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localAutoSaveEnabled ? "bg-blue-500" : "bg-gray-600"
+                  }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    localAutoSaveEnabled ? "translate-x-6" : "translate-x-1"
-                  }`}
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${localAutoSaveEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
                 />
               </button>
             </div>

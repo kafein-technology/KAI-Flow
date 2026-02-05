@@ -1,5 +1,5 @@
 import React from "react";
-import { PlusIcon as Plus, MinusIcon as Minus } from "../../icons/index";
+import { Plus, Minus } from "../../icons/index";
 
 interface SidebarToggleButtonProps {
   isSidebarOpen: boolean;

@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, X, Settings, Info } from "~/components/common/Icon";
+import { Sparkles, X, Settings, Info } from "~/icons/index";
 import { useSmartSuggestions } from "~/stores/smartSuggestions";
 import { SmartSuggestionsService } from "~/services/smartSuggestions";
 

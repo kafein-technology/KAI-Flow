@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BookOpen, X } from "~/components/common/Icon";
+import { BookOpen, X } from "~/icons/index";
 import TutorialLauncher from "./TutorialLauncher";
 import TutorialWorkflowGuide from "./TutorialWorkflowGuide";
 

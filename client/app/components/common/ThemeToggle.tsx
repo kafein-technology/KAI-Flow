@@ -1,5 +1,5 @@
 import { useThemeStore } from "~/stores/theme";
-import { Sun, Moon } from "./Icon";
+import { Sun, Moon } from "~/icons/index";
 
 export function ThemeToggle() {
   const mode = useThemeStore((s) => s.mode);
@@ -22,11 +22,10 @@ export function ThemeToggle() {
         className={`
             absolute inset-0 rounded-full pointer-events-none
             transition-all duration-500
-            ${
-              mode === "dark"
-                ? "bg-gradient-to-r from-indigo-900/30 to-purple-900/30"
-                : "bg-gradient-to-r from-yellow-100/60 to-yellow-300/60"
-            }
+            ${mode === "dark"
+            ? "bg-gradient-to-r from-indigo-900/30 to-purple-900/30"
+            : "bg-gradient-to-r from-yellow-100/60 to-yellow-300/60"
+          }
           `}
       />
       {/* Toggle circle */}
@@ -34,11 +33,10 @@ export function ThemeToggle() {
         className={`
             z-10 w-7 h-7 rounded-full flex items-center justify-center
             transition-all duration-500
-            ${
-              mode === "dark"
-                ? "bg-zinc-700 translate-x-6"
-                : "bg-white translate-x-1"
-            }
+            ${mode === "dark"
+            ? "bg-zinc-700 translate-x-6"
+            : "bg-white translate-x-1"
+          }
             shadow
           `}
       >
@@ -51,20 +49,18 @@ export function ThemeToggle() {
       {/* Static icons */}
       <span className="absolute left-2 z-0">
         <Sun
-          className={`w-4 h-4 ${
-            mode === "dark"
+          className={`w-4 h-4 ${mode === "dark"
               ? "text-zinc-400 opacity-40"
               : "text-yellow-400 opacity-80"
-          }`}
+            }`}
         />
       </span>
       <span className="absolute right-2 z-0">
         <Moon
-          className={`w-4 h-4 ${
-            mode === "dark"
+          className={`w-4 h-4 ${mode === "dark"
               ? "text-indigo-300 opacity-80"
               : "text-zinc-400 opacity-40"
-          }`}
+            }`}
         />
       </span>
     </button>

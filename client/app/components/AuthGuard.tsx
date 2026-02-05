@@ -1,5 +1,5 @@
 // components/AuthGuard.tsx
-import { Loader2 } from "~/components/common/Icon";
+import { Loader2 } from "~/icons/index";
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { apiClient } from "~/lib/api-client";
@@ -17,7 +17,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.has("code") && searchParams.has("state")) {
         let retries = 0;
-        while (retries < 10) { 
+        while (retries < 10) {
           await new Promise((resolve) => setTimeout(resolve, 500));
           const currentParams = new URLSearchParams(window.location.search);
           if (!currentParams.has("code")) {

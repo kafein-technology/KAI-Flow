@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BookOpen, Play, Star, Clock, Tag } from "~/components/common/Icon";
+import { BookOpen, Play, Star, Clock, Tag } from "~/icons/index";
 import {
   TUTORIAL_WORKFLOWS,
   type TutorialWorkflow,

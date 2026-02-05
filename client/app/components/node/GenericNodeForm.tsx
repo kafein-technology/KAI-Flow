@@ -17,7 +17,7 @@ import {
 } from "./fields";
 import TabNavigation from "../common/TabNavigation";
 import { useState } from "react";
-import { SettingsIcon as Settings } from "../../icons/index";
+import { Settings } from "../../icons/index";
 
 interface GenericNodeFormProps {
   initialValues?: GenericData;

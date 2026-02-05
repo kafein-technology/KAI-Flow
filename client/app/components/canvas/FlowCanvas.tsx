@@ -34,7 +34,7 @@ import type {
 
 type NodeStatus = "success" | "failed" | "pending";
 
-import { LoaderIcon as Loader } from "../../icons/index";
+import { Loader } from "../../icons/index";
 import ChatComponent from "./ChatComponent";
 import ChatHistorySidebar from "./ChatHistorySidebar";
 import SidebarToggleButton from "./SidebarToggleButton";
@@ -317,9 +317,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
   }, [currentWorkflow?.name]);
 
+  // Track previous workflow ID to detect actual changes
+  const prevWorkflowIdRef = useRef<string | null>(null);
+
   // Clear chats and execution data when workflow changes to prevent accumulation
   useEffect(() => {
-    if (currentWorkflow?.id) {
+    if (currentWorkflow?.id && currentWorkflow.id !== prevWorkflowIdRef.current) {
+      // Only run when workflow ID actually changes
+      prevWorkflowIdRef.current = currentWorkflow.id;
       // Reset active chat when switching to a different workflow
       setActiveChatflowId(null);
       // Clear chats when switching to a different workflow
@@ -327,7 +332,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       // Clear execution data for the previous workflow
       setCurrentExecutionForWorkflow(currentWorkflow.id, null);
     }
-  }, [currentWorkflow?.id, clearAllChats, setCurrentExecutionForWorkflow, setActiveChatflowId]);
+  }, [currentWorkflow?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {

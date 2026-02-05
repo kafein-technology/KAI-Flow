@@ -1,5 +1,5 @@
 import React from "react";
-import { Heart, HeartOff } from "./Icon";
+import { Heart, HeartOff } from "~/icons/index";
 import { usePinnedItems } from "~/stores/pinnedItems";
 import { useSnackbar } from "notistack";
 

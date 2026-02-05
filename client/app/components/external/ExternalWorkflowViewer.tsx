@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Eye, Loader, AlertCircle, Globe, MessageCircle, Clock, Settings, Zap } from '../common/Icon';
+import { X, Eye, Loader, AlertCircle, Globe, MessageCircle, Clock, Settings, Zap } from '~/icons/index';
 import { externalWorkflowService } from '~/services/externalWorkflowService';
 import type { ExternalWorkflowInfo } from '~/types/external-workflows';
 
@@ -108,7 +108,7 @@ export default function ExternalWorkflowViewer({ workflow, isOpen, onClose }: Ex
               </span>
             </div>
           </div>
-          
+
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
@@ -123,20 +123,18 @@ export default function ExternalWorkflowViewer({ workflow, isOpen, onClose }: Ex
           {workflow.description && (
             <p className="text-gray-600 mb-3">{workflow.description}</p>
           )}
-          
+
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${
-                workflow.connection_status === 'online' ? 'bg-green-500' : 'bg-red-500'
-              }`} />
+              <div className={`w-2 h-2 rounded-full ${workflow.connection_status === 'online' ? 'bg-green-500' : 'bg-red-500'
+                }`} />
               <span className="text-gray-600">Status: </span>
-              <span className={`font-medium ${
-                workflow.connection_status === 'online' ? 'text-green-600' : 'text-red-600'
-              }`}>
+              <span className={`font-medium ${workflow.connection_status === 'online' ? 'text-green-600' : 'text-red-600'
+                }`}>
                 {workflow.connection_status}
               </span>
             </div>
-            
+
             {workflowStructure && (
               <>
                 <span className="text-gray-400">•</span>
@@ -177,7 +175,7 @@ export default function ExternalWorkflowViewer({ workflow, isOpen, onClose }: Ex
               <div className="w-80 border-r bg-gray-50 overflow-y-auto">
                 <div className="p-4">
                   <h4 className="font-medium text-gray-900 mb-3">Workflow Nodes</h4>
-                  
+
                   {/* Capabilities Summary */}
                   <div className="mb-4 p-3 bg-white rounded-lg border">
                     <h5 className="text-sm font-medium text-gray-700 mb-2">Capabilities</h5>
@@ -243,7 +241,7 @@ export default function ExternalWorkflowViewer({ workflow, isOpen, onClose }: Ex
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="text-sm text-gray-600">
                       <p className="font-medium mb-2">Flow Summary:</p>
                       <div className="text-left space-y-1">
@@ -255,10 +253,10 @@ export default function ExternalWorkflowViewer({ workflow, isOpen, onClose }: Ex
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                     <p className="text-sm text-blue-800">
-                      <strong>Read-Only Access:</strong> This is a view-only representation of the external workflow. 
+                      <strong>Read-Only Access:</strong> This is a view-only representation of the external workflow.
                       You can see the structure and interact via chat, but cannot modify the workflow.
                     </p>
                   </div>

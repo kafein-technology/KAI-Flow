@@ -1,7 +1,32 @@
 import React from "react";
 import type { ReactElement } from "react";
-import { Box } from "./Icon";
-import { getNodeTypeIconPath, hasNodeTypeIcon } from "~/lib/iconUtils";
+import {
+  Box,
+  Rocket,
+  Clock,
+  Flag,
+  GitCompare,
+  GitBranch,
+  Bot,
+  Cohere,
+  Openai,
+  Database,
+  MessageCircle,
+  FileText,
+  FileInput,
+  Scissors,
+  Type,
+  PostgresqlVectorstore,
+  TavilyNonbrand,
+  Pickaxe,
+  Globe,
+  Webhook,
+  BookOpen,
+  FileStack,
+  Search,
+  Code,
+  Condition,
+} from "~/icons/index";
 
 interface NodeType {
   id: string;
@@ -17,11 +42,66 @@ interface DraggableNodeProps {
   icon?: string;
 }
 
-// Icon size is controlled by the container, not individual img elements
 // Fixed icon size - all icons will fit within this container
 const ICON_CONTAINER_SIZE = "w-8 h-8";
 
-// Static icons that don't use file paths (inline SVG or Lucide components)
+// Node type to icon component mapping
+const nodeIconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+  // Flow Control
+  StartNode: Rocket,
+  start: Rocket,
+  TimerStart: Clock,
+  EndNode: Flag,
+  ConditionalChain: GitCompare,
+  RouterChain: GitBranch,
+
+  // AI & Embedding
+  Agent: Bot,
+  CohereEmbeddings: Cohere,
+  OpenAIEmbedder: Openai,
+
+  // Memory
+  BufferMemory: Database,
+  ConversationMemory: MessageCircle,
+
+  // Documents & Data
+  TextDataLoader: FileText,
+  DocumentLoader: FileInput,
+  ChunkSplitter: Scissors,
+  StringInputNode: Type,
+  PGVectorStore: PostgresqlVectorstore,
+  VectorStoreOrchestrator: PostgresqlVectorstore,
+  IntelligentVectorStore: PostgresqlVectorstore,
+
+  // Web & APIs
+  TavilySearch: TavilyNonbrand,
+  WebScraper: Pickaxe,
+  HttpRequest: Globe,
+  WebhookTrigger: Webhook,
+  RespondToWebhook: Webhook,
+
+  // RAG & QA
+  RetrievalQA: BookOpen,
+  Reranker: Cohere,
+  CohereRerankerProvider: Cohere,
+  RetrieverProvider: FileStack,
+  RetrieverNode: Search,
+  OpenAIEmbeddingsProvider: Openai,
+
+  // LLM Providers
+  OpenAICompatibleNode: Openai,
+  OpenAIChat: Openai,
+  OpenAIEmbeddings: Openai,
+
+  // Processing Nodes
+  CodeNode: Code,
+  ConditionNode: Condition,
+
+  // Generic
+  GenericNode: Box,
+};
+
+// Static icons (inline SVG that can't be imported)
 const staticIcons: Record<string, ReactElement> = {
   RedisCache: (
     <svg
@@ -44,61 +124,21 @@ const staticIcons: Record<string, ReactElement> = {
       />
     </svg>
   ),
-  GenericNode: <Box className="w-6 h-6 text-blue-400" />,
-};
-
-// Alt text mapping for accessibility
-const iconAltText: Record<string, string> = {
-  StartNode: "start",
-  start: "start",
-  TimerStart: "timer",
-  EndNode: "end",
-  ConditionalChain: "conditional",
-  RouterChain: "router",
-  Agent: "agent",
-  CohereEmbeddings: "cohere",
-  OpenAIEmbedder: "openai",
-  BufferMemory: "buffer-memory",
-  ConversationMemory: "conversation-memory",
-  TextDataLoader: "text-loader",
-  DocumentLoader: "document-loader",
-  ChunkSplitter: "chunk-splitter",
-  StringInputNode: "string-input",
-  PGVectorStore: "pg-vectorstore",
-  VectorStoreOrchestrator: "vectorstore-orchestrator",
-  IntelligentVectorStore: "intelligent-vectorstore",
-  TavilySearch: "tavily-search",
-  WebScraper: "web-scraper",
-  HttpRequest: "http-request",
-  WebhookTrigger: "webhook",
-  RespondToWebhook: "respond-to-webhook",
-  RetrievalQA: "retrieval-qa",
-  Reranker: "reranker",
-  CohereRerankerProvider: "cohere-reranker",
-  RetrieverProvider: "retriever-provider",
-  RetrieverNode: "retriever-node",
-  OpenAIEmbeddingsProvider: "openai-embeddings-provider",
-  OpenAICompatibleNode: "openai-compatible",
-  OpenAIChat: "openai-chat",
-  OpenAIEmbeddings: "openai-embeddings",
-  CodeNode: "code-node",
-  ConditionNode: "condition-node",
 };
 
 /**
  * Gets the icon element for a node type.
- * Uses lazy evaluation to ensure BASE_PATH is read at render time.
  */
 function getNodeIcon(nodeType: string): ReactElement | null {
-  // Check for static icons first (inline SVGs or Lucide components)
+  // Check for static icons first (inline SVGs)
   if (staticIcons[nodeType]) {
     return staticIcons[nodeType];
   }
 
-  // Get icon path using centralized utility (evaluates BASE_PATH at call time)
-  const iconPath = getNodeTypeIconPath(nodeType);
-  if (iconPath) {
-    return <img src={iconPath} alt={iconAltText[nodeType] || nodeType} />;
+  // Check for component-based icons
+  const IconComponent = nodeIconMap[nodeType];
+  if (IconComponent) {
+    return <IconComponent className="w-6 h-6" />;
   }
 
   return null;
@@ -120,7 +160,7 @@ function DraggableNode({ nodeType, icon }: DraggableNodeProps) {
       onDragStart={onDragStart}
       className="text-gray-100 flex items-center gap-2 p-3 hover:bg-gray-700/50 transition-all select-none cursor-grab rounded-2xl border border-transparent hover:border-gray-600"
     >
-      <div className={`flex items-center justify-center ${ICON_CONTAINER_SIZE} m-2 shrink-0 [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain [&>img]:brightness-0 [&>img]:invert`}>
+      <div className={`flex items-center justify-center ${ICON_CONTAINER_SIZE} m-2 shrink-0 text-gray-300`}>
         {getNodeIcon(nodeType.type) || <></>}
       </div>
       <div className="flex flex-col gap-2">

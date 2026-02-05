@@ -1,5 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import svgr from "vite-plugin-svgr";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import fs from 'fs';
@@ -39,7 +40,7 @@ const proxyTarget = (!hasSSL && apiBaseUrl.includes('localhost'))
 
 export default defineConfig({
   base: basePath,
-  plugins: [react(), tailwindcss(), tsconfigPaths()],
+  plugins: [react(), svgr(), tailwindcss(), tsconfigPaths()],
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

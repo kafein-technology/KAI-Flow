@@ -1,5 +1,5 @@
 import React from "react";
-import { Heart, Play, MessageSquare, Clock, ChevronRight } from "./Icon";
+import { Heart, Play, MessageSquare, Clock, ChevronRight } from "~/icons/index";
 import { Link } from "react-router";
 import { usePinnedItems } from "~/stores/pinnedItems";
 import { timeAgo } from "~/lib/dateFormatter";

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { XIcon as X, DownloadIcon as Download, PackageIcon as Package, CheckIcon as Check, SquareIcon as Square, CheckSquareIcon as CheckSquare } from "../../icons/index";
+import { X, Download, Package, Check, Square, CheckSquare } from "../../icons/index";
 import { exportWorkflows } from "~/services/exportService";
 import type { Workflow } from "~/types/api";
 

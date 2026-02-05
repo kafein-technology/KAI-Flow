@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Code, Table, FileText, ChevronDown, Copy, Check } from './Icon';
+import { Code, Table, FileText, ChevronDown, Copy, Check } from '../../icons/index';
 
 export type DisplayMode = 'schema' | 'table' | 'json';
 

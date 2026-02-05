@@ -10,7 +10,7 @@ import {
   Filter,
   Search,
   RotateCcw,
-} from "~/components/common/Icon";
+} from "~/icons/index";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";

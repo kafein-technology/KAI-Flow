@@ -11,7 +11,7 @@ import {
   X,
   Save,
   Edit,
-} from "~/components/common/Icon";
+} from "~/icons/index";
 import AuthGuard from "~/components/AuthGuard";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useVariableStore } from "~/stores/variables";
@@ -220,11 +220,10 @@ function VariablesLayout() {
 
                       <div className="flex items-center gap-3">
                         <span
-                          className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${
-                            variable.type === "static"
+                          className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${variable.type === "static"
                               ? "bg-blue-100 text-blue-800 border-blue-200"
                               : "bg-green-100 text-green-800 border-green-200"
-                          }`}
+                            }`}
                         >
                           {variable.type}
                         </span>
@@ -303,11 +302,10 @@ function VariablesLayout() {
                     <button
                       key={p}
                       onClick={() => setPage(p)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                        p === page
+                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${p === page
                           ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
                           : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                      }`}
+                        }`}
                     >
                       {p}
                     </button>

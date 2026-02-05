@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AlertCircle, CheckCircle, Code } from "./Icon";
+import { AlertCircle, CheckCircle, Code } from "~/icons/index";
 
 interface JSONEditorProps {
   value: string;
@@ -75,7 +75,21 @@ export default function JSONEditor({
 
   // Validate on mount and when value changes
   useEffect(() => {
-    validateJSON(value);
+    if (!value.trim()) {
+      setLocalError(null);
+      setIsValid(true);
+      return;
+    }
+
+    try {
+      JSON.parse(value);
+      setLocalError(null);
+      setIsValid(true);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Invalid JSON";
+      setLocalError(errorMessage);
+      setIsValid(false);
+    }
   }, [value]);
 
   const displayError = error || localError;

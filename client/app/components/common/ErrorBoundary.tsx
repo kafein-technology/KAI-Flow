@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
-import { AlertTriangle, RefreshCw, Home } from "./Icon";
+import { AlertTriangle, RefreshCw, Home } from "~/icons/index";
 
 interface Props {
   children: ReactNode;

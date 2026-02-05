@@ -5,7 +5,7 @@ import {
   RefreshCw,
   Sparkles,
   Settings,
-} from "./Icon";
+} from "~/icons/index";
 import DraggableNode from "../common/DraggableNode";
 import { useNodes } from "~/stores/nodes";
 import { useSmartSuggestions } from "~/stores/smartSuggestions";
@@ -149,11 +149,10 @@ function Sidebar({ onClose }: SidebarProps) {
             {/* Smart Suggestions Toggle */}
             <button
               onClick={toggleEnabled}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-                isEnabled
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${isEnabled
                   ? "bg-yellow-500/20 text-yellow-400 border border-yellow-400/30"
                   : "bg-gray-700 text-gray-400 border border-gray-600"
-              }`}
+                }`}
               title={
                 isEnabled
                   ? "Disable Smart Suggestions"

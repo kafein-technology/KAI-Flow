@@ -17,7 +17,7 @@ import {
   Eye,
   X,
   Download,
-} from "~/components/common/Icon";
+} from "~/icons/index";
 import React, { useState, useEffect } from "react";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";

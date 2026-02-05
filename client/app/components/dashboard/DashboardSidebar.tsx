@@ -12,7 +12,7 @@ import {
   X,
   Clock,
   Heart,
-} from "~/components/common/Icon";
+} from "~/icons/index";
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
@@ -307,12 +307,12 @@ const Sidebar = () => {
                         </span>
                         <span
                           className={`px-2 py-0.5 text-xs rounded-full ${result.type === "workflow"
-                              ? "bg-blue-500/20 text-blue-300"
-                              : result.type === "execution"
-                                ? "bg-green-500/20 text-green-300"
-                                : result.type === "credential"
-                                  ? "bg-orange-500/20 text-orange-300"
-                                  : "bg-purple-500/20 text-purple-300"
+                            ? "bg-blue-500/20 text-blue-300"
+                            : result.type === "execution"
+                              ? "bg-green-500/20 text-green-300"
+                              : result.type === "credential"
+                                ? "bg-orange-500/20 text-orange-300"
+                                : "bg-purple-500/20 text-purple-300"
                             }`}
                         >
                           {result.type}

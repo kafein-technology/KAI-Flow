@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { User, Save, X } from "~/components/common/Icon";
+import { User, Save, X } from "~/icons/index";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useAuth } from "~/stores/auth";
 import { useSnackbar } from "notistack";
@@ -150,11 +150,10 @@ function SettingsLayout() {
                     value={formData.first_name}
                     onChange={handleInputChange}
                     disabled={!isEditing}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                      isEditing
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${isEditing
                         ? "bg-white border-gray-300"
                         : "bg-gray-50 border-gray-200 text-gray-600"
-                    }`}
+                      }`}
                     placeholder="Enter your first name"
                   />
                 </div>
@@ -174,11 +173,10 @@ function SettingsLayout() {
                     value={formData.last_name}
                     onChange={handleInputChange}
                     disabled={!isEditing}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                      isEditing
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${isEditing
                         ? "bg-white border-gray-300"
                         : "bg-gray-50 border-gray-200 text-gray-600"
-                    }`}
+                      }`}
                     placeholder="Enter your last name"
                   />
                 </div>

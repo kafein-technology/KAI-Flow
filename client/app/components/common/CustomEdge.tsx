@@ -6,7 +6,7 @@ import {
   useReactFlow,
   type EdgeProps,
 } from "@xyflow/react";
-import { X } from "./Icon";
+import { X } from "~/icons/index";
 
 interface CustomAnimatedEdgeProps extends EdgeProps {
   isActive?: boolean;
@@ -55,10 +55,10 @@ function CustomAnimatedEdge({
             status === 'success'
               ? '#22c55e'
               : status === 'failed'
-              ? '#ef4444'
-              : isActive
-              ? "url(#electric-gradient-" + id + ")"
-              : "#6b7280",
+                ? '#ef4444'
+                : isActive
+                  ? "url(#electric-gradient-" + id + ")"
+                  : "#6b7280",
           strokeWidth: isActive ? 3 : 2,
           strokeDasharray: isActive ? "12 8" : "none",
           strokeDashoffset: isActive ? 0 : undefined,

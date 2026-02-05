@@ -10,7 +10,7 @@ import {
   FileText,
   Quote,
   CheckCircle,
-} from "./Icon";
+} from "~/icons/index";
 import { useAuth } from "~/stores/auth";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -103,9 +103,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   return (
     <div
-      className={`flex w-full my-3 px-2 sm:px-4 ${
-        isUser ? "justify-end" : "justify-start"
-      }`}
+      className={`flex w-full my-3 px-2 sm:px-4 ${isUser ? "justify-end" : "justify-start"
+        }`}
     >
       {/* Assistant Avatar */}
       {!isUser && (
@@ -123,11 +122,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       <div
         className={`max-w-[calc(100%-3rem)] sm:max-w-[85%] px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg text-sm
-        ${
-          isUser
+        ${isUser
             ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-md border border-blue-400"
             : "bg-white text-gray-800 rounded-bl-md border border-gray-200"
-        }
+          }
         relative transition-all duration-200 hover:shadow-xl group`}
       >
         {/* Action buttons for user messages */}

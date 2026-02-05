@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ChatBubble from "../common/ChatBubble";
 import { useChatStore } from "~/stores/chat";
-import { MessageSquareIcon as MessageSquare, Minimize2Icon as Minimize2, Maximize2Icon as Maximize2, HistoryIcon as History, EraserIcon as Eraser } from "../../icons/index";
+import { MessageSquare, Minimize2, Maximize2, History, Eraser } from "../../icons/index";
 
 interface ChatComponentProps {
   chatOpen: boolean;

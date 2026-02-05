@@ -1,5 +1,5 @@
 import React from "react";
-import { Loader2 } from "~/components/common/Icon";
+import { Loader2 } from "~/icons/index";
 
 type LoadingProps = {
   fullscreen?: boolean; // Tam ekran mı

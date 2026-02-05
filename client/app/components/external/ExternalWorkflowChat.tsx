@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageCircle, Bot, User, Clock, Loader, Plus, History, RefreshCw, Trash2, ChevronDown } from '~/components/common/Icon';
+import { Send, MessageCircle, Bot, User, Clock, Loader, Plus, History, RefreshCw, Trash2, ChevronDown } from '~/icons/index';
 import { externalWorkflowService, exportedWorkflowService } from '~/services/externalWorkflowService';
 import type { ExternalWorkflowInfo } from '~/types/external-workflows';
 
@@ -132,7 +132,7 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
   const createNewSession = () => {
     const newSessionId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setSessionId(newSessionId);
-    
+
     const welcomeMessage: ChatMessage = {
       id: 'welcome_new',
       role: 'assistant',
@@ -141,7 +141,7 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
     };
     setMessages([welcomeMessage]);
     setShowSessionDropdown(false);
-    
+
     // Refresh sessions list
     setTimeout(loadSessions, 1000);
   };
@@ -241,9 +241,8 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${
-                workflow.connection_status === 'online' ? 'bg-green-500' : 'bg-red-500'
-              }`} />
+              <div className={`w-3 h-3 rounded-full ${workflow.connection_status === 'online' ? 'bg-green-500' : 'bg-red-500'
+                }`} />
               <MessageCircle className="w-5 h-5 text-gray-600" />
             </div>
             <div>
@@ -253,7 +252,7 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
               </p>
             </div>
           </div>
-          
+
           {/* Session Management */}
           {workflow.capabilities?.memory && effectiveIsExported && (
             <div className="flex items-center gap-2">
@@ -276,7 +275,7 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
                   Sessions
                   <ChevronDown className={`w-3 h-3 transition-transform ${showSessionDropdown ? 'rotate-180' : ''}`} />
                 </button>
-                
+
                 {showSessionDropdown && (
                   <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                     <div className="p-2 border-b">
@@ -291,7 +290,7 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
                         </button>
                       </div>
                     </div>
-                    
+
                     <div className="max-h-48 overflow-y-auto">
                       {sessions.length === 0 ? (
                         <div className="p-3 text-sm text-gray-500 text-center">
@@ -301,9 +300,8 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
                         sessions.map((session) => (
                           <div
                             key={session.session_id}
-                            className={`flex items-center justify-between p-2 hover:bg-gray-50 border-b last:border-b-0 ${
-                              session.session_id === sessionId ? 'bg-blue-50' : ''
-                            }`}
+                            className={`flex items-center justify-between p-2 hover:bg-gray-50 border-b last:border-b-0 ${session.session_id === sessionId ? 'bg-blue-50' : ''
+                              }`}
                           >
                             <button
                               onClick={() => {
@@ -325,7 +323,7 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
                                 )}
                               </div>
                             </button>
-                            
+
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -346,7 +344,7 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
             </div>
           )}
         </div>
-        
+
         {/* Current Session Info */}
         {workflow.capabilities?.memory && effectiveIsExported && sessionId && (
           <div className="mt-2 text-xs text-gray-500">
@@ -368,34 +366,29 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
           messages.map((message) => (
             <div
               key={message.id}
-              className={`flex items-start gap-3 ${
-                message.role === 'user' ? 'flex-row-reverse' : ''
-              }`}
+              className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''
+                }`}
             >
-              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                message.role === 'user' 
-                  ? 'bg-blue-600 text-white' 
+              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${message.role === 'user'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-green-600 text-white'
-              }`}>
+                }`}>
                 {message.role === 'user' ? (
                   <User className="w-4 h-4" />
                 ) : (
                   <Bot className="w-4 h-4" />
                 )}
               </div>
-              <div className={`flex-1 max-w-[80%] ${
-                message.role === 'user' ? 'text-right' : ''
-              }`}>
-                <div className={`inline-block p-3 rounded-2xl ${
-                  message.role === 'user'
+              <div className={`flex-1 max-w-[80%] ${message.role === 'user' ? 'text-right' : ''
+                }`}>
+                <div className={`inline-block p-3 rounded-2xl ${message.role === 'user'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-900'
-                }`}>
+                  }`}>
                   <p className="whitespace-pre-wrap">{message.content}</p>
                 </div>
-                <div className={`flex items-center gap-1 mt-1 text-xs text-gray-500 ${
-                  message.role === 'user' ? 'justify-end' : ''
-                }`}>
+                <div className={`flex items-center gap-1 mt-1 text-xs text-gray-500 ${message.role === 'user' ? 'justify-end' : ''
+                  }`}>
                   <Clock className="w-3 h-3" />
                   {formatTime(message.timestamp)}
                 </div>
@@ -403,7 +396,7 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
             </div>
           ))
         )}
-        
+
         {isLoading && (
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center">
@@ -419,7 +412,7 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
             </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -446,13 +439,13 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
             )}
           </button>
         </form>
-        
+
         {workflow.connection_status !== 'online' && (
           <p className="text-sm text-red-600 mt-2 text-center">
             Chat is disabled - workflow is {workflow.connection_status}
           </p>
         )}
-        
+
         {workflow.capabilities?.memory && effectiveIsExported && (
           <p className="text-xs text-gray-500 mt-2 text-center">
             This conversation has memory - the AI will remember our chat history
