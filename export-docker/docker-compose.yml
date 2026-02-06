@@ -1,4 +1,4 @@
-# KAI-Fusion Docker Compose - Test Environment
+ü# KAI-Flow Docker Compose - Test Environment
 # Usage: docker-compose up --build
 
 version: '3.8'

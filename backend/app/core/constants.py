@@ -1,7 +1,7 @@
 """
-KAI-Fusion Enterprise Configuration Management - Centralized Environment & Constants System
+KAI-Flow Enterprise Configuration Management - Centralized Environment & Constants System
 
-This module implements the sophisticated configuration management system for the KAI-Fusion
+This module implements the sophisticated configuration management system for the KAI-Flow
 platform, providing enterprise-grade environment variable handling, secure credential
 management, and comprehensive configuration validation. Built for production deployment
 environments with advanced security, monitoring, and scalability configuration patterns
@@ -87,10 +87,10 @@ Enterprise Security Framework:
    - Security monitoring with real-time threat detection and response
    - Incident response integration with automated security event handling
 
-AUTHORS: KAI-Fusion Configuration Management Team
+AUTHORS: KAI-Flow Configuration Management Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:
@@ -111,7 +111,7 @@ env_file = backend_dir / '.env'
 if env_file.exists():
     load_dotenv(dotenv_path=env_file)
 
-# Also load from root directory (KAI-Fusion/.env) if it exists, to support user's config
+# Also load from root directory (KAI-Flow/.env) if it exists, to support user's config
 root_dir = backend_dir.parent
 root_env_file = root_dir / '.env'
 if root_env_file.exists():

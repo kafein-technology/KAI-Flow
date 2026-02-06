@@ -5,10 +5,10 @@ GraphBuilder Validation Engine
 Handles workflow validation and error checking for the GraphBuilder system.
 Provides clean separation of validation logic from the main orchestrator.
 
-AUTHORS: KAI-Fusion Workflow Orchestration Team
+AUTHORS: KAI-Flow Workflow Orchestration Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import Dict, Any, List, Optional, Type, Set

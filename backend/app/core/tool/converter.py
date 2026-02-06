@@ -1,5 +1,5 @@
 """
-KAI-Fusion Auto-Discovery Tool Converter - Node to Tool Transformation
+KAI-Flow Auto-Discovery Tool Converter - Node to Tool Transformation
 ===================================================================
 
 This module handles the automatic conversion of detected tool-capable nodes
@@ -12,7 +12,7 @@ Conversion Strategies:
 3. API Response Conversion: For HTTP/API response nodes
 4. Custom Conversion: For nodes implementing IAgentTool
 
-Authors: KAI-Fusion Tool Integration Team
+Authors: KAI-Flow Tool Integration Team
 Version: 1.0.0
 License: Proprietary
 """

@@ -1,8 +1,8 @@
 """
-KAI-Fusion Buffer Memory - Comprehensive Conversation History Management
+KAI-Flow Buffer Memory - Comprehensive Conversation History Management
 =======================================================================
 
-This module implements advanced buffer memory management for the KAI-Fusion platform,
+This module implements advanced buffer memory management for the KAI-Flow platform,
 providing enterprise-grade complete conversation history storage, intelligent session
 management, and seamless integration with AI workflows requiring full conversational context.
 
@@ -139,10 +139,10 @@ USE CASE SCENARIOS:
    Optimal for educational scenarios where learning progression
    and knowledge building require complete conversation history.
 
-AUTHORS: KAI-Fusion Memory Architecture Team
+AUTHORS: KAI-Flow Memory Architecture Team
 VERSION: 2.1.0  
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from ..base import MemoryNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType

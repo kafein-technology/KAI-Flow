@@ -1,9 +1,9 @@
 """
-KAI-Fusion Enterprise Error Management - Advanced Exception Handling & Recovery System
+KAI-Flow Enterprise Error Management - Advanced Exception Handling & Recovery System
 ======================================================================================
 
 This module implements the sophisticated error handling and recovery framework for the
-KAI-Fusion platform, providing enterprise-grade exception management, comprehensive
+KAI-Flow platform, providing enterprise-grade exception management, comprehensive
 error logging, and intelligent recovery mechanisms. Built for production environments
 with advanced error classification, security event correlation, and comprehensive
 audit capabilities designed for enterprise-scale AI workflow automation platforms.
@@ -12,7 +12,7 @@ ARCHITECTURAL OVERVIEW:
 ======================
 
 The Enterprise Error Management system serves as the central error orchestration hub
-for KAI-Fusion, managing all exception handling, error logging, and recovery operations
+for KAI-Flow, managing all exception handling, error logging, and recovery operations
 with enterprise-grade security awareness, comprehensive audit trails, and intelligent
 error classification for production deployment environments requiring enterprise compliance.
 
@@ -283,10 +283,10 @@ Intelligent Error Recovery:
    - Distributed retry coordination with global rate limiting and fairness
    - Recovery validation with health checks and functionality verification
 
-AUTHORS: KAI-Fusion Error Management Team
+AUTHORS: KAI-Flow Error Management Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:

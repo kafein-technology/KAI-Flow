@@ -1,9 +1,9 @@
 """
-KAI-Fusion Auto-Discovery Tool Integration System
+KAI-Flow Auto-Discovery Tool Integration System
 ================================================
 
 This package provides automatic discovery and integration of tool-capable nodes
-within the KAI-Fusion workflow system. It enables seamless conversion of
+within the KAI-Flow workflow system. It enables seamless conversion of
 workflow nodes into agent tools without manual configuration.
 
 Main Components:
@@ -28,7 +28,7 @@ Features:
 - Comprehensive compatibility analysis
 - Tool registry with caching and statistics
 
-Authors: KAI-Fusion Tool Integration Team
+Authors: KAI-Flow Tool Integration Team
 Version: 1.0.0
 License: Proprietary
 """

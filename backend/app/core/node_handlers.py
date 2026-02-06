@@ -1,15 +1,15 @@
 """
-KAI-Fusion Node Execution Handlers - Clean Architecture Implementation
+KAI-Flow Node Execution Handlers - Clean Architecture Implementation
 ====================================================================
 
 This module implements the Strategy Pattern for handling different node types
-in the KAI-Fusion Graph Builder system. This replaces the monolithic
+in the KAI-Flow Graph Builder system. This replaces the monolithic
 _extract_connected_node_instances function with clean, maintainable handlers.
 
 Each handler is responsible for a specific node type execution pattern,
 following Single Responsibility Principle and making the system extensible.
 
-Authors: KAI-Fusion Development Team
+Authors: KAI-Flow Development Team
 Version: 3.0.0 - Clean Architecture Refactor
 Last Updated: 2025-01-13
 """

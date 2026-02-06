@@ -1,5 +1,5 @@
 """
-KAI-Fusion Enhanced Performance Monitoring System
+KAI-Flow Enhanced Performance Monitoring System
 ================================================
 
 Advanced performance monitoring with metrics collection, analysis, and alerting.

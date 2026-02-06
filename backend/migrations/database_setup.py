@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-KAI-Fusion Database Setup Script - Enhanced Column Synchronization
+KAI-Flow Database Setup Script - Enhanced Column Synchronization
 =================================================================
 
-Bu script, KAI-Fusion platformu için veritabanını oluşturur ve günceller.
+Bu script, KAI-Flow platformu için veritabanını oluşturur ve günceller.
 Mevcut tabloları kontrol eder, eksik olanları oluşturur ve sütun farklılıklarını
 yönetir (eksik sütun ekleme/fazla sütun silme).
 

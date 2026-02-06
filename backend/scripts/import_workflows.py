@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KAI-Fusion Workflow Import Script
+KAI-Flow Workflow Import Script
 ==================================
 
 Import workflows from YAML bundle.
@@ -242,7 +242,7 @@ async def import_from_config(config_path: str, dry_run: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Import KAI-Fusion workflows from YAML bundle"
+        description="Import KAI-Flow workflows from YAML bundle"
     )
     parser.add_argument("--config", required=True, help="Path to workflows_config.yaml")
     parser.add_argument("--dry-run", action="store_true", help="Validate without changes")

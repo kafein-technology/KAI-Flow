@@ -1,9 +1,9 @@
 
 """
-KAI-Fusion Tavily Search Integration - Advanced Web Intelligence
+KAI-Flow Tavily Search Integration - Advanced Web Intelligence
 ==============================================================
 
-This module implements sophisticated web search capabilities for the KAI-Fusion platform,
+This module implements sophisticated web search capabilities for the KAI-Flow platform,
 providing enterprise-grade access to real-time web information through Tavily's advanced
 search API. Built for production environments requiring accurate, fast, and comprehensive
 web intelligence integration.
@@ -11,7 +11,7 @@ web intelligence integration.
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Tavily Search integration serves as the web intelligence gateway for KAI-Fusion,
+The Tavily Search integration serves as the web intelligence gateway for KAI-Flow,
 providing agents with access to real-time web information, current events, and
 comprehensive knowledge beyond training data limitations.
 
@@ -156,10 +156,10 @@ USE CASE SCENARIOS:
    Optimal for finding technical solutions, API documentation,
    troubleshooting guides, and development resources.
 
-AUTHORS: KAI-Fusion Web Intelligence Team
+AUTHORS: KAI-Flow Web Intelligence Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 import os
@@ -182,7 +182,7 @@ class TavilySearchNode(ProviderNode):
     ==============================================
     
     The TavilySearchNode represents the cutting-edge web intelligence capabilities
-    of the KAI-Fusion platform, providing AI agents with sophisticated access to
+    of the KAI-Flow platform, providing AI agents with sophisticated access to
     real-time web information, current events, and comprehensive knowledge that
     extends far beyond static training data limitations.
     
@@ -406,18 +406,18 @@ class TavilySearchNode(ProviderNode):
     - Complete rewrite with enterprise-grade architecture
     - Advanced search intelligence and optimization
     - Production reliability and monitoring features
-    - Comprehensive integration with KAI-Fusion ecosystem
+    - Comprehensive integration with KAI-Flow ecosystem
     
     v1.x:
     - Initial Tavily API integration
     - Basic search functionality
     - Simple error handling
     
-    AUTHORS: KAI-Fusion Web Intelligence Team
+    AUTHORS: KAI-Flow Web Intelligence Team
     MAINTAINER: Search Intelligence Specialists
     VERSION: 2.1.0
     LAST_UPDATED: 2025-07-26
-    LICENSE: Proprietary - KAI-Fusion Platform
+    LICENSE: Proprietary - KAI-Flow Platform
     """
     
     def __init__(self):

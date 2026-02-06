@@ -1,10 +1,10 @@
 
 """
-KAI-Fusion ReactAgent Node - Modern LangGraph-Based AI Agent Orchestration
+KAI-Flow ReactAgent Node - Modern LangGraph-Based AI Agent Orchestration
 =========================================================================
 
 This module implements a sophisticated ReactAgent node using the latest LangGraph API,
-serving as the orchestration brain of the KAI-Fusion platform. Built on LangGraph's
+serving as the orchestration brain of the KAI-Flow platform. Built on LangGraph's
 modern create_react_agent framework, it provides enterprise-grade agent capabilities
 with advanced tool integration, state-based memory management, and multilingual support.
 
@@ -85,13 +85,13 @@ Comprehensive error handling with multiple fallback mechanisms:
 INTEGRATION PATTERNS:
 ====================
 
-Seamless integration with KAI-Fusion ecosystem:
+Seamless integration with KAI-Flow ecosystem:
 - **LangGraph Compatibility**: Full state management integration
 - **LangSmith Tracing**: Comprehensive observability and debugging
 - **Vector Store Integration**: Advanced RAG capabilities
 - **Custom Node Connectivity**: Easy integration with custom business logic
 
-AUTHORS: KAI-Fusion Development Team
+AUTHORS: KAI-Flow Development Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
 LICENSE: Proprietary
@@ -301,20 +301,20 @@ class AgentDebugCallback(BaseCallbackHandler):
 
 class ReactAgentNode(ProcessorNode):
     """
-    KAI-Fusion ReactAgent - Modern LangGraph-Based AI Agent Orchestration Engine
+    KAI-Flow ReactAgent - Modern LangGraph-Based AI Agent Orchestration Engine
     ==========================================================================
     
-    The ReactAgentNode is the crown jewel of the KAI-Fusion platform, representing the
+    The ReactAgentNode is the crown jewel of the KAI-Flow platform, representing the
     culmination of modern AI agent architecture, multilingual intelligence, and
     enterprise-grade orchestration capabilities. Built upon LangGraph's latest
     create_react_agent framework, it transcends traditional agent limitations to deliver
     sophisticated, state-driven AI interactions with robust memory and tool management.
 
-    AUTHORS: KAI-Fusion Development Team
+    AUTHORS: KAI-Flow Development Team
     MAINTAINER: Senior AI Architecture Team
     VERSION: 3.0.0
     LAST_UPDATED: 2025-09-07
-    LICENSE: Proprietary - KAI-Fusion Platform
+    LICENSE: Proprietary - KAI-Flow Platform
     """
     
     def __init__(self):

@@ -1,5 +1,5 @@
 """
-KAI-Fusion Webhook Schemas
+KAI-Flow Webhook Schemas
 ==========================
 
 This module provides Pydantic schemas for webhook data validation and API responses.

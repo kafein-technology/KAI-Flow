@@ -1,9 +1,9 @@
 
 """
-KAI-Fusion Enterprise Workflow API - Advanced Workflow Management & Execution Endpoints
+KAI-Flow Enterprise Workflow API - Advanced Workflow Management & Execution Endpoints
 =======================================================================================
 
-This module implements the sophisticated workflow API endpoints for the KAI-Fusion platform,
+This module implements the sophisticated workflow API endpoints for the KAI-Flow platform,
 providing enterprise-grade workflow management operations, comprehensive execution services,
 and advanced template management. Built for production environments with RESTful API design,
 comprehensive validation, and enterprise-grade security designed for scalable AI workflow
@@ -271,10 +271,10 @@ Comprehensive API Intelligence:
    - Template effectiveness with adoption success and improvement recommendations
    - Platform growth analysis with scaling insights and capacity planning
 
-AUTHORS: KAI-Fusion API Architecture Team
+AUTHORS: KAI-Flow API Architecture Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:

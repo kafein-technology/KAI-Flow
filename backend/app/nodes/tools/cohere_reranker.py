@@ -7,7 +7,7 @@ Cohere reranker compressor instances for use by other nodes in the workflow.
 Unlike the full RerankerNode, this provider focuses solely on configuration
 without processing documents or providing analytics.
 
-The provider follows the KAI-Fusion ProviderNode pattern, creating LangChain
+The provider follows the KAI-Flow ProviderNode pattern, creating LangChain
 objects from user inputs that can be consumed by other nodes in the workflow.
 
 Key Features:

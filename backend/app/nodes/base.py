@@ -1,8 +1,8 @@
 """
-KAI-Fusion Node Architecture Foundation
+KAI-Flow Node Architecture Foundation
 =====================================
 
-This module defines the fundamental architecture for all nodes in the KAI-Fusion platform.
+This module defines the fundamental architecture for all nodes in the KAI-Flow platform.
 It provides a sophisticated, type-safe, and highly extensible node system that seamlessly 
 integrates with LangChain's ecosystem while adding enterprise-grade features.
 
@@ -47,7 +47,7 @@ Key Features:
 - LangSmith tracing integration for observability
 - Type-safe input/output contracts
 
-Authors: KAI-Fusion Development Team
+Authors: KAI-Flow Development Team
 Version: 2.0.0
 License: Proprietary
 """
@@ -71,7 +71,7 @@ logger = logging.getLogger(__name__)
 # ================================================================================
 class NodeType(str, Enum):
     """
-    Comprehensive node type classification system for the KAI-Fusion platform.
+    Comprehensive node type classification system for the KAI-Flow platform.
     
     This enum defines the four fundamental node types that form the backbone of
     our workflow orchestration system. Each type has specific responsibilities,
@@ -547,11 +547,11 @@ class NodeMetadata(BaseModel):
 
 class BaseNode(ABC):
     """
-    The Foundation of KAI-Fusion's Node Architecture
+    The Foundation of KAI-Flow's Node Architecture
     ===============================================
     
     This abstract base class defines the core contract and implementation for all nodes
-    in the KAI-Fusion platform. It provides a sophisticated, enterprise-grade foundation
+    in the KAI-Flow platform. It provides a sophisticated, enterprise-grade foundation
     that seamlessly integrates with LangChain's ecosystem while adding advanced features
     for complex workflow orchestration.
     
@@ -637,7 +637,7 @@ class BaseNode(ABC):
     should use separate node instances to avoid state corruption in concurrent
     environments.
     
-    AUTHORS: KAI-Fusion Development Team
+    AUTHORS: KAI-Flow Development Team
     VERSION: 2.0.0
     """
     _metadata: Dict[str, Any]  # Node configuration provided by subclasses

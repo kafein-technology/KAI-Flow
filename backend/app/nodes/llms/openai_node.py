@@ -1,5 +1,5 @@
 """
-KAI-Fusion OpenAI LLM Integration - Enterprise-Grade AI Language Models
+KAI-Flow OpenAI LLM Integration - Enterprise-Grade AI Language Models
 =====================================================================
 
 This module provides sophisticated integration with OpenAI's language models,
@@ -10,7 +10,7 @@ reliability, performance, and advanced configuration capabilities.
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The OpenAI integration serves as the intelligence backbone of KAI-Fusion,
+The OpenAI integration serves as the intelligence backbone of KAI-Flow,
 providing access to the world's most advanced language models with
 enterprise-grade reliability and performance optimization.
 
@@ -230,11 +230,11 @@ COMPLIANCE AND GOVERNANCE:
    - Bias detection and mitigation
    - Responsible AI usage guidelines
 
-AUTHORS: KAI-Fusion Development Team
+AUTHORS: KAI-Flow Development Team
 MAINTAINER: AI Infrastructure Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import Dict, Any, Optional, List
@@ -259,7 +259,7 @@ class OpenAINode(BaseNode):
     =============================================
     
     The OpenAINode represents the pinnacle of language model integration within
-    the KAI-Fusion platform, providing seamless access to OpenAI's cutting-edge
+    the KAI-Flow platform, providing seamless access to OpenAI's cutting-edge
     AI models with enterprise-grade reliability, security, and optimization.
     
     This node serves as the intelligent foundation for countless AI workflows,
@@ -500,11 +500,11 @@ class OpenAINode(BaseNode):
     - Basic parameter configuration
     - Simple error handling
     
-    AUTHORS: KAI-Fusion AI Infrastructure Team
+    AUTHORS: KAI-Flow AI Infrastructure Team
     MAINTAINER: OpenAI Integration Specialists  
     VERSION: 2.1.0
     LAST_UPDATED: 2025-07-26
-    LICENSE: Proprietary - KAI-Fusion Platform
+    LICENSE: Proprietary - KAI-Flow Platform
     """
     
     def __init__(self):
