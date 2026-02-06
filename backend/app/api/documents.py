@@ -1,8 +1,8 @@
 """
-KAI-Fusion Document Management API - Enterprise Document Operations & Management
+KAI-Flow Document Management API - Enterprise Document Operations & Management
 ==============================================================================
 
-This module implements comprehensive document management API endpoints for the KAI-Fusion platform,
+This module implements comprehensive document management API endpoints for the KAI-Flow platform,
 providing enterprise-grade document storage, retrieval, search, and analytics capabilities.
 Built for production environments with advanced authentication, comprehensive validation,
 and intelligent document operations with full-text search and analytics integration.
@@ -59,10 +59,10 @@ KEY FEATURES:
    - Workflow integration with node-based processing
    - Analytics integration with business intelligence
 
-AUTHORS: KAI-Fusion API Development Team
+AUTHORS: KAI-Flow API Development Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-29
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import List, Dict, Any, Optional

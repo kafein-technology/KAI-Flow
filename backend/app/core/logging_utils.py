@@ -1,9 +1,9 @@
 """
-KAI-Fusion Enhanced Logging Utilities - Clean & Structured Workflow Logging
+KAI-Flow Enhanced Logging Utilities - Clean & Structured Workflow Logging
 ===========================================================================
 
 This module provides enhanced logging utilities specifically designed to address
-the readability issues in KAI-Fusion workflow execution logs. It implements smart
+the readability issues in KAI-Flow workflow execution logs. It implements smart
 data filtering, structured progress tracking, and context-aware logging to make
 logs actually useful for debugging and monitoring.
 

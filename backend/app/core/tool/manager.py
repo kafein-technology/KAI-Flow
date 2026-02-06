@@ -1,5 +1,5 @@
 """
-KAI-Fusion Auto-Discovery Tool Manager - Integration Orchestrator
+KAI-Flow Auto-Discovery Tool Manager - Integration Orchestrator
 ===============================================================
 
 This module provides the central orchestration system for automatic tool
@@ -13,7 +13,7 @@ Key Features:
 - Integration with agent systems
 - Performance monitoring and caching
 
-Authors: KAI-Fusion Tool Integration Team
+Authors: KAI-Flow Tool Integration Team
 Version: 1.0.0
 License: Proprietary
 """

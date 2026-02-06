@@ -1,6 +1,6 @@
 # scripts/__init__.py
 """
-KAI-Fusion CLI Scripts
+KAI-Flow CLI Scripts
 ======================
 
 Command-line utilities for workflow management.

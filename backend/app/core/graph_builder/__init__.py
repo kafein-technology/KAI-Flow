@@ -1,14 +1,14 @@
 """
-KAI-Fusion Graph Builder - Enterprise Workflow Orchestration & Execution Engine
+KAI-Flow Graph Builder - Enterprise Workflow Orchestration & Execution Engine
 
-This module implements sophisticated workflow graph construction for the KAI-Fusion platform,
+This module implements sophisticated workflow graph construction for the KAI-Flow platform,
 providing enterprise-grade LangGraph orchestration with advanced control flow management,
 intelligent node connectivity, and production-ready execution capabilities. Built for
 complex AI workflows requiring reliable state management and seamless node integration.
 
 ARCHITECTURAL OVERVIEW:
 
-The Graph Builder system serves as the workflow orchestration engine of KAI-Fusion,
+The Graph Builder system serves as the workflow orchestration engine of KAI-Flow,
 transforming visual flow definitions into executable LangGraph pipelines with advanced
 control flow, state management, and comprehensive error handling for production environments.
 
@@ -24,10 +24,10 @@ Components:
 - Exception classes: Structured error handling
 - Type definitions: Strong typing and protocols
 
-AUTHORS: KAI-Fusion Workflow Orchestration Team
+AUTHORS: KAI-Flow Workflow Orchestration Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from __future__ import annotations

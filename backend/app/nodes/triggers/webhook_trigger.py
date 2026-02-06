@@ -1655,7 +1655,7 @@ def cleanup_webhook_events(max_age_hours: int = 24) -> int:
 OVERVIEW:
 ========
 
-The Webhook Trigger Node enables external systems to trigger KAI-Fusion workflows
+The Webhook Trigger Node enables external systems to trigger KAI-Flow workflows
 via HTTP POST requests. It serves as the entry point for external integrations,
 allowing third-party services, APIs, and systems to initiate workflow execution
 with custom data payloads.
@@ -2107,7 +2107,7 @@ PRODUCTION DEPLOYMENT:
 VERSION COMPATIBILITY:
 =====================
 
-✅ KAI-Fusion Platform: 2.1.0+
+✅ KAI-Flow Platform: 2.1.0+
 ✅ FastAPI: 0.104.0+
 ✅ Python: 3.11+
 ✅ LangChain: 0.1.0+
@@ -2115,7 +2115,7 @@ VERSION COMPATIBILITY:
 
 STATUS: ✅ PRODUCTION READY
 LAST_UPDATED: 2025-08-04
-AUTHORS: KAI-Fusion Integration Architecture Team
+AUTHORS: KAI-Flow Integration Architecture Team
 
 ═══════════════════════════════════════════════════════════════════════════════
 """

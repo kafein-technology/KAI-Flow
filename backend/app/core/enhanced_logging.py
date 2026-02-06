@@ -1,8 +1,8 @@
 """
-KAI-Fusion Enhanced Logging Configuration - Production-Ready Workflow Logging
+KAI-Flow Enhanced Logging Configuration - Production-Ready Workflow Logging
 =============================================================================
 
-This module integrates the enhanced logging utilities into the existing KAI-Fusion
+This module integrates the enhanced logging utilities into the existing KAI-Flow
 logging infrastructure, providing seamless migration from the current system while
 adding advanced workflow-specific capabilities.
 

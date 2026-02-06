@@ -877,7 +877,7 @@ def generate_ready_to_run_readme(workflow_name: str, env_config) -> str:
     
     return f"""# {workflow_name} - Docker Export
 
-Ready-to-run Docker export of your KAI-Fusion workflow.
+Ready-to-run Docker export of your KAI-Flow workflow.
 
 ## Quick Start
 

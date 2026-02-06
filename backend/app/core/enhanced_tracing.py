@@ -1,5 +1,5 @@
 """
-KAI-Fusion Enhanced Tracing System - Performance-Integrated Monitoring
+KAI-Flow Enhanced Tracing System - Performance-Integrated Monitoring
 =====================================================================
 
 Enhanced tracing system with performance monitoring integration.

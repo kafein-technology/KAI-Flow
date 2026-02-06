@@ -1,1 +1,1 @@
-"""KAI-Fusion backend application package."""
+"""KAI-Flow backend application package."""

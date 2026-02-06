@@ -24,10 +24,10 @@ if node_type in PROCESSOR_NODE_TYPES:
 # PROCESSOR_NODE_TYPES is now dynamically populated
 ```
 
-AUTHORS: KAI-Fusion Workflow Orchestration Team  
+AUTHORS: KAI-Flow Workflow Orchestration Team  
 VERSION: 2.1.0 - Phase 2
 LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import Set, Dict, Any, Optional

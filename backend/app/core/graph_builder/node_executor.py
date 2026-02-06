@@ -5,10 +5,10 @@ GraphBuilder Node Executor
 Handles all node execution, session management, and state processing for the GraphBuilder system.
 Provides clean separation of node execution logic from the main orchestrator.
 
-AUTHORS: KAI-Fusion Workflow Orchestration Team
+AUTHORS: KAI-Flow Workflow Orchestration Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import Dict, Any, Optional, List, Union

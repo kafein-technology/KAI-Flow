@@ -1,4 +1,4 @@
-# Backend Dockerfile for KAI-Fusion
+# Backend Dockerfile for KAI-Flow
 FROM python:3.11-slim
 
 WORKDIR /app
