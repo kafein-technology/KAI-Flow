@@ -116,6 +116,11 @@ class NodeExecutor:
                     
                     gnode.node_instance.session_id = session_id
                     logger.debug(f"Set session_id on memory node {node_id}: {session_id}")
+                
+            # Setup Workflow ID (Chatflow ID)
+            if hasattr(state, 'workflow_id') and state.workflow_id:
+                gnode.node_instance.workflow_id = state.workflow_id
+                logger.debug(f"Set workflow_id on node {node_id}: {state.workflow_id}")
                     
         except Exception as e:
             logger.warning(f"Failed to setup session for node {node_id}: {e}")

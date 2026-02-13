@@ -510,7 +510,7 @@ async def handle_webhook_request(
                     )
 
                 # Create session ID
-                session_id = f"webhook_{webhook_id}_{int(time.time())}"
+                session_id = str(workflow.id)
 
                 # Extract webhook input - use entire payload for dynamic field access
                 # This allows any JSON structure to be used in templates via {{webhook_trigger.anyfield}}

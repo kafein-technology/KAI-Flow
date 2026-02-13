@@ -142,6 +142,10 @@ class MemoryService:
         """Get total memory count for a user."""
         return self.memory_repo.get_memory_count_by_user(db, user_id)
     
+    def get_active_session_id(self, db: Session, user_id: str, chatflow_id: str = None) -> Optional[str]:
+        """Get the most recent session ID, optionally filtered by chatflow (workflow)."""
+        return self.memory_repo.get_active_session_id(db, user_id, chatflow_id=chatflow_id)
+    
     def get_session_memories(self, db: Session, session_id: str, limit: int = 10) -> List[MemoryItem]:
         """Get memories for a specific session."""
         memories = self.memory_repo.get_memories_by_session(db, session_id, limit)
