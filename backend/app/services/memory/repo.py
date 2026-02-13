@@ -41,9 +41,17 @@ class MemoryRepo:
     def get_memories_by_session(self, db: Session, session_id: str, limit: int = 10, 
                                offset: int = 0) -> List[Memory]:
         """Get memories for a session."""
-        return db.query(Memory).filter(
+        memories = db.query(Memory).filter(
             Memory.session_id == session_id
         ).order_by(desc(Memory.created_at)).offset(offset).limit(limit).all()
+        
+        # DEBUG: Log what we found
+        if memories:
+            first_content = memories[0].content[:100] + "..." if len(memories[0].content) > 100 else memories[0].content
+        else:
+            logger.info(f"[REPO DEBUG] get_memories_by_session('{session_id}', limit={limit}) -> Found 0 records.")
+            
+        return memories
     
     def search_memories_by_content(self, db: Session, user_id: str, query: str, 
                                   limit: int = 10) -> List[Memory]:
@@ -157,3 +165,22 @@ class MemoryRepo:
         return db.query(Memory).filter(
             Memory.user_id == UUID(user_id)
         ).order_by(desc(Memory.created_at)).first()
+
+    def get_active_session_id(self, db: Session, user_id: str, chatflow_id: str = None) -> Optional[str]:
+        """Get the newest session ID, optionally filtered by chatflow (workflow).
+        
+        When chatflow_id is provided, queries by workflow first. This ensures
+        webhook-triggered sessions (saved under master user) are also found.
+        Falls back to user-based lookup if no chatflow match.
+        """
+        if chatflow_id:
+            # Query by chatflow (workflow), ignoring user_id filter
+            # This catches webhook sessions saved under master user
+            newest = db.query(Memory).filter(
+                Memory.chatflow_id == UUID(chatflow_id)
+            ).order_by(desc(Memory.created_at)).first()
+            if newest:
+                return newest.session_id
+        # Fallback to user-based lookup
+        newest = self.get_newest_memory_by_user(db, user_id)
+        return newest.session_id if newest else None

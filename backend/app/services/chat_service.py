@@ -327,7 +327,7 @@ class ChatService:
             
             user_context = {
                 "session_id": session_id,
-                "user_id": str(chatflow_id),
+                "user_id": user_id if user_id else str(chatflow_id),
                 "workflow_id": str(workflow_id) if workflow_id else workflow_data.get("id", "default")
             }
             

@@ -1,11 +1,12 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from app.schemas.chat import ChatMessageResponse, ChatMessageUpdate, ChatMessageInput
 from app.services.chat_service import ChatService
-from app.core.database import get_db_session
+from app.services.memory.service import memory_service
+from app.core.database import get_db_session, get_db
 from app.auth.dependencies import get_current_user
 from app.models.user import User
 
@@ -110,4 +111,13 @@ async def delete_chatflow(
     service = ChatService(db)
     if not await service.delete_chatflow(chatflow_id, user_id=current_user.id):
         raise HTTPException(status_code=404, detail="Chatflow not found")
-    return {"detail": "Konuşma geçmişi başarı ile silindi"} 
+    return {"detail": "Konuşma geçmişi başarı ile silindi"}
+
+@router.get("/active-session/id", response_model=Dict[str, Optional[str]])
+async def get_active_session_id(
+    chatflow_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    db = next(get_db())
+    session_id = memory_service.get_active_session_id(db, str(current_user.id), chatflow_id=chatflow_id)
+    return {"session_id": session_id}

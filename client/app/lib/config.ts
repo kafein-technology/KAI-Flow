@@ -115,6 +115,9 @@ export const API_ENDPOINTS = {
     DELETE: (chat_message_id: string) => `/chat/${chat_message_id}`,
     DELETE_CHATFLOW: (chatflow_id: string) => `/chat/chatflow/${chatflow_id}`,
     GET_WORKFLOW_CHATS: (workflow_id: string) => `/chat/workflow/${workflow_id}`,
+    ACTIVE_SESSION: {
+      ID: '/chat/active-session/id',
+    },
   },
   EXECUTIONS: {
     LIST: '/executions',

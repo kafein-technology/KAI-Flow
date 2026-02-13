@@ -45,6 +45,7 @@ export default function ChatComponent({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { updateMessage, removeMessage, sendEditedMessage } = useChatStore();
 
   const scrollToBottom = () => {
@@ -54,6 +55,13 @@ export default function ChatComponent({
   useEffect(() => {
     scrollToBottom();
   }, [chatHistory, chatLoading]);
+
+  // Focus input when chat opens or loading finishes
+  useEffect(() => {
+    if (chatOpen && !chatLoading && !editingMessageId) {
+      inputRef.current?.focus();
+    }
+  }, [chatOpen, chatLoading, editingMessageId]);
 
   // Get chat title from first user message
   const getChatTitle = () => {
@@ -150,8 +158,8 @@ export default function ChatComponent({
   return (
     <div
       className={`fixed bottom-20 right-4 bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700 transition-all duration-300 ${isExpanded
-          ? "w-[calc(100vw-2rem)] h-[calc(100vh-6rem)] left-4"
-          : "w-148 h-[600px]"
+        ? "w-[calc(100vw-2rem)] h-[calc(100vh-6rem)] left-4"
+        : "w-148 h-[600px]"
         }`}
     >
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
@@ -223,13 +231,18 @@ export default function ChatComponent({
       </div>
       <div className="p-3 border-t border-gray-700 flex gap-2">
         <input
+          ref={inputRef}
           type="text"
           className="flex-1 border rounded-lg px-3 py-2 text-sm border-gray-600 bg-gray-800 text-gray-100 placeholder-gray-400 focus:outline-none focus:border-blue-400"
           placeholder="Mesajınızı yazın..."
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") onSendMessage();
+            if (e.key === "Enter") {
+              onSendMessage();
+              // Immediate focus attempt after sending
+              setTimeout(() => inputRef.current?.focus(), 0);
+            }
           }}
           disabled={chatLoading}
         />
