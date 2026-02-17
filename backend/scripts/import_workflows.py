@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core.database import get_db_session_context
@@ -33,7 +34,9 @@ from app.models.workflow import Workflow
 from sqlalchemy import select
 import logging
 
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
 
 async def import_from_config(config_path: str, dry_run: bool = False):
     """
@@ -41,48 +44,48 @@ async def import_from_config(config_path: str, dry_run: bool = False):
     """
     config_file = Path(config_path)
     if not config_file.exists():
-        logger(f"Error: Config file not found: {config_file}")
+        logger.error(f"Error: Config file not found: {config_file}")
         return
-    
+
     base_dir = config_file.parent
-    
+
     config = yaml.safe_load(config_file.read_text(encoding="utf-8"))
-    
-    logger(f"Import Configuration")
-    logger(f"Source: {config_file}")
-    logger(f"Version: {config.get('version', 'unknown')}")
-    logger(f"Workflows: {len(config.get('workflows', []))}")
-    logger(f"Credentials: {len(config.get('credentials', []))}")
-    
+
+    logger.info(f"Import Configuration")
+    logger.info(f"Source: {config_file}")
+    logger.info(f"Version: {config.get('version', 'unknown')}")
+    logger.info(f"Workflows: {len(config.get('workflows', []))}")
+    logger.info(f"Credentials: {len(config.get('credentials', []))}")
+
     if dry_run:
-        logger(f"\n** DRY RUN MODE - No changes will be made **\n")
-    
+        logger.info(f"\n** DRY RUN MODE - No changes will be made **\n")
+
     async with get_db_session_context() as db:
         # 1. Find or create target user
         target_email = config.get("target_user_email", "")
         if not target_email:
-            logger("Error: target_user_email is not set in config")
+            logger.error("Error: target_user_email is not set in config")
             return
-        
+
         result = await db.execute(select(User).where(User.email == target_email))
         user = result.scalar_one_or_none()
-        
+
         if not user:
             # User doesn't exist - create if password provided
             user_password = config.get("user_password", "")
             user_name = config.get("user_name", target_email.split("@")[0])
-            
+
             if not user_password:
-                logger(f"Error: User not found: {target_email}")
-                logger("   Add 'user_password: your_password' to config to auto-create user")
+                logger.error(f"Error: User not found: {target_email}")
+                logger.error("   Add 'user_password: your_password' to config to auto-create user")
                 return
-            
+
             if dry_run:
-                logger(f"\nWould create user: {target_email}")
+                logger.info(f"\nWould create user: {target_email}")
             else:
                 # Import password hashing
                 from app.core.security import get_password_hash
-                
+
                 # Create new user
                 new_user = User(
                     email=target_email,
@@ -93,55 +96,55 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                 db.add(new_user)
                 await db.flush()
                 user = new_user
-                logger(f"\n Created user: {target_email}")
-        
-        logger(f"\nTarget user: {user.email} (id: {user.id})")
-        
+                logger.info(f"\n Created user: {target_email}")
+
+        logger.info(f"\nTarget user: {user.email} (id: {user.id})")
+
         # 2. Create credentials with ORIGINAL UUIDs
         created_credentials = 0
         skipped_credentials = 0
-        
-        logger(f"\nProcessing credentials...")
-        
+
+        logger.info(f"\nProcessing credentials...")
+
         for cred_config in config.get("credentials", []):
             cred_id = cred_config.get("id")
             name = cred_config.get("name")
             service_type = cred_config.get("service_type")
             secret = cred_config.get("secret", {})
-            
+
             if not cred_id or not name or not service_type:
-                logger(f"   Skip: Invalid credential config: {cred_config}")
+                logger.warning(f"   Skip: Invalid credential config: {cred_config}")
                 skipped_credentials += 1
                 continue
-            
+
             # Check if credential values are filled
             has_values = any(v for v in secret.values() if v)
             if not has_values:
-                logger(f"   Skip: Empty credential: {name} (fill secrets first)")
+                logger.warning(f"   Skip: Empty credential: {name} (fill secrets first)")
                 skipped_credentials += 1
                 continue
-            
+
             # Check if credential already exists (by ID)
             try:
                 existing = await db.execute(
                     select(UserCredential).where(UserCredential.id == uuid.UUID(cred_id))
                 )
                 if existing.scalar_one_or_none():
-                    logger(f"   Skip: Credential already exists: {name} (ID: {cred_id})")
+                    logger.info(f"   Skip: Credential already exists: {name} (ID: {cred_id})")
                     skipped_credentials += 1
                     continue
             except:
                 pass
-            
+
             if dry_run:
-                logger(f"   Would create: {name} (ID: {cred_id})")
+                logger.info(f"   Would create: {name} (ID: {cred_id})")
                 continue
-            
+
             # Create credential with ORIGINAL UUID
             try:
                 encrypted_bytes = encrypt_data(secret)
                 encrypted_secret = base64.b64encode(encrypted_bytes).decode('utf-8')
-                
+
                 credential = UserCredential(
                     id=uuid.UUID(cred_id),  # Use ORIGINAL UUID
                     user_id=user.id,
@@ -151,61 +154,61 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                 )
                 db.add(credential)
                 await db.flush()
-                
+
                 created_credentials += 1
-                logger(f"   Created: {name} (ID: {cred_id})")
-                
+                logger.info(f"   Created: {name} (ID: {cred_id})")
+
             except Exception as e:
-                logger(f"   Error creating {name}: {e}")
+                logger.error(f"   Error creating {name}: {e}")
                 skipped_credentials += 1
-        
+
         # 3. Import workflows with ORIGINAL UUIDs
         created_workflows = 0
         skipped_workflows = 0
-        
-        logger(f"\nProcessing workflows...")
-        
+
+        logger.info(f"\nProcessing workflows...")
+
         for wf_config in config.get("workflows", []):
             wf_id = wf_config.get("id")
             wf_name = wf_config.get("name")
             flow_file_rel = wf_config.get("flow_file")
-            
+
             if not wf_id or not wf_name or not flow_file_rel:
-                logger(f"   Skip: Invalid workflow config: {wf_config}")
+                logger.warning(f"   Skip: Invalid workflow config: {wf_config}")
                 skipped_workflows += 1
                 continue
-            
+
             flow_file = base_dir / flow_file_rel
-            
+
             if not flow_file.exists():
-                logger(f"   Error: Flow file not found: {flow_file}")
+                logger.error(f"   Error: Flow file not found: {flow_file}")
                 skipped_workflows += 1
                 continue
-            
+
             # Check if workflow already exists (by ID)
             try:
                 existing = await db.execute(
                     select(Workflow).where(Workflow.id == uuid.UUID(wf_id))
                 )
                 if existing.scalar_one_or_none():
-                    logger(f"   Skip: Workflow already exists: {wf_name} (ID: {wf_id})")
+                    logger.info(f"   Skip: Workflow already exists: {wf_name} (ID: {wf_id})")
                     skipped_workflows += 1
                     continue
             except:
                 pass
-            
+
             # Read flow data
             try:
                 flow_data = json.loads(flow_file.read_text(encoding="utf-8"))
             except Exception as e:
-                logger(f"   Error reading {flow_file}: {e}")
+                logger.error(f"   Error reading {flow_file}: {e}")
                 skipped_workflows += 1
                 continue
-            
+
             if dry_run:
-                logger(f"   Would import: {wf_name} (ID: {wf_id})")
+                logger.info(f"   Would import: {wf_name} (ID: {wf_id})")
                 continue
-            
+
             # Create workflow with ORIGINAL UUID
             try:
                 workflow = Workflow(
@@ -218,26 +221,26 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                 )
                 db.add(workflow)
                 created_workflows += 1
-                logger(f"   Imported: {wf_name} (ID: {wf_id})")
-                
+                logger.info(f"   Imported: {wf_name} (ID: {wf_id})")
+
             except Exception as e:
-                logger(f"   Error importing {wf_name}: {e}")
+                logger.error(f"   Error importing {wf_name}: {e}")
                 skipped_workflows += 1
-        
+
         # Commit all changes
         if not dry_run:
             await db.commit()
-        
+
         # Summary
-        logger(f"\n{'='*50}")
-        logger(f"Import Summary")
-        logger(f"   Credentials: {created_credentials} created, {skipped_credentials} skipped")
-        logger(f"   Workflows: {created_workflows} imported, {skipped_workflows} skipped")
-        
+        logger.info(f"\n{'=' * 50}")
+        logger.info(f"Import Summary")
+        logger.info(f"   Credentials: {created_credentials} created, {skipped_credentials} skipped")
+        logger.info(f"   Workflows: {created_workflows} imported, {skipped_workflows} skipped")
+
         if dry_run:
-            logger(f"\n** DRY RUN - No changes were made **")
+            logger.info(f"\n** DRY RUN - No changes were made **")
         else:
-            logger(f"\nImport complete!")
+            logger.info(f"\nImport complete!")
 
 
 def main():
@@ -246,9 +249,9 @@ def main():
     )
     parser.add_argument("--config", required=True, help="Path to workflows_config.yaml")
     parser.add_argument("--dry-run", action="store_true", help="Validate without changes")
-    
+
     args = parser.parse_args()
-    
+
     asyncio.run(import_from_config(
         config_path=args.config,
         dry_run=args.dry_run
