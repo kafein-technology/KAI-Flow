@@ -181,6 +181,9 @@ class BufferMemoryNode(MemoryNode):
                 NodeInput(name="return_messages", type="bool", description="Return as messages.", default=True),
                 NodeInput(name="input_key", type="str", description="Key for user input.", default="input"),
                 NodeInput(name="user_id", type="str", description="User ID for multi-tenancy.", required=False),
+                NodeInput(name="limit", type="int", description="Memory limit.", default=5, required=True),
+                NodeInput(name="session_mode", type="str", description="Session selection mode.", default="automatic"),
+                NodeInput(name="session_id", type="str", description="Session ID.", required=True),
             ],
             "outputs": [
                 NodeOutput(
@@ -198,21 +201,21 @@ class BufferMemoryNode(MemoryNode):
                     displayName="MEMORY KEY",
                     type=NodePropertyType.TEXT,
                     default="memory",
-                    required=True,
+                    required=False,
                 ),
                 NodeProperty(
                     name="input_key",
                     displayName="INPUT KEY",
                     type=NodePropertyType.TEXT,
                     default="input",
-                    required=True,
+                    required=False,
                 ),
                 NodeProperty(
                     name="output_key",
                     displayName="OUTPUT KEY",
                     type=NodePropertyType.TEXT,
                     default="output",
-                    required=True,
+                    required=False,
                 ),
                 NodeProperty(
                     name="return_messages",
@@ -220,6 +223,35 @@ class BufferMemoryNode(MemoryNode):
                     type=NodePropertyType.CHECKBOX,
                     default=True,
                     required=False,
+                ),
+                NodeProperty(
+                    name="limit",
+                    displayName="Memory Limit",
+                    type=NodePropertyType.NUMBER,
+                    default=5,
+                    required=True,
+                    description="Number of previous messages to retrieve from history.",
+                    min=1,
+                    max=100
+                ),
+                NodeProperty(
+                    name="session_mode",
+                    displayName="SESSION MODE",
+                    type=NodePropertyType.SELECT,
+                    default="automatic",
+                    options=[
+                        {"label": "Automatic", "value": "automatic"},
+                        {"label": "Manuel", "value": "manuel"}
+                    ],
+                    required=True,
+                    description="Choose how to select the session ID."
+                ),
+                NodeProperty(
+                    name="session_id",
+                    displayName="SESSION ID",
+                    type=NodePropertyType.SESSION_ID,
+                    required=True,
+                    description="The session ID for memory context. In automatic mode, this is fetched from the system. In manual mode, you can specify it yourself."
                 ),
             ]
         })
@@ -238,9 +270,23 @@ class BufferMemoryNode(MemoryNode):
         """
         Retrieves or creates a persistent, session-aware memory instance.
         """
-        session_id = self.session_id
-        logger.debug(f"BufferMemoryNode session_id: {session_id}")
         
+        session_id = kwargs.get("session_id")
+        session_mode = kwargs.get("session_mode", getattr(self, "session_mode", "automatic"))
+        
+        system_id = getattr(self, "session_id", None)
+        input_id = kwargs.get("session_id")
+                
+        if session_mode == "automatic":
+            session_id = system_id
+            if not session_id and input_id:
+                 session_id = input_id
+        else: # manuel
+            session_id = input_id if input_id else system_id            
+
+        if "session_id" in kwargs:
+            del kwargs["session_id"]
+
         try:
             memory = self.get_memory_instance(session_id, **kwargs)
             self._track_memory_operation(session_id, memory)
@@ -258,80 +304,95 @@ class BufferMemoryNode(MemoryNode):
         Creates or retrieves a ConversationBufferMemory instance and populates
         it with history from the database.
         """
-        input_key = kwargs.get("input", "input")
-        memory_key = session_id
+        # Respect the configured input_key (do not read the message itself).
+        input_key = kwargs.get("input_key", "input")
+        memory_key = kwargs.get("memory_key", "chat_history")
         return_messages = kwargs.get("return_messages", True)
 
         # Create a standard ConversationBufferMemory instance
         memory = ConversationBufferMemory(
-            memory_key=memory_key,
-            return_messages=return_messages,
             input_key=input_key,
+            memory_key=memory_key,
+            return_messages=return_messages
         )
 
         # Load historical messages from the database
-        loaded_messages = self.load_messages(session_id)
+        raw_limit = kwargs.get("limit", 5)
+        limit = int(raw_limit or 5) * 2
+        loaded_messages = self.load_messages(session_id, limit=limit)
         if loaded_messages:
             memory.chat_memory.messages = loaded_messages
         
-        # A new user input might be part of the current execution context (`kwargs`).
-        # We need to save it to ensure it's persisted for the *next* run.
-        user_input_content = input_key
-        if user_input_content:
-            new_message = HumanMessage(content=user_input_content)
-            # Add to current memory instance immediately
-            memory.chat_memory.add_messages([new_message])
-            # Persist it for future sessions
-            self.save_messages(session_id, [new_message], **kwargs)
-
         return memory
 
-    def load_messages(self, session_id: str, **kwargs) -> List[BaseMessage]:
+    def load_messages(self, session_id: str, limit: int = 5, **kwargs) -> List[BaseMessage]:
         """
         Loads conversation history from the database for a given session ID.
         """
+        db_gen = get_db()
+        db = next(db_gen)
         try:
-            db = next(get_db())
-            logger.info(f"Loading messages for session {session_id} from database...")
-            db_memories = get_memories_by_session(db, session_id, limit=5)
+            db_memories = get_memories_by_session(db, session_id, limit=limit)
+            # Database returns DESC (newest first), but LangChain expects ASC (chronological)
             messages = [self._convert_db_memory_to_message(mem) for mem in db_memories]
-            # Filter out any None values that may result from conversion errors
-            return [msg for msg in messages if msg is not None]
+            messages = [msg for msg in messages if msg is not None]
+            messages.reverse()  # Reverse to get chronological order
+            return messages
         except Exception as e:
-            logger.warning(f"Failed to load conversation history for session {session_id}: {e}")
+            logger.warning(f"Failed to load messages from the database: {e}")
             return []
+        finally:
+            # Close the generator
+            try:
+                next(db_gen, None)
+            except StopIteration:
+                pass
+            except Exception as e:
+                logger.error(f"Error closing DB session: {e}")
 
     def save_messages(self, session_id: str, messages: List[BaseMessage], **kwargs) -> None:
         """
         Saves a list of messages to the database for a given session ID.
         """
         try:
-            db = next(get_db())
-            user_id = kwargs.get('user_id') or getattr(self, 'user_id', None)
-            logger.info(f"Saving {len(messages)} messages for session {session_id} to database...")
-            
-            for message in messages:
-                if isinstance(message, HumanMessage):
-                    context = "human"
-                elif isinstance(message, AIMessage):
-                    context = "ai"
-                elif isinstance(message, SystemMessage):
-                    context = "system"
-                else:
-                    context = "unknown"
+            db_gen = get_db()
+            db = next(db_gen)
+            try:
+                user_id = kwargs.get('user_id') or getattr(self, 'user_id', None)
+                chatflow_id = kwargs.get('chatflow_id') or getattr(self, 'workflow_id', None)
+                logger.info(f"Saving {len(messages)} messages for session {session_id} to database...")
+                
+                for message in messages:
+                    if isinstance(message, HumanMessage):
+                        context = "human"
+                    elif isinstance(message, AIMessage):
+                        context = "ai"
+                    elif isinstance(message, SystemMessage):
+                        context = "system"
+                    else:
+                        context = "unknown"
 
+                    try:
+                        save_memory(
+                            db=db,
+                            user_id=user_id,
+                            session_id=session_id,
+                            content=message.content,
+                            context=context,
+                            metadata={"message_type": message.__class__.__name__},
+                            source_type="buffer_memory",
+                            chatflow_id=chatflow_id
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to persist a message to the database: {e}")
+            finally:
+                # Ensure DB session is closed
                 try:
-                    save_memory(
-                        db=db,
-                        user_id=user_id,
-                        session_id=session_id,
-                        content=message.content,
-                        context=context,
-                        metadata={"message_type": message.__class__.__name__},
-                        source_type="buffer_memory"
-                    )
+                    next(db_gen, None)
+                except StopIteration:
+                    pass
                 except Exception as e:
-                    logger.warning(f"Failed to persist a message to the database: {e}")
+                    logger.error(f"Error closing DB session in save_messages: {e}")
         except Exception as e:
             logger.warning(f"Database not available, skipping message persistence: {e}")
 

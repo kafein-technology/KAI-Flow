@@ -401,10 +401,17 @@ async def get_workflow(
             raise HTTPException(status_code=404, detail="Workflow not found")
         
         # Check if user has access (owner or public workflow)
-        user_id = current_user.id  # Cache user ID
+        user_id = current_user.id
         if workflow.user_id != user_id and not workflow.is_public:
             raise HTTPException(status_code=403, detail="Access denied")
         
+        # Refresh sticky session ID for canvas testing when workflow is opened
+        try:
+            executor = get_workflow_executor()
+            executor.refresh_canvas_session_id(user_id, workflow_id)
+        except Exception as e:
+            logger.warning(f"Failed to refresh canvas session on workflow load: {e}")
+            
         return WorkflowResponse.model_validate(workflow)
     except HTTPException:
         raise
@@ -937,19 +944,6 @@ async def execute_adhoc_workflow(
     executor = get_workflow_executor()
     chat_service = ChatService(db)
     
-    # Use chatflow_id as session_id for memory persistence
-    chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
-    session_id = req.session_id or str(chatflow_id)
-    
-    # 🔥 CRITICAL: session_id must always be present
-    if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
-        session_id = str(chatflow_id)
-        logger.warning(f"Invalid session_id in workflow execution, using chatflow_id: {session_id}")
-    
-    # Ensure session_id is consistent with chatflow_id
-    if not req.session_id:
-        session_id = str(chatflow_id)
-    
     # Handle user for internal calls
     if is_internal_call:
         user = await executor.get_or_create_master_user(db)
@@ -957,6 +951,20 @@ async def execute_adhoc_workflow(
     else:
         user = current_user
         user_id = current_user.id
+
+    chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else None
+    
+    if req.session_id:
+        session_id = req.session_id
+    elif chatflow_id:
+        session_id = str(chatflow_id)
+    else:
+        # Check for sticky canvas session (Test mode)
+        session_id = executor.get_canvas_session_id(user_id, req.workflow_id or "adhoc")
+    
+    if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
+        session_id = str(uuid.uuid4())
+        logger.warning(f"Invalid session_id in workflow execution, fallback to: {session_id}")
     
     # Get or create workflow object
     workflow = None

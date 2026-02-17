@@ -172,6 +172,7 @@ class NodePropertyType(str, Enum):
     JSON_EDITOR = "json-editor"
     DATETIME = "datetime"
     CODE_EDITOR = "code-editor"
+    SESSION_ID = "session-id"
 
 
 class NodeProperty(BaseModel):
@@ -648,6 +649,7 @@ class BaseNode(ABC):
     session_id: Optional[str]
     _input_connections: Dict[str, Dict[str, str]]
     _output_connections: Dict[str, List[Dict[str, str]]]
+    workflow_id: Optional[str]
     user_data: Dict[str, Any]
     credentials: List[Dict[str, Any]]
     
@@ -655,6 +657,7 @@ class BaseNode(ABC):
         self.node_id = None  # Will be set by GraphBuilder
         self.context_id = None  # Credential context for provider
         self.session_id = None  # Session ID for conversation continuity
+        self.workflow_id = None  # Workflow (Chatflow) ID
         # Connection mappings set by GraphBuilder
         self._input_connections = {}
         self._output_connections = {}

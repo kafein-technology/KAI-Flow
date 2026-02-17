@@ -67,6 +67,7 @@ export default function KaiChatWidget({
   const [isLoading, setIsLoading] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const sessionIdRef = useRef(uuidv4());
 
   const copyToClipboard = async (text: string) => {
@@ -84,6 +85,13 @@ export default function KaiChatWidget({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isOpen]);
+
+  // Focus input when chat opens or loading finishes
+  useEffect(() => {
+    if (isOpen && !isLoading) {
+      inputRef.current?.focus();
+    }
+  }, [isOpen, isLoading]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -648,10 +656,17 @@ export default function KaiChatWidget({
             <div className="p-4 bg-white border-t border-gray-100">
               <div className="flex gap-2 items-center bg-gray-50 rounded-full px-4 py-2 border border-gray-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      sendMessage();
+                      // Immediate focus attempt after sending
+                      setTimeout(() => inputRef.current?.focus(), 0);
+                    }
+                  }}
                   placeholder="Mesajınızı yazın..."
                   className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm py-1"
                   disabled={isLoading}
