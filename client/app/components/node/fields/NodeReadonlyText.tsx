@@ -16,10 +16,11 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
       const pathValue = (values?.path || "").trim();
       if (pathValue) {
         const baseUrl = config.API_BASE_URL || window.location.origin;
+        const basePath = window.VITE_BASE_PATH || '';
         const environment = values?.webhook_environment || "test";
         const prefix = environment === "production"
-          ? `/${config.API_START}/${config.API_VERSION_ONLY}/webhook`
-          : `/${config.API_START}/${config.API_VERSION_ONLY}/webhook-test`;
+          ? `/${config.API_START}${basePath}/${config.API_START}/${config.API_VERSION_ONLY}/webhook`
+          : `/${config.API_START}${basePath}/${config.API_START}/${config.API_VERSION_ONLY}/webhook-test`;
         return `${baseUrl}${prefix}/${pathValue}`;
       }
     }
