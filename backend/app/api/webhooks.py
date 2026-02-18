@@ -89,7 +89,7 @@ curl -X POST /{API_START}/webhooks/{webhook_id} \
 
 """
 
-from app.core.constants import API_START,API_VERSION
+from app.core.constants import API_START, API_VERSION
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
@@ -621,7 +621,7 @@ async def trigger_webhook(
                         # Internal API call to execute workflow
                         async with httpx.AsyncClient() as client:
                             api_response = await client.post(
-                                f"http://localhost:8000/{API_START}/{API_VERSION}/workflows/execute",
+                                f"{request.base_url}{API_START}/{API_VERSION}/workflows/execute",
                                 json=execution_payload,
                                 headers={
                                     "Content-Type": "application/json",
