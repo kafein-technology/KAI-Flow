@@ -2,17 +2,20 @@ import { ErrorMessage, useFormikContext } from "formik";
 import type { NodeProperty } from "../types";
 import { useRef, useEffect, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
-import { Maximize2, Minimize2, X, ChevronDown } from "lucide-react";
+import { Maximize2, X } from "lucide-react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor, languages, IDisposable } from "monaco-editor";
 import { completionsByLanguage } from "./monaco/completions";
 import {
-    PYTHON_VERSIONS,
-    DEFAULT_PYTHON_VERSION,
     getPythonDiagnostics,
     getVersionSpecificCompletions,
     type PythonVersion,
 } from "./monaco/pythonVersionFeatures";
+import {
+    getJavaScriptDiagnostics,
+    getJavaScriptVersionSpecificCompletions,
+    type JavaScriptVersion,
+} from "./monaco/javascriptVersionFeatures";
 
 interface NodeCodeEditorProps {
     property: NodeProperty;
@@ -26,13 +29,12 @@ function getWordsFromText(text: string): string[] {
 }
 
 export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
-    const { setFieldValue } = useFormikContext();
+    const { setFieldValue, submitForm } = useFormikContext();
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const disposablesRef = useRef<IDisposable[]>([]);
     const [expanded, setExpanded] = useState(false);
-    const [pythonVersion, setPythonVersion] = useState<PythonVersion>(DEFAULT_PYTHON_VERSION);
-    const [versionDropdownOpen, setVersionDropdownOpen] = useState(false);
-    const [fullscreenVersionDropdownOpen, setFullscreenVersionDropdownOpen] = useState(false);
+    const pythonVersion: PythonVersion = "3.11";
+    const javascriptVersion: JavaScriptVersion = "ES2022";
     const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
 
     const displayOptions = property?.displayOptions || {};
@@ -63,9 +65,13 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
             const staticItems =
                 completionsByLanguage[language as keyof typeof completionsByLanguage] || [];
 
-            // Add version-specific completions for Python
+            // Add version-specific completions for Python / JavaScript
             const versionItems =
-                language === "python" ? getVersionSpecificCompletions(pythonVersion) : [];
+                language === "python"
+                    ? getVersionSpecificCompletions(pythonVersion)
+                    : language === "javascript"
+                      ? getJavaScriptVersionSpecificCompletions(javascriptVersion)
+                      : [];
 
             const disposable = monacoInstance.languages.registerCompletionItemProvider(language, {
                 provideCompletionItems: (model, position) => {
@@ -109,13 +115,21 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
 
             disposablesRef.current.push(disposable);
         },
-        [language, pythonVersion]
+        [language, pythonVersion, javascriptVersion]
     );
 
     const handleEditorMount: OnMount = (editorInstance, monacoInstance) => {
         editorRef.current = editorInstance;
         monacoRef.current = monacoInstance;
         registerCompletions(monacoInstance);
+
+        // Ctrl+S: save & close
+        editorInstance.addCommand(
+            monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
+            () => {
+                submitForm();
+            }
+        );
     };
 
     // Re-register completions when language changes
@@ -126,7 +140,7 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
                 registerCompletions(monacoInstance);
             }
         }
-    }, [language, pythonVersion, registerCompletions]);
+    }, [language, pythonVersion, javascriptVersion, registerCompletions]);
 
     // Run Python version diagnostics whenever code or version changes
     useEffect(() => {
@@ -150,6 +164,28 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
         };
     }, [currentValue, pythonVersion, language]);
 
+    // Run JavaScript version diagnostics whenever code or version changes
+    useEffect(() => {
+        if (language !== "javascript" || !monacoRef.current) return;
+
+        const monaco = monacoRef.current;
+        const model = editorRef.current?.getModel() || fullscreenEditorRef.current?.getModel();
+        if (!model) return;
+
+        const markers = getJavaScriptDiagnostics(
+            currentValue,
+            javascriptVersion,
+            monaco.MarkerSeverity
+        );
+        monaco.editor.setModelMarkers(model, "javascript-version-check", markers);
+
+        return () => {
+            if (model && !model.isDisposed()) {
+                monaco.editor.setModelMarkers(model, "javascript-version-check", []);
+            }
+        };
+    }, [currentValue, javascriptVersion, language]);
+
     // Lock body scroll when fullscreen is open
     useEffect(() => {
         if (expanded) {
@@ -160,15 +196,11 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
         }
     }, [expanded]);
 
-    // Close fullscreen on Escape, save & close on Ctrl+S
+    // Close fullscreen on Escape
     useEffect(() => {
         if (!expanded) return;
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
-                setExpanded(false);
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-                e.preventDefault();
                 setExpanded(false);
             }
         };
@@ -181,51 +213,34 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
         monacoRef.current = monacoInstance;
         registerCompletions(monacoInstance);
         editorInstance.focus();
+
+        // Ctrl+S: save & close fullscreen + submit form
+        editorInstance.addCommand(
+            monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
+            () => {
+                setExpanded(false);
+                submitForm();
+            }
+        );
     };
 
-    // Reusable version dropdown component
-    const VersionDropdown = ({
-        isOpen,
-        setIsOpen,
-    }: {
-        isOpen: boolean;
-        setIsOpen: (v: boolean) => void;
-    }) => {
-        if (language !== "python") return null;
-        return (
-            <div className="relative">
-                <button
-                    type="button"
-                    onClick={() => setIsOpen(!isOpen)}
-                    className="flex items-center gap-1 text-xs text-gray-300 bg-[#3c3c3c] hover:bg-[#4c4c4c] px-2 py-0.5 rounded transition-colors"
-                >
+    // Fixed version badge (non-editable)
+    const VersionBadge = () => {
+        if (language === "python") {
+            return (
+                <span className="text-xs text-gray-300 bg-[#3c3c3c] px-2 py-0.5 rounded">
                     Python {pythonVersion}
-                    <ChevronDown size={12} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                </button>
-                {isOpen && (
-                    <div className="absolute top-full left-0 mt-1 z-50 bg-[#252526] border border-[#3c3c3c] rounded-lg shadow-lg shadow-black/50 overflow-hidden min-w-[120px]">
-                        {PYTHON_VERSIONS.map((v) => (
-                            <button
-                                key={v}
-                                type="button"
-                                onClick={() => {
-                                    setPythonVersion(v);
-                                    setIsOpen(false);
-                                }}
-                                className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
-                                    v === pythonVersion
-                                        ? "bg-blue-600/30 text-blue-300"
-                                        : "text-gray-300 hover:bg-[#3c3c3c] hover:text-white"
-                                }`}
-                            >
-                                Python {v}
-                                {v === pythonVersion && " ✓"}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
+                </span>
+            );
+        }
+        if (language === "javascript") {
+            return (
+                <span className="text-xs text-gray-300 bg-[#3c3c3c] px-2 py-0.5 rounded">
+                    JavaScript {javascriptVersion}
+                </span>
+            );
+        }
+        return null;
     };
 
     // Cleanup on unmount
@@ -274,7 +289,7 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
                 <label className="text-white text-sm font-medium flex items-center gap-2">
                     {property.displayName}
                 </label>
-                <VersionDropdown isOpen={versionDropdownOpen} setIsOpen={setVersionDropdownOpen} />
+                <VersionBadge />
             </div>
 
             {/* Inline Editor */}
@@ -342,7 +357,7 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
                                 <span className="text-xs text-gray-400 bg-[#3c3c3c] px-2 py-0.5 rounded">
                                     {language}
                                 </span>
-                                <VersionDropdown isOpen={fullscreenVersionDropdownOpen} setIsOpen={setFullscreenVersionDropdownOpen} />
+                                <VersionBadge />
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-gray-500">
