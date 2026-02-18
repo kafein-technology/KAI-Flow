@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --version:*)",
+      "mcp__ide__getDiagnostics"
+    ]
+  }
+}
