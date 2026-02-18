@@ -12,10 +12,10 @@ This Phase 1 implementation provides:
 - Comprehensive error handling and recovery
 - Real-time performance metrics and optimization
 
-AUTHORS: KAI-Fusion Workflow Orchestration Team
+AUTHORS: KAI-Flow Workflow Orchestration Team
 VERSION: 2.1.0 - Phase 1
 LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import Dict, Set, Optional, Any, List, Union

@@ -1,8 +1,8 @@
 """
-KAI-Fusion Universal Document Loader - Enterprise Multi-Format Document Processing
+KAI-Flow Universal Document Loader - Enterprise Multi-Format Document Processing
 ================================================================================
 
-This module implements a comprehensive universal document loader for the KAI-Fusion platform,
+This module implements a comprehensive universal document loader for the KAI-Flow platform,
 providing enterprise-grade document processing with support for multiple file formats (TXT, JSON, 
 Word, PDF), multiple input sources (web URLs via Tavily, manual file uploads), intelligent 
 document storage, and seamless integration with downstream text processing workflows.
@@ -10,7 +10,7 @@ document storage, and seamless integration with downstream text processing workf
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Universal Document Loader serves as the central document ingestion gateway for KAI-Fusion,
+The Universal Document Loader serves as the central document ingestion gateway for KAI-Flow,
 unifying diverse document sources and formats into a standardized processing pipeline that
 delivers consistent, high-quality document objects ready for AI processing workflows.
 
@@ -264,10 +264,10 @@ CONTENT PROCESSING PIPELINE:
    - Quality-based filtering and selection
    - Processing analytics and reporting
 
-AUTHORS: KAI-Fusion Document Intelligence Team
+AUTHORS: KAI-Flow Document Intelligence Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-29
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:
@@ -317,7 +317,7 @@ class DocumentLoaderNode(ProcessorNode):
     ============================================================================
     
     The DocumentLoaderNode represents the comprehensive document ingestion foundation
-    of the KAI-Fusion platform, providing enterprise-grade multi-format document
+    of the KAI-Flow platform, providing enterprise-grade multi-format document
     processing with intelligent source detection, format-specific extraction engines,
     and seamless integration with downstream AI processing workflows.
     

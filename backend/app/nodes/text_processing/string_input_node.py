@@ -1,8 +1,8 @@
 """
-KAI-Fusion String Input Node - Text Data Entry Point
+KAI-Flow String Input Node - Text Data Entry Point
 ===================================================
 
-This module implements a simple but essential string input node for the KAI-Fusion platform.
+This module implements a simple but essential string input node for the KAI-Flow platform.
 The String Input Node serves as a foundational text processing component that allows users
 to input text data directly into workflows, providing a clean interface for text-based
 data entry and processing initiation.
@@ -64,7 +64,7 @@ Performance Metrics:
 - **Validation**: Real-time input validation feedback
 - **Throughput**: 1000+ inputs per second sustained
 
-Authors: KAI-Fusion Development Team
+Authors: KAI-Flow Development Team
 Version: 1.0.0
 License: Proprietary
 """
@@ -85,7 +85,7 @@ class StringInputNode(ProcessorNode):
     String Input Node - Simple text input processing for workflows.
     
     This node provides a clean interface for users to input text data directly
-    into KAI-Fusion workflows. It validates, sanitizes, and standardizes the
+    into KAI-Flow workflows. It validates, sanitizes, and standardizes the
     input text before passing it to downstream nodes in the workflow chain.
     """
     

@@ -1,8 +1,8 @@
 """
-KAI-Fusion Enterprise Chat Service - Advanced Conversational AI Management System
+KAI-Flow Enterprise Chat Service - Advanced Conversational AI Management System
 ================================================================================
 
-This module implements the sophisticated chat service for the KAI-Fusion platform, providing
+This module implements the sophisticated chat service for the KAI-Flow platform, providing
 enterprise-grade conversational AI management, comprehensive message lifecycle handling, and
 advanced workflow integration. Built for production environments with secure message handling,
 intelligent conversation management, and enterprise-grade encryption designed for scalable
@@ -11,7 +11,7 @@ AI-powered chat applications requiring sophisticated conversation orchestration.
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Enterprise Chat Service serves as the central conversational AI hub for KAI-Fusion,
+The Enterprise Chat Service serves as the central conversational AI hub for KAI-Flow,
 managing all chat interactions, message lifecycle operations, and workflow integration
 with enterprise-grade security, performance optimization, and comprehensive conversation
 analytics for production deployment environments requiring advanced chat capabilities.
@@ -251,10 +251,10 @@ Comprehensive Chat Intelligence:
    - User engagement measurement with retention analysis and growth optimization
    - Knowledge extraction with business insight generation and value realization
 
-AUTHORS: KAI-Fusion Conversation Management Team
+AUTHORS: KAI-Flow Conversation Management Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:
@@ -327,7 +327,7 @@ class ChatService:
             
             user_context = {
                 "session_id": session_id,
-                "user_id": str(chatflow_id),
+                "user_id": user_id if user_id else str(chatflow_id),
                 "workflow_id": str(workflow_id) if workflow_id else workflow_data.get("id", "default")
             }
             

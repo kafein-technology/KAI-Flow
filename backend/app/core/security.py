@@ -1,8 +1,8 @@
 """
-KAI-Fusion Enterprise Security Framework - Advanced Authentication & Authorization System
+KAI-Flow Enterprise Security Framework - Advanced Authentication & Authorization System
 ========================================================================================
 
-This module implements the sophisticated security framework for the KAI-Fusion platform,
+This module implements the sophisticated security framework for the KAI-Flow platform,
 providing enterprise-grade authentication, authorization, and cryptographic security
 features with advanced threat protection, compliance validation, and comprehensive
 security monitoring. Built for production environments with zero-trust architecture
@@ -11,7 +11,7 @@ and defense-in-depth security strategies designed for enterprise AI workflow pla
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Security Framework serves as the central security orchestration hub for KAI-Fusion,
+The Security Framework serves as the central security orchestration hub for KAI-Flow,
 managing all authentication, authorization, and cryptographic operations with
 enterprise-grade security controls, threat detection, and comprehensive audit
 capabilities for production deployment environments requiring enterprise compliance.
@@ -284,10 +284,10 @@ Enterprise Security Error Management:
    - System compromise with isolation procedures and recovery protocols
    - Compliance violations with automatic reporting and remediation plans
 
-AUTHORS: KAI-Fusion Security Architecture Team
+AUTHORS: KAI-Flow Security Architecture Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:

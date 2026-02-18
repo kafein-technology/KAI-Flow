@@ -1,8 +1,8 @@
 """
-KAI-Fusion Code Execution Node - Multi-Language Code Processing Engine
+KAI-Flow Code Execution Node - Multi-Language Code Processing Engine
 ======================================================================
 
-This module implements a sophisticated multi-language code execution node for the KAI-Fusion platform,
+This module implements a sophisticated multi-language code execution node for the KAI-Flow platform,
 providing secure, sandboxed code execution capabilities for Python and JavaScript.
 Built for dynamic data processing, transformation, and custom logic implementation within workflows.
 
@@ -48,9 +48,9 @@ KEY FEATURES:
    - JSON manipulation utilities
    - Date/time handling functions
 
-AUTHORS: KAI-Fusion Development Team
+AUTHORS: KAI-Flow Development Team
 VERSION: 2.0.0
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 import ast

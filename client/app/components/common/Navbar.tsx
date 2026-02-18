@@ -14,6 +14,7 @@ import { Link, useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
 import ToggleSwitch from "./ToggleSwitch";
 import WidgetExportModal from "../modals/WidgetExportModal";
+import { useNodeStore } from "~/stores/nodes";
 
 interface NavbarProps {
   workflowName: string;
@@ -100,13 +101,49 @@ const Navbar: React.FC<NavbarProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
         if (setCurrentWorkflow && setNodes && setEdges) {
+          // Ensure we have metadata before rehydrating
+          let nodeStore = useNodeStore.getState();
+          if (nodeStore.nodes.length === 0) {
+            await nodeStore.fetchNodes();
+            await nodeStore.fetchCategories();
+            nodeStore = useNodeStore.getState();
+          }
+
+          // Search both built-in and custom nodes
+          const allNodesMetadata = [...(nodeStore.nodes || []), ...(nodeStore.customNodes || [])];
+
+          const enrichedNodes = (json.flow_data?.nodes || []).map((node: any) => {
+            if (!node.data?.metadata && allNodesMetadata.length > 0) {
+              // Priority 1: Built-in nodes use 'name' as unique type identifier
+              // Priority 2: Custom nodes use 'id'
+              const metadata = allNodesMetadata.find(
+                m => m.name === node.type || (m as any).id === node.type
+              );
+
+              if (metadata) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    metadata: metadata,
+                    icon: metadata.icon,
+                    description: metadata.description,
+                    displayName: metadata.display_name,
+                    inputs: metadata.inputs,
+                    outputs: metadata.outputs,
+                  }
+                };
+              }
+            }
+            return node;
+          });
 
           setCurrentWorkflow(null);
-          setNodes(json.flow_data?.nodes || []);
+          setNodes(enrichedNodes);
           setEdges(json.flow_data?.edges || []);
           // Update workflow name from loaded file
           if (json.name) {
@@ -132,9 +169,38 @@ const Navbar: React.FC<NavbarProps> = ({
       enqueueSnackbar("No workflow to export!", { variant: "warning" });
       return;
     }
+
+    // Clean up the workflow data for export
+    const cleanWorkflow = {
+      id: currentWorkflow.id,
+      user_id: currentWorkflow.user_id,
+      name: currentWorkflow.name,
+      description: currentWorkflow.description,
+      is_public: currentWorkflow.is_public,
+      flow_data: {
+        nodes: (currentWorkflow.flow_data?.nodes || []).map((node: any) => {
+          // Remove React Flow internal state and redundant metadata
+          const { measured, selected, dragging, width, height, ...cleanNode } = node;
+
+          if (cleanNode.data) {
+            // Remove redundant metadata that can be rehydrated from registry
+            const { metadata, icon, description, displayName, inputs, outputs, ...cleanData } = cleanNode.data;
+            cleanNode.data = cleanData;
+          }
+
+          return cleanNode;
+        }),
+        edges: (currentWorkflow.flow_data?.edges || []).map((edge: any) => {
+          // Remove potential internal edge state
+          const { selected, ...cleanEdge } = edge;
+          return cleanEdge;
+        }),
+      }
+    };
+
     const dataStr =
       "data:text/json;charset=utf-8," +
-      encodeURIComponent(JSON.stringify(currentWorkflow, null, 2));
+      encodeURIComponent(JSON.stringify(cleanWorkflow, null, 2));
     const downloadAnchorNode = document.createElement("a");
     downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute(

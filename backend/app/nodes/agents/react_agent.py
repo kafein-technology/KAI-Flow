@@ -1,10 +1,10 @@
 
 """
-KAI-Fusion ReactAgent Node - Modern LangGraph-Based AI Agent Orchestration
+KAI-Flow ReactAgent Node - Modern LangGraph-Based AI Agent Orchestration
 =========================================================================
 
 This module implements a sophisticated ReactAgent node using the latest LangGraph API,
-serving as the orchestration brain of the KAI-Fusion platform. Built on LangGraph's
+serving as the orchestration brain of the KAI-Flow platform. Built on LangGraph's
 modern create_react_agent framework, it provides enterprise-grade agent capabilities
 with advanced tool integration, state-based memory management, and multilingual support.
 
@@ -85,13 +85,13 @@ Comprehensive error handling with multiple fallback mechanisms:
 INTEGRATION PATTERNS:
 ====================
 
-Seamless integration with KAI-Fusion ecosystem:
+Seamless integration with KAI-Flow ecosystem:
 - **LangGraph Compatibility**: Full state management integration
 - **LangSmith Tracing**: Comprehensive observability and debugging
 - **Vector Store Integration**: Advanced RAG capabilities
 - **Custom Node Connectivity**: Easy integration with custom business logic
 
-AUTHORS: KAI-Fusion Development Team
+AUTHORS: KAI-Flow Development Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
 LICENSE: Proprietary
@@ -106,7 +106,7 @@ from langchain_core.language_models import BaseLanguageModel
 from langchain_core.tools import BaseTool
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.memory import BaseMemory
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.state import CompiledStateGraph
@@ -301,20 +301,20 @@ class AgentDebugCallback(BaseCallbackHandler):
 
 class ReactAgentNode(ProcessorNode):
     """
-    KAI-Fusion ReactAgent - Modern LangGraph-Based AI Agent Orchestration Engine
+    KAI-Flow ReactAgent - Modern LangGraph-Based AI Agent Orchestration Engine
     ==========================================================================
     
-    The ReactAgentNode is the crown jewel of the KAI-Fusion platform, representing the
+    The ReactAgentNode is the crown jewel of the KAI-Flow platform, representing the
     culmination of modern AI agent architecture, multilingual intelligence, and
     enterprise-grade orchestration capabilities. Built upon LangGraph's latest
     create_react_agent framework, it transcends traditional agent limitations to deliver
     sophisticated, state-driven AI interactions with robust memory and tool management.
 
-    AUTHORS: KAI-Fusion Development Team
+    AUTHORS: KAI-Flow Development Team
     MAINTAINER: Senior AI Architecture Team
     VERSION: 3.0.0
     LAST_UPDATED: 2025-09-07
-    LICENSE: Proprietary - KAI-Fusion Platform
+    LICENSE: Proprietary - KAI-Flow Platform
     """
     
     def __init__(self):
@@ -565,7 +565,7 @@ class ReactAgentNode(ProcessorNode):
 
             # Prepare final input and execute
             final_input = self._prepare_final_input_for_graph(user_input, memory)
-            return self._execute_graph_with_error_handling(agent_graph, final_input, memory)
+            return self._execute_graph_with_error_handling(agent_graph, final_input, memory, user_input=user_input)
 
         return RunnableLambda(agent_executor_lambda)
 
@@ -720,22 +720,8 @@ class ReactAgentNode(ProcessorNode):
 
     def _prepare_final_input_for_graph(self, user_input: str, memory: Any) -> Dict[str, Any]:
         """Prepare the final input dictionary for graph execution using new state format."""
-        # Load conversation history from memory
-        conversation_history = self._load_conversation_history(memory)
-
-        # Create messages list in the format expected by the new API
-        messages = []
-
-        # Add conversation history if available
-        if conversation_history:
-            # Parse conversation history and add to messages
-            for line in conversation_history.split('\n'):
-                if line.strip():
-                    if line.startswith('Human:'):
-                        messages.append(HumanMessage(content=line.replace('Human:', '').strip()))
-                    elif line.startswith('Assistant:'):
-                        # Skip assistant messages as they'll be regenerated
-                        pass
+        # Load conversation history as a list of message objects
+        messages = self._load_conversation_history(memory)
 
         # Always add user input as HumanMessage
         # The _extract_user_input_from_templated_inputs method now correctly returns:
@@ -751,62 +737,48 @@ class ReactAgentNode(ProcessorNode):
             "messages": messages
         }
 
-    def _load_conversation_history(self, memory: Any) -> str:
-        """Load and format conversation history from memory."""
+    def _load_conversation_history(self, memory: Any) -> List[BaseMessage]:
+        """Load and return conversation history from memory as a list of messages."""
         print(f"[AGENT MEMORY DEBUG] Starting memory history load")
         
         if memory is None:
-            print("   [MEMORY] None")
             print("[AGENT MEMORY DEBUG] Memory object is None")
-            return ""
-
-        print(f"[AGENT MEMORY DEBUG] Memory object type: {type(memory)}")
-        print(f"[AGENT MEMORY DEBUG] Memory object attributes: {dir(memory)}")
+            return []
 
         try:
-            # Check if memory has chat_memory attribute
-            if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
-                messages = memory.chat_memory.messages
-                print(f"[AGENT MEMORY DEBUG] Direct access: {len(messages)} messages in chat_memory")
-                
-                if messages:
-                    for i, msg in enumerate(messages[:3]):
-                        msg_type = getattr(msg, 'type', 'unknown')
-                        msg_content = getattr(msg, 'content', '')
-                        print(f"[AGENT MEMORY DEBUG] Direct message {i+1}: type={msg_type}, content='{msg_content[:50]}...'")
-
             # Try to load memory variables
             print(f"[AGENT MEMORY DEBUG] Attempting to load memory variables...")
             memory_vars = memory.load_memory_variables({})
-            print(f"[AGENT MEMORY DEBUG] Memory variables loaded: {list(memory_vars.keys()) if memory_vars else 'None'}")
             
             if not memory_vars:
-                print("   [MEMORY] None")
                 print("[AGENT MEMORY DEBUG] Memory variables are empty or None")
-                return ""
+                return []
 
-            memory_key = getattr(memory, 'memory_key', 'memory')
-            print(f"[AGENT MEMORY DEBUG] Using memory key: {memory_key}")
+            # Identify the memory key from the memory object, fallback to session_id or 'memory'
+            memory_key = getattr(memory, 'memory_key', self.session_id or 'memory')
+            history_content = memory_vars.get(memory_key, [])
             
-            if memory_key not in memory_vars:
-                print("   [MEMORY] None")
-                print(f"[AGENT MEMORY DEBUG] Memory key '{memory_key}' not found in variables: {list(memory_vars.keys())}")
-                return ""
-
-            history_content = memory_vars[memory_key]
-            print(f"[AGENT MEMORY DEBUG] History content type: {type(history_content)}")
-            print(f"[AGENT MEMORY DEBUG] History content length: {len(history_content) if hasattr(history_content, '__len__') else 'no length'}")
+            if isinstance(history_content, list):
+                print(f"   [MEMORY] Loaded {len(history_content)} messages from history")
+                # Ensure the messages are in a clean list of BaseMessage objects
+                messages = []
+                for msg in history_content:
+                    if isinstance(msg, BaseMessage):
+                        messages.append(msg)
+                    elif isinstance(msg, dict):
+                        m_type = msg.get('type', 'human')
+                        m_content = msg.get('content', '')
+                        if m_type == 'human':
+                            messages.append(HumanMessage(content=m_content))
+                        elif m_type == 'ai':
+                            messages.append(AIMessage(content=m_content))
+                return messages
             
-            formatted_history = self._format_conversation_history(history_content)
-            print(f"[AGENT MEMORY DEBUG] Formatted history length: {len(formatted_history)} chars")
-            
-            return formatted_history
+            return []
 
         except Exception as memory_error:
             print(f"   [WARNING] Failed to load memory variables: {memory_error}")
-            import traceback
-            print(f"[AGENT MEMORY DEBUG] Memory load error traceback: {traceback.format_exc()}")
-            return ""
+            return []
 
     def _format_conversation_history(self, history_content: Any) -> str:
         """Format conversation history into readable string."""
@@ -831,7 +803,7 @@ class ReactAgentNode(ProcessorNode):
 
         return ""
 
-    def _execute_graph_with_error_handling(self, agent_graph: CompiledStateGraph, final_input: Dict[str, Any], memory: Any) -> Dict[str, Any]:
+    def _execute_graph_with_error_handling(self, agent_graph: CompiledStateGraph, final_input: Dict[str, Any], memory: Any, user_input: str = None) -> Dict[str, Any]:
         """Execute the agent graph with comprehensive error handling."""
         try:
 
@@ -846,10 +818,22 @@ class ReactAgentNode(ProcessorNode):
                 if memory:
                     try:
                         print("   [PERSIST] Persisting conversation to database via memory node...")
-                        session_id = memory.memory_key
-
-                        BufferMemoryNode().save_messages(session_id=session_id, messages=[last_ai_message])
-                        print(f"   [SUCCESS] Conversation persisted for session {session_id[:8]}...")
+                        # Ensure we use the correct IDs for persistent storage
+                        session_id = self.session_id
+                        user_id = getattr(self, 'user_id', None)
+                        chatflow_id = getattr(self, 'workflow_id', None)
+                        
+                        # Prepare messages to persist (Human + AI)
+                        messages_to_save = []
+                        if user_input and user_input.strip():
+                            from langchain_core.messages import HumanMessage
+                            messages_to_save.append(HumanMessage(content=user_input))
+                        
+                        messages_to_save.append(last_ai_message)
+                        
+                        # Save to database using BufferMemoryNode's persistent method
+                        BufferMemoryNode().save_messages(session_id=session_id, messages=messages_to_save, user_id=user_id, chatflow_id=chatflow_id)
+                        
                     except Exception as e:
                         print(f"   [ERROR] Failed to persist memory via _persist_to_database: {e}")
 

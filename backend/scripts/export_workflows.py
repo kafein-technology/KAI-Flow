@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KAI-Fusion Workflow Export Script
+KAI-Flow Workflow Export Script
 ==================================
 
 Export workflows to distributable YAML bundle.
@@ -189,7 +189,7 @@ async def export_workflows(
     (output_path / "workflows_config.yaml").write_text(yaml_content, encoding="utf-8")
     
     # Write README
-    readme = f"""# KAI-Fusion Workflow Export Bundle
+    readme = f"""# KAI-Flow Workflow Export Bundle
 
 Generated: {config['generated_at']}
 
@@ -233,7 +233,7 @@ python -m scripts.import_workflows --config /path/to/workflows_config.yaml
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Export KAI-Fusion workflows to distributable bundle"
+        description="Export KAI-Flow workflows to distributable bundle"
     )
     parser.add_argument("--ids", help="Comma-separated workflow UUIDs to export")
     parser.add_argument("--user-email", help="Export all workflows for this user")

@@ -1,9 +1,9 @@
 """
-KAI-Fusion Node Output Cache Management - Intelligent State Caching System
+KAI-Flow Node Output Cache Management - Intelligent State Caching System
 ==========================================================================
 
 This module implements sophisticated caching and retrieval mechanisms for
-node outputs in the KAI-Fusion Graph Builder system. It provides intelligent
+node outputs in the KAI-Flow Graph Builder system. It provides intelligent
 output management with multiple fallback strategies and performance optimization.
 
 This replaces the ad-hoc caching logic scattered throughout the graph builder
@@ -16,7 +16,7 @@ Features:
 - Consistent data access patterns
 - Comprehensive error handling
 
-Authors: KAI-Fusion Development Team  
+Authors: KAI-Flow Development Team  
 Version: 3.0.0 - Clean Architecture Refactor
 Last Updated: 2025-01-13
 """

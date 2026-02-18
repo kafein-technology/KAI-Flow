@@ -1,5 +1,5 @@
 """
-KAI-Fusion OpenAI Compatible Node
+KAI-Flow OpenAI Compatible Node
 ===============================
 
 This module provides a universal node for connecting to any OpenAI-compatible API 
@@ -111,7 +111,7 @@ class OpenAICompatibleNode(BaseNode):
                     name="site_name",
                     type="str",
                     description="Your site name (for OpenRouter rankings)",
-                    default="KAI-Fusion",
+                    default="KAI-Flow",
                     required=False
                 ),
                 NodeInput(
@@ -291,7 +291,7 @@ class OpenAICompatibleNode(BaseNode):
         
         # OpenRouter specific params
         site_url = self.user_data.get("site_url", "")
-        site_name = self.user_data.get("site_name", "KAI-Fusion")
+        site_name = self.user_data.get("site_name", "KAI-Flow")
         
         # Get API Key
         credential_id = self.user_data.get("credential_id")

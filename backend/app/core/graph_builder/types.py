@@ -5,10 +5,10 @@ GraphBuilder Type Definitions
 Shared type definitions, dataclasses, enums, and protocols for the
 GraphBuilder system providing strong typing and clear interfaces.
 
-AUTHORS: KAI-Fusion Workflow Orchestration Team  
+AUTHORS: KAI-Flow Workflow Orchestration Team  
 VERSION: 2.1.0
 LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from __future__ import annotations

@@ -88,6 +88,9 @@ class WorkflowExecutor:
         self.execution_service = ExecutionService()
         # Don't initialize workflow_enhancer at init time to avoid circular imports
         self._workflow_enhancer = None
+        # In-memory session tracking for canvas (adhoc/test) executions
+        # Dictionary mapping (user_id, workflow_id) -> active_test_session_id
+        self._canvas_sessions: Dict[tuple[str, str], str] = {}
     
     @property
     def workflow_enhancer(self):
@@ -97,6 +100,28 @@ class WorkflowExecutor:
             self._workflow_enhancer = get_workflow_enhancer()
         return self._workflow_enhancer
     
+    def get_canvas_session_id(self, user_id: Union[str, uuid.UUID], workflow_id: Union[str, uuid.UUID]) -> str:
+
+        user_id_str = str(user_id)
+        wf_id_str = str(workflow_id)
+        key = (user_id_str, wf_id_str)
+        
+        if key not in self._canvas_sessions:
+            self._canvas_sessions[key] = f"{uuid.uuid4()}"
+            logger.info(f"Created new sticky canvas session: {self._canvas_sessions[key]}")
+        
+        return self._canvas_sessions[key]
+
+    def refresh_canvas_session_id(self, user_id: Union[str, uuid.UUID], workflow_id: Union[str, uuid.UUID]) -> str:
+        user_id_str = str(user_id)
+        wf_id_str = str(workflow_id)
+        key = (user_id_str, wf_id_str)
+        
+        new_session_id = f"{uuid.uuid4()}"
+        self._canvas_sessions[key] = new_session_id
+        logger.info(f"Refreshed sticky canvas session for {wf_id_str}: {new_session_id}")
+        return new_session_id
+
     async def get_or_create_master_user(self, db: AsyncSession) -> User:
         """
         Get or create master user for system operations (e.g., webhook executions).
@@ -296,7 +321,7 @@ class WorkflowExecutor:
         # Generate session_id if not provided
         if not session_id:
             if is_webhook:
-                session_id = f"webhook_{workflow.id}_{int(time.time())}"
+                session_id = str(workflow.id)
             else:
                 session_id = str(uuid.uuid4())
         

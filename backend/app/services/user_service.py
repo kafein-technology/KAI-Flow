@@ -1,8 +1,8 @@
 """
-KAI-Fusion Enterprise User Service - Advanced User Management & Identity System
+KAI-Flow Enterprise User Service - Advanced User Management & Identity System
 ===============================================================================
 
-This module implements the sophisticated user management service for the KAI-Fusion platform,
+This module implements the sophisticated user management service for the KAI-Flow platform,
 providing enterprise-grade user lifecycle management, comprehensive identity services, and
 advanced security integration. Built for production environments with scalable user operations,
 intelligent identity management, and enterprise-grade authentication designed for large-scale
@@ -11,7 +11,7 @@ AI platform deployments requiring sophisticated user administration and security
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Enterprise User Service serves as the central identity management hub for KAI-Fusion,
+The Enterprise User Service serves as the central identity management hub for KAI-Flow,
 managing all user lifecycle operations, providing comprehensive authentication services,
 and enabling advanced user administration with enterprise-grade security, audit logging,
 and comprehensive user analytics for production deployment environments.
@@ -283,10 +283,10 @@ Comprehensive User Intelligence:
    - Administrative efficiency with user management optimization and automation
    - Growth analytics with acquisition, retention, and expansion measurement
 
-AUTHORS: KAI-Fusion Identity Management Team
+AUTHORS: KAI-Flow Identity Management Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:

@@ -5,10 +5,10 @@ GraphBuilder Exception Classes
 Custom exception hierarchy for the GraphBuilder system providing
 detailed error information for workflow orchestration failures.
 
-AUTHORS: KAI-Fusion Workflow Orchestration Team
+AUTHORS: KAI-Flow Workflow Orchestration Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import Any, Dict, Optional, List

@@ -1,8 +1,8 @@
 """
-KAI-Fusion Embedding Models - Text Vectorization & Semantic Search
+KAI-Flow Embedding Models - Text Vectorization & Semantic Search
 ================================================================
 
-This module provides enterprise-grade text embedding capabilities for the KAI-Fusion platform,
+This module provides enterprise-grade text embedding capabilities for the KAI-Flow platform,
 offering seamless integration with various embedding models and vectorization providers.
 
 Available Embedding Models:

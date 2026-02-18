@@ -1,8 +1,8 @@
 """
-KAI-Fusion Checkpointer - Enterprise Workflow State Management & Persistence
+KAI-Flow Checkpointer - Enterprise Workflow State Management & Persistence
 ===========================================================================
 
-This module implements sophisticated workflow state management for the KAI-Fusion platform,
+This module implements sophisticated workflow state management for the KAI-Flow platform,
 providing enterprise-grade checkpointing capabilities with intelligent persistence strategies,
 automatic failover mechanisms, and comprehensive state recovery. Built for production
 LangGraph workflows requiring reliable state preservation across executions.
@@ -10,7 +10,7 @@ LangGraph workflows requiring reliable state preservation across executions.
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Checkpointer system serves as the state persistence backbone for KAI-Fusion workflows,
+The Checkpointer system serves as the state persistence backbone for KAI-Flow workflows,
 ensuring reliable workflow continuation across system restarts, failures, and scaling events.
 It provides intelligent storage selection with automatic fallback mechanisms for maximum
 reliability and performance optimization.
@@ -276,10 +276,10 @@ Enterprise-Grade Performance Engineering:
    - Retry mechanisms with exponential backoff
    - Health checks with predictive failover
 
-AUTHORS: KAI-Fusion Workflow Engine Team
+AUTHORS: KAI-Flow Workflow Engine Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:

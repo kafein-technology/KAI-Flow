@@ -1,8 +1,8 @@
 """
-KAI-Fusion Web Scraper - Enterprise Content Extraction & Document Processing
+KAI-Flow Web Scraper - Enterprise Content Extraction & Document Processing
 ===========================================================================
 
-This module implements sophisticated web scraping capabilities for the KAI-Fusion platform,
+This module implements sophisticated web scraping capabilities for the KAI-Flow platform,
 providing enterprise-grade content extraction with intelligent HTML processing, advanced
 content cleaning, and seamless LangChain integration. Built for reliable data ingestion
 from web sources with production-grade error handling and content optimization.
@@ -10,7 +10,7 @@ from web sources with production-grade error handling and content optimization.
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Web Scraper system serves as the content ingestion gateway for KAI-Fusion,
+The Web Scraper system serves as the content ingestion gateway for KAI-Flow,
 transforming raw web content into structured, clean documents ready for AI processing.
 It combines Tavily's advanced web fetching with intelligent content cleaning to
 deliver high-quality document extraction at enterprise scale.
@@ -301,10 +301,10 @@ Multi-layered Error Management:
    - Configuration parameter validation and defaults
    - User input sanitization and security validation
 
-AUTHORS: KAI-Fusion Content Intelligence Team
+AUTHORS: KAI-Flow Content Intelligence Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:
@@ -339,7 +339,7 @@ class WebScraperNode(ProcessorNode):
     ========================================================
     
     The WebScraperNode represents the sophisticated content ingestion engine of the
-    KAI-Fusion platform, providing enterprise-grade web scraping capabilities with
+    KAI-Flow platform, providing enterprise-grade web scraping capabilities with
     intelligent content extraction, advanced HTML processing, and seamless LangChain
     Document generation for downstream AI workflows.
     
@@ -651,11 +651,11 @@ class WebScraperNode(ProcessorNode):
     - Basic HTML parsing and text extraction
     - Simple error handling and logging
     
-    AUTHORS: KAI-Fusion Content Intelligence Team
+    AUTHORS: KAI-Flow Content Intelligence Team
     MAINTAINER: Web Content Processing Specialists
     VERSION: 2.1.0
     LAST_UPDATED: 2025-07-26
-    LICENSE: Proprietary - KAI-Fusion Platform
+    LICENSE: Proprietary - KAI-Flow Platform
     """
 
     def __init__(self):
