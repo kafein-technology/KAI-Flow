@@ -3,6 +3,7 @@ interface Config {
   API_START: string;
   API_VERSION_ONLY: string;
   API_VERSION: string;
+  BASE_PATH: string;
   APP_NAME: string;
   ENVIRONMENT: 'development' | 'production' | 'testing';
   ENABLE_LOGGING: boolean;
@@ -17,12 +18,13 @@ const getConfig = (): Config => {
     return (import.meta as any).env[key];
   };
 
-  let apiBaseUrl = getGlobalValue('VITE_API_BASE_URL');
+  let apiBaseUrl = getGlobalValue('VITE_API_BASE_URL') || (typeof window !== 'undefined' ? window.location.origin : '');
   const apiStart = getGlobalValue('VITE_API_START') || 'api';
   const apiVersionOnly = getGlobalValue('VITE_API_VERSION_ONLY') || 'v1';
   const apiVersion = `/${apiStart}/${apiVersionOnly}`;
-  const appName = getGlobalValue('VITE_APP_NAME');
-  const env = getGlobalValue('VITE_NODE_ENV');
+  const basePath: string = getGlobalValue('VITE_BASE_PATH') || '';
+  const appName = getGlobalValue('VITE_APP_NAME') || 'KAI Fusion';
+  const env = getGlobalValue('VITE_NODE_ENV') || 'development';
   const enableLogging = getGlobalValue('VITE_ENABLE_LOGGING') === 'true';
 
   // Handle protocol-relative URLs (e.g., //localhost:8000)
@@ -48,10 +50,11 @@ const getConfig = (): Config => {
   }
 
   return {
-    API_BASE_URL: apiBaseUrl,
+    API_BASE_URL: apiBaseUrl || '',
     API_START: apiStart,
     API_VERSION_ONLY: apiVersionOnly,
     API_VERSION: apiVersion,
+    BASE_PATH: basePath,
     APP_NAME: appName,
     ENVIRONMENT: env,
     ENABLE_LOGGING: enableLogging,
@@ -115,9 +118,6 @@ export const API_ENDPOINTS = {
     DELETE: (chat_message_id: string) => `/chat/${chat_message_id}`,
     DELETE_CHATFLOW: (chatflow_id: string) => `/chat/chatflow/${chatflow_id}`,
     GET_WORKFLOW_CHATS: (workflow_id: string) => `/chat/workflow/${workflow_id}`,
-    ACTIVE_SESSION: {
-      ID: '/chat/active-session/id',
-    },
   },
   EXECUTIONS: {
     LIST: '/executions',
