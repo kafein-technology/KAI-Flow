@@ -131,7 +131,8 @@ class ApiClient {
                             TokenManager.clearTokens();
                             // Redirect to login
                             if (typeof window !== 'undefined') {
-                                window.history.pushState({}, '', '/signin');
+                                const basePath = window.VITE_BASE_PATH || '';
+                                window.history.pushState({}, '', `${basePath}/signin`);
                                 window.dispatchEvent(new PopStateEvent('popstate'));
                             }
                         }
@@ -140,7 +141,8 @@ class ApiClient {
                         TokenManager.clearTokens();
                         // Redirect to login
                         if (typeof window !== 'undefined') {
-                            window.history.pushState({}, '', '/signin');
+                            const basePath = window.VITE_BASE_PATH || '';
+                            window.history.pushState({}, '', `${basePath}/signin`);
                             window.dispatchEvent(new PopStateEvent('popstate'));
                         }
                         return Promise.reject(refreshError);
