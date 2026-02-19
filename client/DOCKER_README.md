@@ -45,7 +45,7 @@ docker-compose down -v
 
 ### Frontend (Client)
 - `VITE_API_BASE_URL`: API base URL (default: http://localhost:8000)
-- `VITE_API_VERSION`: API versiyonu (default: /api/v1)
+- `VITE_API_VERSION`: API versiyonu (default: /api/kai/api/v1)
 - `VITE_NODE_ENV`: Node environment (default: development)
 - `VITE_ENABLE_LOGGING`: Logging aktif/pasif (default: true)
 

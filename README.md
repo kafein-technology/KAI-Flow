@@ -167,7 +167,7 @@ Create: `client/.env`
 ```dotenv
 # Frontend env
 VITE_API_BASE_URL=http://localhost:8000
-VITE_API_VERSION=/api/v1 (Derived from VITE_API_START and VITE_API_VERSION_ONLY)
+VITE_API_VERSION=api/kai/api/v1 (Derived from VITE_API_START and VITE_API_VERSION_ONLY)
 VITE_API_START=api
 VITE_API_VERSION_ONLY=v1
 VITE_NODE_ENV=development

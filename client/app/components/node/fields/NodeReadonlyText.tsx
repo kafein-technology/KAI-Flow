@@ -19,8 +19,8 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
         const basePath = window.VITE_BASE_PATH || '';
         const environment = values?.webhook_environment || "test";
         const prefix = environment === "production"
-          ? `/${config.API_START}${basePath}${config.API_VERSION}/webhook`
-          : `/${config.API_START}${basePath}${config.API_VERSION}/webhook-test`;
+          ? `${config.API_VERSION}/webhook`
+          : `${config.API_VERSION}/webhook-test`;
         return `${baseUrl}${prefix}/${pathValue}`;
       }
     }

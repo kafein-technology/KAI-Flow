@@ -873,17 +873,17 @@
                 "placeholder": "192.168.1.1, 10.0.0.0/8"
               }
             ],
-            "description": "Unified webhook node that supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD). Send requests to /api/v1/webhook/wh_30c8dcd62344 with optional JSON payload.",
+            "description": "Unified webhook node that supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD). Send requests to /api/kai/api/v1/webhook/wh_30c8dcd62344 with optional JSON payload.",
             "display_name": "Webhook Trigger"
           },
           "allowed_ips": "",
-          "description": "Unified webhook node that supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD). Send requests to /api/v1/webhook/wh_30c8dcd62344 with optional JSON payload.",
+          "description": "Unified webhook node that supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD). Send requests to /api/kai/api/v1/webhook/wh_30c8dcd62344 with optional JSON payload.",
           "displayName": "Webhook Trigger",
           "enable_cors": "true",
           "http_method": "POST",
           "webhook_timeout": 30,
           "max_payload_size": 1024,
-          "webhook_exact_url": "https://localhost:8000/api/v1/webhook/webhook_trigger",
+          "webhook_exact_url": "https://localhost:8000/api/kai/api/v1/webhook/webhook_trigger",
           "authentication_type": "none",
           "webhook_environment": "production",
           "rate_limit_per_minute": 60,

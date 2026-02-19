@@ -20,7 +20,7 @@ const getConfig = (): Config => {
   let apiBaseUrl = getGlobalValue('VITE_API_BASE_URL');
   const apiStart = getGlobalValue('VITE_API_START') || 'api';
   const apiVersionOnly = getGlobalValue('VITE_API_VERSION_ONLY') || 'v1';
-  const apiVersion = `/${apiStart}/${apiVersionOnly}`;
+  const apiVersion = getGlobalValue('VITE_API_VERSION');
   const appName = getGlobalValue('VITE_APP_NAME');
   const env = getGlobalValue('VITE_NODE_ENV');
   const enableLogging = getGlobalValue('VITE_ENABLE_LOGGING') === 'true';
