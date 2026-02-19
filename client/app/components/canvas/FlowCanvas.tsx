@@ -1970,7 +1970,8 @@ function useWebhookExecutionListener(
       }
 
       try {
-        const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/webhook-test/${webhookId}/stream`;
+        const basePath = window.VITE_BASE_PATH || '';
+        const streamUrl = `${basePath}${config.API_VERSION}/webhook-test/${webhookId}/stream`;
         const eventSource = new EventSource(streamUrl);
 
         eventSource.onerror = (error) => {
