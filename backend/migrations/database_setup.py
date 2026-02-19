@@ -55,6 +55,7 @@ import os
 import argparse
 import logging
 from typing import List, Dict, Any, Set
+from urllib.parse import urlparse, urlunparse, quote
 from sqlalchemy import text, inspect, MetaData, Table, Column
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -133,9 +134,21 @@ class DatabaseSetup:
             return False
 
         try:
-            # Build database URL with credentials
-            host_part = DATABASE_URL.replace('postgresql://', '')
-            db_url = f"postgresql://{POSTGRES_USERNAME}:{POSTGRES_PASSWORD}@{host_part}"
+            # Build database URL with credentials using proper URL parsing
+            parsed = urlparse(DATABASE_URL)
+            # URL-encode credentials to handle special characters like @
+            safe_user = quote(POSTGRES_USERNAME, safe='')
+            safe_pass = quote(POSTGRES_PASSWORD, safe='')
+            # Replace credentials, keeping the original host, port, path, etc.
+            db_url = urlunparse((
+                parsed.scheme or 'postgresql',  # scheme
+                f"{safe_user}:{safe_pass}@{parsed.hostname}"
+                + (f":{parsed.port}" if parsed.port else ""),  # netloc with new creds
+                parsed.path,    # database name
+                parsed.params,
+                parsed.query,
+                parsed.fragment,
+            ))
             logger.info(f"Database URL built for user: {POSTGRES_USERNAME}")
 
             # Convert to async URL
