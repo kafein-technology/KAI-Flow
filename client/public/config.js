@@ -1,5 +1,5 @@
 window.VITE_BASE_PATH = "/kai";
-window.VITE_API_BASE_URL = "//localhost:8000";
+window.VITE_API_BASE_URL = "//localhost:23056";
 window.VITE_KEYCLOAK_URL = "https://keycloak.dev.netfein.com";
 window.VITE_KEYCLOAK_CLIENT_ID = "agenticgroapp";
 window.VITE_KEYCLOAK_REALM = "agenticgro-dev";
