@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BookOpen, X } from "lucide-react";
 import TutorialLauncher from "./TutorialLauncher";
 import TutorialWorkflowGuide from "./TutorialWorkflowGuide";
+import { getTutorialProgressList } from "../../services/tutorialProgressService";
 
 export default function TutorialButton() {
   const [showLauncher, setShowLauncher] = useState(false);
@@ -9,6 +10,22 @@ export default function TutorialButton() {
   const [selectedTutorial, setSelectedTutorial] = useState<
     string | undefined
   >();
+  const [hasSaved, setHasSaved] = useState(false);
+
+  useEffect(() => {
+    getTutorialProgressList()
+      .then((list) => setHasSaved(list.length > 0))
+      .catch(() => setHasSaved(false));
+  }, []);
+
+  const handleTutorialButtonClick = () => {
+    if (hasSaved) {
+      setSelectedTutorial(undefined);
+      setShowGuide(true);
+    } else {
+      setShowLauncher(true);
+    }
+  };
 
   const handleLaunchTutorial = (tutorialId: string) => {
     setSelectedTutorial(tutorialId);
@@ -19,24 +36,22 @@ export default function TutorialButton() {
   const handleCloseGuide = () => {
     setShowGuide(false);
     setSelectedTutorial(undefined);
+    setHasSaved(true);
   };
 
   return (
     <>
-      {/* Tutorial Button */}
       <button
-        onClick={() => setShowLauncher(true)}
+        onClick={handleTutorialButtonClick}
         className="fixed bottom-6 left-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all duration-200 hover:scale-110 z-40"
         title="Open Tutorials"
       >
         <BookOpen className="w-6 h-6" />
       </button>
 
-      {/* Tutorial Launcher Modal */}
       {showLauncher && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden">
-            {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">
                 Tutorial Workflows
@@ -49,7 +64,6 @@ export default function TutorialButton() {
               </button>
             </div>
 
-            {/* Content */}
             <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
               <TutorialLauncher onLaunchTutorial={handleLaunchTutorial} />
             </div>
@@ -57,7 +71,6 @@ export default function TutorialButton() {
         </div>
       )}
 
-      {/* Tutorial Guide Modal */}
       {showGuide && (
         <TutorialWorkflowGuide
           isOpen={showGuide}

@@ -36,4 +36,5 @@ class User(Base):
     documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")
     document_collections = relationship("DocumentCollection", back_populates="user", cascade="all, delete-orphan")
     document_chunks = relationship("DocumentChunk", back_populates="user", cascade="all, delete-orphan")
-    document_access_logs = relationship("DocumentAccessLog", back_populates="user", cascade="all, delete-orphan") 
+    document_access_logs = relationship("DocumentAccessLog", back_populates="user", cascade="all, delete-orphan")
+    tutorial_progress = relationship("TutorialProgress", back_populates="user", cascade="all, delete-orphan") 

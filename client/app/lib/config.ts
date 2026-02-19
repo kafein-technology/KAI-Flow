@@ -136,6 +136,12 @@ export const API_ENDPOINTS = {
     WORKFLOW_INIT: (id: string) => `/export/workflow/${id}/init`,
     WORKFLOW_COMPLETE: (id: string) => `/export/workflow/${id}/complete`,
   },
+  TUTORIAL_PROGRESS: {
+    LIST: '/tutorial-progress',
+    GET: (tutorialId: string) => `/tutorial-progress/${tutorialId}`,
+    SAVE: (tutorialId: string) => `/tutorial-progress/${tutorialId}`,
+    DELETE: (tutorialId: string) => `/tutorial-progress/${tutorialId}`,
+  },
   HEALTH: '/health',
   INFO: '/info',
 } as const;
