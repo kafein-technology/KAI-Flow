@@ -1,4 +1,3 @@
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { BrowserRouter } from "react-router";
@@ -6,9 +5,7 @@ import { BrowserRouter } from "react-router";
 const basePath = window.VITE_BASE_PATH;
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <BrowserRouter basename={basePath}>
-      <App />
-    </BrowserRouter>
-  </StrictMode>
+  <BrowserRouter basename={basePath}>
+    <App />
+  </BrowserRouter>
 );

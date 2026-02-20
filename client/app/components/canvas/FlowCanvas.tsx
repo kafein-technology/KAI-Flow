@@ -1913,9 +1913,29 @@ function useWebhookExecutionListener(
   currentWorkflowId?: string,
   setCurrentExecutionForWorkflow?: (workflowId: string, execution: any) => void
 ) {
+  // Stable key derived only from webhook node identity/config — ignores selection, position, etc.
+  const webhookConfigKey = useMemo(() => {
+    return nodes
+      .filter((n) => n.type === "WebhookTrigger" || n.type?.includes("WebhookTrigger"))
+      .map((n) => `${n.id}|${n.data?.webhook_id || ""}|${n.data?.path || ""}`)
+      .sort()
+      .join(",");
+  }, [nodes]);
+
+  // Keep refs so the effect can read latest values without triggering re-runs
+  const nodesRef = useRef<Node[]>([]);
+  nodesRef.current = nodes;
+  const edgesRef = useRef<Edge[]>([]);
+  edgesRef.current = edges;
+  const currentWorkflowIdRef = useRef<string | undefined>(currentWorkflowId);
+  currentWorkflowIdRef.current = currentWorkflowId;
+  const setCurrentExecutionForWorkflowRef = useRef(setCurrentExecutionForWorkflow);
+  setCurrentExecutionForWorkflowRef.current = setCurrentExecutionForWorkflow;
+
   useEffect(() => {
-    // Find all webhook trigger nodes in the workflow
-    const webhookNodes = nodes.filter(
+
+    // Find all webhook trigger nodes in the workflow (read from ref to avoid stale closure)
+    const webhookNodes = nodesRef.current.filter(
       (node) => node.type === "WebhookTrigger" || node.type?.includes("WebhookTrigger")
     );
 
@@ -1927,7 +1947,6 @@ function useWebhookExecutionListener(
     const processedEventIds = new Set<string>(); // Event deduplication
     const retryCounts = new Map<string, number>(); // Retry tracking per webhook
     const MAX_RETRIES = 5;
-    const INITIAL_RETRY_DELAY = 1000; // 1 second
 
     // Throttling for UI updates
     let lastUpdateTime = 0;
@@ -1946,8 +1965,8 @@ function useWebhookExecutionListener(
       completedAt?: string;
     }>();
 
-    // Get base URL with fallback
-    const baseUrl = import.meta.env.VITE_API_BASE_URL;
+    // Use runtime config (same source as the rest of the API calls)
+    const baseUrl = config.API_BASE_URL;
 
     // Connect to webhook stream for each webhook node
     webhookNodes.forEach((node) => {
@@ -1977,31 +1996,30 @@ function useWebhookExecutionListener(
           const retryCount = retryCounts.get(webhookId) || 0;
 
           if (retryCount < MAX_RETRIES) {
-            const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
-            console.warn(
-              `⚠️ Webhook stream error for ${webhookId}, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
-            );
-
             retryCounts.set(webhookId, retryCount + 1);
-
-            // Close and reconnect after delay
-            setTimeout(() => {
-              eventSource.close();
-              // Reconnect will be handled by EventSource automatically
-              // But we can also manually reconnect if needed
-            }, delay);
+            console.warn(
+              `⚠️ Webhook stream error for ${webhookId} (attempt ${retryCount + 1}/${MAX_RETRIES}), browser will auto-reconnect`
+            );
+            // Do NOT call eventSource.close() here — browser auto-reconnects naturally
           } else {
             console.error(
-              `❌ Webhook stream error for ${webhookId}: Max retries reached. Connection failed.`,
+              `❌ Webhook stream error for ${webhookId}: Max retries reached. Closing.`,
               error
             );
             retryCounts.delete(webhookId);
+            eventSource.close(); // Only close when max retries are truly exhausted
           }
         };
 
         eventSource.onmessage = async (event) => {
           try {
             const data = JSON.parse(event.data) as WebhookStreamEvent;
+
+            // Read latest values from refs to avoid stale closures
+            const nodes = nodesRef.current;
+            const edges = edgesRef.current;
+            const currentWorkflowId = currentWorkflowIdRef.current;
+            const setCurrentExec = setCurrentExecutionForWorkflowRef.current;
 
             // Handle connection and ping events
             if (data.type === "connected") {
@@ -2275,7 +2293,7 @@ function useWebhookExecutionListener(
       }
     });
 
-    // Cleanup: close all event sources when component unmounts or nodes change
+    // Cleanup: close all event sources when component unmounts or webhook config changes
     return () => {
       eventSources.forEach((es) => {
         try {
@@ -2290,7 +2308,7 @@ function useWebhookExecutionListener(
       pendingUpdates.length = 0;
       webhookExecutionData.clear();
     };
-  }, [nodes, workflowId, currentWorkflowId, setCurrentExecutionForWorkflow]);
+  }, [webhookConfigKey, workflowId]); // currentWorkflowId and setCurrentExecutionForWorkflow accessed via refs
 }
 
 interface FlowCanvasWrapperProps {
