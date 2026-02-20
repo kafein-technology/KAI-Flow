@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { config } from "../../../lib/config";
 import type { NodeProperty } from "../types";
 import { useWorkflows } from "~/stores/workflows";
+import { getActiveSessionId } from "~/services/chatService";
 
 interface NodeReadonlyTextProps {
   property: NodeProperty;
@@ -59,6 +60,20 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
       setFieldValue("webhook_exact_url", computedValue);
     }
   }, [property.name, computedValue, setFieldValue]);
+
+    // session_id için aktif session ID'yi çek
+  useEffect(() => {
+    if (property.name === "session_id" && values.session_mode === "automatic" && setFieldValue) {
+      getActiveSessionId(currentWorkflow?.id).then(response => {
+        if (response?.session_id) {
+          setFieldValue("session_id", response.session_id);
+        }
+      }).catch(err => {
+        console.error("Failed to fetch active session ID:", err);
+      });
+    }
+  }, [property.name, setFieldValue, values.session_mode, currentWorkflow?.id]);
+
 
   const handleCopy = useCallback(() => {
     if (!value) return;
