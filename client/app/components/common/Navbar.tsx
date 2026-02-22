@@ -305,7 +305,10 @@ const Navbar: React.FC<NavbarProps> = ({
                           `Workflow is now ${isPublic ? "Public" : "Private"}`,
                           { variant: "success" }
                         );
-                        onSave();
+                        // onSave() KALDIRILDI: visibility endpoint zaten DB'yi güncelliyor.
+                        // onSave() burada çağrılınca tam workflow save tetikleniyordu,
+                        // bu da restart_listeners_for_workflow'u İKİNCİ kez çağırıp
+                        // DB pool deadlock'a neden oluyordu.
                       }
                     } catch (error) {
                       enqueueSnackbar("Workflow visibility could not be updated", {

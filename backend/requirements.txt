@@ -189,3 +189,4 @@ xxhash==3.5.0
 yarl==1.20.1
 zstandard==0.24.0
 cachetools==5.5.2
+confluent-kafka==2.3.0

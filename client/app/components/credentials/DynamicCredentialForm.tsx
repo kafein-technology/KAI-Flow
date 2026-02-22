@@ -144,7 +144,11 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             <div className="mb-3 flex items-center justify-center">
               {!failed && (
                 <img
-                  src={resolveIconPath(`icons/${service.id}.svg`)}
+                  src={resolveIconPath(
+                    service.icon
+                      ? `icons/${service.icon}`
+                      : `icons/${service.id}.svg`
+                  )}
                   alt={`${service.name} logo`}
                   className="w-12 h-12 object-contain"
                   onError={() => setFailed(true)}
