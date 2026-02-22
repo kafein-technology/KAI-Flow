@@ -27,9 +27,12 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
           <div className="w-6 h-6 flex items-center justify-center">
             {!iconFailed && (
               <img
-                src={resolveIconPath(`icons/${credential.service_type}.svg`)}
-                alt={`${serviceDefinition?.name || credential.service_type
-                  } logo`}
+                src={resolveIconPath(
+                  serviceDefinition?.icon
+                    ? `icons/${serviceDefinition.icon}`
+                    : `icons/${credential.service_type}.svg`
+                )}
+                alt={`${serviceDefinition?.name || credential.service_type} logo`}
                 className="w-6 h-6 object-contain"
                 onError={() => setIconFailed(true)}
               />
