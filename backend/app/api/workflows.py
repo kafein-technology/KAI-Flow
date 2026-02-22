@@ -667,9 +667,6 @@ async def update_workflow_visibility(
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
         
-        # Kafka listener senkronizasyonu reconciliation loop tarafından
-        # otomatik yapılıyor — burada Kafka ile uğraşmaya gerek yok.
-        
         logger.info(f"Updated workflow {workflow_id} visibility to {'public' if is_public else 'private'}")
         return {"message": f"Workflow visibility updated to {'public' if is_public else 'private'}"}
     except HTTPException:
