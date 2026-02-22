@@ -288,6 +288,7 @@ IMPLEMENTATION DETAILS:
 import json
 import logging
 import uuid
+import asyncio
 from typing import Any, Dict, Optional, AsyncGenerator, List
 from datetime import datetime, timedelta
 from sqlalchemy import and_, func as sql_func
@@ -446,11 +447,13 @@ async def update_workflow(
             setattr(workflow, field, value)
         
         # Increment version if flow_data is updated
-        if 'flow_data' in update_data:
+        flow_data_changed = 'flow_data' in update_data
+        if flow_data_changed:
             workflow.version += 1
         
         await db.commit()
         await db.refresh(workflow)
+        
         
         logger.info(f"Updated workflow {workflow_id} for user {user_id}")
         return WorkflowResponse.model_validate(workflow)
@@ -663,6 +666,9 @@ async def update_workflow_visibility(
         
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        # Kafka listener senkronizasyonu reconciliation loop tarafından
+        # otomatik yapılıyor — burada Kafka ile uğraşmaya gerek yok.
         
         logger.info(f"Updated workflow {workflow_id} visibility to {'public' if is_public else 'private'}")
         return {"message": f"Workflow visibility updated to {'public' if is_public else 'private'}"}

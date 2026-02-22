@@ -276,7 +276,9 @@ async def delete_credential(
                 detail="Credential not found"
             )
         
-        # Delete the credential
+        # Kafka listener senkronizasyonu reconciliation loop tarafından
+        # otomatik yapılıyor — credential silinince ~2dk içinde listener durur.
+        
         success = await credential_service.delete_credential(
             db, user_id, credential_id
         )
