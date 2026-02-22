@@ -163,7 +163,7 @@ async def lifespan(app: FastAPI):
     
     logger.info("Backend initialization complete - KAI Fusion Ready!")
     
-    # Kafka reconciliation loop başlat — periyodik listener senkronizasyonu
+    # Start Kafka reconciliation loop — periodic listener synchronization
     _kafka_reconciliation_task = None
     try:
         from app.nodes.triggers.kafka_trigger import kafka_reconciliation_loop
@@ -177,7 +177,7 @@ async def lifespan(app: FastAPI):
     # Cleanup
     logger.info("Shutting down KAI Fusion Backend...")
     
-    # Reconciliation loop'u durdur
+    # Stop the reconciliation loop.
     if _kafka_reconciliation_task and not _kafka_reconciliation_task.done():
         _kafka_reconciliation_task.cancel()
         try:
@@ -186,7 +186,7 @@ async def lifespan(app: FastAPI):
             pass
         logger.info("Kafka reconciliation loop durduruldu")
     
-    # Tüm Kafka listener'ları graceful durdur
+    # Stop all Kafka listeners gracefully
     try:
         from app.nodes.triggers.kafka_trigger import KafkaListenerService
         all_listeners = KafkaListenerService.get_all_listeners()
