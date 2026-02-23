@@ -223,6 +223,32 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         description: 'Comma-separated list of Kafka broker addresses (e.g. host1:9092,host2:9092)'
       }
     ]
+  },
+  {
+    id: 'kafka',
+    name: 'Kafka',
+    description: 'Apache Kafka connection credentials for producing and consuming messages',
+    icon: 'kafka_credetial.svg',
+    category: 'api',
+    color: 'from-green-500 to-emerald-600',
+    fields: [
+      {
+        name: 'client_id',
+        label: 'Client ID',
+        type: 'text',
+        required: true,
+        placeholder: 'my-kafka-client',
+        description: 'A unique identifier for this Kafka client'
+      },
+      {
+        name: 'brokers',
+        label: 'Brokers',
+        type: 'text',
+        required: true,
+        placeholder: 'localhost:9092',
+        description: 'Comma-separated list of Kafka broker addresses (e.g. host1:9092,host2:9092)'
+      }
+    ]
   }
 ];
 

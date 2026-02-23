@@ -288,7 +288,6 @@ IMPLEMENTATION DETAILS:
 import json
 import logging
 import uuid
-import asyncio
 from typing import Any, Dict, Optional, AsyncGenerator, List
 from datetime import datetime, timedelta
 from sqlalchemy import and_, func as sql_func
@@ -447,13 +446,11 @@ async def update_workflow(
             setattr(workflow, field, value)
         
         # Increment version if flow_data is updated
-        flow_data_changed = 'flow_data' in update_data
-        if flow_data_changed:
+        if 'flow_data' in update_data:
             workflow.version += 1
         
         await db.commit()
         await db.refresh(workflow)
-        
         
         logger.info(f"Updated workflow {workflow_id} for user {user_id}")
         return WorkflowResponse.model_validate(workflow)
