@@ -276,7 +276,7 @@ async def delete_credential(
                 detail="Credential not found"
             )
         
-        # Delete the credential        
+        # Delete the credential
         success = await credential_service.delete_credential(
             db, user_id, credential_id
         )
