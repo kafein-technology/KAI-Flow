@@ -31,7 +31,7 @@ You can run the full stack locally using Docker (with an external DB) or set up 
 
 ### 🔗 Quick Links
 
-* **Website (Preview)**: [https://kai-fusion-blond.vercel.app](https://kai-fusion-blond.vercel.app)
+* **Website (Preview)**: [https://kai-fusion.vercel.app](https://kai-fusion.vercel.app)
 * **API Docs (local)**: [http://localhost:8000/docs](http://localhost:8000/docs) (FastAPI Swagger UI)
 * **Star / Fork**: [https://github.com/kafein-product-space/KAI-Fusion](https://github.com/kafein-product-space/KAI-Fusion)
 
