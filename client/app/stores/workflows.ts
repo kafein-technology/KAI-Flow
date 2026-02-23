@@ -134,7 +134,13 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
     set({ isLoading: true });
     try {
       await WorkflowService.updateWorkflowVisibility(id, is_public);
-      set({ isLoading: false });
+      // Lokal state'i güncelle — UI'ın anında yansıması için
+      set((state) => ({
+        workflows: state.workflows.map((w) =>
+          w.id === id ? { ...w, is_public } : w
+        ),
+        isLoading: false,
+      }));
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
       throw error;
@@ -145,17 +151,18 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
     try {
       // Update local state immediately for better UX
       set((state) => ({
-        workflows: state.workflows.map((w) => 
+        workflows: state.workflows.map((w) =>
           w.id === id ? { ...w, is_active } : w
         ),
-        currentWorkflow: state.currentWorkflow?.id === id 
-          ? { ...state.currentWorkflow, is_active } 
+        currentWorkflow: state.currentWorkflow?.id === id
+          ? { ...state.currentWorkflow, is_active }
           : state.currentWorkflow,
         isLoading: false,
       }));
-      
-      // TODO: Implement backend API call when ready
-      // await WorkflowService.updateWorkflowStatus(id, is_active);
+
+      // NOTE: Using is_public for Kafka activation as per user request
+      // TODO: Link this toggle to is_public if desired
+      // await WorkflowService.updateWorkflow(id, { is_public: is_active });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
       throw error;
@@ -201,7 +208,7 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
       throw error;
     }
   },
- 
+
   fetchDashboardStats: async () => {
     set({ isLoading: true });
     try {
