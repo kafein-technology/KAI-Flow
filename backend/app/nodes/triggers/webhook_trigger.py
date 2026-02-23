@@ -1235,7 +1235,7 @@ class WebhookTriggerNode(TerminatorNode):
                     default=str(uuid.uuid4()),
                     placeholder="Leave empty to auto-generate UUID v4",
                     hint="Customizable path value for webhook endpoint",
-                    required=False,
+                    required=True,
                     tabName="basic"
                 ),
                 NodeProperty(
@@ -1257,7 +1257,7 @@ class WebhookTriggerNode(TerminatorNode):
                     type=NodePropertyType.READONLY_TEXT,
                     placeholder="Full webhook URL will be displayed here and can be copied",
                     hint="This field is read-only and automatically updates based on the Path and Environment fields",
-                    required=False,
+                    required=True,
                     tabName="basic",
                     colSpan=2,
                 ),
