@@ -120,7 +120,7 @@ class DatabaseSetup:
             "webhook_events",
             "vector_collections",
             "vector_documents",
-            "external_workflows",
+            "external_workflows"
         ]
 
     async def initialize(self):

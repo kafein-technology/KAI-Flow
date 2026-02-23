@@ -53,3 +53,5 @@ async def get_scheduled_job_service_dep(db: AsyncSession = Depends(get_db_sessio
 @lru_cache
 def get_webhook_service_dep() -> WebhookService:
     return WebhookService()
+
+# ChatService requires db at initialization, so we create it inline in the endpoint 

@@ -48,6 +48,6 @@ __all__ = [
     "DocumentChunk",
     "DocumentAccessLog",
     "DocumentVersion",
-    "ExternalWorkflow",
+    "ExternalWorkflow"
 ]
 
