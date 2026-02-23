@@ -111,7 +111,6 @@ from app.api.test_endpoint import router as test_router
 
 from app.api.external_workflows import router as external_workflows_router
 from app.api.export import router as export_router
-from app.api.tutorial_progress import router as tutorial_progress_router
 
 logger = logging.getLogger(__name__)
 
@@ -263,7 +262,6 @@ app.include_router(http_client_router, tags=["HTTP Client"])  # Built-in prefix
 
 app.include_router(export_router, prefix=f"/{API_START}/{API_VERSION}", tags=["Export"])
 app.include_router(external_workflows_router, prefix=f"/{API_START}/{API_VERSION}", tags=["External Workflows"])
-app.include_router(tutorial_progress_router, prefix=f"/{API_START}/{API_VERSION}/tutorial-progress", tags=["Tutorial Progress"])
 
 
 

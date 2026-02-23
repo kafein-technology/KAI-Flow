@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { BookOpen, X } from "lucide-react";
 import TutorialLauncher from "./TutorialLauncher";
 import TutorialWorkflowGuide from "./TutorialWorkflowGuide";
-import { getTutorialProgressList } from "../../services/tutorialProgressService";
+import { useTutorialProgress } from "../../stores/tutorialProgress";
 
 export default function TutorialButton() {
   const [showLauncher, setShowLauncher] = useState(false);
@@ -10,16 +10,10 @@ export default function TutorialButton() {
   const [selectedTutorial, setSelectedTutorial] = useState<
     string | undefined
   >();
-  const [hasSaved, setHasSaved] = useState(false);
-
-  useEffect(() => {
-    getTutorialProgressList()
-      .then((list) => setHasSaved(list.length > 0))
-      .catch(() => setHasSaved(false));
-  }, []);
+  const { hasAnyProgress } = useTutorialProgress();
 
   const handleTutorialButtonClick = () => {
-    if (hasSaved) {
+    if (hasAnyProgress()) {
       setSelectedTutorial(undefined);
       setShowGuide(true);
     } else {
@@ -36,7 +30,6 @@ export default function TutorialButton() {
   const handleCloseGuide = () => {
     setShowGuide(false);
     setSelectedTutorial(undefined);
-    setHasSaved(true);
   };
 
   return (

@@ -176,8 +176,8 @@ def initialize_database():
             
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
-# Don't raise during import - let the application start without database if needed
-logger.warning("Database initialization failed - some features may not work")
+        # Don't raise during import - let the application start without database if needed
+        logger.warning("Database initialization failed - some features may not work")
 
 # Initialize database on import, but don't fail if it doesn't work
 try:

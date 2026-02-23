@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BookOpen,
   Play,
@@ -16,11 +16,7 @@ import {
   type TutorialWorkflow,
   type TutorialStep,
 } from "../../data/tutorialWorkflows";
-import {
-  getTutorialProgressList,
-  getTutorialProgress,
-  saveTutorialProgress,
-} from "../../services/tutorialProgressService";
+import { useTutorialProgress } from "../../stores/tutorialProgress";
 
 interface TutorialWorkflowGuideProps {
   isOpen: boolean;
@@ -33,32 +29,13 @@ export default function TutorialWorkflowGuide({
   onClose,
   selectedTutorial,
 }: TutorialWorkflowGuideProps) {
+  const { getProgressList, getProgress, saveProgress } = useTutorialProgress();
   const [currentTutorial, setCurrentTutorial] =
     useState<TutorialWorkflow | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const switchingRef = useRef(false);
-  const currentTutorialRef = useRef<TutorialWorkflow | null>(null);
-  const currentStepRef = useRef(0);
-  const completedStepsRef = useRef<Set<string>>(new Set());
 
-  // Keep refs in sync with state for flush-on-unmount
-  useEffect(() => { currentTutorialRef.current = currentTutorial; }, [currentTutorial]);
-  useEffect(() => { currentStepRef.current = currentStepIndex; }, [currentStepIndex]);
-  useEffect(() => { completedStepsRef.current = completedSteps; }, [completedSteps]);
-
-  const persistProgress = useCallback(
-    (tutorial: TutorialWorkflow, stepIndex: number, completed: Set<string>) => {
-      if (switchingRef.current) return;
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = setTimeout(() => {
-        saveTutorialProgress(tutorial.id, stepIndex, Array.from(completed)).catch(() => { });
-      }, 400);
-    },
-    []
-  );
 
   useEffect(() => {
     if (selectedTutorial) {
@@ -68,55 +45,31 @@ export default function TutorialWorkflowGuide({
         setCurrentStepIndex(0);
         setCompletedSteps(new Set());
         setLoaded(true);
-        saveTutorialProgress(tutorial.id, 0, []).catch(() => { });
+        saveProgress(tutorial.id, 0, []);
       }
       return;
     }
 
-    getTutorialProgressList()
-      .then((progressList) => {
-        if (progressList.length > 0) {
-          const latest = progressList[0];
-          const tutorial = TUTORIAL_WORKFLOWS.find((t) => t.id === latest.tutorial_id);
-          if (tutorial) {
-            setCurrentTutorial(tutorial);
-            setCurrentStepIndex(latest.current_step ?? 0);
-            setCompletedSteps(new Set(latest.completed_steps ?? []));
-            setLoaded(true);
-            return;
-          }
-        }
-        setCurrentTutorial(TUTORIAL_WORKFLOWS[0]);
+    const progressList = getProgressList();
+    if (progressList.length > 0) {
+      const latest = progressList[0];
+      const tutorial = TUTORIAL_WORKFLOWS.find((t) => t.id === latest.tutorial_id);
+      if (tutorial) {
+        setCurrentTutorial(tutorial);
+        setCurrentStepIndex(latest.current_step ?? 0);
+        setCompletedSteps(new Set(latest.completed_steps ?? []));
         setLoaded(true);
-      })
-      .catch(() => {
-        setCurrentTutorial(TUTORIAL_WORKFLOWS[0]);
-        setLoaded(true);
-      });
+        return;
+      }
+    }
+    setCurrentTutorial(TUTORIAL_WORKFLOWS[0]);
+    setLoaded(true);
   }, [selectedTutorial]);
 
   useEffect(() => {
     if (!loaded || !currentTutorial) return;
-    persistProgress(currentTutorial, currentStepIndex, completedSteps);
-  }, [currentTutorial, currentStepIndex, completedSteps, loaded, persistProgress]);
-
-  // Flush pending save on unmount instead of cancelling it
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        // Flush immediately with latest state
-        const t = currentTutorialRef.current;
-        if (t) {
-          saveTutorialProgress(
-            t.id,
-            currentStepRef.current,
-            Array.from(completedStepsRef.current)
-          ).catch(() => { });
-        }
-      }
-    };
-  }, []);
+    saveProgress(currentTutorial.id, currentStepIndex, Array.from(completedSteps));
+  }, [currentTutorial, currentStepIndex, completedSteps, loaded]);
 
   const handleStepComplete = (stepId: string) => {
     setCompletedSteps((prev) => new Set([...prev, stepId]));
@@ -146,20 +99,10 @@ export default function TutorialWorkflowGuide({
   };
 
   const selectTutorial = (tutorial: TutorialWorkflow) => {
-    switchingRef.current = true;
-    getTutorialProgress(tutorial.id)
-      .then((progress) => {
-        setCurrentTutorial(tutorial);
-        setCurrentStepIndex(progress.current_step ?? 0);
-        setCompletedSteps(new Set(progress.completed_steps ?? []));
-        switchingRef.current = false;
-      })
-      .catch(() => {
-        setCurrentTutorial(tutorial);
-        setCurrentStepIndex(0);
-        setCompletedSteps(new Set());
-        switchingRef.current = false;
-      });
+    const progress = getProgress(tutorial.id);
+    setCurrentTutorial(tutorial);
+    setCurrentStepIndex(progress?.current_step ?? 0);
+    setCompletedSteps(new Set(progress?.completed_steps ?? []));
   };
 
   const getProgressPercentage = () => {

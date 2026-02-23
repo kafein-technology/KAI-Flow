@@ -17,7 +17,6 @@ from .vector_collection import VectorCollection
 from .vector_document import VectorDocument
 from .document import DocumentCollection, Document, DocumentChunk, DocumentAccessLog, DocumentVersion
 from .external_workflow import ExternalWorkflow
-from .tutorial_progress import TutorialProgress
 
 __all__ = [
     "Base",
@@ -50,6 +49,5 @@ __all__ = [
     "DocumentAccessLog",
     "DocumentVersion",
     "ExternalWorkflow",
-    "TutorialProgress"
 ]
 

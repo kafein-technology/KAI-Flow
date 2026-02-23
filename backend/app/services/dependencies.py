@@ -17,7 +17,6 @@ from app.services.variable_service import VariableService
 from app.services.chat_service import ChatService
 from app.services.scheduled_job_service import ScheduledJobService
 from app.services.webhook_service import WebhookService
-from app.services.tutorial_progress_service import TutorialProgressService
 
 
 @lru_cache
@@ -54,8 +53,3 @@ async def get_scheduled_job_service_dep(db: AsyncSession = Depends(get_db_sessio
 @lru_cache
 def get_webhook_service_dep() -> WebhookService:
     return WebhookService()
-
-@lru_cache
-def get_tutorial_progress_service_dep() -> TutorialProgressService:
-    return TutorialProgressService()
- 

@@ -121,7 +121,6 @@ class DatabaseSetup:
             "vector_collections",
             "vector_documents",
             "external_workflows",
-            "tutorial_progress"
         ]
 
     async def initialize(self):
@@ -278,7 +277,6 @@ class DatabaseSetup:
                 VectorCollection, VectorDocument,
                 ExternalWorkflow
             )
-            from app.models.tutorial_progress import TutorialProgress
 
             # API Key modelini kontrol et
             try:
@@ -316,7 +314,6 @@ class DatabaseSetup:
                 'vector_collections': VectorCollection,
                 'vector_documents': VectorDocument,
                 'external_workflows': ExternalWorkflow,
-                'tutorial_progress': TutorialProgress,
             }
 
             # API Key'i de ekle eğer varsa
@@ -548,7 +545,6 @@ class DatabaseSetup:
                 VectorCollection, VectorDocument,
                 ExternalWorkflow
             )
-            from app.models.tutorial_progress import TutorialProgress
 
             # API Key modelini kontrol et
             try:
