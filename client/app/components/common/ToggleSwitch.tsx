@@ -9,6 +9,8 @@ interface ToggleSwitchProps {
   showIcon?: boolean;
   label?: string;
   description?: string;
+  activeIcon?: React.ReactNode;
+  inactiveIcon?: React.ReactNode;
 }
 
 export default function ToggleSwitch({
@@ -19,6 +21,8 @@ export default function ToggleSwitch({
   showIcon = true,
   label,
   description,
+  activeIcon,
+  inactiveIcon,
 }: ToggleSwitchProps) {
   const sizeClasses = {
     sm: "w-10 h-6",
@@ -73,9 +77,9 @@ export default function ToggleSwitch({
           {showIcon && (
             <div className="w-full h-full flex items-center justify-center">
               {isActive ? (
-                <Power className={`${iconSize[size]} text-green-600`} />
+                activeIcon || <Power className={`${iconSize[size]} text-green-600`} />
               ) : (
-                <PowerOff className={`${iconSize[size]} text-gray-500`} />
+                inactiveIcon || <PowerOff className={`${iconSize[size]} text-gray-500`} />
               )}
             </div>
           )}
@@ -111,10 +115,14 @@ export function CompactToggleSwitch({
   isActive,
   onToggle,
   disabled = false,
+  activeIcon,
+  inactiveIcon,
 }: {
   isActive: boolean;
   onToggle: (isActive: boolean) => void;
   disabled?: boolean;
+  activeIcon?: React.ReactNode;
+  inactiveIcon?: React.ReactNode;
 }) {
   return (
     <ToggleSwitch
@@ -122,7 +130,9 @@ export function CompactToggleSwitch({
       onToggle={onToggle}
       disabled={disabled}
       size="sm"
-      showIcon={false}
+      showIcon={true}
+      activeIcon={activeIcon}
+      inactiveIcon={inactiveIcon}
     />
   );
 }
