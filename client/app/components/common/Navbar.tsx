@@ -48,13 +48,12 @@ const Navbar: React.FC<NavbarProps> = ({
   autoSaveStatus,
   lastAutoSave,
   onAutoSaveSettings,
-  updateWorkflowStatus,
   updateWorkflowVisibility,
 }) => {
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPublicTogglePending, setIsPublicTogglePending] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
@@ -266,59 +265,44 @@ const Navbar: React.FC<NavbarProps> = ({
             />
           </div>
           <div className="flex items-center space-x-4 gap-2 relative">
-            {/* Workflow Active Status Toggle */}
-            {currentWorkflow && updateWorkflowStatus && (
-              <div className="flex items-center gap-2">
-                <ToggleSwitch
-                  isActive={currentWorkflow.is_active ?? false}
-                  onToggle={async (isActive) => {
-                    try {
-                      await updateWorkflowStatus(currentWorkflow.id, isActive);
-                      enqueueSnackbar(
-                        `Workflow ${isActive ? "activated" : "deactivated"}`,
-                        { variant: "success" }
-                      );
-                    } catch (error) {
-                      enqueueSnackbar("Workflow status could not be updated", {
-                        variant: "error",
-                      });
-                    }
-                  }}
-                  size="sm"
-                  label="Workflow Status"
-                  description={
-                    currentWorkflow.is_active ? "Active" : "Inactive"
-                  }
-                />
-              </div>
-            )}
             {/* Workflow Public Status Toggle */}
             {currentWorkflow && updateWorkflowVisibility && (
               <div className="flex items-center gap-2">
                 <ToggleSwitch
                   isActive={currentWorkflow.is_public ?? false}
+                  disabled={isPublicTogglePending}
                   onToggle={async (isPublic) => {
+                    if (isPublicTogglePending) return;
+                    setIsPublicTogglePending(true);
                     try {
                       if (updateWorkflowVisibility) {
                         await updateWorkflowVisibility(currentWorkflow.id, isPublic);
+
+                        // Update local state to reflect change immediately
+                        if (setCurrentWorkflow) {
+                          setCurrentWorkflow({
+                            ...currentWorkflow,
+                            is_public: isPublic,
+                          });
+                        }
+
                         enqueueSnackbar(
                           `Workflow is now ${isPublic ? "Public" : "Private"}`,
                           { variant: "success" }
                         );
-                        // onSave() REMOVED: the visibility endpoint is already updating the DB. // calling onSave() here triggered a full workflow save,
-                        // which caused restart_listeners_for_workflow to be called a SECOND time,
-                        // resulting in a DB pool deadlock.
                       }
                     } catch (error) {
                       enqueueSnackbar("Workflow visibility could not be updated", {
                         variant: "error",
                       });
+                    } finally {
+                      setIsPublicTogglePending(false);
                     }
                   }}
                   size="sm"
-                  label="Public Access"
+                  label="Activity"
                   description={
-                    currentWorkflow.is_public ? "Public" : "Private"
+                    currentWorkflow.is_public ? "Active" : "Inactive"
                   }
                 />
               </div>
