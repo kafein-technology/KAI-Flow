@@ -221,32 +221,49 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         required: true,
         placeholder: 'localhost:9092',
         description: 'Comma-separated list of Kafka broker addresses (e.g. host1:9092,host2:9092)'
-      }
-    ]
-  },
-  {
-    id: 'kafka',
-    name: 'Kafka',
-    description: 'Apache Kafka connection credentials for producing and consuming messages',
-    icon: 'kafka_credetial.svg',
-    category: 'api',
-    color: 'from-green-500 to-emerald-600',
-    fields: [
-      {
-        name: 'client_id',
-        label: 'Client ID',
-        type: 'text',
-        required: true,
-        placeholder: 'my-kafka-client',
-        description: 'A unique identifier for this Kafka client'
       },
       {
-        name: 'brokers',
-        label: 'Brokers',
+        name: 'security_protocol',
+        label: 'Security Protocol',
+        type: 'select',
+        required: false,
+        default: 'PLAINTEXT',
+        options: [
+          { value: 'PLAINTEXT', label: 'PLAINTEXT' },
+          { value: 'SASL_PLAINTEXT', label: 'SASL_PLAINTEXT' },
+          { value: 'SASL_SSL', label: 'SASL_SSL' },
+          { value: 'SSL', label: 'SSL' }
+        ],
+        description: 'Protocol used to communicate with brokers'
+      },
+      {
+        name: 'sasl_mechanism',
+        label: 'SASL Mechanism',
+        type: 'select',
+        required: false,
+        default: 'PLAIN',
+        options: [
+          { value: 'PLAIN', label: 'PLAIN' },
+          { value: 'SCRAM-SHA-256', label: 'SCRAM-SHA-256' },
+          { value: 'SCRAM-SHA-512', label: 'SCRAM-SHA-512' }
+        ],
+        description: 'SASL mechanism to use for authentication'
+      },
+      {
+        name: 'sasl_username',
+        label: 'SASL Username',
         type: 'text',
-        required: true,
-        placeholder: 'localhost:9092',
-        description: 'Comma-separated list of Kafka broker addresses (e.g. host1:9092,host2:9092)'
+        required: false,
+        placeholder: 'your-username',
+        description: 'Username for SASL authentication'
+      },
+      {
+        name: 'sasl_password',
+        label: 'SASL Password',
+        type: 'password',
+        required: false,
+        placeholder: '••••••••',
+        description: 'Password for SASL authentication'
       }
     ]
   }
