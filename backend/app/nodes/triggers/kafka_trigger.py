@@ -22,6 +22,9 @@ from app.core.constants import API_START, API_VERSION
 
 logger = logging.getLogger(__name__)
 
+# Kafka reconciliation loop execution interval (seconds)
+KAFKA_RECONCILIATION_INTERVAL_SECONDS = 60
+
 
 # ══════════════════════════════════════════════════════════════════
 # DB Lookup — Find workflow containing a KafkaConsumer trigger node
@@ -753,7 +756,7 @@ async def _start_from_desired(node_id: str, desired_entry: Dict[str, Any]):
     )
 
 
-async def kafka_reconciliation_loop(interval: int = 15):
+async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVAL_SECONDS):
     """
     Periyodik Kafka listener reconciliation döngüsü.
     
