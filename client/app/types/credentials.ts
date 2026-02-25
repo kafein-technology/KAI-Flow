@@ -7,6 +7,10 @@ export interface ServiceField {
   default?: string;
   options?: { value: string; label: string }[];
   description?: string;
+  dependsOn?: {
+    field: string;
+    values: string[];
+  };
   validation?: {
     minLength?: number;
     maxLength?: number;
@@ -247,7 +251,11 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
           { value: 'SCRAM-SHA-256', label: 'SCRAM-SHA-256' },
           { value: 'SCRAM-SHA-512', label: 'SCRAM-SHA-512' }
         ],
-        description: 'SASL mechanism to use for authentication'
+        description: 'SASL mechanism to use for authentication',
+        dependsOn: {
+          field: 'security_protocol',
+          values: ['SASL_PLAINTEXT', 'SASL_SSL']
+        }
       },
       {
         name: 'sasl_username',
@@ -255,7 +263,11 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         type: 'text',
         required: false,
         placeholder: 'your-username',
-        description: 'Username for SASL authentication'
+        description: 'Username for SASL authentication',
+        dependsOn: {
+          field: 'security_protocol',
+          values: ['SASL_PLAINTEXT', 'SASL_SSL']
+        }
       },
       {
         name: 'sasl_password',
@@ -263,7 +275,23 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         type: 'password',
         required: false,
         placeholder: '••••••••',
-        description: 'Password for SASL authentication'
+        description: 'Password for SASL authentication',
+        dependsOn: {
+          field: 'security_protocol',
+          values: ['SASL_PLAINTEXT', 'SASL_SSL']
+        }
+      },
+      {
+        name: 'ssl_cafile',
+        label: 'SSL CA Certificate Path',
+        type: 'text',
+        required: false,
+        placeholder: '/path/to/ca-cert.pem',
+        description: 'File path to the CA certificate for SSL verification',
+        dependsOn: {
+          field: 'security_protocol',
+          values: ['SSL', 'SASL_SSL']
+        }
       }
     ]
   }
