@@ -86,12 +86,16 @@ class NodeExecutor:
                 # Fetch and inject credentials
                 try:
                     from app.core.credential_provider import credential_provider
-                    # Convert string user_id to UUID if necessary
-                    user_uuid = uuid.UUID(state.user_id) if isinstance(state.user_id, str) else state.user_id
+                    # Use owner_id (workflow owner) when available, fallback to user_id
+                    # This is critical for webhook/kafka-triggered workflows where
+                    # user_id is the master system user but owner_id is the actual
+                    # workflow owner who has the credentials
+                    credential_user_id = getattr(state, 'owner_id', None) or state.user_id
+                    user_uuid = uuid.UUID(credential_user_id) if isinstance(credential_user_id, str) else credential_user_id
                     
                     credentials = credential_provider.get_credentials_sync(user_uuid)
                     gnode.node_instance.credentials = credentials
-                    logger.debug(f"Injected {len(credentials)} credentials for user {state.user_id} into node {node_id}")
+                    logger.debug(f"Injected {len(credentials)} credentials for user {credential_user_id} into node {node_id}")
                 except Exception as e:
                     logger.warning(f"Failed to inject credentials for node {node_id}: {e}")
 
