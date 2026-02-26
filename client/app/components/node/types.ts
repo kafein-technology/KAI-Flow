@@ -40,6 +40,9 @@ export interface NodeProperty {
   maxLength?: number;
   serviceType?: string;
   rows?: number;
+  displayOptions?: {
+    show: Record<string, any>;
+  };
   [key: string]: any;
 }
 
