@@ -146,7 +146,9 @@ export default function GenericNodeForm({
     return properties
       .filter((property: NodeProperty) => (property.tabName || "basic") === tabName)
       .filter((property: NodeProperty) =>
-        property.required || visibleOptionalFields.has(property.name)
+        property.required ||
+        visibleOptionalFields.has(property.name) ||
+        (property.displayOptions && property.displayOptions.show)
       );
   };
 
@@ -154,7 +156,9 @@ export default function GenericNodeForm({
     return properties
       .filter((property: NodeProperty) => (property.tabName || "basic") === tabName)
       .filter((property: NodeProperty) =>
-        !property.required && !visibleOptionalFields.has(property.name)
+        !property.required &&
+        !visibleOptionalFields.has(property.name) &&
+        (!property.displayOptions || !property.displayOptions.show)
       )
   };
 
@@ -178,6 +182,14 @@ export default function GenericNodeForm({
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
           <Form className="grid grid-cols-2 gap-3 w-full p-6">
             {getVisibleProperties(activeTab).map((property: NodeProperty) => {
+              // Check display options
+              if (property.displayOptions?.show) {
+                const shouldShow = Object.entries(property.displayOptions.show).every(
+                  ([key, value]) => values[key] === value
+                );
+                if (!shouldShow) return null;
+              }
+
               const fullWidthProperty = { ...property, colSpan: 2 };
               const fieldComponent = (() => {
                 switch (property.type) {
