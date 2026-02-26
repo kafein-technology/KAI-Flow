@@ -712,8 +712,8 @@ class CodeNode(ProcessorNode):
                     displayName="Code",
                     type=NodePropertyType.CODE_EDITOR,
                     description=(
-                        "Access input as node_data. You can refer to previous nodes using Jinja like ${node_name}. "
-                        "If special characters possible, use {{node_name|tojson}}."
+                        "Access input as node_data. You can refer to previous nodes using Jinja like ${{node_name}}. "
+                        "If special characters possible, use ${{node_name|tojson}}."
                     ),
                     default="# Python Example\nprint(node_data)",
                     required=True,

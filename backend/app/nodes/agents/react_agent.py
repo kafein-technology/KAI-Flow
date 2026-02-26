@@ -367,7 +367,7 @@ class ReactAgentNode(ProcessorNode):
                 type=NodePropertyType.TEXT_AREA,
                 default="You are a helpful assistant. Use tools to answer questions.",
                 hint="Define agent behavior and capabilities. This is the core system instruction.",
-                required=False,
+                required=True,
             ),
             NodeProperty(
                 name="max_iterations",
