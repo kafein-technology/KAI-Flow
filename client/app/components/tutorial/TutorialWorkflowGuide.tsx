@@ -16,6 +16,7 @@ import {
   type TutorialWorkflow,
   type TutorialStep,
 } from "../../data/tutorialWorkflows";
+import { useTutorialProgress } from "../../stores/tutorialProgress";
 
 interface TutorialWorkflowGuideProps {
   isOpen: boolean;
@@ -28,29 +29,47 @@ export default function TutorialWorkflowGuide({
   onClose,
   selectedTutorial,
 }: TutorialWorkflowGuideProps) {
+  const { getProgressList, getProgress, saveProgress } = useTutorialProgress();
   const [currentTutorial, setCurrentTutorial] =
     useState<TutorialWorkflow | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [loaded, setLoaded] = useState(false);
+
 
   useEffect(() => {
     if (selectedTutorial) {
-      const tutorial = TUTORIAL_WORKFLOWS.find(
-        (t) => t.id === selectedTutorial
-      );
+      const tutorial = TUTORIAL_WORKFLOWS.find((t) => t.id === selectedTutorial);
       if (tutorial) {
         setCurrentTutorial(tutorial);
         setCurrentStepIndex(0);
         setCompletedSteps(new Set());
+        setLoaded(true);
+        saveProgress(tutorial.id, 0, []);
+      }
+      return;
+    }
+
+    const progressList = getProgressList();
+    if (progressList.length > 0) {
+      const latest = progressList[0];
+      const tutorial = TUTORIAL_WORKFLOWS.find((t) => t.id === latest.tutorial_id);
+      if (tutorial) {
+        setCurrentTutorial(tutorial);
+        setCurrentStepIndex(latest.current_step ?? 0);
+        setCompletedSteps(new Set(latest.completed_steps ?? []));
+        setLoaded(true);
+        return;
       }
     }
+    setCurrentTutorial(TUTORIAL_WORKFLOWS[0]);
+    setLoaded(true);
   }, [selectedTutorial]);
 
   useEffect(() => {
-    if (isOpen && !currentTutorial) {
-      setCurrentTutorial(TUTORIAL_WORKFLOWS[0]);
-    }
-  }, [isOpen, currentTutorial]);
+    if (!loaded || !currentTutorial) return;
+    saveProgress(currentTutorial.id, currentStepIndex, Array.from(completedSteps));
+  }, [currentTutorial, currentStepIndex, completedSteps, loaded]);
 
   const handleStepComplete = (stepId: string) => {
     setCompletedSteps((prev) => new Set([...prev, stepId]));
@@ -80,9 +99,10 @@ export default function TutorialWorkflowGuide({
   };
 
   const selectTutorial = (tutorial: TutorialWorkflow) => {
+    const progress = getProgress(tutorial.id);
     setCurrentTutorial(tutorial);
-    setCurrentStepIndex(0);
-    setCompletedSteps(new Set());
+    setCurrentStepIndex(progress?.current_step ?? 0);
+    setCompletedSteps(new Set(progress?.completed_steps ?? []));
   };
 
   const getProgressPercentage = () => {
@@ -128,11 +148,10 @@ export default function TutorialWorkflowGuide({
                   <button
                     key={tutorial.id}
                     onClick={() => selectTutorial(tutorial)}
-                    className={`w-full text-left p-4 rounded-lg border transition-all ${
-                      currentTutorial?.id === tutorial.id
-                        ? "border-blue-500 bg-blue-50 shadow-md"
-                        : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
-                    }`}
+                    className={`w-full text-left p-4 rounded-lg border transition-all ${currentTutorial?.id === tutorial.id
+                      ? "border-blue-500 bg-blue-50 shadow-md"
+                      : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                      }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -144,13 +163,12 @@ export default function TutorialWorkflowGuide({
                         </p>
                         <div className="flex items-center gap-2 mt-2">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              tutorial.difficulty === "Beginner"
-                                ? "bg-green-100 text-green-800"
-                                : tutorial.difficulty === "Intermediate"
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${tutorial.difficulty === "Beginner"
+                              ? "bg-green-100 text-green-800"
+                              : tutorial.difficulty === "Intermediate"
                                 ? "bg-yellow-100 text-yellow-800"
                                 : "bg-red-100 text-red-800"
-                            }`}
+                              }`}
                           >
                             {tutorial.difficulty}
                           </span>
@@ -261,26 +279,26 @@ export default function TutorialWorkflowGuide({
                       {/* Tips */}
                       {currentTutorial.steps[currentStepIndex].tips.length >
                         0 && (
-                        <div className="bg-yellow-50 rounded-lg p-6 mb-6">
-                          <h5 className="font-semibold text-yellow-900 mb-3 flex items-center gap-2">
-                            <Lightbulb className="w-5 h-5" />
-                            Pro Tips
-                          </h5>
-                          <ul className="space-y-2">
-                            {currentTutorial.steps[currentStepIndex].tips.map(
-                              (tip, index) => (
-                                <li
-                                  key={index}
-                                  className="flex items-start gap-3"
-                                >
-                                  <span className="w-2 h-2 bg-yellow-600 rounded-full mt-2 flex-shrink-0"></span>
-                                  <span className="text-yellow-900">{tip}</span>
-                                </li>
-                              )
-                            )}
-                          </ul>
-                        </div>
-                      )}
+                          <div className="bg-yellow-50 rounded-lg p-6 mb-6">
+                            <h5 className="font-semibold text-yellow-900 mb-3 flex items-center gap-2">
+                              <Lightbulb className="w-5 h-5" />
+                              Pro Tips
+                            </h5>
+                            <ul className="space-y-2">
+                              {currentTutorial.steps[currentStepIndex].tips.map(
+                                (tip, index) => (
+                                  <li
+                                    key={index}
+                                    className="flex items-start gap-3"
+                                  >
+                                    <span className="w-2 h-2 bg-yellow-600 rounded-full mt-2 flex-shrink-0"></span>
+                                    <span className="text-yellow-900">{tip}</span>
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          </div>
+                        )}
 
                       {/* Expected Outcome */}
                       <div className="bg-green-50 rounded-lg p-6 mb-6">
@@ -308,13 +326,12 @@ export default function TutorialWorkflowGuide({
                               handleStepComplete(stepId);
                             }
                           }}
-                          className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                            completedSteps.has(
-                              currentTutorial.steps[currentStepIndex].id
-                            )
-                              ? "bg-green-100 text-green-800 hover:bg-green-200"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
+                          className={`px-6 py-3 rounded-lg font-medium transition-all ${completedSteps.has(
+                            currentTutorial.steps[currentStepIndex].id
+                          )
+                            ? "bg-green-100 text-green-800 hover:bg-green-200"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
                         >
                           {completedSteps.has(
                             currentTutorial.steps[currentStepIndex].id
@@ -341,11 +358,10 @@ export default function TutorialWorkflowGuide({
                     <button
                       onClick={previousStep}
                       disabled={currentStepIndex === 0}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                        currentStepIndex === 0
-                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
-                      }`}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all ${currentStepIndex === 0
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+                        }`}
                     >
                       <ChevronLeft className="w-5 h-5 inline mr-2" />
                       Previous
@@ -361,11 +377,10 @@ export default function TutorialWorkflowGuide({
                       disabled={
                         currentStepIndex === currentTutorial.steps.length - 1
                       }
-                      className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                        currentStepIndex === currentTutorial.steps.length - 1
-                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all ${currentStepIndex === currentTutorial.steps.length - 1
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
                     >
                       Next
                       <ChevronRight className="w-5 h-5 inline ml-2" />
