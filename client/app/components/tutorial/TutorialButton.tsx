@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { BookOpen, X } from "lucide-react";
 import TutorialLauncher from "./TutorialLauncher";
 import TutorialWorkflowGuide from "./TutorialWorkflowGuide";
+import { useTutorialProgress } from "../../stores/tutorialProgress";
 
 export default function TutorialButton() {
   const [showLauncher, setShowLauncher] = useState(false);
@@ -9,6 +10,16 @@ export default function TutorialButton() {
   const [selectedTutorial, setSelectedTutorial] = useState<
     string | undefined
   >();
+  const { hasAnyProgress } = useTutorialProgress();
+
+  const handleTutorialButtonClick = () => {
+    if (hasAnyProgress()) {
+      setSelectedTutorial(undefined);
+      setShowGuide(true);
+    } else {
+      setShowLauncher(true);
+    }
+  };
 
   const handleLaunchTutorial = (tutorialId: string) => {
     setSelectedTutorial(tutorialId);
@@ -25,7 +36,7 @@ export default function TutorialButton() {
     <>
       {/* Tutorial Button */}
       <button
-        onClick={() => setShowLauncher(true)}
+        onClick={handleTutorialButtonClick}
         className="fixed bottom-6 left-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all duration-200 hover:scale-110 z-40"
         title="Open Tutorials"
       >
