@@ -22,6 +22,7 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
 import { usePinnedItems } from "~/stores/pinnedItems";
 import { timeAgo } from "~/lib/dateFormatter";
+import { useNodeStore } from "~/stores/nodes";
 import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
 import PinButton from "~/components/common/PinButton";
@@ -140,10 +141,45 @@ function MarketplaceLayout() {
     if (!tpl) return;
 
     try {
+      let nodeStore = useNodeStore.getState();
+      if (nodeStore.nodes.length === 0) {
+        await nodeStore.fetchNodes();
+        await nodeStore.fetchCategories();
+        nodeStore = useNodeStore.getState();
+      }
+      const allNodesMetadata = [...(nodeStore.nodes || []), ...(nodeStore.customNodes || [])];
+
+      const enrichedNodes = (tpl.flow_data?.nodes || []).map((node: any) => {
+        if (!node.data?.metadata && allNodesMetadata.length > 0) {
+          const metadata = allNodesMetadata.find(
+            m => m.name === node.type || (m as any).id === node.type
+          );
+          if (metadata) {
+            const m = metadata as any;
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                metadata: metadata,
+                icon: m.icon,
+                description: m.description,
+                displayName: m.display_name,
+                inputs: m.inputs,
+                outputs: m.outputs,
+              }
+            };
+          }
+        }
+        return node;
+      });
+
       const created = await useWorkflows.getState().createWorkflow({
         name: tpl.name,
         description: tpl.description,
-        flow_data: tpl.flow_data,
+        flow_data: {
+          ...tpl.flow_data,
+          nodes: enrichedNodes
+        },
       });
       enqueueSnackbar("Template workflow created!", { variant: "success" });
       navigate(`/canvas?workflow=${created.id}`);
