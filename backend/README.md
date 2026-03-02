@@ -1,8 +1,8 @@
 # KAI-Fusion Backend - Enterprise AI Workflow Orchestration Platform
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
-[![LangChain](https://img.shields.io/badge/LangChain-0.1+-purple.svg)](https://langchain.com)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-green.svg)](https://fastapi.tiangolo.com)
+[![LangChain](https://img.shields.io/badge/LangChain-0.3+-purple.svg)](https://langchain.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://postgresql.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com)
 
@@ -29,7 +29,7 @@ KAI-Fusion Backend is a sophisticated enterprise-grade AI workflow orchestration
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Client Layer                                                   │
-│  ├── Web Frontend (React/Next.js)                              │
+│  ├── Web Frontend (React)                               │
 │  ├── API Clients                                               │
 │  └── Webhook Integrations                                      │
 │                                                                 │
@@ -84,7 +84,6 @@ backend/
 ├── app/                          # Main application package
 │   ├── __init__.py
 │   ├── main.py                   # FastAPI application entry point
-│   ├── app.py                    # Application factory and configuration
 │   │
 │   ├── api/                      # API route handlers
 │   │   ├── __init__.py
@@ -94,13 +93,20 @@ backend/
 │   │   ├── chat.py               # Chat/conversation API
 │   │   ├── nodes.py              # Node management API
 │   │   ├── node_registry.py      # Node registry API
+│   │   ├── node_configurations.py# Node configuration API
 │   │   ├── vectors.py            # Vector storage API
 │   │   ├── documents.py          # Document management API
 │   │   ├── webhooks.py           # Webhook integration API
 │   │   ├── scheduled_jobs.py     # Timer/scheduling API
 │   │   ├── credentials.py        # Credential management API
 │   │   ├── variables.py          # Environment variables API
-│   │   └── api_key.py            # API key management
+│   │   ├── api_key.py            # API key management
+│   │   ├── export.py             # Data export API
+│   │   ├── external_workflows.py # External workflow integration API
+│   │   ├── http_client.py        # HTTP client proxy API
+│   │   ├── schemas.py            # Schema API
+│   │   ├── test_endpoint.py      # Test endpoints
+│   │   └── workflow_integration.py# Workflow integration API
 │   │
 │   ├── auth/                     # Authentication & authorization
 │   │   ├── __init__.py
@@ -111,10 +117,12 @@ backend/
 │   │   ├── config.py             # Application configuration
 │   │   ├── database.py           # Database connection and session management
 │   │   ├── engine.py             # Workflow execution engine
-│   │   ├── graph_builder.py      # LangGraph workflow builder
+│   │   ├── graph_builder/        # LangGraph workflow builder (directory)
 │   │   ├── node_registry.py      # Node discovery and registration
 │   │   ├── node_discovery.py     # Automatic node discovery
+│   │   ├── node_handlers.py      # Node handler utilities
 │   │   ├── state.py              # Workflow state management
+│   │   ├── state_manager.py      # State manager
 │   │   ├── execution_queue.py    # Execution queue and concurrency control
 │   │   ├── checkpointer.py       # Workflow checkpointing
 │   │   ├── memory_manager.py     # Memory management for workflows
@@ -122,11 +130,26 @@ backend/
 │   │   ├── encryption.py         # Data encryption utilities
 │   │   ├── security.py           # Security utilities and validation
 │   │   ├── tracing.py            # LangSmith tracing integration
+│   │   ├── enhanced_tracing.py   # Enhanced tracing utilities
 │   │   ├── performance_monitor.py# Performance monitoring
 │   │   ├── logging_config.py     # Logging configuration
+│   │   ├── logging_settings.py   # Logging settings
+│   │   ├── logging_utils.py      # Logging utilities
+│   │   ├── enhanced_logging.py   # Enhanced logging
 │   │   ├── error_handlers.py     # Global error handling
 │   │   ├── exceptions.py         # Custom exception classes
-│   │   └── constants.py          # Application constants
+│   │   ├── constants.py          # Application constants
+│   │   ├── json_utils.py         # JSON utilities
+│   │   ├── output_cache.py       # Output caching
+│   │   ├── auto_connector.py     # Auto connector
+│   │   ├── compatibility_layer.py# Compatibility layer
+│   │   ├── connection_manager.py # Connection manager
+│   │   ├── connection_pool.py    # Connection pooling
+│   │   ├── dynamic_node_analyzer.py # Dynamic node analysis
+│   │   ├── dynamic_type_detection.py # Dynamic type detection
+│   │   ├── dynamic_workflow_engine.py # Dynamic workflow engine
+│   │   ├── workflow_enhancer.py  # Workflow enhancer
+│   │   └── tool/                 # Tool utilities (directory)
 │   │
 │   ├── middleware/               # FastAPI middleware
 │   │   ├── __init__.py
@@ -142,17 +165,18 @@ backend/
 │   │   ├── chat.py               # Chat and message models
 │   │   ├── node.py               # Node configuration models
 │   │   ├── node_registry.py      # Node registry models
+│   │   ├── node_configuration.py # Node configuration models
 │   │   ├── scheduled_job.py      # Timer/scheduled job models
 │   │   ├── webhook.py            # Webhook models
 │   │   ├── document.py           # Document storage models
+│   │   ├── external_workflow.py  # External workflow models
 │   │   ├── vector_collection.py  # Vector collection models
 │   │   ├── vector_document.py    # Vector document models
 │   │   ├── memory.py             # Memory storage models
 │   │   ├── variable.py           # Environment variable models
 │   │   ├── user_credential.py    # User credential models
 │   │   ├── api_key.py            # API key models
-│   │   ├── auth.py               # Authentication models
-│   │   └── node_configuration.py # Node configuration models
+│   │   └── auth.py               # Authentication models
 │   │
 │   ├── nodes/                    # Node system implementation
 │   │   ├── __init__.py
@@ -166,6 +190,7 @@ backend/
 │   │   ├── llms/                 # Large Language Model nodes
 │   │   │   ├── __init__.py
 │   │   │   └── openai_node.py    # OpenAI GPT integration
+│   │   │   └── openai_compatible_node.py # OpenAI-compatible provider
 │   │   │
 │   │   ├── tools/                # Tool and utility nodes
 │   │   │   ├── __init__.py
@@ -182,6 +207,7 @@ backend/
 │   │   ├── triggers/             # Trigger and event nodes
 │   │   │   ├── __init__.py
 │   │   │   ├── webhook_trigger.py# Webhook trigger node
+│   │   │   ├── respond_to_webhook.py # Webhook response node
 │   │   │   └── timer_start_node.py# Timer trigger node
 │   │   │
 │   │   ├── agents/               # AI agent nodes
@@ -204,6 +230,15 @@ backend/
 │   │   └── vector_stores/        # Vector database nodes
 │   │       ├── __init__.py
 │   │       └── vector_store_orchestrator.py # Vector store management
+│   │
+│   │   ├── processing/            # Processing nodes
+│   │   │   ├── __init__.py
+│   │   │   ├── code_node.py       # Code execution node
+│   │   │   └── condition_node.py  # Conditional branching node
+│   │   │
+│   │   └── text_processing/       # Text processing nodes
+│   │       ├── __init__.py
+│   │       └── string_input_node.py # String input node
 │   │
 │   ├── routes/                   # Additional route handlers
 │   │   ├── __init__.py
@@ -229,6 +264,7 @@ backend/
 │       ├── base.py               # Base service class
 │       ├── dependencies.py       # Service dependencies
 │       ├── workflow_service.py   # Workflow management service
+│       ├── workflow_executor.py  # Workflow execution engine service
 │       ├── execution_service.py  # Execution management service
 │       ├── chat_service.py       # Chat service
 │       ├── user_service.py       # User management service
@@ -240,16 +276,13 @@ backend/
 │       ├── api_key_service.py    # API key service
 │       ├── node_registry_service.py # Node registry service
 │       ├── node_configuration_service.py # Node config service
-│       └── memory.py             # Memory service
+│       ├── memory.py             # Memory service
+│       └── memory/               # Memory service directory
 │
 ├── migrations/                   # Database migrations
-│   ├── database_setup.py         # Initial database setup
-│   └── add_chat_message_columns.py # Chat schema updates
+│   └── database_setup.py         # Initial database setup
 │
 ├── requirements.txt              # Python dependencies
-├── Dockerfile                    # Docker configuration
-├── docker-compose.yml            # Docker Compose setup
-├── .env.example                  # Environment variables template
 └── README.md                     # This file
 ```
 

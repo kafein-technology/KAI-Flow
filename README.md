@@ -89,7 +89,7 @@ python backend/migrations/database_setup.py
 # 5) Run backend (choose one)
 # a) VS Code debug (recommended) — see launch.json section below
 # b) Or direct
-python backend/app.py
+python backend/main.py
 
 # 6) Frontend
 # create client/.env as shown below
@@ -258,7 +258,7 @@ Create the folder: `.vscode/` at the repository root and add `launch.json`:
       "name": "Python: Backend Main",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/backend/app.py",
+      "program": "${workspaceFolder}/backend/main.py",
       "console": "integratedTerminal",
       "env": { "DOTENV_PATH": "${workspaceFolder}/backend/.env" }
     }
@@ -334,7 +334,8 @@ KAI-Fusion/
 │  ├─ app/
 │  │  ├─ components/        # React components
 │  │  │  ├─ canvas/         # Workflow canvas components
-│  │  │  ├─ nodes/          # Node UI components
+│  │  │  ├─ node/           # Node UI components
+│  │  │  ├─ common/         # Shared components (Navbar, Sidebar, etc.)
 │  │  │  └─ modals/         # Configuration modals
 │  │  ├─ routes/            # Page routes
 │  │  ├─ services/          # API service layer
@@ -344,8 +345,7 @@ KAI-Fusion/
 │  └─ vite.config.ts
 ├─ widget/                  # Embeddable Chat Widget (@kaifusion/widget)
 │  ├─ src/                  # Widget source
-│  ├─ widget.js             # Pre-built widget bundle
-│  └─ package.json          # v1.0.6
+│  └─ package.json          # v1.1.0
 ├─ docs/                    # Documentation
 ├─ docker-compose.yml       # Backend, Frontend, Widget services
 └─ README.md

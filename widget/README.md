@@ -80,7 +80,7 @@ Add the following script tag to your HTML file:
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js"
+  src="https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.1.0/dist/widget.iife.js"
   data-title="KAI Fusion Assistant"
   data-auth-token="your-auth-token"
   data-workflow-id="your-workflow-id"
@@ -101,7 +101,7 @@ For MkDocs, you can inject the script dynamically using JavaScript.
 document.addEventListener("DOMContentLoaded", function () {
   const script = document.createElement("script");
   script.src =
-    "https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js"; // Adjust URL to your source
+    "https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.1.0/dist/widget.iife.js"; // Adjust URL to your source
   script.dataset.title = "KAI Fusion Assistant";
   script.dataset.authToken = "your-auth-token";
   script.dataset.workflowId = "your-workflow-id";
