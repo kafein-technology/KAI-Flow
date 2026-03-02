@@ -478,15 +478,8 @@ class HttpClientNode(ProcessorNode):
         except Exception as e:
             error_msg = f"HTTP Request execution failed: {str(e)}"
             logger.error(error_msg)
-
-            return {
-                "response": None,
-                "status_code": 0,
-                "content": None,
-                "headers": {},
-                "success": False,
-                "documents": [],
-            }
+            # Re-raise so the error propagates and execution is marked as "failed"
+            raise RuntimeError(error_msg) from e
 
     def as_runnable(self) -> Runnable:
         """Convert to LangChain Runnable for composition."""

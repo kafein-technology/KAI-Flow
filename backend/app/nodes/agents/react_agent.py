@@ -851,7 +851,8 @@ class ReactAgentNode(ProcessorNode):
         except Exception as e:
             error_msg = f"Agent graph execution failed: {str(e)}"
             print(f"[ERROR] {error_msg}")
-            return {"error": error_msg}
+            # Re-raise so the error propagates and execution is marked as "failed"
+            raise RuntimeError(error_msg) from e
 
     def _handle_unicode_error(self, unicode_error: UnicodeEncodeError) -> Dict[str, Any]:
         """Handle Unicode encoding errors with locale-specific fallback."""
