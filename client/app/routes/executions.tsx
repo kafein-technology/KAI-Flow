@@ -15,6 +15,7 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
 import DeleteConfirmationModal from "~/components/modals/DeleteConfirmationModal";
+import DataViewModal from "~/components/modals/DataViewModal";
 import { useExecutionsStore } from "~/stores/executions";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
@@ -30,33 +31,19 @@ interface Execution {
   error_message?: string;
 }
 
+const getInputData = (execution: any) => {
+  return execution.inputs || "{}";
+};
 
-const getInputText = (execution: any) => {
-  // String değerleri kontrol et
-  if (execution.input_text && typeof execution.input_text === "string") {
-    return execution.input_text;
+const getOutputData = (execution: any) => {
+  return execution.outputs || "{}";
+};
+
+const formatDataForDisplay = (data: any) => {
+  if (typeof data === "object" && data !== null) {
+    return JSON.stringify(data);
   }
-
-  // Eğer inputs objesi varsa, içindeki input değerini al
-  if (execution.inputs && typeof execution.inputs === "object") {
-    if (
-      execution.inputs.input &&
-      typeof execution.inputs.input === "string"
-    ) {
-      return execution.inputs.input;
-    }
-  }
-
-  // Eğer input objesi varsa, içindeki değeri al
-  if (execution.input) {
-    if (typeof execution.input === "string") {
-      return execution.input;
-    } else if (typeof execution.input === "object" && execution.input.input) {
-      return execution.input.input;
-    }
-  }
-
-  return "No input provided";
+  return String(data);
 };
 
 function ExecutionsPage() {
@@ -77,6 +64,24 @@ function ExecutionsPage() {
     searchTerm: "",
     dateRange: "all", // all, today, week, month
   });
+
+  const [viewModal, setViewModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    data: any;
+  }>({
+    isOpen: false,
+    title: "",
+    data: null,
+  });
+
+  const handleViewClick = (title: string, data: any) => {
+    setViewModal({
+      isOpen: true,
+      title,
+      data,
+    });
+  };
 
   // Multi-select states
   const [selectedExecutions, setSelectedExecutions] = useState<Set<string>>(
@@ -143,13 +148,13 @@ function ExecutionsPage() {
       // Search filter
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
-        const inputText = getInputText(execution).toLowerCase();
+        const inputData = formatDataForDisplay(getInputData(execution)).toLowerCase();
         const workflowName = getWorkflowName(
           execution.workflow_id
         ).toLowerCase();
 
         if (
-          !inputText.includes(searchLower) &&
+          !inputData.includes(searchLower) &&
           !workflowName.includes(searchLower)
         ) {
           return false;
@@ -531,6 +536,9 @@ function ExecutionsPage() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Input
                           </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Output
+                          </th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                           </th>
@@ -595,8 +603,11 @@ function ExecutionsPage() {
                                 execution.completed_at
                               )}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                              {getInputText(execution)}
+                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Input Data", getInputData(execution))}>
+                              {formatDataForDisplay(getInputData(execution))}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Output Data", getOutputData(execution))}>
+                              {formatDataForDisplay(getOutputData(execution))}
                             </td>
                             <td className="px-6 py-4 text-right">
                               <button
@@ -701,6 +712,14 @@ function ExecutionsPage() {
             ? `Delete ${selectedCount} Executions`
             : "Delete"
         }
+      />
+
+      {/* Data View Modal */}
+      <DataViewModal
+        isOpen={viewModal.isOpen}
+        onClose={() => setViewModal({ ...viewModal, isOpen: false })}
+        title={viewModal.title}
+        data={viewModal.data}
       />
     </div>
   );
