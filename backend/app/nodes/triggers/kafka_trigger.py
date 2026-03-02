@@ -532,6 +532,16 @@ class KafkaListenerService:
                 stream=False,
             )
 
+            # Check execution result for errors
+            if isinstance(result, dict) and result.get("success") is False:
+                error_msg = result.get("error", "Unknown workflow error")
+                logger.error(
+                    f"Kafka-tetiklemeli workflow HATA ile tamamlandı: "
+                    f"workflow={workflow.id} listener={listener_id} "
+                    f"execution={ctx.execution_id} error={error_msg}"
+                )
+                raise RuntimeError(f"Workflow execution failed: {error_msg}")
+
             logger.info(
                 f"Kafka-tetiklemeli workflow tamamlandı: "
                 f"workflow={workflow.id} listener={listener_id} "
