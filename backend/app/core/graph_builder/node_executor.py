@@ -198,6 +198,15 @@ class NodeExecutor:
             # Process the result
             processed_result = self.process_processor_result(result, state, node_id)
             
+            # Safety net: check if node returned an error dict instead of raising
+            if isinstance(processed_result, dict) and "error" in processed_result:
+                # Only treat as error if it looks like a pure error response
+                # (not a normal result that happens to have an "error" field alongside other data)
+                non_error_keys = [k for k in processed_result.keys() if k not in ("error", "suggestion")]
+                if not non_error_keys:
+                    error_msg = processed_result["error"]
+                    raise RuntimeError(f"Node {node_id} returned error: {error_msg}")
+            
             # Update execution tracking
             updated_executed_nodes = state.executed_nodes.copy()
             if node_id not in updated_executed_nodes:

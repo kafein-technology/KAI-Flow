@@ -530,15 +530,36 @@ class WorkflowExecutor:
             # Non-streaming: update when we have the full result
             try:
                 outputs = make_json_serializable(result) if isinstance(result, dict) else {"result": result}
+                
+                # Check if the result indicates a failure (secondary defense)
+                execution_failed = False
+                error_msg = None
+                if isinstance(result, dict):
+                    # Check explicit success flag
+                    if result.get("success") is False:
+                        execution_failed = True
+                        error_msg = result.get("error", "Unknown execution error")
+                    # Check state-level errors
+                    state_data = result.get("state", {})
+                    if isinstance(state_data, dict):
+                        errors = state_data.get("errors", [])
+                        if errors:
+                            execution_failed = True
+                            error_msg = error_msg or "; ".join(str(e) for e in errors)
+                
+                final_status = "failed" if execution_failed else "completed"
                 await self.update_execution_status(
                     db,
                     execution_id,
-                    status="completed",
+                    status=final_status,
+                    error_message=error_msg if execution_failed else None,
                     outputs=outputs,
                     completed_at=datetime.now(timezone.utc),
                 )
+                if execution_failed:
+                    logger.warning(f"Execution {execution_id} completed with errors: {error_msg}")
             except Exception as e:
-                logger.error(f"Failed to update execution status to completed: {e}")
+                logger.error(f"Failed to update execution status: {e}")
 
             return result
             
