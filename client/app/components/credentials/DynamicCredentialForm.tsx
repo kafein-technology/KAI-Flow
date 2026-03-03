@@ -50,6 +50,15 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
     return undefined;
   };
 
+  const isFieldVisible = (
+    field: ServiceField,
+    values: Record<string, any>
+  ): boolean => {
+    if (!field.dependsOn) return true;
+    const depValue = values[field.dependsOn.field];
+    return field.dependsOn.values.includes(depValue);
+  };
+
   const validateForm = (
     values: Record<string, any>
   ): Record<string, string> => {
@@ -63,6 +72,9 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
     }
 
     service.fields.forEach((field) => {
+      // Skip validation for hidden fields
+      if (!isFieldVisible(field, values)) return;
+
       const error = validateField(field, values[field.name]);
       if (error) {
         errors[field.name] = error;
@@ -111,8 +123,8 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
         return (
           <Field
             as="select"
-            {...commonProps}
-            className={`${commonProps.className} cursor-pointer`}
+            name={field.name}
+            className="select w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 cursor-pointer"
           >
             <option value="">Select {field.label}</option>
             {field.options?.map((option) => (
@@ -144,7 +156,11 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             <div className="mb-3 flex items-center justify-center">
               {!failed && (
                 <img
-                  src={resolveIconPath(`icons/${service.id}.svg`)}
+                  src={resolveIconPath(
+                    service.icon
+                      ? `icons/${service.icon}`
+                      : `icons/${service.id}.svg`
+                  )}
                   alt={`${service.name} logo`}
                   className="w-12 h-12 object-contain"
                   onError={() => setFailed(true)}
@@ -188,30 +204,34 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
               />
             </div>
 
-            {service.fields.map((field) => (
-              <div key={field.name} className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  {field.label}
-                  {field.required && (
-                    <span className="text-red-500 ml-1">*</span>
+            {service.fields.map((field) => {
+              if (!isFieldVisible(field, values)) return null;
+
+              return (
+                <div key={field.name} className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    {field.label}
+                    {field.required && (
+                      <span className="text-red-500 ml-1">*</span>
+                    )}
+                  </label>
+
+                  {renderField(field)}
+
+                  {field.description && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {field.description}
+                    </p>
                   )}
-                </label>
 
-                {renderField(field)}
-
-                {field.description && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    {field.description}
-                  </p>
-                )}
-
-                <ErrorMessage
-                  name={field.name}
-                  component="p"
-                  className="text-red-500 text-sm mt-1"
-                />
-              </div>
-            ))}
+                  <ErrorMessage
+                    name={field.name}
+                    component="p"
+                    className="text-red-500 text-sm mt-1"
+                  />
+                </div>
+              );
+            })}
 
             {/* Form Actions */}
             <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">

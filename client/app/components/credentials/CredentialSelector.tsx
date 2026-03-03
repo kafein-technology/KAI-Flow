@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown, Plus } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialById } from "~/services/userCredentialService";
 import ServiceSelectionModal from "~/components/credentials/ServiceSelectionModal";
@@ -25,7 +25,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
   onChange,
   onCredentialLoad,
   serviceType,
-  placeholder = "Choose a credential...",
+  placeholder = "Select API Key",
   disabled = false,
   className = "",
   showCreateNew = true,
@@ -38,9 +38,23 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
   const [selectedService, setSelectedService] =
     useState<ServiceDefinition | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const predefinedService: ServiceDefinition | null = serviceType
     ? getServiceDefinition(serviceType) || null
     : null;
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Ensure credentials are fetched
   useEffect(() => {
@@ -61,6 +75,8 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
     : userCredentials;
 
   const handleCredentialSelect = async (credentialId: string) => {
+    setDropdownOpen(false);
+
     if (!credentialId) {
       onChange("");
       if (onCredentialLoad) {
@@ -117,60 +133,80 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
     }
   };
 
-  const hasCredentials = filteredCredentials.length > 0;
-  const showCreateButton = showCreateNew && !hasCredentials;
+  const handleCreateNewClick = () => {
+    setDropdownOpen(false);
+    if (predefinedService) {
+      setSelectedService(predefinedService);
+    } else {
+      setShowServiceSelection(true);
+    }
+  };
 
-  const CREATE_NEW_VALUE = "__create_new__";
+  // Get selected credential name
+  const selectedCredential = filteredCredentials.find(cred => cred.id === value);
+  const displayText = selectedCredential
+    ? `${selectedCredential.name} (${selectedCredential.service_type})`
+    : placeholder;
 
   return (
     <div className="space-y-3">
-      {/* Credential Selection */}
-      <div className="relative">
-        <select
-          className={`w-full bg-slate-900/80 border border-slate-600/50 rounded-lg 
-            text-white p-3 focus:border-emerald-500 focus:ring-2 
-            focus:ring-emerald-500/20 transition-all ${className}`}
-          value={value}
-          onChange={(e) => {
-            const selected = e.target.value;
-            if (selected === CREATE_NEW_VALUE) {
-              // Revert selection and open creation flow
-              e.currentTarget.value = value || "";
-              if (predefinedService) {
-                setSelectedService(predefinedService);
-              } else {
-                setShowServiceSelection(true);
-              }
-              return;
-            }
-            handleCredentialSelect(selected);
-          }}
+      {/* Custom Dropdown */}
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => !disabled && setDropdownOpen(!dropdownOpen)}
           disabled={disabled || loadingCredential}
+          className={`w-full flex items-center justify-between bg-[#10182c] border border-slate-600 rounded-lg px-4 py-3 text-left transition-all duration-200 ${
+            disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-slate-500"
+          } ${dropdownOpen ? "border-blue-500" : ""} ${className}`}
         >
-          <option value="">{placeholder}</option>
-          {filteredCredentials.map((cred) => (
-            <option key={cred.id} value={cred.id}>
-              {cred.name} ({cred.service_type})
-            </option>
-          ))}
-          {showCreateNew && (
-            <option value={CREATE_NEW_VALUE}>
-              ➕{" "}
-              {predefinedService
-                ? `Create new ${predefinedService.name} credentials…`
-                : "Create new credentials…"}
-            </option>
-          )}
-        </select>
+          <span className={`text-sm ${value ? "text-white" : "text-slate-400"}`}>
+            {displayText}
+          </span>
+          <div className="flex items-center gap-2">
+            {loadingCredential && (
+              <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+            )}
+            <ChevronDown
+              size={16}
+              className={`text-slate-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+            />
+          </div>
+        </button>
 
-        {loadingCredential && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+        {/* Dropdown Menu */}
+        {dropdownOpen && (
+          <div className="absolute z-50 mt-1 left-0 right-0 bg-slate-900 border border-slate-700 rounded-lg shadow-lg shadow-black/40 overflow-hidden">
+            {/* Credential options */}
+            {filteredCredentials.map((cred) => (
+              <button
+                key={cred.id}
+                type="button"
+                onClick={() => handleCredentialSelect(cred.id)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors duration-150 ${
+                  value === cred.id ? "bg-blue-500/20 text-blue-300" : "text-slate-300 hover:bg-blue-500/20 hover:text-blue-300"
+                }`}
+              >
+                {cred.name} ({cred.service_type})
+              </button>
+            ))}
+
+            {/* Create new option */}
+            {showCreateNew && (
+              <button
+                type="button"
+                onClick={handleCreateNewClick}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-blue-500/20 hover:text-blue-300 transition-colors duration-150 text-left border-t border-slate-700"
+              >
+                <Plus size={14} className="text-slate-500" />
+                {predefinedService
+                  ? `Create new ${predefinedService.name} credentials…`
+                  : "Create new credentials…"}
+              </button>
+            )}
           </div>
         )}
       </div>
-
-      {/* Note: 'Create new' entry moved into select as an option */}
 
       {/* Service Selection Modal */}
       {showServiceSelection &&

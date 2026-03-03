@@ -1,14 +1,14 @@
 """
-KAI-Fusion Graph Builder - Enterprise Workflow Orchestration & Execution Engine
+KAI-Flow Graph Builder - Enterprise Workflow Orchestration & Execution Engine
 
-This module implements sophisticated workflow graph construction for the KAI-Fusion platform,
+This module implements sophisticated workflow graph construction for the KAI-Flow platform,
 providing enterprise-grade LangGraph orchestration with advanced control flow management,
 intelligent node connectivity, and production-ready execution capabilities. Built for
 complex AI workflows requiring reliable state management and seamless node integration.
 
 ARCHITECTURAL OVERVIEW:
 
-The Graph Builder system serves as the workflow orchestration engine of KAI-Fusion,
+The Graph Builder system serves as the workflow orchestration engine of KAI-Flow,
 transforming visual flow definitions into executable LangGraph pipelines with advanced
 control flow, state management, and comprehensive error handling for production environments.
 
@@ -24,10 +24,10 @@ Components:
 - Exception classes: Structured error handling
 - Type definitions: Strong typing and protocols
 
-AUTHORS: KAI-Fusion Workflow Orchestration Team
+AUTHORS: KAI-Flow Workflow Orchestration Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from __future__ import annotations
@@ -234,39 +234,45 @@ class GraphBuilder:
         # Analyze existing nodes
         start_nodes = [n for n in nodes if n.get("type") == "StartNode"]
         webhook_trigger_nodes = [n for n in nodes if n.get("type") == "WebhookTrigger"]
-        entry_nodes = start_nodes + webhook_trigger_nodes
+        kafka_trigger_nodes = [n for n in nodes if n.get("type") in ("KafkaConsumer", "KafkaTrigger")]
+        entry_nodes = start_nodes + webhook_trigger_nodes + kafka_trigger_nodes
         end_nodes = [n for n in nodes if n.get("type") == "EndNode"]
         start_node_ids = {n["id"] for n in start_nodes}
         webhook_trigger_node_ids = {n["id"] for n in webhook_trigger_nodes}
-        entry_node_ids = start_node_ids | webhook_trigger_node_ids
+        kafka_trigger_node_ids = {n["id"] for n in kafka_trigger_nodes}
+        entry_node_ids = start_node_ids | webhook_trigger_node_ids | kafka_trigger_node_ids
         end_node_ids = {n["id"] for n in end_nodes}
 
         if not entry_nodes:
-            raise ValueError("Workflow must contain at least one StartNode or WebhookTrigger node.")
+            raise ValueError("Workflow must contain at least one StartNode, WebhookTrigger, or KafkaTrigger node.")
 
         return {
             "nodes": nodes,
             "edges": edges,
             "start_nodes": start_nodes,
             "webhook_trigger_nodes": webhook_trigger_nodes,
+            "kafka_trigger_nodes": kafka_trigger_nodes,
             "entry_nodes": entry_nodes,
             "end_nodes": end_nodes,
             "start_node_ids": start_node_ids,
             "webhook_trigger_node_ids": webhook_trigger_node_ids,
+            "kafka_trigger_node_ids": kafka_trigger_node_ids,
             "entry_node_ids": entry_node_ids,
             "end_node_ids": end_node_ids
         }
 
     def _handle_start_end_nodes(self, workflow_data: Dict) -> Dict[str, Any]:
-        """Handle StartNode, WebhookTrigger, and EndNode special cases."""
+        """Handle StartNode, WebhookTrigger, KafkaConsumer/KafkaTrigger, and EndNode special cases."""
         nodes = workflow_data["nodes"]
         edges = workflow_data["edges"]
         start_nodes = workflow_data["start_nodes"]
         webhook_trigger_nodes = workflow_data.get("webhook_trigger_nodes", [])
+        kafka_trigger_nodes = workflow_data.get("kafka_trigger_nodes", [])
         end_nodes = workflow_data["end_nodes"]
         start_node_ids = workflow_data["start_node_ids"]
         webhook_trigger_node_ids = workflow_data.get("webhook_trigger_node_ids", set())
-        entry_node_ids = workflow_data.get("entry_node_ids", start_node_ids | webhook_trigger_node_ids)
+        kafka_trigger_node_ids = workflow_data.get("kafka_trigger_node_ids", set())
+        entry_node_ids = workflow_data.get("entry_node_ids", start_node_ids | webhook_trigger_node_ids | kafka_trigger_node_ids)
         end_node_ids = workflow_data["end_node_ids"]
 
         # Check for terminal nodes (EndNode OR RespondToWebhook)
@@ -319,35 +325,47 @@ class GraphBuilder:
         # Identify explicit start connections from WebhookTrigger nodes
         webhook_trigger_targets = {e["target"] for e in edges if e.get("source") in webhook_trigger_node_ids}
         
+        # Identify explicit start connections from KafkaConsumer/KafkaTrigger nodes
+        kafka_trigger_targets = {e["target"] for e in edges if e.get("source") in kafka_trigger_node_ids}
+        
         # If WebhookTrigger nodes have outgoing edges, use those targets as start nodes
         # Otherwise, use the WebhookTrigger nodes themselves as start nodes
         webhook_start_nodes = set()
         if webhook_trigger_targets:
-            # WebhookTrigger nodes have outgoing edges, use the targets
             webhook_start_nodes = webhook_trigger_targets
         elif webhook_trigger_node_ids:
-            # WebhookTrigger nodes have no outgoing edges, use the nodes themselves
             webhook_start_nodes = webhook_trigger_node_ids
         
+        # Same logic for KafkaConsumer/KafkaTrigger nodes
+        kafka_start_nodes = set()
+        if kafka_trigger_targets:
+            kafka_start_nodes = kafka_trigger_targets
+        elif kafka_trigger_node_ids:
+            kafka_start_nodes = kafka_trigger_node_ids
+        
         # Combine all start targets
-        self.explicit_start_nodes = start_node_targets | webhook_start_nodes
+        self.explicit_start_nodes = start_node_targets | webhook_start_nodes | kafka_start_nodes
 
         # Debug logging
         logger.debug(f"Edge filtering analysis: {len(edges)} edges")
         edges_from_start_nodes = [e for e in edges if e.get("source") in start_node_ids]
         edges_from_webhook_triggers = [e for e in edges if e.get("source") in webhook_trigger_node_ids]
+        edges_from_kafka_triggers = [e for e in edges if e.get("source") in kafka_trigger_node_ids]
         logger.debug(f"Found {len(edges_from_start_nodes)} edges FROM StartNodes")
         logger.debug(f"Found {len(edges_from_webhook_triggers)} edges FROM WebhookTrigger nodes")
+        logger.debug(f"Found {len(edges_from_kafka_triggers)} edges FROM KafkaTrigger nodes")
         logger.debug(f"Explicit start nodes: {self.explicit_start_nodes}")
 
         # SAFE filtering AFTER all additions
-        # Filter out StartNodes for processing, but keep EndNodes
-        processed_nodes = [n for n in nodes if n.get("type") != "StartNode"]
+        # Filter out StartNodes for processing, but keep KafkaConsumer/KafkaTrigger and EndNodes
+        filter_out_types = {"StartNode"}
+        filter_out_ids = start_node_ids
+        processed_nodes = [n for n in nodes if n.get("type") not in filter_out_types]
 
         # Filter out edges connected to StartNodes (both directions)
         processed_edges = [e for e in edges
-                          if e.get("source") not in start_node_ids
-                          and e.get("target") not in start_node_ids]
+                          if e.get("source") not in filter_out_ids
+                          and e.get("target") not in filter_out_ids]
 
         logger.debug(f"After filtering: {len(processed_nodes)} nodes, {len(processed_edges)} edges")
 
@@ -751,6 +769,15 @@ class GraphBuilder:
             variables=inputs,
             webhook_data=webhook_data,  # Add webhook data for templating
         )
+
+        # Inject Kafka data into node_outputs if present
+        kafka_data = inputs.get("kafka_data")
+        listener_id = inputs.get("listener_id")
+        if inputs.get("kafka_trigger") and kafka_data and listener_id:
+            logger.info(f"Injecting Kafka trigger data for listener {listener_id}")
+            # Inject as a node output so it can be referenced via templating
+            init_state.set_node_output(listener_id, kafka_data)
+
         config: RunnableConfig = {"configurable": {"thread_id": init_state.session_id}}
 
         if stream:
@@ -806,10 +833,10 @@ class GraphBuilder:
                         
                         if last_node_output:
                             state_dict["last_output"] = last_node_output
-                            logger.info(f"✅ Extracted last_output from node_outputs: {last_node_output[:100]}")
+                            logger.info(f"Extracted last_output from node_outputs: {last_node_output[:100]}")
                 
             except Exception as e:
-                logger.error(f"❌ Error converting result_state to dict: {e}", exc_info=True)
+                logger.error(f"Error converting result_state to dict: {e}", exc_info=True)
                 state_dict = {
                     "last_output": str(result_state) if result_state else "",
                     "executed_nodes": [],
@@ -832,10 +859,10 @@ class GraphBuilder:
                             else:
                                 result_output = str(output)
                             if result_output:
-                                logger.info(f"✅ Extracted result from node_outputs[{node_id}]: {result_output[:100]}")
+                                logger.info(f"Extracted result from node_outputs[{node_id}]: {result_output[:100]}")
                                 break
             
-            logger.info(f"📤 Final result output: {result_output[:100] if result_output else '(empty)'}")
+            logger.info(f"Final result output: {result_output[:100] if result_output else '(empty)'}")
             
             return {
                 "success": True,
@@ -846,12 +873,9 @@ class GraphBuilder:
             }
             
         except Exception as e:
-            return {
-                "success": False, 
-                "error": str(e), 
-                "error_type": type(e).__name__, 
-                "session_id": init_state.session_id
-            }
+            logger.error(f"Workflow execution failed in _execute_sync: {e}", exc_info=True)
+            # Re-raise so workflow_executor can properly mark execution as "failed"
+            raise
 
     async def _execute_stream(self, init_state: FlowState, config: RunnableConfig):
         """Streaming execution - preserved from original."""

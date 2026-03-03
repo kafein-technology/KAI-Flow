@@ -50,10 +50,10 @@ Enterprise-Grade Error Management:
    - Rate limiting with intelligent backoff recommendations
    - Timeout handling with partial result preservation
 
-AUTHORS: KAI-Fusion Application Gateway Team
+AUTHORS: KAI-Flow Application Gateway Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:
@@ -64,6 +64,7 @@ IMPLEMENTATION DETAILS:
 ──────────────────────────────────────────────────────────────
 """
 
+import asyncio
 import logging
 from app.core.enhanced_logging import auto_configure_enhanced_logging
 import os
@@ -111,6 +112,7 @@ from app.api.test_endpoint import router as test_router
 
 from app.api.external_workflows import router as external_workflows_router
 from app.api.export import router as export_router
+from app.nodes.triggers.kafka_trigger import kafka_router as kafka_trigger_router
 
 logger = logging.getLogger(__name__)
 
@@ -161,10 +163,40 @@ async def lifespan(app: FastAPI):
     
     logger.info("Backend initialization complete - KAI Fusion Ready!")
     
+    # Start Kafka reconciliation loop — periodic listener synchronization
+    _kafka_reconciliation_task = None
+    try:
+        from app.nodes.triggers.kafka_trigger import kafka_reconciliation_loop
+        _kafka_reconciliation_task = asyncio.create_task(kafka_reconciliation_loop())
+        logger.info("Kafka reconciliation loop başlatıldı (asyncio task)")
+    except Exception as e:
+        logger.error(f"Kafka reconciliation loop başlatılamadı: {e}", exc_info=True)
+    
     yield
     
     # Cleanup
     logger.info("Shutting down KAI Fusion Backend...")
+    
+    # Stop the reconciliation loop.
+    if _kafka_reconciliation_task and not _kafka_reconciliation_task.done():
+        _kafka_reconciliation_task.cancel()
+        try:
+            await _kafka_reconciliation_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Kafka reconciliation loop durduruldu")
+    
+    # Stop all Kafka listeners gracefully
+    try:
+        from app.nodes.triggers.kafka_trigger import KafkaListenerService
+        all_listeners = KafkaListenerService.get_all_listeners()
+        for listener in all_listeners:
+            if listener and listener.get("status") == "running":
+                await KafkaListenerService.stop_listener(listener["listener_id"])
+        logger.info("All Kafka listeners stopped")
+    except Exception as e:
+        logger.error(f"Error stopping Kafka listeners: {e}")
+    
     logger.info("Backend shutdown complete")
 
 
@@ -255,6 +287,9 @@ app.include_router(webhook_trigger_router, prefix=f"/{API_START}/{API_VERSION}/w
 app.include_router(webhook_test_router, tags=["Webhook Test"])  # Test webhook endpoints with frontend streaming
 app.include_router(webhook_production_router, tags=["Webhook Production"])  # Production webhook endpoints without frontend streaming
 app.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic webhook endpoints with built-in prefix
+
+# Include Kafka trigger router
+app.include_router(kafka_trigger_router, tags=["Kafka Triggers"])
 
 # Include HTTP Client router
 app.include_router(http_client_router, tags=["HTTP Client"])  # Built-in prefix

@@ -1,8 +1,8 @@
 """
-KAI-Fusion Document Service - Enterprise Document Management & Storage Service
+KAI-Flow Document Service - Enterprise Document Management & Storage Service
 =============================================================================
 
-This module implements comprehensive document management services for the KAI-Fusion platform,
+This module implements comprehensive document management services for the KAI-Flow platform,
 providing enterprise-grade document storage, retrieval, analytics, and lifecycle management.
 Built for production environments with advanced database integration, full-text search
 capabilities, and intelligent document organization with comprehensive business logic.
@@ -83,10 +83,10 @@ Enterprise Capabilities:
 - Scalability optimization with horizontal scaling support
 - Compliance reporting with automated audit trail generation
 
-AUTHORS: KAI-Fusion Document Management Team
+AUTHORS: KAI-Flow Document Management Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-29
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import List, Dict, Any, Optional, Tuple
@@ -156,12 +156,12 @@ class DocumentService:
             await self.session.commit()
             await self.session.refresh(collection)
             
-            logger.info(f"✅ Created document collection: {collection.name} (ID: {collection.id})")
+            logger.info(f"Created document collection: {collection.name} (ID: {collection.id})")
             return collection
             
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"❌ Failed to create collection: {str(e)}")
+            logger.error(f"Failed to create collection: {str(e)}")
             raise ValueError(f"Failed to create document collection: {str(e)}") from e
     
     async def store_documents(self, user_id: UUID, documents_data: List[Dict[str, Any]], 
@@ -201,7 +201,7 @@ class DocumentService:
                 # Check for existing document with same hash
                 existing_doc = await self._find_duplicate_document(user_id, content_hash)
                 if existing_doc:
-                    logger.info(f"⚠️ Duplicate document detected, skipping: {doc_data.get('title', 'Untitled')}")
+                    logger.info(f"Duplicate document detected, skipping: {doc_data.get('title', 'Untitled')}")
                     continue
                 
                 # Create document with comprehensive metadata
@@ -240,13 +240,13 @@ class DocumentService:
                 for doc in stored_documents:
                     await self.session.refresh(doc)
                 
-                logger.info(f"✅ Stored {len(stored_documents)} documents in collection {collection_id}")
+                logger.info(f"Stored {len(stored_documents)} documents in collection {collection_id}")
             
             return stored_documents
             
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"❌ Failed to store documents: {str(e)}")
+            logger.error(f"Failed to store documents: {str(e)}")
             raise ValueError(f"Failed to store documents: {str(e)}") from e
     
     async def search_documents(self, user_id: UUID, search_params: Dict[str, Any]) -> Tuple[List[Document], Dict[str, Any]]:
@@ -354,11 +354,11 @@ class DocumentService:
                 "execution_time_ms": 0  # Could add timing here
             }
             
-            logger.info(f"🔍 Search completed for user {user_id}: {len(documents)}/{total_count} documents")
+            logger.info(f"Search completed for user {user_id}: {len(documents)}/{total_count} documents")
             return documents, search_metadata
             
         except Exception as e:
-            logger.error(f"❌ Search failed for user {user_id}: {str(e)}")
+            logger.error(f"Search failed for user {user_id}: {str(e)}")
             raise ValueError(f"Document search failed: {str(e)}") from e
     
     async def get_document_by_id(self, user_id: UUID, document_id: UUID) -> Optional[Document]:
@@ -385,7 +385,7 @@ class DocumentService:
             return document
             
         except Exception as e:
-            logger.error(f"❌ Failed to get document {document_id}: {str(e)}")
+            logger.error(f"Failed to get document {document_id}: {str(e)}")
             return None
     
     async def get_collection_analytics(self, user_id: UUID, collection_id: UUID) -> Dict[str, Any]:
@@ -467,7 +467,7 @@ class DocumentService:
             }
             
         except Exception as e:
-            logger.error(f"❌ Failed to generate analytics for collection {collection_id}: {str(e)}")
+            logger.error(f"Failed to generate analytics for collection {collection_id}: {str(e)}")
             raise ValueError(f"Analytics generation failed: {str(e)}") from e
     
     async def delete_document(self, user_id: UUID, document_id: UUID) -> bool:
@@ -488,12 +488,12 @@ class DocumentService:
             await self.session.delete(document)
             await self.session.commit()
             
-            logger.info(f"🗑️ Deleted document {document_id} for user {user_id}")
+            logger.info(f"Deleted document {document_id} for user {user_id}")
             return True
             
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"❌ Failed to delete document {document_id}: {str(e)}")
+            logger.error(f"Failed to delete document {document_id}: {str(e)}")
             return False
     
     async def store_document_chunks(self, user_id: UUID, document_id: UUID, 
@@ -524,13 +524,13 @@ class DocumentService:
                 for chunk in chunks:
                     await self.session.refresh(chunk)
                 
-                logger.info(f"✅ Stored {len(chunks)} chunks for document {document_id}")
+                logger.info(f"Stored {len(chunks)} chunks for document {document_id}")
             
             return chunks
             
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"❌ Failed to store chunks for document {document_id}: {str(e)}")
+            logger.error(f"Failed to store chunks for document {document_id}: {str(e)}")
             raise ValueError(f"Failed to store document chunks: {str(e)}") from e
     
     # Private utility methods
@@ -588,7 +588,7 @@ class DocumentService:
             await self.session.commit()
             
         except Exception as e:
-            logger.warning(f"⚠️ Failed to log document access: {str(e)}")
+            logger.warning(f"Failed to log document access: {str(e)}")
             # Don't fail the main operation if logging fails
 
 

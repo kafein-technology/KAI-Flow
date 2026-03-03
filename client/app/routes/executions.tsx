@@ -15,6 +15,7 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
 import DeleteConfirmationModal from "~/components/modals/DeleteConfirmationModal";
+import DataViewModal from "~/components/modals/DataViewModal";
 import { useExecutionsStore } from "~/stores/executions";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
@@ -29,6 +30,21 @@ interface Execution {
   completed_at?: string;
   error_message?: string;
 }
+
+const getInputData = (execution: any) => {
+  return execution.inputs || "{}";
+};
+
+const getOutputData = (execution: any) => {
+  return execution.outputs || "{}";
+};
+
+const formatDataForDisplay = (data: any) => {
+  if (typeof data === "object" && data !== null) {
+    return JSON.stringify(data);
+  }
+  return String(data);
+};
 
 function ExecutionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,6 +65,24 @@ function ExecutionsPage() {
     dateRange: "all", // all, today, week, month
   });
 
+  const [viewModal, setViewModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    data: any;
+  }>({
+    isOpen: false,
+    title: "",
+    data: null,
+  });
+
+  const handleViewClick = (title: string, data: any) => {
+    setViewModal({
+      isOpen: true,
+      title,
+      data,
+    });
+  };
+
   // Multi-select states
   const [selectedExecutions, setSelectedExecutions] = useState<Set<string>>(
     new Set()
@@ -57,6 +91,11 @@ function ExecutionsPage() {
   const { executions, loading, error, fetchAllExecutions, deleteExecution } =
     useExecutionsStore();
   const { workflows, fetchWorkflows } = useWorkflows();
+
+  const getWorkflowName = (workflowId: string) => {
+    const workflow = workflows.find((w) => w.id === workflowId);
+    return workflow ? workflow.name : "Unknown Workflow";
+  };
 
   useEffect(() => {
     fetchWorkflows();
@@ -109,13 +148,13 @@ function ExecutionsPage() {
       // Search filter
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
-        const inputText = getInputText(execution).toLowerCase();
+        const inputData = formatDataForDisplay(getInputData(execution)).toLowerCase();
         const workflowName = getWorkflowName(
           execution.workflow_id
         ).toLowerCase();
 
         if (
-          !inputText.includes(searchLower) &&
+          !inputData.includes(searchLower) &&
           !workflowName.includes(searchLower)
         ) {
           return false;
@@ -154,10 +193,7 @@ function ExecutionsPage() {
     }
   };
 
-  const getWorkflowName = (workflowId: string) => {
-    const workflow = workflows.find((w) => w.id === workflowId);
-    return workflow ? workflow.name : "Unknown Workflow";
-  };
+
 
   const formatDuration = (startedAt: string, completedAt?: string) => {
     if (!startedAt) return "-";
@@ -167,40 +203,17 @@ function ExecutionsPage() {
     const end = new Date(completedAt);
     const duration = end.getTime() - start.getTime();
 
-    const seconds = Math.floor(duration / 1000);
-    const minutes = Math.floor(seconds / 60);
+    if (duration < 60000) {
+      return `${(duration / 1000).toFixed(2)} s`;
+    }
 
-    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
-    return `${seconds}s`;
+    const minutes = Math.floor(duration / 60000);
+    const remainingMs = duration % 60000;
+    const seconds = (remainingMs / 1000).toFixed(2);
+    return `${minutes}m ${seconds} s`;
   };
 
-  const getInputText = (execution: any) => {
-    // String değerleri kontrol et
-    if (execution.input_text && typeof execution.input_text === "string") {
-      return execution.input_text;
-    }
 
-    // Eğer inputs objesi varsa, içindeki input değerini al
-    if (execution.inputs && typeof execution.inputs === "object") {
-      if (
-        execution.inputs.input &&
-        typeof execution.inputs.input === "string"
-      ) {
-        return execution.inputs.input;
-      }
-    }
-
-    // Eğer input objesi varsa, içindeki değeri al
-    if (execution.input) {
-      if (typeof execution.input === "string") {
-        return execution.input;
-      } else if (typeof execution.input === "object" && execution.input.input) {
-        return execution.input.input;
-      }
-    }
-
-    return "No input provided";
-  };
 
   const handleDeleteClick = (executionId: string) => {
     setDeleteModal({
@@ -313,7 +326,7 @@ function ExecutionsPage() {
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex flex-row items-center justify-between gap-6">
                 <div>
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                     Executions
@@ -324,7 +337,7 @@ function ExecutionsPage() {
                 </div>
 
                 {/* Filter Controls */}
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-row items-center gap-3">
                   {/* Search */}
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -341,9 +354,8 @@ function ExecutionsPage() {
 
                   {/* Status Filter */}
                   <div className="relative">
-                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <select
-                      className="pl-10 pr-4 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
+                      className="pl-4 pr-10 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
                       value={filters.status}
                       onChange={(e) =>
                         handleFilterChange("status", e.target.value)
@@ -355,43 +367,50 @@ function ExecutionsPage() {
                       <option value="running">Running</option>
                       <option value="pending">Pending</option>
                     </select>
+                    <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                   </div>
 
                   {/* Workflow Filter */}
-                  <select
-                    className="px-4 py-2 w-48 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
-                    value={filters.workflowId}
-                    onChange={(e) =>
-                      handleFilterChange("workflowId", e.target.value)
-                    }
-                  >
-                    <option value="all">All Workflows</option>
-                    {workflows.map((workflow) => (
-                      <option key={workflow.id} value={workflow.id}>
-                        {workflow.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      className="pl-4 pr-10 py-2 w-48 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
+                      value={filters.workflowId}
+                      onChange={(e) =>
+                        handleFilterChange("workflowId", e.target.value)
+                      }
+                    >
+                      <option value="all">All Workflows</option>
+                      {workflows.map((workflow) => (
+                        <option key={workflow.id} value={workflow.id}>
+                          {workflow.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  </div>
 
                   {/* Date Range Filter */}
-                  <select
-                    className="px-4 py-2 w-32 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
-                    value={filters.dateRange}
-                    onChange={(e) =>
-                      handleFilterChange("dateRange", e.target.value)
-                    }
-                  >
-                    <option value="all">All Time</option>
-                    <option value="today">Today</option>
-                    <option value="week">Last Week</option>
-                    <option value="month">Last Month</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      className="pl-4 pr-10 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
+                      value={filters.dateRange}
+                      onChange={(e) =>
+                        handleFilterChange("dateRange", e.target.value)
+                      }
+                    >
+                      <option value="all">All Time</option>
+                      <option value="today">Today</option>
+                      <option value="week">Last Week</option>
+                      <option value="month">Last Month</option>
+                    </select>
+                    <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  </div>
 
                   {/* Clear Filters */}
                   {hasActiveFilters && (
                     <button
                       onClick={clearFilters}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200 whitespace-nowrap"
                       title="Clear all filters"
                     >
                       <RotateCcw className="w-4 h-4" />
@@ -458,8 +477,8 @@ function ExecutionsPage() {
                       {filters.dateRange === "today"
                         ? "Today"
                         : filters.dateRange === "week"
-                        ? "Last Week"
-                        : "Last Month"}
+                          ? "Last Week"
+                          : "Last Month"}
                     </span>
                   )}
                 </p>
@@ -516,6 +535,9 @@ function ExecutionsPage() {
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Input
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Output
                           </th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
@@ -581,8 +603,11 @@ function ExecutionsPage() {
                                 execution.completed_at
                               )}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                              {getInputText(execution)}
+                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Input Data", getInputData(execution))}>
+                              {formatDataForDisplay(getInputData(execution))}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Output Data", getOutputData(execution))}>
+                              {formatDataForDisplay(getOutputData(execution))}
                             </td>
                             <td className="px-6 py-4 text-right">
                               <button
@@ -635,11 +660,10 @@ function ExecutionsPage() {
                           <button
                             key={page}
                             onClick={() => setCurrentPage(page)}
-                            className={`px-3 py-1 rounded text-sm ${
-                              page === currentPage
-                                ? "bg-purple-600 text-white"
-                                : "text-gray-700 hover:bg-gray-100"
-                            }`}
+                            className={`px-3 py-1 rounded text-sm ${page === currentPage
+                              ? "bg-purple-600 text-white"
+                              : "text-gray-700 hover:bg-gray-100"
+                              }`}
                           >
                             {page}
                           </button>
@@ -679,9 +703,8 @@ function ExecutionsPage() {
         }
         message={
           deleteModal.executionId === "bulk"
-            ? `Are you sure you want to delete ${selectedCount} execution${
-                selectedCount > 1 ? "s" : ""
-              }? This action cannot be undone and all execution data will be permanently removed.`
+            ? `Are you sure you want to delete ${selectedCount} execution${selectedCount > 1 ? "s" : ""
+            }? This action cannot be undone and all execution data will be permanently removed.`
             : "Are you sure you want to delete this execution? This action cannot be undone and all execution data will be permanently removed."
         }
         confirmText={
@@ -689,6 +712,14 @@ function ExecutionsPage() {
             ? `Delete ${selectedCount} Executions`
             : "Delete"
         }
+      />
+
+      {/* Data View Modal */}
+      <DataViewModal
+        isOpen={viewModal.isOpen}
+        onClose={() => setViewModal({ ...viewModal, isOpen: false })}
+        title={viewModal.title}
+        data={viewModal.data}
       />
     </div>
   );

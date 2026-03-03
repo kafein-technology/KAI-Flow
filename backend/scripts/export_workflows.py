@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KAI-Fusion Workflow Export Script
+KAI-Flow Workflow Export Script
 ==================================
 
 Export workflows to distributable YAML bundle.
@@ -32,7 +32,9 @@ from app.models.workflow import Workflow
 from app.models.user_credential import UserCredential
 from app.models.user import User
 from sqlalchemy import select
+import logging
 
+logger = logging.getLogger(__name__)
 
 def get_empty_secret_from_credential(credential: UserCredential) -> Dict[str, Any]:
     """
@@ -57,7 +59,7 @@ def get_empty_secret_from_credential(credential: UserCredential) -> Dict[str, An
         return empty_secret
         
     except Exception as e:
-        print(f"   Warning: Could not decrypt credential: {e}")
+        logger.exception(f"Warning: Could not decrypt credential: {e}")
         return {"api_key": ""}
 
 
@@ -98,9 +100,9 @@ async def export_workflows(
                     if workflow:
                         workflows_to_export.append(workflow)
                     else:
-                        print(f"Warning: Workflow not found: {wf_id}")
+                        logger(f"Warning: Workflow not found: {wf_id}")
                 except Exception as e:
-                    print(f"Warning: Invalid workflow ID {wf_id}: {e}")
+                    logger(f"Warning: Invalid workflow ID {wf_id}: {e}")
         
         elif user_email:
             user_result = await db.execute(
@@ -108,7 +110,7 @@ async def export_workflows(
             )
             user = user_result.scalar_one_or_none()
             if not user:
-                print(f"Error: User not found: {user_email}")
+                logger(f"Error: User not found: {user_email}")
                 return
             
             wf_result = await db.execute(
@@ -116,17 +118,17 @@ async def export_workflows(
             )
             workflows_to_export = wf_result.scalars().all()
             config["target_user_email"] = user_email
-            print(f"Exporting all workflows for: {user_email}")
+            logger(f"Exporting all workflows for: {user_email}")
         
         else:
-            print("Error: Please provide --ids or --user-email")
+            logger("Error: Please provide --ids or --user-email")
             return
         
         if not workflows_to_export:
-            print("Error: No workflows to export")
+            logger("Error: No workflows to export")
             return
         
-        print(f"\nExporting {len(workflows_to_export)} workflow(s)...\n")
+        logger(f"\nExporting {len(workflows_to_export)} workflow(s)...\n")
         
         for workflow in workflows_to_export:
             # Keep flow_data as-is (don't modify credential_id)
@@ -152,9 +154,9 @@ async def export_workflows(
                                 "service_type": cred.service_type,
                                 "secret": empty_secret
                             }
-                            print(f"   Credential: {cred.name} (ID: {cred_id})")
+                            logger(f"Credential: {cred.name} (ID: {cred_id})")
                     except Exception as e:
-                        print(f"   Warning: Could not process credential {cred_id}: {e}")
+                        logger(f"Warning: Could not process credential {cred_id}: {e}")
             
             # Save flow file (unchanged - keeps credential_id as-is)
             safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in workflow.name.lower())[:50]
@@ -171,7 +173,7 @@ async def export_workflows(
                 "flow_file": flow_file
             })
             
-            print(f"Exported: {workflow.name} (ID: {workflow.id})")
+            logger(f"Exported: {workflow.name} (ID: {workflow.id})")
         
         # Add all found credentials to config
         for cred_info in seen_credentials.values():
@@ -187,7 +189,7 @@ async def export_workflows(
     (output_path / "workflows_config.yaml").write_text(yaml_content, encoding="utf-8")
     
     # Write README
-    readme = f"""# KAI-Fusion Workflow Export Bundle
+    readme = f"""# KAI-Flow Workflow Export Bundle
 
 Generated: {config['generated_at']}
 
@@ -222,16 +224,16 @@ python -m scripts.import_workflows --config /path/to/workflows_config.yaml
     
     (output_path / "README.md").write_text(readme, encoding="utf-8")
     
-    print(f"\n{'='*50}")
-    print(f"Export complete: {output_path.absolute()}")
-    print(f"   Workflows: {len(config['workflows'])}")
-    print(f"   Credentials: {len(config['credentials'])}")
-    print(f"\nIMPORTANT: Fill credential secrets before import!")
+    logger(f"\n{'='*50}")
+    logger(f"Export complete: {output_path.absolute()}")
+    logger(f"Workflows: {len(config['workflows'])}")
+    logger(f"Credentials: {len(config['credentials'])}")
+    logger(f"\nIMPORTANT: Fill credential secrets before import!")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Export KAI-Fusion workflows to distributable bundle"
+        description="Export KAI-Flow workflows to distributable bundle"
     )
     parser.add_argument("--ids", help="Comma-separated workflow UUIDs to export")
     parser.add_argument("--user-email", help="Export all workflows for this user")

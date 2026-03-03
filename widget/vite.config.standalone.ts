@@ -24,7 +24,7 @@ export default defineConfig({
       output: {
         assetFileNames: (assetInfo) => {
           if (assetInfo.name === 'style.css') return 'kai-chat.css';
-          return assetInfo.name;
+          return assetInfo.name || '[name][extname]';
         },
       }
     },

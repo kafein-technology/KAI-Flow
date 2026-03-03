@@ -76,7 +76,7 @@ const Register = () => {
             <h1 className="text-3xl font-semibold font-inter text-gray-900 text-start">
               Register
             </h1>
-            {from !== "/home" && (
+            {from !== "/" && (
               <p className="text-sm text-gray-600 mt-2">
                 Please create an account to continue to your requested page
               </p>

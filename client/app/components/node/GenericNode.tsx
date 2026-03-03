@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { config } from "../../lib/config";
+import { apiClient } from "../../lib/api-client";
 import { useReactFlow } from "@xyflow/react";
 import { useSnackbar } from "notistack";
 import GenericVisual from "./GenericVisual";
@@ -304,6 +305,44 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
     }
   };
 
+  const debugKafkaMessage = async () => {
+    try {
+      enqueueSnackbar("Kafka debug: Mesaj bekleniyor...", { variant: "info", autoHideDuration: 3000 });
+      const token = apiClient.getAccessToken();
+      const response = await fetch(`${config.API_BASE_URL}${config.API_VERSION}/kafka/debug/${id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (response.ok) {
+        // SSE stream'den sonucu oku
+        const reader = response.body?.getReader();
+        if (reader) {
+          const decoder = new TextDecoder("utf-8");
+          let result = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            result += decoder.decode(value, { stream: true });
+          }
+          reader.releaseLock();
+          enqueueSnackbar("Kafka debug: Workflow tamamlandı", { variant: "success", autoHideDuration: 3000 });
+        }
+      } else if (response.status === 408) {
+        enqueueSnackbar("Kafka debug: Mesaj bulunamadı (timeout)", { variant: "warning", autoHideDuration: 3000 });
+      } else {
+        const errorData = await response.json().catch(() => ({ detail: "Bilinmeyen hata" }));
+        enqueueSnackbar(`Kafka debug hatası: ${errorData.detail}`, { variant: "error", autoHideDuration: 5000 });
+      }
+    } catch (err) {
+      console.error("Kafka debug failed:", err);
+      enqueueSnackbar("Kafka debug bağlantı hatası", { variant: "error", autoHideDuration: 3000 });
+    }
+  };
+
   // Input edge'lerinden gelen verileri al
   const getInputData = () => {
     const nodes = getNodes();
@@ -407,7 +446,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
     <GenericVisual
       data={data}
       isHovered={isHovered}
-      onDoubleClick={() => setIsConfigMode(true)}
+      onDoubleClick={() => { }} // Disabled: Don't open config modal on double-click
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onDelete={handleDeleteNode}
@@ -423,6 +462,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
       startTimer={startTimer}
       stopTimer={stopTimer}
       triggerNow={triggerNow}
+      onToggleKafka={debugKafkaMessage}
     />
   );
 }

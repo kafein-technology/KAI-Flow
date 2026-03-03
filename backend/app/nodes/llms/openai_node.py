@@ -1,5 +1,5 @@
 """
-KAI-Fusion OpenAI LLM Integration - Enterprise-Grade AI Language Models
+KAI-Flow OpenAI LLM Integration - Enterprise-Grade AI Language Models
 =====================================================================
 
 This module provides sophisticated integration with OpenAI's language models,
@@ -10,7 +10,7 @@ reliability, performance, and advanced configuration capabilities.
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The OpenAI integration serves as the intelligence backbone of KAI-Fusion,
+The OpenAI integration serves as the intelligence backbone of KAI-Flow,
 providing access to the world's most advanced language models with
 enterprise-grade reliability and performance optimization.
 
@@ -230,20 +230,23 @@ COMPLIANCE AND GOVERNANCE:
    - Bias detection and mitigation
    - Responsible AI usage guidelines
 
-AUTHORS: KAI-Fusion Development Team
+AUTHORS: KAI-Flow Development Team
 MAINTAINER: AI Infrastructure Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import Dict, Any, Optional, List
 import os
+import logging
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
 from pydantic import SecretStr
 
 from ..base import BaseNode, NodeType, NodeInput, NodeOutput, NodeProperty, NodePosition, NodePropertyType
+
+logger = logging.getLogger(__name__)
 
 
 # ================================================================================
@@ -256,7 +259,7 @@ class OpenAINode(BaseNode):
     =============================================
     
     The OpenAINode represents the pinnacle of language model integration within
-    the KAI-Fusion platform, providing seamless access to OpenAI's cutting-edge
+    the KAI-Flow platform, providing seamless access to OpenAI's cutting-edge
     AI models with enterprise-grade reliability, security, and optimization.
     
     This node serves as the intelligent foundation for countless AI workflows,
@@ -497,11 +500,11 @@ class OpenAINode(BaseNode):
     - Basic parameter configuration
     - Simple error handling
     
-    AUTHORS: KAI-Fusion AI Infrastructure Team
+    AUTHORS: KAI-Flow AI Infrastructure Team
     MAINTAINER: OpenAI Integration Specialists  
     VERSION: 2.1.0
     LAST_UPDATED: 2025-07-26
-    LICENSE: Proprietary - KAI-Fusion Platform
+    LICENSE: Proprietary - KAI-Flow Platform
     """
     
     def __init__(self):
@@ -606,7 +609,7 @@ class OpenAINode(BaseNode):
                     displayName="Credential",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
-                    required=False,
+                    required=True,
                     serviceType="openai",
                 ),
                 NodeProperty(
@@ -743,7 +746,7 @@ class OpenAINode(BaseNode):
     
     def execute(self, **kwargs) -> Runnable:
         """Execute OpenAI node with enhanced configuration and validation."""
-        print(f"\nOPENAI LLM SETUP")
+        logger.info("\nOPENAI LLM SETUP")
         
         # Get configuration from user_data
         model_name = self.user_data.get("model_name", "gpt-4o")
@@ -772,7 +775,7 @@ class OpenAINode(BaseNode):
             # Use default of 10000 tokens but cap at model limit
             max_tokens = min(10000, model_config["max_tokens"])
         elif max_tokens > model_config["max_tokens"]:
-            print(f"Requested max_tokens ({max_tokens}) exceeds model limit ({model_config['max_tokens']})")
+            logger.warning(f"Requested max_tokens ({max_tokens}) exceeds model limit ({model_config['max_tokens']})")
             max_tokens = model_config["max_tokens"]
         
         # Build LLM configuration
@@ -793,8 +796,8 @@ class OpenAINode(BaseNode):
             llm = ChatOpenAI(**llm_config)
             
             # Log successful creation
-            print(f"   Model: {model_name} | Temp: {temperature} | Max Tokens: {max_tokens}")
-            print(f"   Features: Tools({model_config['supports_tools']}) | Vision({model_config['supports_vision']}) | Context({model_config['context_window']})")
+            logger.info(f"   Model: {model_name} | Temp: {temperature} | Max Tokens: {max_tokens}")
+            logger.info(f"   Features: Tools({model_config['supports_tools']}) | Vision({model_config['supports_vision']}) | Context({model_config['context_window']})")
             
             # Store model info for potential use
             self.model_info = {
@@ -812,7 +815,7 @@ class OpenAINode(BaseNode):
             
         except Exception as e:
             error_msg = f"Failed to create OpenAI LLM: {str(e)}"
-            print(f"{error_msg}")
+            logger.error(f"{error_msg}")
             raise ValueError(error_msg) from e
     
     def get_model_info(self) -> Optional[Dict[str, Any]]:

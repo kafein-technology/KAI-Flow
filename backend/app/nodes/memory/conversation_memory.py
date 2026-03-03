@@ -1,9 +1,9 @@
 """
-KAI-Fusion Conversation Memory - Advanced Multi-Session Memory Management
+KAI-Flow Conversation Memory - Advanced Multi-Session Memory Management
 ========================================================================
 
 This module implements sophisticated conversation memory management for the
-KAI-Fusion platform, providing enterprise-grade session-aware memory storage,
+KAI-Flow platform, providing enterprise-grade session-aware memory storage,
 intelligent conversation tracking, and seamless integration with AI agents.
 
 ARCHITECTURAL OVERVIEW:
@@ -190,19 +190,22 @@ Comprehensive Memory Monitoring:
    - Memory configuration optimization recommendations
    - Cost analysis for memory operations
 
-AUTHORS: KAI-Fusion Memory Architecture Team
+AUTHORS: KAI-Flow Memory Architecture Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from ..base import MemoryNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
+import logging
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.runnables import Runnable
 from typing import cast, Dict
 import uuid
 
 from app.services.memory import db_memory_store
+
+logger = logging.getLogger(__name__)
 
 
 # ================================================================================
@@ -379,7 +382,7 @@ class ConversationMemoryNode(MemoryNode):
         Retrieves or creates a session-aware memory instance using the standardized flow.
         """
         session_id = self.get_session_id(**kwargs)
-        print(f"ConversationMemoryNode session_id: {session_id}")
+        logger.debug(f"ConversationMemoryNode session_id: {session_id}")
         
         return self.get_memory_instance(session_id, **kwargs)
 
@@ -393,13 +396,13 @@ class ConversationMemoryNode(MemoryNode):
         memory_key = kwargs.get("memory_key", "history")
         
         if session_id not in self._session_memories:
-            print(f"Creating new ConversationBufferWindowMemory for session: {session_id}")
+            logger.info(f"Creating new ConversationBufferWindowMemory for session: {session_id}")
             self._session_memories[session_id] = ConversationBufferWindowMemory(
                 k=k,
                 memory_key=memory_key,
                 return_messages=True
             )
         else:
-            print(f"Reusing existing ConversationBufferWindowMemory for session: {session_id}")
+            logger.info(f"Reusing existing ConversationBufferWindowMemory for session: {session_id}")
             
         return self._session_memories[session_id]

@@ -16,29 +16,46 @@ function DashboardLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Helper function to format runtime with ms precision
+  const formatRuntime = (ms: number): string => {
+    if (ms === 0) return "0s";
+
+    if (ms < 60000) {
+      return `${(ms / 1000).toFixed(2)} s`;
+    }
+
+    const minutes = Math.floor(ms / 60000);
+    const remainingMs = ms % 60000;
+    const seconds = (remainingMs / 1000).toFixed(2);
+    return `${minutes}m ${seconds} s`;
+  };
+
   // Prepare chart data for DashboardChart
   const periodData =
     dashboardStats?.[selectedPeriod as keyof typeof dashboardStats];
   const chartData = Array.isArray(periodData)
     ? periodData.map((d: any) => ({
-        name: d.date,
-        prodexec: d.prodexec,
-        failedprod: d.failedprod,
-        avg_runtime_sec: d.avg_runtime_sec,
-      }))
+      name: d.date,
+      prodexec: d.prodexec,
+      failedprod: d.failedprod,
+      avg_runtime_ms: d.avg_runtime_ms,
+    }))
     : [];
 
   const chartConfig = {
     prodexec: {
-      label: "Prod. executions",
+      label: "Total Prod. executions",
+      tooltipLabel: "Todays Prod. executions",
       color: "#2563eb",
     },
     failedprod: {
-      label: "Failed Prod. executions",
+      label: "Total Failed Prod. executions",
+      tooltipLabel: "Todays Failed Prod. executions",
       color: "#ef4444",
     },
-    avg_runtime_sec: {
-      label: "Avg runtime (sec)",
+    avg_runtime_ms: {
+      label: "Total Avg runtime (s)",
+      tooltipLabel: "Todays Avg runtime (s)",
       color: "#10b981",
     },
   };
@@ -52,7 +69,7 @@ function DashboardLayout() {
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex flex-row items-center justify-between gap-6">
                 <div>
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                     Dashboard
@@ -162,20 +179,20 @@ function DashboardLayout() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-600">
-                          Avg Runtime
+                          Total Avg Runtime
                         </p>
                         <p className="text-2xl font-bold text-gray-900">
                           {(() => {
                             const completedDays = chartData.filter(
-                              (d) => (d as any).avg_runtime_sec > 0
+                              (d) => (d as any).avg_runtime_ms > 0
                             );
-                            if (completedDays.length === 0) return "0s";
+                            if (completedDays.length === 0) return "0ms";
                             const avg =
                               completedDays.reduce(
-                                (sum, d: any) => sum + (d.avg_runtime_sec || 0),
+                                (sum, d: any) => sum + (d.avg_runtime_ms || 0),
                                 0
                               ) / completedDays.length;
-                            return `${Math.round(avg)}s`;
+                            return formatRuntime(avg);
                           })()}
                         </p>
                       </div>
@@ -194,11 +211,11 @@ function DashboardLayout() {
                       selectedPeriod === "7days"
                         ? "Last 7 days"
                         : selectedPeriod === "30days"
-                        ? "Last 30 days"
-                        : "Last 90 days"
+                          ? "Last 30 days"
+                          : "Last 90 days"
                     }
                     data={chartData}
-                    dataKeys={["prodexec", "failedprod", "avg_runtime_sec"]}
+                    dataKeys={["prodexec", "failedprod", "avg_runtime_ms"]}
                     config={chartConfig}
                   />
                 </div>

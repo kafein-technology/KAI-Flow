@@ -1,5 +1,5 @@
 """
-KAI-Fusion Dynamic Workflow Engine - Fully Dynamic LangGraph-Based Solution
+KAI-Flow Dynamic Workflow Engine - Fully Dynamic LangGraph-Based Solution
 ===========================================================================
 
 This module provides enhanced dynamic workflow capabilities built on top of the existing
@@ -230,7 +230,7 @@ class DynamicWorkflowEngine:
                              context: DynamicWorkflowContext) -> Any:
         """Build workflow with full dynamic capabilities"""
         
-        logger.info(f"🔄 Building dynamic workflow (session: {context.session_id})")
+        logger.info(f"Building dynamic workflow (session: {context.session_id})")
         
         try:
             # Step 1: Optimize workflow structure
@@ -242,11 +242,11 @@ class DynamicWorkflowEngine:
             # Step 3: Build using enhanced builder
             compiled_graph = self.base_builder.build_from_flow(enhanced_flow, context.user_id)
             
-            logger.info(f"✅ Dynamic workflow built successfully")
+            logger.info(f"Dynamic workflow built successfully")
             return compiled_graph
             
         except Exception as e:
-            logger.error(f"❌ Dynamic workflow build failed: {e}")
+            logger.error(f"Dynamic workflow build failed: {e}")
             raise
     
     def _enhance_with_dynamic_nodes(self, flow_data: Dict[str, Any], 
@@ -283,7 +283,7 @@ class DynamicWorkflowEngine:
                                      stream: bool = False) -> Union[Dict[str, Any], AsyncGenerator]:
         """Execute workflow with dynamic capabilities"""
         
-        logger.info(f"🚀 Executing dynamic workflow (session: {context.session_id})")
+        logger.info(f"Executing dynamic workflow (session: {context.session_id})")
         
         try:
             # Execute using base builder with enhanced context
@@ -296,11 +296,11 @@ class DynamicWorkflowEngine:
                 stream=stream
             )
             
-            logger.info(f"✅ Dynamic workflow execution completed")
+            logger.info(f"Dynamic workflow execution completed")
             return result
             
         except Exception as e:
-            logger.error(f"❌ Dynamic workflow execution failed: {e}")
+            logger.error(f"Dynamic workflow execution failed: {e}")
             raise
     
     def get_runtime_metrics(self, session_id: str) -> Dict[str, Any]:

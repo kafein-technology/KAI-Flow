@@ -42,4 +42,10 @@ export const deleteChatflow = async (chatflow_id: string): Promise<{ detail: str
 // Workflow'a özel chat history getir
 export const getWorkflowChats = async (workflow_id: string): Promise<Record<string, ChatMessage[]>> => {
   return apiClient.get(API_ENDPOINTS.CHAT.GET_WORKFLOW_CHATS(workflow_id));
-}; 
+};
+
+// En son aktif session ID'yi getir
+export const getActiveSessionId = async (chatflow_id?: string): Promise<{ session_id: string | null }> => {
+  const params = chatflow_id ? `?chatflow_id=${chatflow_id}` : '';
+  return apiClient.get(`${API_ENDPOINTS.CHAT.ACTIVE_SESSION.ID}${params}`);
+};

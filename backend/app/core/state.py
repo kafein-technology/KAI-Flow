@@ -1,17 +1,17 @@
 """
-KAI-Fusion Enterprise Workflow State Management - Advanced State Orchestration System
+KAI-Flow Enterprise Workflow State Management - Advanced State Orchestration System
 ======================================================================================
 
-This module implements the sophisticated workflow state management system for the KAI-Fusion
+This module implements the sophisticated workflow state management system for the KAI-Flow
 platform, providing enterprise-grade state persistence, advanced data flow orchestration,
 and comprehensive state lifecycle management. Built for high-performance AI workflow
 execution with intelligent state tracking, concurrent execution support, and production-ready
 reliability features designed for complex enterprise automation scenarios.
 
-AUTHORS: KAI-Fusion State Management Team
+AUTHORS: KAI-Flow State Management Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:
@@ -25,6 +25,8 @@ IMPLEMENTATION DETAILS:
 from pydantic import BaseModel, Field
 from typing import Any, List, Dict, Optional, Union, Annotated
 from datetime import datetime
+import logging
+
 
 def merge_node_outputs(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -32,7 +34,7 @@ def merge_node_outputs(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str,
     ===========================================================
     
     Advanced reducer function designed for merging node outputs from multiple nodes
-    executing in parallel within the KAI-Fusion workflow engine. Provides intelligent
+    executing in parallel within the KAI-Flow workflow engine. Provides intelligent
     conflict resolution, type preservation, and comprehensive error handling for
     enterprise-grade concurrent workflow execution scenarios.
     
@@ -181,7 +183,7 @@ class FlowState(BaseModel):
         if not self.session_id or self.session_id == 'None' or len(str(self.session_id).strip()) == 0:
             import uuid
             self.session_id = f"state_session_{uuid.uuid4().hex[:8]}"
-            print(f"[WARNING] No valid session_id in FlowState, generated: {self.session_id}")
+            logging.warning(f"[WARNING] No valid session_id in FlowState, generated: {self.session_id}")
         
     def add_message(self, message: str, role: str = "user") -> None:
         """Add a message to chat history"""

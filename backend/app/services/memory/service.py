@@ -3,9 +3,12 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+import logging
 
 from .repo import MemoryRepo
 from app.models.memory import Memory
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryItem:
@@ -139,6 +142,10 @@ class MemoryService:
         """Get total memory count for a user."""
         return self.memory_repo.get_memory_count_by_user(db, user_id)
     
+    def get_active_session_id(self, db: Session, user_id: str, chatflow_id: str = None) -> Optional[str]:
+        """Get the most recent session ID, optionally filtered by chatflow (workflow)."""
+        return self.memory_repo.get_active_session_id(db, user_id, chatflow_id=chatflow_id)
+    
     def get_session_memories(self, db: Session, session_id: str, limit: int = 10) -> List[MemoryItem]:
         """Get memories for a specific session."""
         memories = self.memory_repo.get_memories_by_session(db, session_id, limit)
@@ -192,7 +199,7 @@ class MemoryService:
             return relevant_memories[:limit]
 
         except Exception as e:
-            print(f"Semantic search failed: {e}")
+            logger.error(f"Semantic search failed: {e}")
             return memories[:limit]
     
     def _analyze_word_frequency(self, memories: List[Memory]) -> List[Dict[str, Any]]:

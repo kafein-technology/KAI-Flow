@@ -27,7 +27,7 @@ export const NodeText = ({ property, values }: NodeTextProps) => {
       <Field
         type="text"
         name={property.name}
-        className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
+        className="input input-bordered w-full bg-[#10182c] text-white text-sm rounded-lg px-4 py-3 border border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
         placeholder={property.placeholder}
       />
       {property.hint && (

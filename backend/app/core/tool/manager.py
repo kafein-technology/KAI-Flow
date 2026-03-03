@@ -1,5 +1,5 @@
 """
-KAI-Fusion Auto-Discovery Tool Manager - Integration Orchestrator
+KAI-Flow Auto-Discovery Tool Manager - Integration Orchestrator
 ===============================================================
 
 This module provides the central orchestration system for automatic tool
@@ -13,7 +13,7 @@ Key Features:
 - Integration with agent systems
 - Performance monitoring and caching
 
-Authors: KAI-Fusion Tool Integration Team
+Authors: KAI-Flow Tool Integration Team
 Version: 1.0.0
 License: Proprietary
 """
@@ -72,7 +72,7 @@ class AutoToolManager:
         Returns:
             Dictionary with discovery results and statistics
         """
-        logger.info(f"🔍 Starting tool discovery for {len(node_instances)} nodes")
+        logger.info(f"Starting tool discovery for {len(node_instances)} nodes")
 
         # Reset stats for this batch
         batch_stats = {
@@ -108,7 +108,7 @@ class AutoToolManager:
         self.stats["tools_discovered"] += batch_stats["tools_found"]
         self.stats["tools_converted"] += batch_stats["tools_registered"]
 
-        logger.info(f"✅ Discovery complete: {batch_stats['tools_registered']} tools registered from {batch_stats['nodes_processed']} nodes")
+        logger.info(f"Discovery complete: {batch_stats['tools_registered']} tools registered from {batch_stats['nodes_processed']} nodes")
 
         return {
             "batch_results": batch_stats,
@@ -245,7 +245,7 @@ class AutoToolManager:
         """
         if tool_name in self.registered_tools:
             del self.registered_tools[tool_name]
-            logger.info(f"🗑️ Unregistered tool: {tool_name}")
+            logger.info(f"Unregistered tool: {tool_name}")
             return True
 
         return False
@@ -261,7 +261,7 @@ class AutoToolManager:
             "conversion_failures": 0,
             "cache_hits": 0
         }
-        logger.info("🧹 Tool registry cleared")
+        logger.info("Tool registry cleared")
 
     def get_statistics(self) -> Dict[str, Any]:
         """
@@ -293,7 +293,7 @@ class AutoToolManager:
         Returns:
             Discovery results with workflow-specific analysis
         """
-        logger.info(f"🔍 Scanning workflow with {len(workflow_nodes)} nodes")
+        logger.info(f"Scanning workflow with {len(workflow_nodes)} nodes")
 
         # Basic discovery
         results = self.discover_and_register_tools(workflow_nodes)

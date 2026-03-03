@@ -11,3 +11,4 @@ export { NodeRange } from "./NodeRange";
 export { NodeJsonEditor } from "./NodeJsonEditor";
 export { NodeDateTime } from "./NodeDateTime";
 export { NodeCodeEditor } from "./NodeCodeEditor";
+export { NodeSessionId } from "./NodeSessionId";

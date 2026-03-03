@@ -283,7 +283,7 @@ async def handle_webhook_request(
         # Auto-create webhook entry for valid webhook IDs
         webhook_events[webhook_id] = []
         webhook_subscribers[webhook_id] = []
-        logger.info(f"🔧 Auto-created webhook storage for {webhook_id}")
+        logger.info(f"Auto-created webhook storage for {webhook_id}")
     
     correlation_id = str(uuid.uuid4())
     received_at = datetime.now(timezone.utc)
@@ -489,7 +489,7 @@ async def handle_webhook_request(
         webhook_response_data = None
         result = None
         try:
-            logger.info(f"🚀 Starting synchronous workflow execution for webhook: {webhook_id}")
+            logger.info(f"Starting synchronous workflow execution for webhook: {webhook_id}")
 
             async with get_db_session_context() as session:
                 executor = get_workflow_executor()
@@ -510,7 +510,7 @@ async def handle_webhook_request(
                     )
 
                 # Create session ID
-                session_id = f"webhook_{webhook_id}_{int(time.time())}"
+                session_id = str(workflow.id)
 
                 # Extract webhook input - use entire payload for dynamic field access
                 # This allows any JSON structure to be used in templates via {{webhook_trigger.anyfield}}
@@ -547,7 +547,7 @@ async def handle_webhook_request(
                 )
 
                 # Execute workflow with streaming to capture events for UI visualization
-                logger.info(f"▶️ Executing workflow {workflow.id} for webhook {webhook_id} (streaming mode for UI)")
+                logger.info(f"Executing workflow {workflow.id} for webhook {webhook_id} (streaming mode for UI)")
                 result_stream = await executor.execute_workflow(
                     ctx=ctx,
                     db=session,
@@ -650,7 +650,7 @@ async def handle_webhook_request(
                     # Fallback: if not a generator, use as result
                     result = result_stream
 
-                logger.info(f"✅ Workflow executed successfully: workflow={workflow.id}, webhook={webhook_id}, events={len(collected_events)}")
+                logger.info(f"Workflow executed successfully: workflow={workflow.id}, webhook={webhook_id}, events={len(collected_events)}")
                 
                 # Extract webhook_response from result
                 # Check multiple possible locations for webhook_response
@@ -685,7 +685,7 @@ async def handle_webhook_request(
                 logger.debug(f"Webhook response data: {webhook_response_data}")
 
         except Exception as e:
-            logger.error(f"❌ Workflow execution error for webhook {webhook_id}: {e}")
+            logger.error(f"Workflow execution error for webhook {webhook_id}: {e}")
             logger.error(traceback.format_exc())
             # Fall back to error response
             webhook_response_data = {
@@ -722,7 +722,7 @@ async def handle_webhook_request(
                     content_type = webhook_response_data.get("content_type", "application/json")
                     headers["Content-Type"] = content_type
                 
-                logger.info(f"📤 Sending custom webhook response: status={status_code}, content_type={content_type}")
+                logger.info(f"Sending custom webhook response: status={status_code}, content_type={content_type}")
                 
                 # Determine response class based on content type
                 if "application/json" in content_type:
@@ -754,27 +754,27 @@ async def handle_webhook_request(
                         media_type=content_type
                     )
             except Exception as e:
-                logger.error(f"❌ Error creating custom webhook response: {e}")
+                logger.error(f"Error creating custom webhook response: {e}")
                 # Fall through to default response
-        
+
         # Default: return only node outputs as HTTP response (without node IDs)
-        logger.info(f"📤 Returning node outputs as webhook response (flattened)")
-        
+        logger.info(f"Returning node outputs as webhook response (flattened)")
+
         if result and isinstance(result, dict):
             # Extract node_outputs from result
             node_outputs = {}
-            
+
             # Try to get from state first
             if "state" in result:
                 state = result.get("state", {})
                 node_outputs = state.get("node_outputs", {})
-                logger.debug(f"📊 Found {len(node_outputs)} node outputs in state")
+                logger.debug(f"Found {len(node_outputs)} node outputs in state")
             
             # If not in state, try directly in result
             if not node_outputs and "node_outputs" in result:
                 node_outputs = result.get("node_outputs", {})
-                logger.debug(f"📊 Found {len(node_outputs)} node outputs in result")
-            
+                logger.debug(f"Found {len(node_outputs)} node outputs in result")
+
             # Flatten node_outputs: remove node IDs and merge all outputs
             flattened_output = {}
             for node_id, node_output in node_outputs.items():
@@ -806,8 +806,8 @@ async def handle_webhook_request(
             )
         else:
             # Fallback if result is not a dict (e.g., plain string from LLM)
-            logger.info(f"📤 Returning raw result as webhook response (non-dict result type={type(result).__name__})")
-            
+            logger.info(f"Returning raw result as webhook response (non-dict result type={type(result).__name__})")
+
             # If result is a simple value, wrap it in an 'output' field
             if result is None:
                 content = {}
@@ -829,7 +829,7 @@ async def handle_webhook_request(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Webhook processing error: {str(e)}")
+        logger.error(f"Webhook processing error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Webhook processing failed: {str(e)}"
@@ -898,8 +898,8 @@ async def webhook_stream_test(webhook_id: str):
     if webhook_id not in webhook_events:
         webhook_events[webhook_id] = []
         webhook_subscribers[webhook_id] = []
-        logger.info(f"🔧 Auto-created webhook storage for stream: {webhook_id}")
-    
+        logger.info(f"Auto-created webhook storage for stream: {webhook_id}")
+
     async def event_stream():
         queue = asyncio.Queue(maxsize=MAX_QUEUE_LENGTH)
         if webhook_id not in webhook_subscribers:
@@ -1235,7 +1235,7 @@ class WebhookTriggerNode(TerminatorNode):
                     default=str(uuid.uuid4()),
                     placeholder="Leave empty to auto-generate UUID v4",
                     hint="Customizable path value for webhook endpoint",
-                    required=False,
+                    required=True,
                     tabName="basic"
                 ),
                 NodeProperty(
@@ -1257,7 +1257,7 @@ class WebhookTriggerNode(TerminatorNode):
                     type=NodePropertyType.READONLY_TEXT,
                     placeholder="Full webhook URL will be displayed here and can be copied",
                     hint="This field is read-only and automatically updates based on the Path and Environment fields",
-                    required=False,
+                    required=True,
                     tabName="basic",
                     colSpan=2,
                 ),
@@ -1379,7 +1379,7 @@ class WebhookTriggerNode(TerminatorNode):
         # Endpoint will be registered when execute is called with configuration
         self._endpoint_registered = False
         
-        logger.info(f"🔗 Webhook trigger created: {self.webhook_id}")
+        logger.info(f"Webhook trigger created: {self.webhook_id}")
     
     # Old dynamic endpoint registration method removed - using catch-all handlers instead
     
@@ -1402,8 +1402,8 @@ class WebhookTriggerNode(TerminatorNode):
         Returns:
             Dict containing webhook data and configuration
         """
-        logger.info(f"🔧 Executing Webhook Trigger: {self.webhook_id}")
-        
+        logger.info(f"Executing Webhook Trigger: {self.webhook_id}")
+
         # Get webhook payload from user data or latest event
         webhook_payload = self.user_data.get("webhook_payload", {})
         
@@ -1460,8 +1460,8 @@ class WebhookTriggerNode(TerminatorNode):
         Returns:
             Dict with webhook endpoint, token, runnable, and config
         """
-        logger.info(f"🔧 Configuring Webhook Trigger: {self.webhook_id}")
-        
+        logger.info(f"Configuring Webhook Trigger: {self.webhook_id}")
+
         # Store user configuration
         self.user_data.update(kwargs)
         
@@ -1491,7 +1491,7 @@ class WebhookTriggerNode(TerminatorNode):
         # Create webhook runnable
         webhook_runnable = self._create_webhook_runnable()
         
-        logger.info(f"✅ Webhook trigger configured: {full_endpoint}")
+        logger.info(f"Webhook trigger configured: {full_endpoint}")
         
         return {
             "webhook_endpoint": full_endpoint,
@@ -1528,8 +1528,8 @@ class WebhookTriggerNode(TerminatorNode):
                 webhook_subscribers[self.webhook_id].append(queue)
                 
                 try:
-                    logger.info(f"🔄 Webhook streaming started: {self.webhook_id}")
-                    
+                    logger.info(f"Webhook streaming started: {self.webhook_id}")
+
                     # Yield any existing events first
                     existing_events = webhook_events.get(self.webhook_id, [])
                     for event in existing_events[-10:]:  # Last 10 events
@@ -1558,8 +1558,8 @@ class WebhookTriggerNode(TerminatorNode):
                             webhook_subscribers[self.webhook_id].remove(queue)
                         except ValueError:
                             pass
-                    logger.info(f"🔄 Webhook streaming ended: {self.webhook_id}")
-        
+                    logger.info(f"Webhook streaming ended: {self.webhook_id}")
+
         # Add LangSmith tracing if enabled
         runnable = WebhookRunnable(self.webhook_id)
         
@@ -1645,6 +1645,7 @@ def cleanup_webhook_events(max_age_hours: int = 24) -> int:
     logger.info(f"🧹 Cleaned up {cleaned_count} old webhook events")
     return cleaned_count
 
+
 """
 ═══════════════════════════════════════════════════════════════════════════════
                     WEBHOOK TRIGGER NODE COMPREHENSIVE GUIDE
@@ -1654,7 +1655,7 @@ def cleanup_webhook_events(max_age_hours: int = 24) -> int:
 OVERVIEW:
 ========
 
-The Webhook Trigger Node enables external systems to trigger KAI-Fusion workflows
+The Webhook Trigger Node enables external systems to trigger KAI-Flow workflows
 via HTTP POST requests. It serves as the entry point for external integrations,
 allowing third-party services, APIs, and systems to initiate workflow execution
 with custom data payloads.
@@ -1925,7 +1926,7 @@ Pattern 5: Data Pipeline Trigger
 SECURITY FEATURES:
 =================
 
-🔒 Authentication & Authorization:
+Authentication & Authorization:
 • Bearer token authentication with unique tokens per webhook
 • Configurable authentication requirements (can be disabled for internal use)
 • Token-based access control for external systems
@@ -2106,7 +2107,7 @@ PRODUCTION DEPLOYMENT:
 VERSION COMPATIBILITY:
 =====================
 
-✅ KAI-Fusion Platform: 2.1.0+
+✅ KAI-Flow Platform: 2.1.0+
 ✅ FastAPI: 0.104.0+
 ✅ Python: 3.11+
 ✅ LangChain: 0.1.0+
@@ -2114,7 +2115,7 @@ VERSION COMPATIBILITY:
 
 STATUS: ✅ PRODUCTION READY
 LAST_UPDATED: 2025-08-04
-AUTHORS: KAI-Fusion Integration Architecture Team
+AUTHORS: KAI-Flow Integration Architecture Team
 
 ═══════════════════════════════════════════════════════════════════════════════
 """

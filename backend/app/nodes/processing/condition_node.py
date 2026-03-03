@@ -1,8 +1,8 @@
 """
-KAI-Fusion Condition Node - Conditional Workflow Routing Engine
+KAI-Flow Condition Node - Conditional Workflow Routing Engine
 ================================================================
 
-This module implements a Condition Node for the KAI-Fusion platform,
+This module implements a Condition Node for the KAI-Flow platform,
 providing conditional routing capabilities for workflow execution.
 Similar to n8n and Flowise condition nodes, this node evaluates
 string conditions and routes the workflow to True or False outputs.
@@ -38,9 +38,9 @@ SUPPORTED OPERATIONS:
 8. **Is Empty**: Check if value1 is empty or None
 9. **Not Empty**: Check if value1 is not empty
 
-AUTHORS: KAI-Fusion Development Team
+AUTHORS: KAI-Flow Development Team
 VERSION: 1.0.0
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 import re
@@ -147,7 +147,7 @@ class ConditionNode(ProcessorNode):
                     type=NodePropertyType.TEXT,
                     description="First value for comparison. Use {{node_name}} for Jinja templating to access connected node output.",
                     default="",
-                    required=False,
+                    required=True,
                     placeholder="Enter value or use {{node_name}}",
                     tabName="basic"
                 ),
@@ -181,7 +181,7 @@ class ConditionNode(ProcessorNode):
                     type=NodePropertyType.TEXT,
                     description="Second value for comparison (not used for Is Empty/Not Empty operations)",
                     default="",
-                    required=False,
+                    required=True,
                     placeholder="Enter comparison value",
                     tabName="basic"
                 ),

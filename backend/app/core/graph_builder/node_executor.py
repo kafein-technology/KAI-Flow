@@ -5,10 +5,10 @@ GraphBuilder Node Executor
 Handles all node execution, session management, and state processing for the GraphBuilder system.
 Provides clean separation of node execution logic from the main orchestrator.
 
-AUTHORS: KAI-Fusion Workflow Orchestration Team
+AUTHORS: KAI-Flow Workflow Orchestration Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import Dict, Any, Optional, List, Union
@@ -86,12 +86,16 @@ class NodeExecutor:
                 # Fetch and inject credentials
                 try:
                     from app.core.credential_provider import credential_provider
-                    # Convert string user_id to UUID if necessary
-                    user_uuid = uuid.UUID(state.user_id) if isinstance(state.user_id, str) else state.user_id
+                    # Use owner_id (workflow owner) when available, fallback to user_id
+                    # This is critical for webhook/kafka-triggered workflows where
+                    # user_id is the master system user but owner_id is the actual
+                    # workflow owner who has the credentials
+                    credential_user_id = getattr(state, 'owner_id', None) or state.user_id
+                    user_uuid = uuid.UUID(credential_user_id) if isinstance(credential_user_id, str) else credential_user_id
                     
                     credentials = credential_provider.get_credentials_sync(user_uuid)
                     gnode.node_instance.credentials = credentials
-                    logger.debug(f"Injected {len(credentials)} credentials for user {state.user_id} into node {node_id}")
+                    logger.debug(f"Injected {len(credentials)} credentials for user {credential_user_id} into node {node_id}")
                 except Exception as e:
                     logger.warning(f"Failed to inject credentials for node {node_id}: {e}")
 
@@ -116,6 +120,11 @@ class NodeExecutor:
                     
                     gnode.node_instance.session_id = session_id
                     logger.debug(f"Set session_id on memory node {node_id}: {session_id}")
+                
+            # Setup Workflow ID (Chatflow ID)
+            if hasattr(state, 'workflow_id') and state.workflow_id:
+                gnode.node_instance.workflow_id = state.workflow_id
+                logger.debug(f"Set workflow_id on node {node_id}: {state.workflow_id}")
                     
         except Exception as e:
             logger.warning(f"Failed to setup session for node {node_id}: {e}")
@@ -188,6 +197,15 @@ class NodeExecutor:
             
             # Process the result
             processed_result = self.process_processor_result(result, state, node_id)
+            
+            # Safety net: check if node returned an error dict instead of raising
+            if isinstance(processed_result, dict) and "error" in processed_result:
+                # Only treat as error if it looks like a pure error response
+                # (not a normal result that happens to have an "error" field alongside other data)
+                non_error_keys = [k for k in processed_result.keys() if k not in ("error", "suggestion")]
+                if not non_error_keys:
+                    error_msg = processed_result["error"]
+                    raise RuntimeError(f"Node {node_id} returned error: {error_msg}")
             
             # Update execution tracking
             updated_executed_nodes = state.executed_nodes.copy()

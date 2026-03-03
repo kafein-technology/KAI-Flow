@@ -1,7 +1,7 @@
-
 from __future__ import annotations
 
 import abc
+import logging
 from typing import Any, AsyncGenerator, Dict, Optional, Union
 from app.core.tracing import trace_workflow, get_workflow_tracer
 
@@ -113,16 +113,15 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
 
         # Single, standardized node discovery
         if not node_registry.nodes:
-            print("🔍 Discovering nodes...")
+            logging.getLogger(__name__).info("Discovering nodes...")
             node_registry.discover_nodes()
 
         # Ensure we have nodes
         if not node_registry.nodes:
-            print("⚠️  No nodes discovered! Creating minimal fallback registry...")
+            logging.getLogger(__name__).warning("No nodes discovered! Creating minimal fallback registry...")
             self._create_minimal_fallback_registry(node_registry)
 
-        print(f"✅ Engine initialized with {len(node_registry.nodes)} nodes")
-        
+        logging.getLogger(__name__).info(f"Engine initialized with {len(node_registry.nodes)} nodes")
         # Choose MemorySaver automatically (GraphBuilder handles this)
         self._builder = GraphBuilder(node_registry.nodes)
         self._built: bool = False
@@ -135,9 +134,9 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
             from app.nodes.default import StartNode, EndNode
             registry.register_node(StartNode)
             registry.register_node(EndNode)
-            print("✅ Registered fallback nodes: StartNode, EndNode")
+            logging.getLogger(__name__).info("Registered fallback nodes: StartNode, EndNode")
         except Exception as e:
-            print(f"⚠️  Could not register fallback nodes: {e}")
+            logging.getLogger(__name__).error(f"Could not register fallback nodes: {e}")
 
     # ------------------------------------------------------------------
     # Validation
@@ -258,7 +257,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         
         try:
             # Enhanced validation before build
-            logger.info("🔍 Validating workflow structure...")
+            logger.info("Validating workflow structure...")
             validation_result = self.validate(flow_data)
             if not validation_result["valid"]:
                 error_msg = f"Cannot build workflow: {'; '.join(validation_result['errors'])}"
@@ -268,13 +267,13 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
             # Log warnings if any
             if validation_result["warnings"]:
                 for warning in validation_result["warnings"]:
-                    logger.warning(f"⚠️  {warning}")
+                    logger.warning(f"{warning}")
             
-            logger.info("✅ Validation passed")
+            logger.info("Validation passed")
             logger.update_progress(1, "Validation completed")
             
             # Build graph structure
-            logger.info("🔧 Building graph structure...")
+            logger.info("Building graph structure...")
             self._builder.build_from_flow(flow_data, user_id=user_id)
             self._built = True
             
@@ -332,7 +331,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
 
         try:
             # GraphBuilder.execute manages streaming vs sync
-            logger.info("🚀 Starting workflow execution...")
+            logger.info("Starting workflow execution...")
             result = await self._builder.execute(
                 inputs,
                 user_id=user_id,

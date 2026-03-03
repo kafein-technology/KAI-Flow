@@ -1,5 +1,5 @@
 """
-KAI-Fusion Database Management - Clean & Simple Implementation
+KAI-Flow Database Management - Clean & Simple Implementation
 ============================================================
 
 Simple, standard SQLAlchemy database configuration with proper session management.
@@ -160,7 +160,7 @@ def initialize_database():
                 autoflush=False,
                 bind=engine
             )
-            logger.info("✅ Synchronous database engine initialized")
+            logger.info("Synchronous database engine initialized")
         
         # Create asynchronous engine
         if async_url:
@@ -172,10 +172,10 @@ def initialize_database():
                 class_=AsyncSession,
                 expire_on_commit=False
             )
-            logger.info("✅ Asynchronous database engine initialized")
+            logger.info("Asynchronous database engine initialized")
             
     except Exception as e:
-        logger.error(f"❌ Failed to initialize database: {e}")
+        logger.error(f"Failed to initialize database: {e}")
     # Don't raise during import - let the application start without database if needed
     logger.warning("Database initialization failed - some features may not work")
 

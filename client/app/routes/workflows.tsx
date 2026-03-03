@@ -17,17 +17,16 @@ import {
   Eye,
   X,
   Download,
+  Lock,
 } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
-import { usePinnedItems } from "~/stores/pinnedItems";
 import CompactToggleSwitch from "~/components/common/ToggleSwitch";
 
 import type {
   Workflow,
-  WorkflowCreateRequest,
   WorkflowUpdateRequest,
 } from "~/types/api";
 import type {
@@ -118,6 +117,7 @@ function WorkflowsLayout() {
     clearError,
     updateWorkflow,
     updateWorkflowStatus,
+    updateWorkflowVisibility,
   } = useWorkflows();
 
   // Tab state
@@ -138,6 +138,7 @@ function WorkflowsLayout() {
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState(6);
+  const [updatingVisibilityId, setUpdatingVisibilityId] = useState<string | null>(null);
 
   // External workflows state
   const [externalWorkflows, setExternalWorkflows] = useState<
@@ -186,8 +187,8 @@ function WorkflowsLayout() {
 
     const matchesStatus =
       statusFilter === "all" ||
-      (statusFilter === "active" && workflow.is_active) ||
-      (statusFilter === "inactive" && !workflow.is_active);
+      (statusFilter === "active" && workflow.is_public) ||
+      (statusFilter === "inactive" && !workflow.is_public);
 
     return matchesSearch && matchesStatus;
   });
@@ -229,26 +230,31 @@ function WorkflowsLayout() {
     fetchWorkflows();
   };
 
-  const handleToggleWorkflowStatus = async (
+  const handleToggleWorkflowVisibility = async (
     workflowId: string,
-    isActive: boolean
+    isPublic: boolean
   ) => {
+    if (updatingVisibilityId === workflowId) return;
+    setUpdatingVisibilityId(workflowId);
     try {
-      await updateWorkflowStatus(workflowId, isActive);
-
-      enqueueSnackbar(
-        `Workflow ${isActive ? "activated" : "deactivated"} successfully!`,
-        {
-          variant: "success",
-          autoHideDuration: 2000,
-        }
-      );
+      if (updateWorkflowVisibility) {
+        await updateWorkflowVisibility(workflowId, isPublic);
+        enqueueSnackbar(
+          `Workflow is now ${isPublic ? "Public" : "Private"}`,
+          { variant: "success" }
+        );
+      }
     } catch (error) {
-      enqueueSnackbar("Failed to update workflow status", {
+      enqueueSnackbar("Workflow visibility could not be updated", {
         variant: "error",
-        autoHideDuration: 2000,
       });
+    } finally {
+      setUpdatingVisibilityId(null);
     }
+  };
+
+  const handleToggleWorkflowStatus = (workflowId: string, isActive: boolean) => {
+    console.log("Handling toggle workflow status", workflowId, isActive);
   };
 
   // External workflow functions
@@ -467,13 +473,13 @@ function WorkflowsLayout() {
 
                 {/* Search and Create Row - Only for my workflows */}
                 {activeTab === "my-workflows" && (
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="flex flex-row items-center gap-4">
                     {/* Search Bar */}
-                    <div className="relative flex-1 sm:flex-none">
+                    <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <input
                         type="search"
-                        className="pl-10 pr-4 py-2 w-full sm:w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                        className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                         placeholder="Search workflows..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -483,7 +489,7 @@ function WorkflowsLayout() {
                     {/* Create Workflow Button */}
                     <Link
                       to="/canvas"
-                      className="flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-full sm:w-auto"
+                      className="flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-auto"
                     >
                       <Plus className="w-5 h-5" />
                       Create Workflow
@@ -542,7 +548,7 @@ function WorkflowsLayout() {
                         >
                           {/* Status Indicator Bar */}
                           <div
-                            className={`absolute top-0 left-0 right-0 h-1 ${workflow.is_active
+                            className={`absolute top-0 left-0 right-0 h-1 ${workflow.is_public
                               ? "bg-gradient-to-r from-green-500 to-emerald-500"
                               : "bg-gradient-to-r from-gray-400 to-gray-500"
                               }`}
@@ -553,7 +559,7 @@ function WorkflowsLayout() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <div
-                                  className={`w-2 h-2 rounded-full ${workflow.is_active
+                                  className={`w-2 h-2 rounded-full ${workflow.is_public
                                     ? "bg-green-500 animate-pulse"
                                     : "bg-gray-400"
                                     }`}
@@ -590,7 +596,7 @@ function WorkflowsLayout() {
                           </div>
 
                           {/* Status and Visibility Badges */}
-                          <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-end justify-between mb-4">
                             <div className="flex items-center gap-2">
                               <span
                                 className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${workflow.is_public
@@ -600,6 +606,7 @@ function WorkflowsLayout() {
                               >
                                 {workflow.is_public ? "Public" : "Private"}
                               </span>
+                              {/* 
                               <span
                                 className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${workflow.is_active
                                   ? "bg-green-100 text-green-800 border border-green-200"
@@ -618,18 +625,27 @@ function WorkflowsLayout() {
                                   </>
                                 )}
                               </span>
+                              */}
+     
                             </div>
-
-                            {/* Active/Inactive Toggle */}
+                          {/* Activity Toggle */}
+                          <div className="flex flex-col items-end">
+                            <span className="text-[12px] font-medium text-gray-500">
+                              Activity
+                            </span>
                             <CompactToggleSwitch
-                              isActive={workflow.is_active || false}
-                              onToggle={(isActive) =>
-                                handleToggleWorkflowStatus(
+                              isActive={workflow.is_public || false}
+                              disabled={updatingVisibilityId === workflow.id}
+                              onToggle={(isPublic) =>
+                                handleToggleWorkflowVisibility(
                                   workflow.id,
-                                  isActive
+                                  isPublic
                                 )
                               }
+                              activeIcon={<Globe className="w-3 h-3 text-green-600" />}
+                              inactiveIcon={<Lock className="w-3 h-3 text-gray-500" />}
                             />
+                          </div>
                           </div>
 
                           {/* Metadata */}

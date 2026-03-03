@@ -1,14 +1,14 @@
 """
-KAI-Fusion Legacy Node Discovery - Deprecated Enterprise Migration Bridge
+KAI-Flow Legacy Node Discovery - Deprecated Enterprise Migration Bridge
 ========================================================================
 
-This module represents the legacy node discovery system of the KAI-Fusion platform,
+This module represents the legacy node discovery system of the KAI-Flow platform,
 maintained exclusively for backward compatibility during the enterprise migration to
 the advanced NodeRegistry architecture. This module is officially deprecated and
 provides comprehensive migration guidance and compatibility bridges for existing
 integrations requiring seamless transition to the modern node management system.
 
-⚠️  DEPRECATION NOTICE:
+  DEPRECATION NOTICE:
 =====================
 
 **THIS MODULE IS OFFICIALLY DEPRECATED AND WILL BE REMOVED IN FUTURE VERSIONS**
@@ -27,7 +27,7 @@ MIGRATION TIMELINE:
 ARCHITECTURAL EVOLUTION:
 =======================
 
-The KAI-Fusion platform has evolved from basic node discovery to sophisticated
+The KAI-Flow platform has evolved from basic node discovery to sophisticated
 enterprise-grade node registry management with advanced features:
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -304,12 +304,12 @@ Legacy Compatibility Error Management:
    - Emergency support contacts for migration issues
    - Comprehensive troubleshooting documentation
 
-AUTHORS: KAI-Fusion Legacy Migration Team
+AUTHORS: KAI-Flow Legacy Migration Team
 VERSION: 2.1.0 (Deprecated)
 DEPRECATION_DATE: 2025-01-15
 REMOVAL_DATE: 2025-06-01
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 MIGRATION URGENCY: HIGH PRIORITY

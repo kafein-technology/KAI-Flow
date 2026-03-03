@@ -7,7 +7,7 @@ OpenAIEmbeddings instances for use by other nodes in the workflow. Unlike the
 full OpenAIEmbedderNode, this provider focuses solely on configuration without
 processing documents or providing analytics.
 
-The provider follows the KAI-Fusion ProviderNode pattern, creating LangChain
+The provider follows the KAI-Flow ProviderNode pattern, creating LangChain
 objects from user inputs that can be consumed by other nodes in the workflow.
 
 Key Features:
@@ -19,10 +19,13 @@ Key Features:
 """
 
 from typing import Dict, Any
+import logging
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.runnables import Runnable
 
 from ..base import NodeProperty, ProviderNode, NodeType, NodeInput, NodeOutput, NodePosition, NodePropertyType
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAIEmbeddingsProvider(ProviderNode):
@@ -107,7 +110,7 @@ class OpenAIEmbeddingsProvider(ProviderNode):
                     displayName="Select Credential",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
-                    required=False,
+                    required=True,
                     serviceType="openai",
                 ),
                 NodeProperty(
@@ -213,7 +216,7 @@ class OpenAIEmbeddingsProvider(ProviderNode):
             # Check for development/test environment
             if os.getenv("NODE_ENV") == "development" or os.getenv("ENVIRONMENT") == "test":
                 openai_api_key = "sk-test-development-key-placeholder"
-                print("Using development placeholder API key for OpenAI Embeddings")
+                logger.info("Using development placeholder API key for OpenAI Embeddings")
             else:
                 raise ValueError(
                     "OpenAI API key is required. Please provide it in the node configuration "

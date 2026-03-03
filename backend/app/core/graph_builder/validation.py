@@ -5,10 +5,10 @@ GraphBuilder Validation Engine
 Handles workflow validation and error checking for the GraphBuilder system.
 Provides clean separation of validation logic from the main orchestrator.
 
-AUTHORS: KAI-Fusion Workflow Orchestration Team
+AUTHORS: KAI-Flow Workflow Orchestration Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import Dict, Any, List, Optional, Type, Set
@@ -68,8 +68,8 @@ class ValidationEngine:
             ValidationError: If validation fails critically
         """
         try:
-            logger.info("🔍 Validating workflow structure")
-            
+            logger.info("Validating workflow structure")
+
             # Initialize validation result
             result = ValidationResult(
                 valid=True,
@@ -107,14 +107,14 @@ class ValidationEngine:
             
             # Log results
             status = "VALID" if result.valid else "INVALID"
-            logger.info(f"✅ Validation complete: {status}")
-            
+            logger.info(f"Validation complete: {status}")
+
             if result.errors:
-                logger.error(f"❌ Validation errors: {result.errors}")
-            
+                logger.error(f"Validation errors: {result.errors}")
+
             if result.warnings:
-                logger.warning(f"⚠️ Validation warnings: {result.warnings}")
-            
+                logger.warning(f"Validation warnings: {result.warnings}")
+
             return result
             
         except Exception as e:
@@ -269,7 +269,7 @@ class ValidationEngine:
             result: ValidationResult to update
         """
         try:
-            logger.debug("🔍 Validating many-to-many connections")
+            logger.debug("Validating many-to-many connections")
             
             # Group edges by target (node_id + handle)
             target_groups = defaultdict(list)
@@ -296,7 +296,7 @@ class ValidationEngine:
             
             # Log summary
             if many_to_many_targets > 0:
-                logger.info(f"✅ Many-to-many validation: {many_to_many_targets} targets with multiple connections")
+                logger.info(f"Many-to-many validation: {many_to_many_targets} targets with multiple connections")
             else:
                 logger.debug("No many-to-many connections found")
                 
@@ -548,10 +548,11 @@ class ValidationEngine:
         """
         try:
             # Check for required StartNode and EndNode
-            # WebhookTrigger nodes can also serve as entry points
+            # WebhookTrigger, KafkaConsumer, KafkaTrigger nodes can also serve as entry points
             start_nodes = [n for n in nodes if n.get("type") == START_NODE_TYPE]
             webhook_trigger_nodes = [n for n in nodes if n.get("type") == "WebhookTrigger"]
-            entry_nodes = start_nodes + webhook_trigger_nodes
+            kafka_trigger_nodes = [n for n in nodes if n.get("type") in ("KafkaConsumer", "KafkaTrigger")]
+            entry_nodes = start_nodes + webhook_trigger_nodes + kafka_trigger_nodes
             
             # Check for terminal nodes (EndNode OR RespondToWebhook)
             # These are valid workflow exit points
@@ -560,7 +561,7 @@ class ValidationEngine:
             respond_to_webhook_nodes = [n for n in nodes if n.get("type") == "RespondToWebhook"]
             
             if not entry_nodes:
-                result.add_error("Workflow must contain at least one StartNode or WebhookTrigger node")
+                result.add_error("Workflow must contain at least one StartNode, WebhookTrigger, or KafkaTrigger node")
             
             # Only warn if NO terminal nodes exist (neither EndNode nor RespondToWebhook)
             if not terminal_nodes:

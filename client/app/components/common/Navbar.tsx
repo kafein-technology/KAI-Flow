@@ -7,11 +7,14 @@ import {
   Trash,
   Loader,
   Clock,
+  MessageSquare,
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
 import ToggleSwitch from "./ToggleSwitch";
+import WidgetExportModal from "../modals/WidgetExportModal";
+import { useNodeStore } from "~/stores/nodes";
 
 interface NavbarProps {
   workflowName: string;
@@ -45,16 +48,16 @@ const Navbar: React.FC<NavbarProps> = ({
   autoSaveStatus,
   lastAutoSave,
   onAutoSaveSettings,
-  updateWorkflowStatus,
   updateWorkflowVisibility,
 }) => {
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPublicTogglePending, setIsPublicTogglePending] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
+  const widgetExportDialogRef = useRef<HTMLDialogElement>(null);
 
   // Dışarı tıklayınca dropdown'u kapat
   useEffect(() => {
@@ -97,13 +100,49 @@ const Navbar: React.FC<NavbarProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
         if (setCurrentWorkflow && setNodes && setEdges) {
+          // Ensure we have metadata before rehydrating
+          let nodeStore = useNodeStore.getState();
+          if (nodeStore.nodes.length === 0) {
+            await nodeStore.fetchNodes();
+            await nodeStore.fetchCategories();
+            nodeStore = useNodeStore.getState();
+          }
+
+          // Search both built-in and custom nodes
+          const allNodesMetadata = [...(nodeStore.nodes || []), ...(nodeStore.customNodes || [])];
+
+          const enrichedNodes = (json.flow_data?.nodes || []).map((node: any) => {
+            if (!node.data?.metadata && allNodesMetadata.length > 0) {
+              // Priority 1: Built-in nodes use 'name' as unique type identifier
+              // Priority 2: Custom nodes use 'id'
+              const metadata = allNodesMetadata.find(
+                m => m.name === node.type || (m as any).id === node.type
+              );
+
+              if (metadata) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    metadata: metadata,
+                    icon: metadata.icon,
+                    description: metadata.description,
+                    displayName: metadata.display_name,
+                    inputs: metadata.inputs,
+                    outputs: metadata.outputs,
+                  }
+                };
+              }
+            }
+            return node;
+          });
 
           setCurrentWorkflow(null);
-          setNodes(json.flow_data?.nodes || []);
+          setNodes(enrichedNodes);
           setEdges(json.flow_data?.edges || []);
           // Update workflow name from loaded file
           if (json.name) {
@@ -129,9 +168,38 @@ const Navbar: React.FC<NavbarProps> = ({
       enqueueSnackbar("No workflow to export!", { variant: "warning" });
       return;
     }
+
+    // Clean up the workflow data for export
+    const cleanWorkflow = {
+      id: currentWorkflow.id,
+      user_id: currentWorkflow.user_id,
+      name: currentWorkflow.name,
+      description: currentWorkflow.description,
+      is_public: currentWorkflow.is_public,
+      flow_data: {
+        nodes: (currentWorkflow.flow_data?.nodes || []).map((node: any) => {
+          // Remove React Flow internal state and redundant metadata
+          const { measured, selected, dragging, width, height, ...cleanNode } = node;
+
+          if (cleanNode.data) {
+            // Remove redundant metadata that can be rehydrated from registry
+            const { metadata, icon, description, displayName, inputs, outputs, ...cleanData } = cleanNode.data;
+            cleanNode.data = cleanData;
+          }
+
+          return cleanNode;
+        }),
+        edges: (currentWorkflow.flow_data?.edges || []).map((edge: any) => {
+          // Remove potential internal edge state
+          const { selected, ...cleanEdge } = edge;
+          return cleanEdge;
+        }),
+      }
+    };
+
     const dataStr =
       "data:text/json;charset=utf-8," +
-      encodeURIComponent(JSON.stringify(currentWorkflow, null, 2));
+      encodeURIComponent(JSON.stringify(cleanWorkflow, null, 2));
     const downloadAnchorNode = document.createElement("a");
     downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute(
@@ -197,57 +265,44 @@ const Navbar: React.FC<NavbarProps> = ({
             />
           </div>
           <div className="flex items-center space-x-4 gap-2 relative">
-            {/* Workflow Active Status Toggle */}
-            {currentWorkflow && updateWorkflowStatus && (
-              <div className="flex items-center gap-2">
-                <ToggleSwitch
-                  isActive={currentWorkflow.is_active ?? false}
-                  onToggle={async (isActive) => {
-                    try {
-                      await updateWorkflowStatus(currentWorkflow.id, isActive);
-                      enqueueSnackbar(
-                        `Workflow ${isActive ? "activated" : "deactivated"}`,
-                        { variant: "success" }
-                      );
-                    } catch (error) {
-                      enqueueSnackbar("Workflow status could not be updated", {
-                        variant: "error",
-                      });
-                    }
-                  }}
-                  size="sm"
-                  label="Workflow Status"
-                  description={
-                    currentWorkflow.is_active ? "Active" : "Inactive"
-                  }
-                />
-              </div>
-            )}
             {/* Workflow Public Status Toggle */}
             {currentWorkflow && updateWorkflowVisibility && (
               <div className="flex items-center gap-2">
                 <ToggleSwitch
                   isActive={currentWorkflow.is_public ?? false}
+                  disabled={isPublicTogglePending}
                   onToggle={async (isPublic) => {
+                    if (isPublicTogglePending) return;
+                    setIsPublicTogglePending(true);
                     try {
                       if (updateWorkflowVisibility) {
                         await updateWorkflowVisibility(currentWorkflow.id, isPublic);
+
+                        // Update local state to reflect change immediately
+                        if (setCurrentWorkflow) {
+                          setCurrentWorkflow({
+                            ...currentWorkflow,
+                            is_public: isPublic,
+                          });
+                        }
+
                         enqueueSnackbar(
                           `Workflow is now ${isPublic ? "Public" : "Private"}`,
                           { variant: "success" }
                         );
-                        onSave();
                       }
                     } catch (error) {
                       enqueueSnackbar("Workflow visibility could not be updated", {
                         variant: "error",
                       });
+                    } finally {
+                      setIsPublicTogglePending(false);
                     }
                   }}
                   size="sm"
-                  label="Public Access"
+                  label="Activity"
                   description={
-                    currentWorkflow.is_public ? "Public" : "Private"
+                    currentWorkflow.is_public ? "Active" : "Inactive"
                   }
                 />
               </div>
@@ -329,13 +384,28 @@ const Navbar: React.FC<NavbarProps> = ({
                     className="hidden"
                     onChange={handleLoad}
                   />
-                  {/* Export */}
+                  {/* Export JSON */}
                   <button
                     className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
                     onClick={handleExport}
                   >
                     <Download className="w-5 h-5" />
                     Export JSON
+                  </button>
+
+                  {/* Export Widget */}
+                  <button
+                    className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setTimeout(
+                        () => widgetExportDialogRef.current?.showModal(),
+                        100
+                      );
+                    }}
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    Export Widget
                   </button>
 
                   {/* Delete */}
@@ -398,6 +468,11 @@ const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </dialog>
+
+      <WidgetExportModal
+        ref={widgetExportDialogRef}
+        workflowId={currentWorkflow?.id || ""}
+      />
 
 
     </>

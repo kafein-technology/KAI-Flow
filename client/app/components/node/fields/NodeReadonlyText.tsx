@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { config } from "../../../lib/config";
 import type { NodeProperty } from "../types";
+import { getActiveSessionId } from "../../../services/chatService";
+import { useWorkflows } from "../../../stores/workflows";
 
 interface NodeReadonlyTextProps {
   property: NodeProperty;
@@ -9,6 +11,19 @@ interface NodeReadonlyTextProps {
 }
 
 export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadonlyTextProps) => {
+  const { currentWorkflow } = useWorkflows();
+  const displayOptions = property?.displayOptions || {};
+  const show = displayOptions.show || {};
+
+  if (Object.keys(show).length > 0) {
+    for (const [dependencyName, validValue] of Object.entries(show)) {
+      const dependencyValue = values[dependencyName];
+      if (dependencyValue !== validValue) {
+        return null;
+      }
+    }
+  }
+
   // Webhook exact URL için dinamik hesaplama
   const computedValue = useMemo(() => {
     // Eğer webhook_exact_url field'ı ise ve path değeri varsa, dinamik olarak hesapla
@@ -44,6 +59,19 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
       setFieldValue("webhook_exact_url", computedValue);
     }
   }, [property.name, computedValue, setFieldValue]);
+
+  // session_id için aktif session ID'yi çek
+  useEffect(() => {
+    if (property.name === "session_id" && values.session_mode === "automatic" && setFieldValue) {
+      getActiveSessionId(currentWorkflow?.id).then(response => {
+        if (response?.session_id) {
+          setFieldValue("session_id", response.session_id);
+        }
+      }).catch(err => {
+        console.error("Failed to fetch active session ID:", err);
+      });
+    }
+  }, [property.name, setFieldValue, values.session_mode, currentWorkflow?.id]);
 
   const handleCopy = useCallback(() => {
     if (!value) return;

@@ -1,8 +1,8 @@
 """
-KAI-Fusion Enhanced Logging Configuration - Production-Ready Workflow Logging
+KAI-Flow Enhanced Logging Configuration - Production-Ready Workflow Logging
 =============================================================================
 
-This module integrates the enhanced logging utilities into the existing KAI-Fusion
+This module integrates the enhanced logging utilities into the existing KAI-Flow
 logging infrastructure, providing seamless migration from the current system while
 adding advanced workflow-specific capabilities.
 
@@ -386,13 +386,13 @@ def integrate_with_tracing():
             )
             
             if success:
-                logger.info(f"✅ Node completed: {node_id} ({node_type})",
+                logger.info(f"Node completed: {node_id} ({node_type})",
                            node_id=node_id,
                            node_type=node_type,
                            output_keys=list(outputs.keys()) if outputs else [])
                 logger.update_progress(1, f"Completed {node_id}")
             else:
-                logger.error(f"❌ Node failed: {node_id} ({node_type})",
+                logger.error(f"Node failed: {node_id} ({node_type})",
                             error=exception,
                             node_id=node_id,
                             node_type=node_type,

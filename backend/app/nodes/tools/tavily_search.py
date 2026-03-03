@@ -1,9 +1,9 @@
 
 """
-KAI-Fusion Tavily Search Integration - Advanced Web Intelligence
+KAI-Flow Tavily Search Integration - Advanced Web Intelligence
 ==============================================================
 
-This module implements sophisticated web search capabilities for the KAI-Fusion platform,
+This module implements sophisticated web search capabilities for the KAI-Flow platform,
 providing enterprise-grade access to real-time web information through Tavily's advanced
 search API. Built for production environments requiring accurate, fast, and comprehensive
 web intelligence integration.
@@ -11,7 +11,7 @@ web intelligence integration.
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Tavily Search integration serves as the web intelligence gateway for KAI-Fusion,
+The Tavily Search integration serves as the web intelligence gateway for KAI-Flow,
 providing agents with access to real-time web information, current events, and
 comprehensive knowledge beyond training data limitations.
 
@@ -156,18 +156,21 @@ USE CASE SCENARIOS:
    Optimal for finding technical solutions, API documentation,
    troubleshooting guides, and development resources.
 
-AUTHORS: KAI-Fusion Web Intelligence Team
+AUTHORS: KAI-Flow Web Intelligence Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 import os
+import logging
 from typing import Dict, Any, Optional, List
 from ..base import NodeProperty, ProviderNode, NodeInput, NodeOutput, NodeType, NodePosition, NodePropertyType
 from app.models.node import NodeCategory
 from langchain_tavily import TavilySearch
 from langchain_core.tools import Tool
+
+logger = logging.getLogger(__name__)
 
 # ================================================================================
 # TAVILY SEARCH NODE - ENTERPRISE WEB INTELLIGENCE PROVIDER
@@ -179,7 +182,7 @@ class TavilySearchNode(ProviderNode):
     ==============================================
     
     The TavilySearchNode represents the cutting-edge web intelligence capabilities
-    of the KAI-Fusion platform, providing AI agents with sophisticated access to
+    of the KAI-Flow platform, providing AI agents with sophisticated access to
     real-time web information, current events, and comprehensive knowledge that
     extends far beyond static training data limitations.
     
@@ -403,18 +406,18 @@ class TavilySearchNode(ProviderNode):
     - Complete rewrite with enterprise-grade architecture
     - Advanced search intelligence and optimization
     - Production reliability and monitoring features
-    - Comprehensive integration with KAI-Fusion ecosystem
+    - Comprehensive integration with KAI-Flow ecosystem
     
     v1.x:
     - Initial Tavily API integration
     - Basic search functionality
     - Simple error handling
     
-    AUTHORS: KAI-Fusion Web Intelligence Team
+    AUTHORS: KAI-Flow Web Intelligence Team
     MAINTAINER: Search Intelligence Specialists
     VERSION: 2.1.0
     LAST_UPDATED: 2025-07-26
-    LICENSE: Proprietary - KAI-Fusion Platform
+    LICENSE: Proprietary - KAI-Flow Platform
     """
     
     def __init__(self):
@@ -456,11 +459,11 @@ class TavilySearchNode(ProviderNode):
                     required= True,
                 ),
                 NodeProperty(
-                    name="credential",
-                    displayName= "Credential (Optional)",
+                    name="credential_id",
+                    displayName= "Credential",
                     type= NodePropertyType.CREDENTIAL_SELECT,
                     placeholder= "Select Credential",
-                    required= False,
+                    required= True,
                     serviceType="tavily_search",
                 ),
                 NodeProperty(
@@ -521,7 +524,7 @@ class TavilySearchNode(ProviderNode):
 
         Following the RetrieverProvider pattern for consistent tool creation.
         """
-        print("\nTAVILY SEARCH SETUP")
+        logger.info("\nTAVILY SEARCH SETUP")
 
         try:
             # Get API key from user configuration (database/UI)
@@ -532,9 +535,9 @@ class TavilySearchNode(ProviderNode):
             if not api_key:
                 api_key = os.getenv("TAVILY_API_KEY")
             
-            print(f"   API Key: {'Found' if api_key else 'Missing'}")
+            logger.info(f"   API Key: {'Found' if api_key else 'Missing'}")
             if api_key:
-                print(f"   Source: {'User Config' if self.user_data.get('tavily_api_key') else 'Environment'}")
+                logger.info(f"   Source: {'User Config' if self.user_data.get('tavily_api_key') else 'Environment'}")
             
             if not api_key:
                 raise ValueError(
@@ -573,14 +576,14 @@ class TavilySearchNode(ProviderNode):
             # 6. Test the API connection
             try:
                 test_result = tavily_search.run("test query")
-                print(f"   API Test: Success ({len(str(test_result))} chars)")
+                logger.info(f"   API Test: Success ({len(str(test_result))} chars)")
             except Exception as test_error:
-                print(f"   API Test: Failed ({str(test_error)[:50]}...)")
+                logger.error(f"   API Test: Failed ({str(test_error)[:50]}...)")
 
             # 7. Create agent-ready tool
             search_tool = self._create_search_tool(tavily_search, search_config)
 
-            print(f"   Tool Created: {search_tool.name} | Max Results: {max_results} | Depth: {search_depth}")
+            logger.info(f"   Tool Created: {search_tool.name} | Max Results: {max_results} | Depth: {search_depth}")
 
             return {
                 "taviliy_web_search": {"tool": search_tool}
@@ -588,7 +591,7 @@ class TavilySearchNode(ProviderNode):
 
         except Exception as e:
             error_msg = f"TavilySearchNode execution failed: {str(e)}"
-            print(f"{error_msg}")
+            logger.error(f"{error_msg}")
             raise ValueError(error_msg) from e
 
     def _create_tavily_search(self, api_key: str, search_config: Dict[str, Any]) -> TavilySearch:
@@ -621,7 +624,7 @@ class TavilySearchNode(ProviderNode):
         def tavily_web_search(query: str) -> str:
             """Web search function that agents will call."""
             try:
-                print(f"Agent performing web search for: {query}")
+                logger.info(f"Agent performing web search for: {query}")
 
                 # Perform search using Tavily
                 raw_results = tavily_search.run(query)

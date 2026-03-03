@@ -1,8 +1,8 @@
 """
-KAI-Fusion Node Architecture Foundation
+KAI-Flow Node Architecture Foundation
 =====================================
 
-This module defines the fundamental architecture for all nodes in the KAI-Fusion platform.
+This module defines the fundamental architecture for all nodes in the KAI-Flow platform.
 It provides a sophisticated, type-safe, and highly extensible node system that seamlessly 
 integrates with LangChain's ecosystem while adding enterprise-grade features.
 
@@ -47,13 +47,14 @@ Key Features:
 - LangSmith tracing integration for observability
 - Type-safe input/output contracts
 
-Authors: KAI-Fusion Development Team
+Authors: KAI-Flow Development Team
 Version: 2.0.0
 License: Proprietary
 """
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union, Callable
+import logging
 from pydantic import BaseModel, Field, field_validator
 from langchain_core.runnables import Runnable
 from app.models.user_credential import UserCredential
@@ -63,12 +64,14 @@ from enum import Enum
 from app.core.state import FlowState
 from app.core.json_utils import make_json_serializable_with_langchain
 
+logger = logging.getLogger(__name__)
+
 # ================================================================================
 # NODE TYPE CLASSIFICATION SYSTEM
 # ================================================================================
 class NodeType(str, Enum):
     """
-    Comprehensive node type classification system for the KAI-Fusion platform.
+    Comprehensive node type classification system for the KAI-Flow platform.
     
     This enum defines the four fundamental node types that form the backbone of
     our workflow orchestration system. Each type has specific responsibilities,
@@ -169,6 +172,7 @@ class NodePropertyType(str, Enum):
     JSON_EDITOR = "json-editor"
     DATETIME = "datetime"
     CODE_EDITOR = "code-editor"
+    SESSION_ID = "session-id"
 
 
 class NodeProperty(BaseModel):
@@ -544,11 +548,11 @@ class NodeMetadata(BaseModel):
 
 class BaseNode(ABC):
     """
-    The Foundation of KAI-Fusion's Node Architecture
+    The Foundation of KAI-Flow's Node Architecture
     ===============================================
     
     This abstract base class defines the core contract and implementation for all nodes
-    in the KAI-Fusion platform. It provides a sophisticated, enterprise-grade foundation
+    in the KAI-Flow platform. It provides a sophisticated, enterprise-grade foundation
     that seamlessly integrates with LangChain's ecosystem while adding advanced features
     for complex workflow orchestration.
     
@@ -634,7 +638,7 @@ class BaseNode(ABC):
     should use separate node instances to avoid state corruption in concurrent
     environments.
     
-    AUTHORS: KAI-Fusion Development Team
+    AUTHORS: KAI-Flow Development Team
     VERSION: 2.0.0
     """
     _metadata: Dict[str, Any]  # Node configuration provided by subclasses
@@ -645,6 +649,7 @@ class BaseNode(ABC):
     session_id: Optional[str]
     _input_connections: Dict[str, Dict[str, str]]
     _output_connections: Dict[str, List[Dict[str, str]]]
+    workflow_id: Optional[str]
     user_data: Dict[str, Any]
     credentials: List[Dict[str, Any]]
     
@@ -652,6 +657,7 @@ class BaseNode(ABC):
         self.node_id = None  # Will be set by GraphBuilder
         self.context_id = None  # Credential context for provider
         self.session_id = None  # Session ID for conversation continuity
+        self.workflow_id = None  # Workflow (Chatflow) ID
         # Connection mappings set by GraphBuilder
         self._input_connections = {}
         self._output_connections = {}
@@ -725,8 +731,8 @@ class BaseNode(ABC):
                     connected_nodes = self._extract_connected_inputs(state, metadata.inputs)
                     
                     # Log connection details for debugging
-                    print(f"[DEBUG] Processor {node_id} - User inputs: {list(user_inputs.keys())}")
-                    print(f"[DEBUG] Processor {node_id} - Connected inputs: {list(connected_nodes.keys())}")
+                    logger.debug(f"Processor {node_id} - User inputs: {list(user_inputs.keys())}")
+                    logger.debug(f"Processor {node_id} - Connected inputs: {list(connected_nodes.keys())}")
                     
                     result = self.execute(inputs=user_inputs, connected_nodes=connected_nodes)
                     
@@ -783,7 +789,7 @@ class BaseNode(ABC):
             except Exception as e:
                 # Handle errors gracefully
                 error_msg = f"Error in {self.__class__.__name__} ({node_id}): {str(e)}"
-                print(f"[ERROR] {error_msg}")
+                logger.error(f"{error_msg}")
                 state.add_error(error_msg)
                 return {
                     "errors": state.errors,
@@ -866,8 +872,8 @@ class BaseNode(ABC):
                     if isinstance(connection_info, list):
                         # Many-to-many connections: DYNAMICALLY find which source node was executed
                         executed_nodes = getattr(state, 'executed_nodes', []) or []
-                        print(f"[DEBUG] Many-to-many connection detected with {len(connection_info)} sources")
-                        print(f"[DEBUG] Executed nodes: {executed_nodes}")
+                        logger.debug(f"Many-to-many connection detected with {len(connection_info)} sources")
+                        logger.debug(f"Executed nodes: {executed_nodes}")
                         
                         # Find the source node that was actually executed
                         source_node_id = None
@@ -875,30 +881,30 @@ class BaseNode(ABC):
                             candidate_id = conn.get("source_node_id")
                             if candidate_id in executed_nodes:
                                 source_node_id = candidate_id
-                                print(f"[DEBUG] Found executed source node: {source_node_id}")
+                                logger.debug(f"Found executed source node: {source_node_id}")
                                 break
                         
                         # If no executed source found, try to use last_output as fallback
                         if source_node_id is None:
-                            print(f"[DEBUG] No executed source found in connections, using last_output fallback")
+                            logger.debug(f"No executed source found in connections, using last_output fallback")
                             if state.last_output:
                                 connected[input_spec.name] = state.last_output
-                                print(f"[DEBUG] Using last_output: {str(state.last_output)[:100]}...")
+                                logger.debug(f"Using last_output: {str(state.last_output)[:100]}...")
                             continue
                     else:
                         # Single connection: direct dict format
                         source_node_id = connection_info.get("source_node_id")
                     
                     if source_node_id is None:
-                        print(f"[DEBUG] No source_node_id found for input: {input_spec.name}")
+                        logger.debug(f"No source_node_id found for input: {input_spec.name}")
                         continue
                         
                     output_key = f"output_{source_node_id}"
                     
                     # Debug output to see what's in state
-                    print(f"[DEBUG] Looking for output_key: {output_key}")
-                    print(f"[DEBUG] Available state variables: {list(state.variables.keys())}")
-                    print(f"[DEBUG] State.last_output: {state.last_output}")
+                    logger.debug(f"Looking for output_key: {output_key}")
+                    logger.debug(f"Available state variables: {list(state.variables.keys())}")
+                    logger.debug(f"State.last_output: {state.last_output}")
                     
                     # Check multiple possible locations for the output
                     found_output = None
@@ -906,12 +912,12 @@ class BaseNode(ABC):
                     # 1. Check if it's a dynamic attribute on the state (Pydantic extra fields)
                     if hasattr(state, output_key):
                         found_output = getattr(state, output_key)
-                        print(f"[DEBUG] Found as state attribute: {found_output}")
+                        logger.debug(f"Found as state attribute: {found_output}")
                     
                     # 2. Check state variables
                     elif output_key in state.variables:
                         found_output = state.get_variable(output_key)
-                        print(f"[DEBUG] Found in state.variables: {found_output}")
+                        logger.debug(f"Found in state.variables: {found_output}")
                     
                     # 3. Check node_outputs if available
                     elif hasattr(state, 'node_outputs') and source_node_id in state.node_outputs:
@@ -920,14 +926,14 @@ class BaseNode(ABC):
                             found_output = node_output['output']
                         else:
                             found_output = node_output
-                        print(f"[DEBUG] Found in node_outputs: {found_output}")
+                        logger.debug(f"Found in node_outputs: {found_output}")
                     
                     # 4. Use the state's built-in get_node_output method
                     elif hasattr(state, 'get_node_output'):
                         try:
                             found_output = state.get_node_output(source_node_id)
                             if found_output is not None:
-                                print(f"[DEBUG] Found via get_node_output: {found_output}")
+                                logger.debug(f"Found via get_node_output: {found_output}")
                         except:
                             pass
                     
@@ -937,11 +943,11 @@ class BaseNode(ABC):
                         executed_nodes = getattr(state, 'executed_nodes', []) or []
                         if executed_nodes and executed_nodes[-1] == source_node_id:
                             found_output = state.last_output
-                            print(f"[DEBUG] Using last_output as fallback: {found_output}")
+                            logger.debug(f"Using last_output as fallback: {found_output}")
                     
                     if found_output is not None:
                         connected[input_spec.name] = found_output
-                        print(f"[DEBUG] Connected input {input_spec.name} = '{str(found_output)[:100]}...'")
+                        logger.debug(f"Connected input {input_spec.name} = '{str(found_output)[:100]}...'")
                     elif input_spec.required:
                         # Enhanced error message with more debugging info
                         error_msg = (
@@ -952,11 +958,11 @@ class BaseNode(ABC):
                             f"last_output={'True' if state.last_output else 'False'}, "
                             f"executed_nodes={getattr(state, 'executed_nodes', [])}"
                         )
-                        print(f"[ERROR] {error_msg}")
+                        logger.error(f"{error_msg}")
                         # Don't raise error, use fallback instead
                         if state.last_output:
                             connected[input_spec.name] = state.last_output
-                            print(f"[DEBUG] Using last_output as emergency fallback for {input_spec.name}")
+                            logger.debug(f"Using last_output as emergency fallback for {input_spec.name}")
                 elif input_spec.required:
                     raise ValueError(f"Connection info for required input '{input_spec.name}' not found.")
         
@@ -1032,12 +1038,12 @@ class BaseNode(ABC):
 
     def get_credential(self, credential_id: str) -> Dict[str, Any]:
         """Get a credential by its ID"""
-        print(f"🔍 Credentials: {self.credentials}")
+        logger.info(f"Credentials: {self.credentials}")
         if self.credentials:
             for cred in self.credentials:
                 c_id = cred.get('id')
                 if str(c_id) == str(credential_id):
-                    print(f"🔍 Found Credential: {cred}")
+                    logger.info(f"Found Credential: {cred}")
                     return cred
         return None
 

@@ -1,8 +1,8 @@
 """
-KAI-Fusion Node Registry - Enterprise Node Management & Discovery Engine
+KAI-Flow Node Registry - Enterprise Node Management & Discovery Engine
 ========================================================================
 
-This module implements the sophisticated node registry system for the KAI-Fusion platform,
+This module implements the sophisticated node registry system for the KAI-Flow platform,
 providing enterprise-grade node discovery, registration, and management capabilities with
 advanced caching, hot-reload functionality, and comprehensive metadata management. Built
 for high-performance node operations with intelligent discovery algorithms and production-ready
@@ -11,7 +11,7 @@ reliability features for complex AI workflow orchestration.
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The Node Registry system serves as the central node management hub of KAI-Fusion,
+The Node Registry system serves as the central node management hub of KAI-Flow,
 providing intelligent node discovery, registration, and lifecycle management with
 advanced caching, performance optimization, and comprehensive metadata enrichment
 for enterprise-scale AI workflow development and execution.
@@ -206,10 +206,10 @@ Comprehensive Registry Intelligence:
    - Developer experience measurement with satisfaction tracking
    - Cost analysis for node development and maintenance
 
-AUTHORS: KAI-Fusion Node Management Team
+AUTHORS: KAI-Flow Node Management Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:
@@ -236,11 +236,11 @@ class NodeRegistry:
     =================================================
     
     The NodeRegistry class represents the sophisticated node management system of the
-    KAI-Fusion platform, providing enterprise-grade node discovery, registration, and
+    KAI-Flow platform, providing enterprise-grade node discovery, registration, and
     lifecycle management with advanced caching, performance optimization, and
     comprehensive metadata enrichment for high-performance AI workflow orchestration.
     
-    This class serves as the central hub for all node operations in the KAI-Fusion
+    This class serves as the central hub for all node operations in the KAI-Flow
     ecosystem, enabling dynamic node discovery, intelligent registration, and
     optimized node lookup with enterprise reliability and performance characteristics.
     
@@ -509,11 +509,11 @@ class NodeRegistry:
     - Basic discovery and registration capabilities
     - Simple metadata management and storage
     
-    AUTHORS: KAI-Fusion Node Management Team
+    AUTHORS: KAI-Flow Node Management Team
     MAINTAINER: Registry Architecture Specialists
     VERSION: 2.1.0
     LAST_UPDATED: 2025-07-26
-    LICENSE: Proprietary - KAI-Fusion Platform
+    LICENSE: Proprietary - KAI-Flow Platform
     """
     
     def __init__(self):
@@ -550,7 +550,7 @@ class NodeRegistry:
                 pass
         except Exception as e:  # noqa: BLE001
             # Skip nodes that cannot be instantiated (likely abstract bases)
-            print(f"⚠️  Skipping node {node_class.__name__}: {e}")
+            logger.warning(f"Skipping node {node_class.__name__}: {e}")
     
     def get_node(self, node_name: str) -> Optional[Type[BaseNode]]:
         """Get a node class by name"""
@@ -573,7 +573,7 @@ class NodeRegistry:
         nodes_dir = (current_dir.parent / "nodes").resolve()
         
         if not nodes_dir.exists():
-            print(f"⚠️ Nodes directory not found: {nodes_dir}")
+            logger.warning(f"Nodes directory not found: {nodes_dir}")
             return
         
         # Walk through all subdirectories
@@ -591,7 +591,7 @@ class NodeRegistry:
                         relative_parts = file_path.relative_to(app_root).with_suffix('').parts
                         module_path = '.'.join(['app'] + list(relative_parts))
                     except ValueError:
-                        print(f"⚠️ Could not determine module path for {file_path}")
+                        logger.error("Could not determine module path for {file_path}")
                         continue
                     
                     try:
@@ -608,7 +608,7 @@ class NodeRegistry:
                                 self.register_node(obj)
                                 
                     except Exception as e:
-                        print(f"❌ Error loading node from {module_path}: {e}")
+                        logger.error("Error loading node from {module_path}: {e}")
     
     def clear(self):
         """Clear all registered nodes"""

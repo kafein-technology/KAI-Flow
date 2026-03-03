@@ -1,15 +1,15 @@
 """
-KAI-Fusion Document Schemas - API Request/Response Models
+KAI-Flow Document Schemas - API Request/Response Models
 ========================================================
 
 This module implements comprehensive Pydantic schemas for document management API
 endpoints, providing type-safe request/response models with validation, serialization,
-and comprehensive documentation for the KAI-Fusion platform's document management system.
+and comprehensive documentation for the KAI-Flow platform's document management system.
 
-AUTHORS: KAI-Fusion API Development Team
+AUTHORS: KAI-Flow API Development Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-29
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 """
 
 from typing import List, Dict, Any, Optional

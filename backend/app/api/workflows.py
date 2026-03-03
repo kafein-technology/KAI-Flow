@@ -1,9 +1,9 @@
 
 """
-KAI-Fusion Enterprise Workflow API - Advanced Workflow Management & Execution Endpoints
+KAI-Flow Enterprise Workflow API - Advanced Workflow Management & Execution Endpoints
 =======================================================================================
 
-This module implements the sophisticated workflow API endpoints for the KAI-Fusion platform,
+This module implements the sophisticated workflow API endpoints for the KAI-Flow platform,
 providing enterprise-grade workflow management operations, comprehensive execution services,
 and advanced template management. Built for production environments with RESTful API design,
 comprehensive validation, and enterprise-grade security designed for scalable AI workflow
@@ -271,10 +271,10 @@ Comprehensive API Intelligence:
    - Template effectiveness with adoption success and improvement recommendations
    - Platform growth analysis with scaling insights and capacity planning
 
-AUTHORS: KAI-Fusion API Architecture Team
+AUTHORS: KAI-Flow API Architecture Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:
@@ -290,7 +290,7 @@ import logging
 import uuid
 from typing import Any, Dict, Optional, AsyncGenerator, List
 from datetime import datetime, timedelta
-from sqlalchemy import and_
+from sqlalchemy import and_, func as sql_func
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
@@ -401,10 +401,17 @@ async def get_workflow(
             raise HTTPException(status_code=404, detail="Workflow not found")
         
         # Check if user has access (owner or public workflow)
-        user_id = current_user.id  # Cache user ID
+        user_id = current_user.id
         if workflow.user_id != user_id and not workflow.is_public:
             raise HTTPException(status_code=403, detail="Access denied")
         
+        # Refresh sticky session ID for canvas testing when workflow is opened
+        try:
+            executor = get_workflow_executor()
+            executor.refresh_canvas_session_id(user_id, workflow_id)
+        except Exception as e:
+            logger.warning(f"Failed to refresh canvas session on workflow load: {e}")
+            
         return WorkflowResponse.model_validate(workflow)
     except HTTPException:
         raise
@@ -841,6 +848,7 @@ async def get_dashboard_stats(
     """
     user_id = current_user.id
     now = datetime.utcnow()
+    today = now.date()
     periods = {
         "7days": 7,
         "30days": 30,
@@ -849,27 +857,38 @@ async def get_dashboard_stats(
     stats = {}
     for label, days in periods.items():
         since = now - timedelta(days=days)
+        # Use COALESCE to fallback to created_at when started_at is NULL
+        effective_started_at = sql_func.coalesce(
+            WorkflowExecution.started_at, 
+            WorkflowExecution.created_at
+        )
         # Get all executions for this user and period (include completed_at for runtime)
         executions_q = await db.execute(
             select(
-                WorkflowExecution.started_at,
+                effective_started_at.label('effective_started_at'),
                 WorkflowExecution.completed_at,
                 WorkflowExecution.status,
             ).where(
                 and_(
                     WorkflowExecution.user_id == user_id,
-                    WorkflowExecution.started_at >= since,
+                    effective_started_at >= since,
                 )
             )
         )
         executions = executions_q.all()
         # Build a dict of date -> aggregates
+        # Use range(days + 1) to include today in the stats
         day_stats = {}
-        for i in range(days):
+        for i in range(days + 1):
             day = (since + timedelta(days=i)).date()
-            day_stats[day] = {"prodexec": 0, "failedprod": 0, "completed": 0, "runtime_sum": 0.0}
-        for started_at, completed_at, status in executions:
-            day = started_at.date()
+            # Don't include future dates
+            if day <= today:
+                day_stats[day] = {"prodexec": 0, "failedprod": 0, "completed": 0, "runtime_sum": 0.0}
+        
+        for effective_started_at_val, completed_at, status in executions:
+            if effective_started_at_val is None:
+                continue  # Safety check for NULL values
+            day = effective_started_at_val.date()
             if day in day_stats:
                 day_stats[day]["prodexec"] += 1
                 if status and status.lower() == "failed":
@@ -877,8 +896,8 @@ async def get_dashboard_stats(
                 elif status and status.lower() == "completed":
                     day_stats[day]["completed"] += 1
                     try:
-                        if started_at and completed_at:
-                            delta = (completed_at - started_at).total_seconds()
+                        if effective_started_at_val and completed_at:
+                            delta = (completed_at - effective_started_at_val).total_seconds()
                             if delta and delta > 0:
                                 day_stats[day]["runtime_sum"] += float(delta)
                     except Exception:
@@ -891,10 +910,10 @@ async def get_dashboard_stats(
                 "prodexec": day_stats[day]["prodexec"],
                 "failedprod": day_stats[day]["failedprod"],
                 "completed": day_stats[day]["completed"],
-                # average runtime in seconds for completed executions that day
-                "avg_runtime_sec": round(
-                    (day_stats[day]["runtime_sum"] / day_stats[day]["completed"]) if day_stats[day]["completed"] > 0 else 0.0,
-                    2,
+                # average runtime in milliseconds for completed executions that day
+                "avg_runtime_ms": round(
+                    (day_stats[day]["runtime_sum"] / day_stats[day]["completed"] * 1000) if day_stats[day]["completed"] > 0 else 0.0,
+                    0,
                 ),
             }
             for day in sorted(day_stats.keys())
@@ -925,19 +944,6 @@ async def execute_adhoc_workflow(
     executor = get_workflow_executor()
     chat_service = ChatService(db)
     
-    # Use chatflow_id as session_id for memory persistence
-    chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
-    session_id = req.session_id or str(chatflow_id)
-    
-    # 🔥 CRITICAL: session_id must always be present
-    if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
-        session_id = str(chatflow_id)
-        logger.warning(f"Invalid session_id in workflow execution, using chatflow_id: {session_id}")
-    
-    # Ensure session_id is consistent with chatflow_id
-    if not req.session_id:
-        session_id = str(chatflow_id)
-    
     # Handle user for internal calls
     if is_internal_call:
         user = await executor.get_or_create_master_user(db)
@@ -945,6 +951,20 @@ async def execute_adhoc_workflow(
     else:
         user = current_user
         user_id = current_user.id
+
+    chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else None
+    
+    if req.session_id:
+        session_id = req.session_id
+    elif chatflow_id:
+        session_id = str(chatflow_id)
+    else:
+        # Check for sticky canvas session (Test mode)
+        session_id = executor.get_canvas_session_id(user_id, req.workflow_id or "adhoc")
+    
+    if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
+        session_id = str(uuid.uuid4())
+        logger.warning(f"Invalid session_id in workflow execution, fallback to: {session_id}")
     
     # Get or create workflow object
     workflow = None
@@ -978,6 +998,10 @@ async def execute_adhoc_workflow(
             user_id=user_id,
             is_public=False
         )
+        # Save adhoc workflow to database so we can create execution records
+        db.add(workflow)
+        await db.commit()
+        await db.refresh(workflow)
     
     # Prepare execution context using WorkflowExecutor
     ctx = await executor.prepare_execution_context(
@@ -1020,8 +1044,8 @@ async def execute_adhoc_workflow(
         final_outputs = {}
         
         try:
-            if not isinstance(result_stream, AsyncGenerator):
-                raise TypeError("Expected an async generator from the engine for streaming.")
+            if not hasattr(result_stream, "__aiter__"):
+                raise TypeError("Expected an async iterable from the engine for streaming.")
             
             async for chunk in result_stream:
                 if isinstance(chunk, dict):

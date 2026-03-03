@@ -1,7 +1,7 @@
 """
-KAI-Fusion Enterprise Configuration Management - Centralized Environment & Constants System
+KAI-Flow Enterprise Configuration Management - Centralized Environment & Constants System
 
-This module implements the sophisticated configuration management system for the KAI-Fusion
+This module implements the sophisticated configuration management system for the KAI-Flow
 platform, providing enterprise-grade environment variable handling, secure credential
 management, and comprehensive configuration validation. Built for production deployment
 environments with advanced security, monitoring, and scalability configuration patterns
@@ -87,10 +87,10 @@ Enterprise Security Framework:
    - Security monitoring with real-time threat detection and response
    - Incident response integration with automated security event handling
 
-AUTHORS: KAI-Fusion Configuration Management Team
+AUTHORS: KAI-Flow Configuration Management Team
 VERSION: 2.1.0
 LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
+LICENSE: Proprietary - KAI-Flow Platform
 
 ──────────────────────────────────────────────────────────────
 IMPLEMENTATION DETAILS:
@@ -100,7 +100,9 @@ IMPLEMENTATION DETAILS:
 • Features: Centralized management, monitoring, scaling, performance optimization
 ──────────────────────────────────────────────────────────────
 """
+
 import os
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -109,13 +111,13 @@ env_file = backend_dir / '.env'
 if env_file.exists():
     load_dotenv(dotenv_path=env_file)
 
-# Also load from root directory (KAI-Fusion/.env) if it exists, to support user's config
+# Also load from root directory (KAI-Flow/.env) if it exists, to support user's config
 root_dir = backend_dir.parent
 root_env_file = root_dir / '.env'
 if root_env_file.exists():
     load_dotenv(dotenv_path=root_env_file)
 else:
-    print("Root .env file not found")
+    logging.info("Root .env file not found")
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
@@ -134,8 +136,8 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 DISABLE_DATABASE = os.getenv("DISABLE_DATABASE", "false").lower() == "true"
 
 # Database Pool Settings - Clean integer/boolean types
-DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
-DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
+DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "20"))
+DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "20"))
 DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))
 DB_POOL_PRE_PING = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
@@ -144,7 +146,7 @@ DB_POOL_PRE_PING = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
 _default_credential_key = "dev-only-insecure-key-change-me"
 CREDENTIAL_MASTER_KEY = os.getenv("CREDENTIAL_MASTER_KEY", _default_credential_key)
 if CREDENTIAL_MASTER_KEY == _default_credential_key:
-    print("⚠️  WARNING: Using default CREDENTIAL_MASTER_KEY. Set CREDENTIAL_MASTER_KEY environment variable in production!")
+    print("WARNING: Using default CREDENTIAL_MASTER_KEY. Set CREDENTIAL_MASTER_KEY environment variable in production!")
 # Logging
 LOG_LEVEL = "DEBUG"
 DEBUG = os.getenv("BACKEND_DEBUG", "false").lower() in ("true", "1", "t")

@@ -26,6 +26,7 @@ interface GenericVisualProps {
   startTimer?: () => void;
   stopTimer?: () => void;
   triggerNow?: () => void;
+  onToggleKafka?: () => void;
 }
 
 function GenericVisual({
@@ -47,6 +48,7 @@ function GenericVisual({
   startTimer,
   stopTimer,
   triggerNow,
+  onToggleKafka,
 }: GenericVisualProps) {
   const getNodeColor = () => {
     const colors = data.metadata?.colors;
@@ -342,6 +344,24 @@ function GenericVisual({
             </button>
           </div>
         )}
+
+      {/* KafkaConsumer Debug Play Button — sol üst, hover'da görünür */}
+      {data.metadata?.name === "KafkaConsumer" && isHovered && (
+        <button
+          className="absolute -top-3 -left-3 w-6 h-6 
+                bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500
+                text-white rounded-full border border-white/30 shadow-lg 
+                transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
+                backdrop-blur-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleKafka?.();
+          }}
+          title="Debug: Tek mesaj çek ve workflow'u çalıştır"
+        >
+          <Play size={10} />
+        </button>
+      )}
 
       {/* Render Handles */}
       {renderHandles(

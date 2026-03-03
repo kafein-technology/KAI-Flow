@@ -1,5 +1,5 @@
 """
-KAI-Fusion Auto-Discovery Tool Detector - Intelligent Node Analysis
+KAI-Flow Auto-Discovery Tool Detector - Intelligent Node Analysis
 ================================================================
 
 This module provides sophisticated automatic detection of tool-capable nodes
@@ -13,7 +13,7 @@ Key Features:
 - Confidence scoring for tool conversion quality
 - Zero-configuration tool discovery
 
-Authors: KAI-Fusion Tool Integration Team
+Authors: KAI-Flow Tool Integration Team
 Version: 1.0.0
 License: Proprietary
 """
@@ -77,7 +77,7 @@ class AutoToolDetector:
         if node_class_name in self.detection_cache:
             return self.detection_cache[node_class_name]
         
-        logger.debug(f"🔍 Analyzing tool compatibility for {node_class_name}")
+        logger.debug(f"Analyzing tool compatibility for {node_class_name}")
         
         # Strategy 1: Check IAgentTool interface implementation
         if isinstance(node_instance, IAgentTool):

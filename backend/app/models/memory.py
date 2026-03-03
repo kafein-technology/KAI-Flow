@@ -30,7 +30,7 @@ class Memory(Base):
 
     # Indexes for performance - session_id öncelikli
     __table_args__ = (
-        Index("idx_memories_session_id", "session_id"),  # 🔥 PRIMARY INDEX
+        Index("idx_memories_session_id", "session_id"),  #  PRIMARY INDEX
         Index("idx_memories_user_id", "user_id"),
         Index("idx_memories_created_at", "created_at"),
         Index("idx_memories_session_source", "session_id", "source_type"),
@@ -46,7 +46,7 @@ class Memory(Base):
         return {
             "id": str(self.id),
             "user_id": str(self.user_id) if self.user_id else None,
-            "session_id": self.session_id,  # 🔥 PRIMARY FIELD
+            "session_id": self.session_id,  #  PRIMARY FIELD
             "content": self.content,
             "context": self.context,
             "metadata": self.memory_metadata or {},

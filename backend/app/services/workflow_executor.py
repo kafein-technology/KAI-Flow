@@ -16,7 +16,8 @@ import string
 import time
 import uuid
 import json
-from datetime import datetime
+import asyncio
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Union, AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -87,6 +88,9 @@ class WorkflowExecutor:
         self.execution_service = ExecutionService()
         # Don't initialize workflow_enhancer at init time to avoid circular imports
         self._workflow_enhancer = None
+        # In-memory session tracking for canvas (adhoc/test) executions
+        # Dictionary mapping (user_id, workflow_id) -> active_test_session_id
+        self._canvas_sessions: Dict[tuple[str, str], str] = {}
     
     @property
     def workflow_enhancer(self):
@@ -96,6 +100,28 @@ class WorkflowExecutor:
             self._workflow_enhancer = get_workflow_enhancer()
         return self._workflow_enhancer
     
+    def get_canvas_session_id(self, user_id: Union[str, uuid.UUID], workflow_id: Union[str, uuid.UUID]) -> str:
+
+        user_id_str = str(user_id)
+        wf_id_str = str(workflow_id)
+        key = (user_id_str, wf_id_str)
+        
+        if key not in self._canvas_sessions:
+            self._canvas_sessions[key] = f"{uuid.uuid4()}"
+            logger.info(f"Created new sticky canvas session: {self._canvas_sessions[key]}")
+        
+        return self._canvas_sessions[key]
+
+    def refresh_canvas_session_id(self, user_id: Union[str, uuid.UUID], workflow_id: Union[str, uuid.UUID]) -> str:
+        user_id_str = str(user_id)
+        wf_id_str = str(workflow_id)
+        key = (user_id_str, wf_id_str)
+        
+        new_session_id = f"{uuid.uuid4()}"
+        self._canvas_sessions[key] = new_session_id
+        logger.info(f"Refreshed sticky canvas session for {wf_id_str}: {new_session_id}")
+        return new_session_id
+
     async def get_or_create_master_user(self, db: AsyncSession) -> User:
         """
         Get or create master user for system operations (e.g., webhook executions).
@@ -164,6 +190,7 @@ class WorkflowExecutor:
         user: User,
         execution_inputs: Dict[str, Any],
         clean_pending: bool = True,
+        use_workflow_owner: bool = False,
     ) -> WorkflowExecution:
         """
         Create execution record in database.
@@ -202,11 +229,15 @@ class WorkflowExecutor:
                 await db.rollback()
         
         # Create new execution record
+        # For webhook executions, use workflow owner's id so executions appear in their dashboard
+        execution_user_id = workflow.user_id if use_workflow_owner else user.id
         execution_create = WorkflowExecutionCreate(
             workflow_id=workflow.id,
-            user_id=user.id,
+            user_id=execution_user_id,
             status="pending",
             inputs=execution_inputs,
+            started_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
         )
         
         execution = await self.execution_service.create_execution(db, execution_in=execution_create)
@@ -241,15 +272,16 @@ class WorkflowExecutor:
         """
         update_data = WorkflowExecutionUpdate(
             status=status,
-            error_message=error_message,
-            outputs=outputs,
-            started_at=started_at,
-            completed_at=completed_at,
+            **{k: v for k, v in {
+                "error_message": error_message,
+                "outputs": outputs,
+                "started_at": started_at,
+                "completed_at": completed_at,
+            }.items() if v is not None}
         )
-        
-        execution = await self.execution_service.update_execution(
-            db, execution_id, update_data
-        )
+
+
+        execution = await self.execution_service.update_execution(db, execution_id, update_data)
         logger.debug(f"Updated execution {execution_id} status to {status}")
         
         return execution
@@ -289,7 +321,7 @@ class WorkflowExecutor:
         # Generate session_id if not provided
         if not session_id:
             if is_webhook:
-                session_id = f"webhook_{workflow.id}_{int(time.time())}"
+                session_id = str(workflow.id)
             else:
                 session_id = str(uuid.uuid4())
         
@@ -335,12 +367,15 @@ class WorkflowExecutor:
         
         # Create execution record if not already exists
         if not execution_id:
+            # For webhook executions, use workflow owner's id so executions appear in their dashboard
+            is_webhook = ctx.user_context.get("is_webhook", False)
             execution = await self.create_execution_record(
                 db,
                 ctx.workflow,
                 ctx.user,
                 ctx.execution_inputs,
                 clean_pending=True,
+                use_workflow_owner=is_webhook,
             )
             execution_id = execution.id
             ctx.execution_id = execution_id
@@ -351,7 +386,7 @@ class WorkflowExecutor:
                 db,
                 execution_id,
                 status="running",
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
             )
         except Exception as e:
             logger.error(f"Failed to update execution status to running: {e}")
@@ -406,28 +441,126 @@ class WorkflowExecutor:
                 # Add webhook_response to result for easy access
                 if webhook_response:
                     result["webhook_response"] = webhook_response
-                    logger.info(f"✅ Extracted webhook_response from workflow execution")
+                    logger.info(f"Extracted webhook_response from workflow execution")
             
-            # Update execution status to completed
+            if stream and hasattr(result, "__aiter__"):
+                async def _tracked_stream() -> AsyncGenerator:
+                    llm_output = ""
+                    final_outputs: Dict[str, Any] = {}
+                    execution_failed = False
+                    error_msg = None
+                    
+                    try:
+                        async for chunk in result:
+                            if isinstance(chunk, dict):
+                                # Track errors yielded as chunks
+                                if chunk.get("type") == "error":
+                                    execution_failed = True
+                                    error_msg = chunk.get("error")
+                                    logger.warning(f"Error chunk detected in stream for {execution_id}: {error_msg}")
+                                
+                                # Process completion and token data
+                                if chunk.get("type") == "token":
+                                    llm_output += chunk.get("content", "")
+                                elif chunk.get("type") == "output":
+                                    llm_output += chunk.get("output", "")
+                                elif chunk.get("type") == "complete":
+                                    chunk_result = chunk.get("result")
+                                    if isinstance(chunk_result, str):
+                                        llm_output += chunk_result
+                                        final_outputs["output"] = chunk_result
+                                    elif isinstance(chunk_result, dict):
+                                        if "output" in chunk_result and isinstance(chunk_result.get("output"), str):
+                                            llm_output += chunk_result.get("output", "")
+                                        final_outputs.update(chunk_result)
+                            yield chunk
+
+                        # Determine final status
+                        final_status = "failed" if execution_failed else "completed"
+                        
+                        try:
+                            outputs: Dict[str, Any]
+                            if final_outputs:
+                                outputs = make_json_serializable(final_outputs)
+                            else:
+                                outputs = {"result": "streamed", "failed": execution_failed}
+                            
+                            await self.update_execution_status(
+                                db,
+                                execution_id,
+                                status=final_status,
+                                error_message=error_msg if execution_failed else None,
+                                outputs=outputs,
+                                completed_at=datetime.now(timezone.utc),
+                            )
+                            logger.info(f"Execution {execution_id} finalized with status: {final_status}")
+                        except Exception as update_error:
+                            logger.error(f"Failed to update final execution status ({final_status}): {update_error}")
+                            
+                    except asyncio.CancelledError:
+                        logger.warning(f"Workflow execution stream cancelled: {execution_id}")
+                        try:
+                            await self.update_execution_status(
+                                db,
+                                execution_id,
+                                status="failed",
+                                error_message="Execution stream cancelled",
+                                completed_at=datetime.now(timezone.utc),
+                            )
+                        except Exception as update_error:
+                            logger.error(f"Failed to update execution status on stream cancel: {update_error}")
+                        raise
+                    except Exception as e:
+                        logger.error(f"Workflow streaming execution crashed: {e}", exc_info=True)
+                        try:
+                            err_text = str(e) or f"Streaming crash: {type(e).__name__}"
+                            await self.update_execution_status(
+                                db,
+                                execution_id,
+                                status="failed",
+                                error_message=err_text,
+                                completed_at=datetime.now(timezone.utc),
+                            )
+                        except Exception as update_error:
+                            logger.error(f"Failed to update execution status to failed (crash): {update_error}")
+                        raise
+
+                return _tracked_stream()
+
+            # Non-streaming: update when we have the full result
             try:
-                # For streaming results, we might want to handle this differently
-                # For now, update when execution completes
-                if isinstance(result, dict) and not stream:
-                    # Make outputs JSON-serializable by converting datetime objects to strings
-                    outputs = make_json_serializable(result)
-                else:
-                    outputs = {"result": "streamed"}
+                outputs = make_json_serializable(result) if isinstance(result, dict) else {"result": result}
                 
+                # Check if the result indicates a failure (secondary defense)
+                execution_failed = False
+                error_msg = None
+                if isinstance(result, dict):
+                    # Check explicit success flag
+                    if result.get("success") is False:
+                        execution_failed = True
+                        error_msg = result.get("error", "Unknown execution error")
+                    # Check state-level errors
+                    state_data = result.get("state", {})
+                    if isinstance(state_data, dict):
+                        errors = state_data.get("errors", [])
+                        if errors:
+                            execution_failed = True
+                            error_msg = error_msg or "; ".join(str(e) for e in errors)
+                
+                final_status = "failed" if execution_failed else "completed"
                 await self.update_execution_status(
                     db,
                     execution_id,
-                    status="completed",
+                    status=final_status,
+                    error_message=error_msg if execution_failed else None,
                     outputs=outputs,
-                    completed_at=datetime.utcnow(),
+                    completed_at=datetime.now(timezone.utc),
                 )
+                if execution_failed:
+                    logger.warning(f"Execution {execution_id} completed with errors: {error_msg}")
             except Exception as e:
-                logger.error(f"Failed to update execution status to completed: {e}")
-            
+                logger.error(f"Failed to update execution status: {e}")
+
             return result
             
         except Exception as e:
@@ -435,12 +568,16 @@ class WorkflowExecutor:
             
             # Update execution status to failed
             try:
+                error_msg = str(e)
+                if not error_msg:
+                    error_msg = f"Execution failed with error: {type(e).__name__}"
+                
                 await self.update_execution_status(
                     db,
                     execution_id,
                     status="failed",
-                    error_message=str(e),
-                    completed_at=datetime.utcnow(),
+                    error_message=error_msg,
+                    completed_at=datetime.now(timezone.utc),
                 )
             except Exception as update_error:
                 logger.error(f"Failed to update execution status to failed: {update_error}")

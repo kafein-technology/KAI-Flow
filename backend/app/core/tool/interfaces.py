@@ -1,5 +1,5 @@
 """
-KAI-Fusion Auto-Discovery Tool Integration - Core Interfaces
+KAI-Flow Auto-Discovery Tool Integration - Core Interfaces
 ==========================================================
 
 This module defines the core interfaces and data models for the automatic
@@ -11,7 +11,7 @@ Key Components:
 - NodeToolInfo: Data model containing tool conversion metadata
 - ToolCompatibilityInfo: Analysis result for tool compatibility detection
 
-Authors: KAI-Fusion Tool Integration Team
+Authors: KAI-Flow Tool Integration Team
 Version: 1.0.0
 License: Proprietary
 """

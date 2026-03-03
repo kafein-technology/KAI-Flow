@@ -38,6 +38,7 @@ from .default.end_node import EndNode
 
 # Trigger Nodes
 from .triggers.webhook_trigger import WebhookTriggerNode
+from .triggers.kafka_trigger import KafkaTriggerNode
 from .triggers.timer_start_node import TimerStartNode
 
 # Text Processing Nodes
@@ -46,6 +47,7 @@ from .text_processing.string_input_node import StringInputNode
 # Processing Nodes
 from .processing.code_node import CodeNode
 from .processing.condition_node import ConditionNode
+from .processing.kafka_producer import KafkaProducerNode
 
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
@@ -92,4 +94,6 @@ __all__ = [
     # Processing
     "CodeNode",
     "ConditionNode",
+    "KafkaProducerNode",
+    "KafkaTriggerNode",
 ]

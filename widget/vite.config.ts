@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
+import { libInjectCss } from "vite-plugin-lib-inject-css";
+import tailwindcss from "@tailwindcss/vite";
 import { createRequire } from "module";
 import pkg from "./package.json";
 
@@ -9,6 +11,8 @@ const require = createRequire(import.meta.url);
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
+    libInjectCss(),
     dts({
       insertTypesEntry: true,
       rollupTypes: true,
@@ -18,8 +22,8 @@ export default defineConfig({
     outDir: "dist",
     lib: {
       entry: "src/index.ts",
-      formats: ["es"],
-      fileName: (format) => `index.${format}.js`,
+      formats: ["es", "cjs"],
+      fileName: (format) => (format === "es" ? "index.es.js" : "index.cjs"),
     },
     sourcemap: true,
     rollupOptions: {
@@ -30,9 +34,7 @@ export default defineConfig({
         ...Object.keys(pkg.dependencies || {}),
       ],
       output: {
-        format: "esm",
         dir: "dist",
-        entryFileNames: "index.es.js",
         assetFileNames: "[name][extname]",
         inlineDynamicImports: true,
         globals: {

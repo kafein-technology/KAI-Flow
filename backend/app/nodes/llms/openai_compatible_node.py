@@ -1,5 +1,5 @@
 """
-KAI-Fusion OpenAI Compatible Node
+KAI-Flow OpenAI Compatible Node
 ===============================
 
 This module provides a universal node for connecting to any OpenAI-compatible API 
@@ -13,12 +13,15 @@ KEY FEATURES:
 - Standard OpenAI parameter support
 """
 
+import logging
 from typing import Dict, Any, Optional, List
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
 from pydantic import SecretStr
 
 from ..base import BaseNode, NodeType, NodeInput, NodeOutput, NodeProperty, NodePropertyType, NodePosition
+
+logger = logging.getLogger(__name__)
 
 class OpenAICompatibleNode(BaseNode):
     """
@@ -108,7 +111,7 @@ class OpenAICompatibleNode(BaseNode):
                     name="site_name",
                     type="str",
                     description="Your site name (for OpenRouter rankings)",
-                    default="KAI-Fusion",
+                    default="KAI-Flow",
                     required=False
                 ),
                 NodeInput(
@@ -155,7 +158,7 @@ class OpenAICompatibleNode(BaseNode):
                     tabName="basic",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select API Key",
-                    required=False, # Some local servers don't need keys
+                    required=True,
                     hint="Required for commercial providers, optional for some local servers",
                     serviceType="openai",
                 ),
@@ -268,36 +271,45 @@ class OpenAICompatibleNode(BaseNode):
 
     def execute(self, **kwargs) -> Runnable:
         """Execute Node to create the ChatOpenAI instance."""
-        print(f"\nOPENAI COMPATIBLE NODE SETUP")
+        logger.info("\nOPENAI COMPATIBLE NODE SETUP")
         
         # Extract configuration
         base_url = self.user_data.get("base_url", "https://openrouter.ai/api/v1")
         model_name = self.user_data.get("model_name", "anthropic/claude-3.5-sonnet")
         temperature = float(self.user_data.get("temperature", 0.7))
         max_tokens = int(self.user_data.get("max_tokens", 4096))
-        top_p = float(self.user_data.get("top_p", 1.0))
-        frequency_penalty = float(self.user_data.get("frequency_penalty", 0.0))
-        presence_penalty = float(self.user_data.get("presence_penalty", 0.0))
-        timeout = int(self.user_data.get("timeout", 60))
-        streaming = bool(self.user_data.get("streaming", False))
+
+        # Determine which optional fields the user explicitly enabled
+        active_optional = set(self.user_data.get("_active_optional_fields", []))
+
+        # Optional parameters - only use if explicitly activated by the user
+        top_p = float(self.user_data["top_p"]) if "top_p" in active_optional and "top_p" in self.user_data else None
+        frequency_penalty = float(self.user_data["frequency_penalty"]) if "frequency_penalty" in active_optional and "frequency_penalty" in self.user_data else None
+        presence_penalty = float(self.user_data["presence_penalty"]) if "presence_penalty" in active_optional and "presence_penalty" in self.user_data else None
+        timeout = int(self.user_data["timeout"]) if "timeout" in active_optional and "timeout" in self.user_data else None
+        streaming = bool(self.user_data["streaming"]) if "streaming" in active_optional and "streaming" in self.user_data else False
         
         # OpenRouter specific params
         site_url = self.user_data.get("site_url", "")
-        site_name = self.user_data.get("site_name", "KAI-Fusion")
+        site_name = self.user_data.get("site_name", "KAI-Flow")
         
         # Get API Key
         credential_id = self.user_data.get("credential_id")
+        logger.info(f"[DEBUG][COMPATIBLE] credential_id: {credential_id}")
+        
         api_key_value = ""
         if credential_id:
             cred = self.get_credential(credential_id)
+            logger.info(f"[DEBUG][COMPATIBLE] cred found: {cred is not None}")
             if cred and cred.get('secret'):
                 api_key_value = str(cred.get('secret').get('api_key')).strip()
+                logger.info(f"[DEBUG][COMPATIBLE] API key length: {len(api_key_value)}")
         
         if not api_key_value:
              # Some local endpoints might not require a key.
              # We provide a dummy key because langchain/openai usually expects one.
              api_key_value = "sk-no-key-required"
-             print("INFO: No API Key provided. Using placeholder key.")
+             logger.info("INFO: No API Key provided. Using placeholder key.")
         
         # Prepare Extra Headers
         extra_headers = {}
@@ -316,26 +328,32 @@ class OpenAICompatibleNode(BaseNode):
             "openai_api_key": SecretStr(api_key_value),
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "top_p": top_p,
-            "frequency_penalty": frequency_penalty,
-            "presence_penalty": presence_penalty,
-            "timeout": timeout,
             "streaming": streaming,
-            "model_kwargs": {
-                "extra_headers": extra_headers
-            } if extra_headers else {}
         }
+
+        # Only include optional parameters if explicitly set by user
+        if top_p is not None:
+            llm_config["top_p"] = top_p
+        if frequency_penalty is not None:
+            llm_config["frequency_penalty"] = frequency_penalty
+        if presence_penalty is not None:
+            llm_config["presence_penalty"] = presence_penalty
+        if timeout is not None:
+            llm_config["timeout"] = timeout
+
+        if extra_headers:
+            llm_config["model_kwargs"] = {"extra_headers": extra_headers}
         
         try:
             llm = ChatOpenAI(**llm_config)
             
-            print(f"   Provider Base: {base_url}")
-            print(f"   Model: {model_name} | Temp: {temperature}")
+            logger.info(f"   Provider Base: {base_url}")
+            logger.info(f"   Model: {model_name} | Temp: {temperature}")
             
             return llm
             
         except Exception as e:
             error_msg = f"Failed to create OpenAI Compatible LLM: {str(e)}"
-            print(f"ERROR: {error_msg}")
+            logger.error(f"{error_msg}")
             raise ValueError(error_msg) from e
 

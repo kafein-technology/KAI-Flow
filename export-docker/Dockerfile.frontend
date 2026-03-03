@@ -1,4 +1,4 @@
-# Frontend Dockerfile for KAI-Fusion
+# Frontend Dockerfile for KAI-Flow
 # Uses react-router build and serve
 
 FROM node:20-alpine AS builder
