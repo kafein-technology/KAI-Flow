@@ -52,7 +52,7 @@
         "id": "CodeNode__0f270d16-f8e8-4cec-a008-b381c3c27674",
         "data": {
           "code": "\nresponse = ${{ agent_1 | tojson }}\n\nlines = [\n    line.strip()\n    for line in response.splitlines()\n    if line.strip() and line.strip() not in (\"startlist/\", \"endlist/\")\n]\nreturn_body= {\"values\":lines}\nprint(return_body)\n",
-          "name": "code_node",
+          "name": "code_node_3",
           "language": "python",
           "_active_optional_fields": []
         },
@@ -65,7 +65,7 @@
       {
         "id": "Agent__bdba257a-aa24-45ba-93f4-126f549c627b",
         "data": {
-          "name": "agent",
+          "name": "agent_1",
           "agent_type": "react",
           "temperature": 0.7,
           "enable_tools": true,
