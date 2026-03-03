@@ -256,7 +256,7 @@ const Sidebar = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                KAI-Fusion
+                KAI Flow
               </h1>
               <p className="text-xs text-slate-400">AI Workflow Platform</p>
             </div>

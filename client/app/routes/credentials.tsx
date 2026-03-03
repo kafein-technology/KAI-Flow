@@ -270,7 +270,7 @@ function CredentialsLayout() {
                     No Credentials Yet
                   </h3>
                   <p className="text-gray-600 mb-3 text-sm">
-                    Connect your first service to get started with KAI Fusion
+                    Connect your first service to get started with KAI Flow
                   </p>
                   <button
                     onClick={() => setShowServiceSelection(true)}
