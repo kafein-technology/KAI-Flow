@@ -873,12 +873,9 @@ class GraphBuilder:
             }
             
         except Exception as e:
-            return {
-                "success": False, 
-                "error": str(e), 
-                "error_type": type(e).__name__, 
-                "session_id": init_state.session_id
-            }
+            logger.error(f"Workflow execution failed in _execute_sync: {e}", exc_info=True)
+            # Re-raise so workflow_executor can properly mark execution as "failed"
+            raise
 
     async def _execute_stream(self, init_state: FlowState, config: RunnableConfig):
         """Streaming execution - preserved from original."""
