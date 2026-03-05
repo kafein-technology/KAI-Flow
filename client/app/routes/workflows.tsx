@@ -13,8 +13,8 @@ import {
   Clock,
   Calendar,
   Globe,
-  MessageCircle,
-  Eye,
+  // MessageCircle, // DISABLED: External Workflows feature
+  // Eye, // DISABLED: External Workflows feature
   X,
   Download,
   Lock,
@@ -29,13 +29,14 @@ import type {
   Workflow,
   WorkflowUpdateRequest,
 } from "~/types/api";
-import type {
-  ExternalWorkflowInfo,
-  ExternalWorkflowConfig,
-} from "~/types/external-workflows";
-import { externalWorkflowService } from "~/services/externalWorkflowService";
-import ExternalWorkflowChat from "~/components/external/ExternalWorkflowChat";
-import ExternalWorkflowViewer from "~/components/external/ExternalWorkflowViewer";
+// DISABLED: External Workflows feature
+// import type {
+//   ExternalWorkflowInfo,
+//   ExternalWorkflowConfig,
+// } from "~/types/external-workflows";
+// import { externalWorkflowService } from "~/services/externalWorkflowService";
+// import ExternalWorkflowChat from "~/components/external/ExternalWorkflowChat";
+// import ExternalWorkflowViewer from "~/components/external/ExternalWorkflowViewer";
 import { timeAgo } from "~/lib/dateFormatter";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Link } from "react-router";
@@ -121,9 +122,10 @@ function WorkflowsLayout() {
   } = useWorkflows();
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<
-    "my-workflows" | "external-workflows"
-  >("my-workflows");
+  // DISABLED: External Workflows feature - tab is no longer needed
+  // const [activeTab, setActiveTab] = useState<
+  //   "my-workflows" | "external-workflows"
+  // >("my-workflows");
 
   // My workflows state
   const [searchQuery, setSearchQuery] = useState("");
@@ -140,21 +142,21 @@ function WorkflowsLayout() {
   const [itemsPerPage, setItemsPerPage] = useState(6);
   const [updatingVisibilityId, setUpdatingVisibilityId] = useState<string | null>(null);
 
-  // External workflows state
-  const [externalWorkflows, setExternalWorkflows] = useState<
-    ExternalWorkflowInfo[]
-  >([]);
-  const [externalLoading, setExternalLoading] = useState(false);
-  const [externalError, setExternalError] = useState<string | null>(null);
-  const [showAddExternalModal, setShowAddExternalModal] = useState(false);
-  const [selectedExternalWorkflow, setSelectedExternalWorkflow] =
-    useState<ExternalWorkflowInfo | null>(null);
-  const [showExternalChatModal, setShowExternalChatModal] = useState(false);
-  const [showExternalViewerModal, setShowExternalViewerModal] = useState(false);
-  const [externalWorkflowToRemove, setExternalWorkflowToRemove] =
-    useState<ExternalWorkflowInfo | null>(null);
-  const [showRemoveExternalConfirm, setShowRemoveExternalConfirm] =
-    useState(false);
+  // DISABLED: External Workflows feature - state variables
+  // const [externalWorkflows, setExternalWorkflows] = useState<
+  //   ExternalWorkflowInfo[]
+  // >([]);
+  // const [externalLoading, setExternalLoading] = useState(false);
+  // const [externalError, setExternalError] = useState<string | null>(null);
+  // const [showAddExternalModal, setShowAddExternalModal] = useState(false);
+  // const [selectedExternalWorkflow, setSelectedExternalWorkflow] =
+  //   useState<ExternalWorkflowInfo | null>(null);
+  // const [showExternalChatModal, setShowExternalChatModal] = useState(false);
+  // const [showExternalViewerModal, setShowExternalViewerModal] = useState(false);
+  // const [externalWorkflowToRemove, setExternalWorkflowToRemove] =
+  //   useState<ExternalWorkflowInfo | null>(null);
+  // const [showRemoveExternalConfirm, setShowRemoveExternalConfirm] =
+  //   useState(false);
   const [page, setPage] = useState(1);
   const [showExportModal, setShowExportModal] = useState(false);
 
@@ -174,11 +176,12 @@ function WorkflowsLayout() {
     fetchWorkflows();
   }, [fetchWorkflows]);
 
-  useEffect(() => {
-    if (activeTab === "external-workflows") {
-      fetchExternalWorkflows();
-    }
-  }, [activeTab]);
+  // DISABLED: External Workflows feature
+  // useEffect(() => {
+  //   if (activeTab === "external-workflows") {
+  //     fetchExternalWorkflows();
+  //   }
+  // }, [activeTab]);
 
   const filteredWorkflows = workflows.filter((workflow) => {
     const matchesSearch =
@@ -257,91 +260,91 @@ function WorkflowsLayout() {
     console.log("Handling toggle workflow status", workflowId, isActive);
   };
 
-  // External workflow functions
-  const fetchExternalWorkflows = async () => {
-    setExternalLoading(true);
-    setExternalError(null);
-    try {
-      const data = await externalWorkflowService.listExternalWorkflows();
-      setExternalWorkflows(data);
-    } catch (error) {
-      setExternalError(
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch external workflows"
-      );
-    } finally {
-      setExternalLoading(false);
-    }
-  };
-
-  const handleRegisterExternalWorkflow = async (
-    config: ExternalWorkflowConfig
-  ) => {
-    try {
-      await externalWorkflowService.registerExternalWorkflow(config);
-      enqueueSnackbar("External workflow registered successfully!", {
-        variant: "success",
-      });
-      setShowAddExternalModal(false);
-      fetchExternalWorkflows();
-    } catch (error) {
-      enqueueSnackbar(
-        error instanceof Error
-          ? error.message
-          : "Failed to register external workflow",
-        { variant: "error" }
-      );
-    }
-  };
-
-  const handleChatWithExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
-    setSelectedExternalWorkflow(workflow);
-    setShowExternalChatModal(true);
-  };
-
-  const handleViewExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
-    setSelectedExternalWorkflow(workflow);
-    setShowExternalViewerModal(true);
-  };
-
-  const handleRemoveExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
-    setExternalWorkflowToRemove(workflow);
-    setShowRemoveExternalConfirm(true);
-  };
-
-  const handleFinalRemoveExternalConfirm = async () => {
-    if (!externalWorkflowToRemove) return;
-
-    try {
-      await externalWorkflowService.unregisterExternalWorkflow(
-        externalWorkflowToRemove.workflow_id
-      );
-      enqueueSnackbar("External workflow removed successfully", {
-        variant: "success",
-      });
-
-      // Remove from local state
-      setExternalWorkflows((prev) =>
-        prev.filter(
-          (w) => w.workflow_id !== externalWorkflowToRemove.workflow_id
-        )
-      );
-    } catch (error: any) {
-      console.error("Remove external workflow error:", error);
-      const errorMessage =
-        error?.message || error?.detail || "Failed to remove external workflow";
-      enqueueSnackbar(errorMessage, { variant: "error" });
-    } finally {
-      setExternalWorkflowToRemove(null);
-      setShowRemoveExternalConfirm(false);
-    }
-  };
-
-  const handleCancelRemoveExternal = () => {
-    setShowRemoveExternalConfirm(false);
-    setExternalWorkflowToRemove(null);
-  };
+  // DISABLED: External Workflows feature - all handler functions
+  // const fetchExternalWorkflows = async () => {
+  //   setExternalLoading(true);
+  //   setExternalError(null);
+  //   try {
+  //     const data = await externalWorkflowService.listExternalWorkflows();
+  //     setExternalWorkflows(data);
+  //   } catch (error) {
+  //     setExternalError(
+  //       error instanceof Error
+  //         ? error.message
+  //         : "Failed to fetch external workflows"
+  //     );
+  //   } finally {
+  //     setExternalLoading(false);
+  //   }
+  // };
+  //
+  // const handleRegisterExternalWorkflow = async (
+  //   config: ExternalWorkflowConfig
+  // ) => {
+  //   try {
+  //     await externalWorkflowService.registerExternalWorkflow(config);
+  //     enqueueSnackbar("External workflow registered successfully!", {
+  //       variant: "success",
+  //     });
+  //     setShowAddExternalModal(false);
+  //     fetchExternalWorkflows();
+  //   } catch (error) {
+  //     enqueueSnackbar(
+  //       error instanceof Error
+  //         ? error.message
+  //         : "Failed to register external workflow",
+  //       { variant: "error" }
+  //     );
+  //   }
+  // };
+  //
+  // const handleChatWithExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
+  //   setSelectedExternalWorkflow(workflow);
+  //   setShowExternalChatModal(true);
+  // };
+  //
+  // const handleViewExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
+  //   setSelectedExternalWorkflow(workflow);
+  //   setShowExternalViewerModal(true);
+  // };
+  //
+  // const handleRemoveExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
+  //   setExternalWorkflowToRemove(workflow);
+  //   setShowRemoveExternalConfirm(true);
+  // };
+  //
+  // const handleFinalRemoveExternalConfirm = async () => {
+  //   if (!externalWorkflowToRemove) return;
+  //
+  //   try {
+  //     await externalWorkflowService.unregisterExternalWorkflow(
+  //       externalWorkflowToRemove.workflow_id
+  //     );
+  //     enqueueSnackbar("External workflow removed successfully", {
+  //       variant: "success",
+  //     });
+  //
+  //     // Remove from local state
+  //     setExternalWorkflows((prev) =>
+  //       prev.filter(
+  //         (w) => w.workflow_id !== externalWorkflowToRemove.workflow_id
+  //       )
+  //     );
+  //   } catch (error: any) {
+  //     console.error("Remove external workflow error:", error);
+  //     const errorMessage =
+  //       error?.message || error?.detail || "Failed to remove external workflow";
+  //     enqueueSnackbar(errorMessage, { variant: "error" });
+  //   } finally {
+  //     setExternalWorkflowToRemove(null);
+  //     setShowRemoveExternalConfirm(false);
+  //   }
+  // };
+  //
+  // const handleCancelRemoveExternal = () => {
+  //   setShowRemoveExternalConfirm(false);
+  //   setExternalWorkflowToRemove(null);
+  // };
 
   const validateWorkflow = (values: WorkflowFormValues) => {
     const errors: Partial<WorkflowFormValues> = {};
@@ -408,7 +411,7 @@ function WorkflowsLayout() {
                   </p>
                 </div>
 
-                {/* Tab Navigation */}
+                {/* DISABLED: External Workflows feature - Tab Navigation
                 <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                   <button
                     onClick={() => setActiveTab("my-workflows")}
@@ -431,9 +434,9 @@ function WorkflowsLayout() {
                     External Workflows
                   </button>
                 </div>
+                */}
 
-                {/* Status Filter Row - Only show for my workflows */}
-                {activeTab === "my-workflows" && (
+                {/* Status Filter Row */}
                   <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                     <button
                       onClick={() => setStatusFilter("all")}
@@ -469,10 +472,7 @@ function WorkflowsLayout() {
                       </div>
                     </button>
                   </div>
-                )}
-
-                {/* Search and Create Row - Only for my workflows */}
-                {activeTab === "my-workflows" && (
+                {/* Search and Create Row */}
                   <div className="flex flex-row items-center gap-4">
                     {/* Search Bar */}
                     <div className="relative">
@@ -505,9 +505,7 @@ function WorkflowsLayout() {
                       Export
                     </button>
                   </div>
-                )}
-
-                {/* Add External Workflow Row - Only for external workflows */}
+                {/* DISABLED: External Workflows feature - Add External Workflow Row
                 {activeTab === "external-workflows" && (
                   <div className="flex justify-end">
                     <button
@@ -519,12 +517,11 @@ function WorkflowsLayout() {
                     </button>
                   </div>
                 )}
+                */}
               </div>
             </div>
 
-            {/* Content based on active tab */}
-            {activeTab === "my-workflows" ? (
-              <>
+            {/* Content - My Workflows */}
                 {/* Pinned Workflows Section */}
                 <PinnedItemsSection type="workflow" />
 
@@ -753,178 +750,56 @@ function WorkflowsLayout() {
                     )}
                   </div>
                 )}
-              </>
-            ) : (
-              /* External Workflows Content */
-              <div className="space-y-6">
-                {externalError ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                      <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        Error loading external workflows
+              {/* DISABLED: External Workflows feature - External Workflows Content
+              ) : (
+                <div className="space-y-6">
+                  {externalError ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center">
+                        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                          Error loading external workflows
+                        </h3>
+                        <p className="text-gray-600 mb-4">{externalError}</p>
+                        <button
+                          onClick={fetchExternalWorkflows}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          Retry
+                        </button>
+                      </div>
+                    </div>
+                  ) : externalLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loading size="sm" />
+                    </div>
+                  ) : externalWorkflows.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Globe className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        No External Workflows
                       </h3>
-                      <p className="text-gray-600 mb-4">{externalError}</p>
+                      <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                        You haven't registered any external workflows yet. Add an
+                        external Docker workflow to get started.
+                      </p>
                       <button
-                        onClick={fetchExternalWorkflows}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                        onClick={() => setShowAddExternalModal(true)}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl hover:from-green-700 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                       >
-                        <RefreshCw className="h-4 w-4" />
-                        Retry
+                        <Plus className="h-5 w-5" />
+                        Add External Workflow
                       </button>
                     </div>
-                  </div>
-                ) : externalLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loading size="sm" />
-                  </div>
-                ) : externalWorkflows.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Globe className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      No External Workflows
-                    </h3>
-                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      You haven't registered any external workflows yet. Add an
-                      external Docker workflow to get started.
-                    </p>
-                    <button
-                      onClick={() => setShowAddExternalModal(true)}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl hover:from-green-700 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-                    >
-                      <Plus className="h-5 w-5" />
-                      Add External Workflow
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {externalWorkflows.map((workflow) => (
-                      <div
-                        key={workflow.workflow_id}
-                        className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-green-200 group relative overflow-hidden"
-                      >
-                        {/* Status Indicator Bar */}
-                        <div
-                          className={`absolute top-0 left-0 right-0 h-1 ${workflow.connection_status === "online"
-                            ? "bg-gradient-to-r from-green-500 to-emerald-500"
-                            : workflow.connection_status === "offline"
-                              ? "bg-gradient-to-r from-red-500 to-red-600"
-                              : "bg-gradient-to-r from-yellow-500 to-orange-500"
-                            }`}
-                        />
-
-                        {/* Header */}
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div
-                                className={`w-2 h-2 rounded-full ${workflow.connection_status === "online"
-                                  ? "bg-green-500 animate-pulse"
-                                  : workflow.connection_status === "offline"
-                                    ? "bg-red-500"
-                                    : "bg-yellow-500"
-                                  }`}
-                              />
-                              <h3 className="text-lg font-semibold text-gray-900 group-hover:text-green-600 transition-colors">
-                                {workflow.name}
-                              </h3>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                              {workflow.description ||
-                                "No description available"}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* External URL */}
-                        <div className="mb-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Globe className="w-4 h-4" />
-                            <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                              {workflow.external_url}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Capabilities */}
-                        <div className="mb-4">
-                          <div className="flex flex-wrap gap-1">
-                            {workflow.capabilities?.chat && (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                                <MessageCircle className="w-3 h-3" />
-                                Chat
-                              </span>
-                            )}
-                            {workflow.capabilities?.memory && (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-                                <Clock className="w-3 h-3" />
-                                Memory
-                              </span>
-                            )}
-                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
-                              <Eye className="w-3 h-3" />
-                              Read-Only
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Status and Actions */}
-                        <div className="flex items-center justify-between">
-                          <div className="text-xs text-gray-500">
-                            Status:{" "}
-                            <span
-                              className={`font-medium ${workflow.connection_status === "online"
-                                ? "text-green-600"
-                                : workflow.connection_status === "offline"
-                                  ? "text-red-600"
-                                  : "text-yellow-600"
-                                }`}
-                            >
-                              {workflow.connection_status}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() =>
-                                handleChatWithExternalWorkflow(workflow)
-                              }
-                              disabled={
-                                !workflow.capabilities?.chat ||
-                                workflow.connection_status !== "online"
-                              }
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            >
-                              <MessageCircle className="w-3 h-3" />
-                              Chat
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleViewExternalWorkflow(workflow)
-                              }
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                              <Eye className="w-3 h-3" />
-                              View
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleRemoveExternalWorkflow(workflow)
-                              }
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                              title="Remove external workflow"
-                            >
-                              <X className="w-3 h-3" />
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      ... external workflow cards ...
+                    </div>
+                  )}
+                </div>
+              )}
+              */}
 
             {/* Edit Modal */}
             <dialog id="modalEditWorkflow" className="modal">
@@ -1042,7 +917,7 @@ function WorkflowsLayout() {
         </div>
       </dialog>
 
-      {/* Remove External Workflow Confirm Modal */}
+      {/* DISABLED: External Workflows feature - Remove External Workflow Confirm Modal
       <dialog
         open={showRemoveExternalConfirm}
         className="modal modal-bottom sm:modal-middle"
@@ -1069,157 +944,25 @@ function WorkflowsLayout() {
           </div>
         </div>
       </dialog>
+      */}
 
-      {/* Add External Workflow Modal */}
+      {/* DISABLED: External Workflows feature - Add External Workflow Modal
       {showAddExternalModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">
-              Add External Workflow
-            </h3>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const config = {
-                  name: formData.get("name") as string,
-                  description: formData.get("description") as string,
-                  host: formData.get("host") as string,
-                  port: parseInt(formData.get("port") as string),
-                  is_secure: formData.get("is_secure") === "on",
-                  api_key: (formData.get("api_key") as string) || undefined,
-                };
-                await handleRegisterExternalWorkflow(config);
-              }}
-            >
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="My External Workflow"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    rows={3}
-                    placeholder="Description of the external workflow..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Host
-                  </label>
-                  <input
-                    type="text"
-                    name="host"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="localhost"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Port
-                  </label>
-                  <input
-                    type="number"
-                    name="port"
-                    required
-                    min="1"
-                    max="65535"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="8000"
-                  />
-                </div>
-                <div>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="is_secure"
-                      className="rounded"
-                    />
-                    <span className="text-sm text-gray-700">Use HTTPS</span>
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    API Key (Optional)
-                  </label>
-                  <input
-                    type="password"
-                    name="api_key"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Enter API key if required"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowAddExternalModal(false)}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Add External Workflow
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        ... Add External Workflow Modal content ...
       )}
+      */}
 
-      {/* External Workflow Chat Modal */}
+      {/* DISABLED: External Workflows feature - External Workflow Chat Modal
       {showExternalChatModal && selectedExternalWorkflow && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-2xl mx-4 h-[600px] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-xl font-bold text-gray-900">
-                Chat with {selectedExternalWorkflow.name}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowExternalChatModal(false);
-                  setSelectedExternalWorkflow(null);
-                }}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <ExternalWorkflowChat workflow={selectedExternalWorkflow} />
-            </div>
-          </div>
-        </div>
+        ... Chat Modal content ...
       )}
+      */}
 
-      {/* External Workflow Viewer Modal */}
+      {/* DISABLED: External Workflows feature - External Workflow Viewer Modal
       {selectedExternalWorkflow && (
-        <ExternalWorkflowViewer
-          workflow={selectedExternalWorkflow}
-          isOpen={showExternalViewerModal}
-          onClose={() => {
-            setShowExternalViewerModal(false);
-            setSelectedExternalWorkflow(null);
-          }}
-        />
+        <ExternalWorkflowViewer ... />
       )}
+      */}
 
       {/* Workflow Edit Modal */}
       <WorkflowEditModal
