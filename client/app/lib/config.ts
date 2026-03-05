@@ -123,6 +123,7 @@ export const API_ENDPOINTS = {
     LIST: '/executions',
     CREATE: '/executions',
     GET: (id: string) => `/executions/${id}`,
+    EXPORT_CSV: '/executions/export/csv',
   },
   VARIABLES: {
     LIST: '/variables',
