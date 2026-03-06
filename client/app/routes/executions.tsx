@@ -557,10 +557,10 @@ function ExecutionsPage() {
                 {/* Executions Table */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full table-fixed">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left">
+                          <th className="w-10 px-3 py-3 text-left">
                             <input
                               type="checkbox"
                               checked={isAllSelected}
@@ -573,25 +573,25 @@ function ExecutionsPage() {
                               className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                             />
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Workflow
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Status
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Started
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="w-[8%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Duration
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="w-[22%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Input
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="w-[22%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Output
                           </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="w-12 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                           </th>
                         </tr>
@@ -599,7 +599,7 @@ function ExecutionsPage() {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {currentExecutions.map((execution) => (
                           <tr key={execution.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4">
+                            <td className="px-3 py-4">
                               <input
                                 type="checkbox"
                                 checked={selectedExecutions.has(execution.id)}
@@ -612,11 +612,11 @@ function ExecutionsPage() {
                                 className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                               />
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-3 py-4">
                               <div className="flex items-center">
-                                <Play className="w-4 h-4 text-purple-600 mr-2" />
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">
+                                <Play className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium text-gray-900 truncate">
                                     {getWorkflowName(execution.workflow_id)}
                                   </div>
                                   <div className="text-xs text-gray-500">
@@ -625,7 +625,7 @@ function ExecutionsPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-3 py-4">
                               <span
                                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(
                                   execution.status
@@ -644,24 +644,24 @@ function ExecutionsPage() {
                                   execution.status.slice(1)}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900">
+                            <td className="px-3 py-4 text-sm text-gray-900">
                               {execution.started_at
                                 ? timeAgo(execution.started_at)
                                 : "-"}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900">
+                            <td className="px-3 py-4 text-sm text-gray-900">
                               {formatDuration(
                                 execution.started_at,
                                 execution.completed_at
                               )}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Input Data", getInputData(execution))}>
+                            <td className="px-3 py-4 text-sm text-gray-900 truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Input Data", getInputData(execution))}>
                               {formatDataForDisplay(getInputData(execution))}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Output Data", getOutputData(execution))}>
+                            <td className="px-3 py-4 text-sm text-gray-900 truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Output Data", getOutputData(execution))}>
                               {formatDataForDisplay(getOutputData(execution))}
                             </td>
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-3 py-4 text-right">
                               <button
                                 onClick={() => handleDeleteClick(execution.id)}
                                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
