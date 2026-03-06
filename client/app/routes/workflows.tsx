@@ -29,13 +29,13 @@ import type {
   Workflow,
   WorkflowUpdateRequest,
 } from "~/types/api";
-import type {
-  ExternalWorkflowInfo,
-  ExternalWorkflowConfig,
-} from "~/types/external-workflows";
-import { externalWorkflowService } from "~/services/externalWorkflowService";
-import ExternalWorkflowChat from "~/components/external/ExternalWorkflowChat";
-import ExternalWorkflowViewer from "~/components/external/ExternalWorkflowViewer";
+// import type {
+//   ExternalWorkflowInfo,
+//   ExternalWorkflowConfig,
+// } from "~/types/external-workflows";
+// import { externalWorkflowService } from "~/services/externalWorkflowService";
+// import ExternalWorkflowChat from "~/components/external/ExternalWorkflowChat";
+// import ExternalWorkflowViewer from "~/components/external/ExternalWorkflowViewer";
 import { timeAgo } from "~/lib/dateFormatter";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Link } from "react-router";
@@ -141,20 +141,20 @@ function WorkflowsLayout() {
   const [updatingVisibilityId, setUpdatingVisibilityId] = useState<string | null>(null);
 
   // External workflows state
-  const [externalWorkflows, setExternalWorkflows] = useState<
-    ExternalWorkflowInfo[]
-  >([]);
-  const [externalLoading, setExternalLoading] = useState(false);
-  const [externalError, setExternalError] = useState<string | null>(null);
-  const [showAddExternalModal, setShowAddExternalModal] = useState(false);
-  const [selectedExternalWorkflow, setSelectedExternalWorkflow] =
-    useState<ExternalWorkflowInfo | null>(null);
-  const [showExternalChatModal, setShowExternalChatModal] = useState(false);
-  const [showExternalViewerModal, setShowExternalViewerModal] = useState(false);
-  const [externalWorkflowToRemove, setExternalWorkflowToRemove] =
-    useState<ExternalWorkflowInfo | null>(null);
-  const [showRemoveExternalConfirm, setShowRemoveExternalConfirm] =
-    useState(false);
+//   const [externalWorkflows, setExternalWorkflows] = useState<
+//     ExternalWorkflowInfo[]
+//   >([]);
+//   const [externalLoading, setExternalLoading] = useState(false);
+//   const [externalError, setExternalError] = useState<string | null>(null);
+//   const [showAddExternalModal, setShowAddExternalModal] = useState(false);
+//   const [selectedExternalWorkflow, setSelectedExternalWorkflow] =
+//     useState<ExternalWorkflowInfo | null>(null);
+//   const [showExternalChatModal, setShowExternalChatModal] = useState(false);
+//   const [showExternalViewerModal, setShowExternalViewerModal] = useState(false);
+//   const [externalWorkflowToRemove, setExternalWorkflowToRemove] =
+//     useState<ExternalWorkflowInfo | null>(null);
+//   const [showRemoveExternalConfirm, setShowRemoveExternalConfirm] =
+//     useState(false);
   const [page, setPage] = useState(1);
   const [showExportModal, setShowExportModal] = useState(false);
 
@@ -173,12 +173,12 @@ function WorkflowsLayout() {
   useEffect(() => {
     fetchWorkflows();
   }, [fetchWorkflows]);
-
-  useEffect(() => {
-    if (activeTab === "external-workflows") {
-      fetchExternalWorkflows();
-    }
-  }, [activeTab]);
+// 
+//   useEffect(() => {
+//     if (activeTab === "external-workflows") {
+//       fetchExternalWorkflows();
+//     }
+//   }, [activeTab]);
 
   const filteredWorkflows = workflows.filter((workflow) => {
     const matchesSearch =
@@ -258,90 +258,90 @@ function WorkflowsLayout() {
   };
 
   // External workflow functions
-  const fetchExternalWorkflows = async () => {
-    setExternalLoading(true);
-    setExternalError(null);
-    try {
-      const data = await externalWorkflowService.listExternalWorkflows();
-      setExternalWorkflows(data);
-    } catch (error) {
-      setExternalError(
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch external workflows"
-      );
-    } finally {
-      setExternalLoading(false);
-    }
-  };
-
-  const handleRegisterExternalWorkflow = async (
-    config: ExternalWorkflowConfig
-  ) => {
-    try {
-      await externalWorkflowService.registerExternalWorkflow(config);
-      enqueueSnackbar("External workflow registered successfully!", {
-        variant: "success",
-      });
-      setShowAddExternalModal(false);
-      fetchExternalWorkflows();
-    } catch (error) {
-      enqueueSnackbar(
-        error instanceof Error
-          ? error.message
-          : "Failed to register external workflow",
-        { variant: "error" }
-      );
-    }
-  };
-
-  const handleChatWithExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
-    setSelectedExternalWorkflow(workflow);
-    setShowExternalChatModal(true);
-  };
-
-  const handleViewExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
-    setSelectedExternalWorkflow(workflow);
-    setShowExternalViewerModal(true);
-  };
-
-  const handleRemoveExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
-    setExternalWorkflowToRemove(workflow);
-    setShowRemoveExternalConfirm(true);
-  };
-
-  const handleFinalRemoveExternalConfirm = async () => {
-    if (!externalWorkflowToRemove) return;
-
-    try {
-      await externalWorkflowService.unregisterExternalWorkflow(
-        externalWorkflowToRemove.workflow_id
-      );
-      enqueueSnackbar("External workflow removed successfully", {
-        variant: "success",
-      });
-
+//   const fetchExternalWorkflows = async () => {
+//     setExternalLoading(true);
+//     setExternalError(null);
+//     try {
+//       const data = await externalWorkflowService.listExternalWorkflows();
+//       setExternalWorkflows(data);
+//     } catch (error) {
+//       setExternalError(
+//         error instanceof Error
+//           ? error.message
+//           : "Failed to fetch external workflows"
+//       );
+//     } finally {
+//       setExternalLoading(false);
+//     }
+//   };
+// 
+//   const handleRegisterExternalWorkflow = async (
+//     config: ExternalWorkflowConfig
+//   ) => {
+//     try {
+//       await externalWorkflowService.registerExternalWorkflow(config);
+//       enqueueSnackbar("External workflow registered successfully!", {
+//         variant: "success",
+//       });
+//       setShowAddExternalModal(false);
+//       fetchExternalWorkflows();
+//     } catch (error) {
+//       enqueueSnackbar(
+//         error instanceof Error
+//           ? error.message
+//           : "Failed to register external workflow",
+//         { variant: "error" }
+//       );
+//     }
+//   };
+// 
+//   const handleChatWithExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
+//     setSelectedExternalWorkflow(workflow);
+//     setShowExternalChatModal(true);
+//   };
+// 
+//   const handleViewExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
+//     setSelectedExternalWorkflow(workflow);
+//     setShowExternalViewerModal(true);
+//   };
+// 
+//   const handleRemoveExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
+//     setExternalWorkflowToRemove(workflow);
+//     setShowRemoveExternalConfirm(true);
+//   };
+// 
+//   const handleFinalRemoveExternalConfirm = async () => {
+//     if (!externalWorkflowToRemove) return;
+// 
+//     try {
+//       await externalWorkflowService.unregisterExternalWorkflow(
+//         externalWorkflowToRemove.workflow_id
+//       );
+//       enqueueSnackbar("External workflow removed successfully", {
+//         variant: "success",
+//       });
+// 
       // Remove from local state
-      setExternalWorkflows((prev) =>
-        prev.filter(
-          (w) => w.workflow_id !== externalWorkflowToRemove.workflow_id
-        )
-      );
-    } catch (error: any) {
-      console.error("Remove external workflow error:", error);
-      const errorMessage =
-        error?.message || error?.detail || "Failed to remove external workflow";
-      enqueueSnackbar(errorMessage, { variant: "error" });
-    } finally {
-      setExternalWorkflowToRemove(null);
-      setShowRemoveExternalConfirm(false);
-    }
-  };
-
-  const handleCancelRemoveExternal = () => {
-    setShowRemoveExternalConfirm(false);
-    setExternalWorkflowToRemove(null);
-  };
+//       setExternalWorkflows((prev) =>
+//         prev.filter(
+//           (w) => w.workflow_id !== externalWorkflowToRemove.workflow_id
+//         )
+//       );
+//     } catch (error: any) {
+//       console.error("Remove external workflow error:", error);
+//       const errorMessage =
+//         error?.message || error?.detail || "Failed to remove external workflow";
+//       enqueueSnackbar(errorMessage, { variant: "error" });
+//     } finally {
+//       setExternalWorkflowToRemove(null);
+//       setShowRemoveExternalConfirm(false);
+//     }
+//   };
+// 
+//   const handleCancelRemoveExternal = () => {
+//     setShowRemoveExternalConfirm(false);
+//     setExternalWorkflowToRemove(null);
+//   };
 
   const validateWorkflow = (values: WorkflowFormValues) => {
     const errors: Partial<WorkflowFormValues> = {};
@@ -408,11 +408,12 @@ function WorkflowsLayout() {
                   </p>
                 </div>
 
-                {/* Tab Navigation */}
+{/* DISABLED Tab Navigation
+                { Tab Navigation }
                 <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                   <button
                     onClick={() => setActiveTab("my-workflows")}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${activeTab === "my-workflows"
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${true
                       ? "bg-white text-gray-900 shadow-sm"
                       : "text-gray-600 hover:text-gray-900"
                       }`}
@@ -432,8 +433,9 @@ function WorkflowsLayout() {
                   </button>
                 </div>
 
-                {/* Status Filter Row - Only show for my workflows */}
-                {activeTab === "my-workflows" && (
+                { Status Filter Row - Only show for my workflows }
+*/}
+                {true && (
                   <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                     <button
                       onClick={() => setStatusFilter("all")}
@@ -472,7 +474,7 @@ function WorkflowsLayout() {
                 )}
 
                 {/* Search and Create Row - Only for my workflows */}
-                {activeTab === "my-workflows" && (
+                {true && (
                   <div className="flex flex-row items-center gap-4">
                     {/* Search Bar */}
                     <div className="relative">
@@ -507,7 +509,8 @@ function WorkflowsLayout() {
                   </div>
                 )}
 
-                {/* Add External Workflow Row - Only for external workflows */}
+{/* DISABLED Add External Row
+                { Add External Workflow Row - Only for external workflows }
                 {activeTab === "external-workflows" && (
                   <div className="flex justify-end">
                     <button
@@ -519,11 +522,12 @@ function WorkflowsLayout() {
                     </button>
                   </div>
                 )}
+*/}
               </div>
             </div>
 
             {/* Content based on active tab */}
-            {activeTab === "my-workflows" ? (
+            {true ? (
               <>
                 {/* Pinned Workflows Section */}
                 <PinnedItemsSection type="workflow" />
@@ -754,8 +758,10 @@ function WorkflowsLayout() {
                   </div>
                 )}
               </>
-            ) : (
-              /* External Workflows Content */
+            ) : null}
+{/* DISABLED External Content
+(
+               External Workflows Content 
               <div className="space-y-6">
                 {externalError ? (
                   <div className="flex items-center justify-center py-8">
@@ -803,7 +809,7 @@ function WorkflowsLayout() {
                         key={workflow.workflow_id}
                         className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-green-200 group relative overflow-hidden"
                       >
-                        {/* Status Indicator Bar */}
+                        { Status Indicator Bar }
                         <div
                           className={`absolute top-0 left-0 right-0 h-1 ${workflow.connection_status === "online"
                             ? "bg-gradient-to-r from-green-500 to-emerald-500"
@@ -813,7 +819,7 @@ function WorkflowsLayout() {
                             }`}
                         />
 
-                        {/* Header */}
+                        { Header }
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
@@ -836,7 +842,7 @@ function WorkflowsLayout() {
                           </div>
                         </div>
 
-                        {/* External URL */}
+                        { External URL }
                         <div className="mb-4">
                           <div className="flex items-center gap-2 text-sm text-gray-500">
                             <Globe className="w-4 h-4" />
@@ -846,7 +852,7 @@ function WorkflowsLayout() {
                           </div>
                         </div>
 
-                        {/* Capabilities */}
+                        { Capabilities }
                         <div className="mb-4">
                           <div className="flex flex-wrap gap-1">
                             {workflow.capabilities?.chat && (
@@ -868,7 +874,7 @@ function WorkflowsLayout() {
                           </div>
                         </div>
 
-                        {/* Status and Actions */}
+                        { Status and Actions }
                         <div className="flex items-center justify-between">
                           <div className="text-xs text-gray-500">
                             Status:{" "}
@@ -926,6 +932,7 @@ function WorkflowsLayout() {
               </div>
             )}
 
+*/}
             {/* Edit Modal */}
             <dialog id="modalEditWorkflow" className="modal">
               <div className="modal-box">
@@ -1042,7 +1049,8 @@ function WorkflowsLayout() {
         </div>
       </dialog>
 
-      {/* Remove External Workflow Confirm Modal */}
+{/* DISABLED Modals
+      { Remove External Workflow Confirm Modal }
       <dialog
         open={showRemoveExternalConfirm}
         className="modal modal-bottom sm:modal-middle"
@@ -1070,7 +1078,7 @@ function WorkflowsLayout() {
         </div>
       </dialog>
 
-      {/* Add External Workflow Modal */}
+      { Add External Workflow Modal }
       {showAddExternalModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
@@ -1184,7 +1192,7 @@ function WorkflowsLayout() {
         </div>
       )}
 
-      {/* External Workflow Chat Modal */}
+      { External Workflow Chat Modal }
       {showExternalChatModal && selectedExternalWorkflow && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl w-full max-w-2xl mx-4 h-[600px] flex flex-col">
@@ -1209,7 +1217,7 @@ function WorkflowsLayout() {
         </div>
       )}
 
-      {/* External Workflow Viewer Modal */}
+      { External Workflow Viewer Modal }
       {selectedExternalWorkflow && (
         <ExternalWorkflowViewer
           workflow={selectedExternalWorkflow}
@@ -1221,6 +1229,7 @@ function WorkflowsLayout() {
         />
       )}
 
+*/}
       {/* Workflow Edit Modal */}
       <WorkflowEditModal
         isOpen={isEditModalOpen}
