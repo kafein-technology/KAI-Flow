@@ -33,6 +33,39 @@ export const deleteExecution = async (execution_id: string) => {
   return apiClient.delete(`/executions/${execution_id}`);
 }; 
 
+export const exportExecutionsCSV = async (params: {
+  status_filter?: string;
+  workflow_id?: string;
+  date_range?: string;
+  workflow_name?: string;
+  execution_ids?: string[];
+}): Promise<{ blob: Blob; filename: string }> => {
+  // Filter out undefined/empty params
+  const queryParams: Record<string, string> = {};
+  if (params.execution_ids && params.execution_ids.length > 0) {
+    queryParams.execution_ids = params.execution_ids.join(',');
+  } else {
+    if (params.status_filter) queryParams.status_filter = params.status_filter;
+    if (params.workflow_id) queryParams.workflow_id = params.workflow_id;
+    if (params.date_range) queryParams.date_range = params.date_range;
+  }
+
+  // apiClient.get returns response.data directly (not full response),
+  const blob = await apiClient.get(API_ENDPOINTS.EXECUTIONS.EXPORT_CSV, {
+    params: queryParams,
+    responseType: 'blob',
+  });
+
+  // Build dynamic filename — always based on active filters, not selection
+  const nameParts = ['KAI-Flow_Executions'];
+  if (params.workflow_name) nameParts.push(params.workflow_name.replace(/\s+/g, ''));
+  if (params.status_filter) nameParts.push(params.status_filter.charAt(0).toUpperCase() + params.status_filter.slice(1));
+  nameParts.push(new Date().toISOString().split('T')[0]);
+  const filename = nameParts.join('_') + '.csv';
+
+  return { blob: blob as unknown as Blob, filename };
+};
+
 // Streaming execution (SSE via fetch). Returns ReadableStream of events.
 export const executeWorkflowStream = async (executionData: {
   flow_data: any;

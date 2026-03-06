@@ -10,6 +10,8 @@ import {
   Filter,
   Search,
   RotateCcw,
+  Download,
+  Loader2,
 } from "lucide-react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import AuthGuard from "~/components/AuthGuard";
@@ -19,6 +21,7 @@ import DataViewModal from "~/components/modals/DataViewModal";
 import { useExecutionsStore } from "~/stores/executions";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
+import { exportExecutionsCSV } from "~/services/executionService";
 
 interface Execution {
   id: string;
@@ -273,6 +276,35 @@ function ExecutionsPage() {
     });
   };
 
+  // CSV Export
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportCSV = async () => {
+    try {
+      setIsExporting(true);
+      const hasSelected = selectedExecutions.size > 0;
+      const { blob, filename } = await exportExecutionsCSV({
+        // If checkboxes are selected, send their IDs; filters still sent for filename + safety
+        execution_ids: hasSelected ? Array.from(selectedExecutions) : undefined,
+        status_filter: filters.status !== "all" ? filters.status : undefined,
+        workflow_id: filters.workflowId !== "all" ? filters.workflowId : undefined,
+        date_range: filters.dateRange !== "all" ? filters.dateRange : undefined,
+        // Always pass filter info for filename (even when checkbox is used)
+        workflow_name: filters.workflowId !== "all" ? getWorkflowName(filters.workflowId) : undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("CSV export failed:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const hasActiveFilters =
     filters.status !== "all" ||
     filters.workflowId !== "all" ||
@@ -405,6 +437,26 @@ function ExecutionsPage() {
                     </select>
                     <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                   </div>
+
+                  {/* Export CSV */}
+                  <button
+                    onClick={handleExportCSV}
+                    disabled={isExporting || filteredExecutions.length === 0}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg transition-all duration-200 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Export filtered executions as CSV"
+                  >
+                    {isExporting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Preparing CSV...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Export CSV
+                      </>
+                    )}
+                  </button>
 
                   {/* Clear Filters */}
                   {hasActiveFilters && (
