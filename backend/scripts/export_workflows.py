@@ -141,6 +141,13 @@ async def export_workflows(
                 "basic_auth_credential_id", "header_auth_credential_id"
             ]
             
+            # Find all credential fields in nodes
+            # Check all known credential field names used by different node types
+            CREDENTIAL_FIELD_NAMES = [
+                "credential_id", "credential",
+                "basic_auth_credential_id", "header_auth_credential_id"
+            ]
+            
             for node in flow_data.get("nodes", []):
                 node_data = node.get("data", {})
                 
