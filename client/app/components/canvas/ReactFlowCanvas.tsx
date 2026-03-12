@@ -86,7 +86,6 @@ export default function ReactFlowCanvas({
         fitView
         onNodeClick={onNodeClick}
         proOptions={{ hideAttribution: true }}
-        proOptions={{ hideAttribution: true }}
       >
         <Controls position="top-right" className="bg-background text-black" />
         <Background gap={20} size={1} />
