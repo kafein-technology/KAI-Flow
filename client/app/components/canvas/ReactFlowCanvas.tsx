@@ -85,6 +85,7 @@ export default function ReactFlowCanvas({
         snapGrid={[10, 10]}
         fitView
         onNodeClick={onNodeClick}
+        proOptions={{ hideAttribution: true }}
       >
         <Controls position="top-right" className="bg-background text-black" />
         <Background gap={20} size={1} />

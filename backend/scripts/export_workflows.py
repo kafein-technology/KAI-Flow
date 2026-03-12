@@ -134,29 +134,37 @@ async def export_workflows(
             # Keep flow_data as-is (don't modify credential_id)
             flow_data = dict(workflow.flow_data) if workflow.flow_data else {}
             
-            # Find all credential_ids in nodes
+            # Find all credential fields in nodes
+            # Check all known credential field names used by different node types
+            CREDENTIAL_FIELD_NAMES = [
+                "credential_id", "credential",
+                "basic_auth_credential_id", "header_auth_credential_id"
+            ]
+            
             for node in flow_data.get("nodes", []):
                 node_data = node.get("data", {})
-                cred_id = node_data.get("credential_id")
                 
-                if cred_id and cred_id not in seen_credentials:
-                    try:
-                        cred_result = await db.execute(
-                            select(UserCredential).where(UserCredential.id == uuid.UUID(cred_id))
-                        )
-                        cred = cred_result.scalar_one_or_none()
-                        
-                        if cred:
-                            empty_secret = get_empty_secret_from_credential(cred)
-                            seen_credentials[cred_id] = {
-                                "id": str(cred.id),  # Preserve original UUID
-                                "name": cred.name,
-                                "service_type": cred.service_type,
-                                "secret": empty_secret
-                            }
-                            logger(f"Credential: {cred.name} (ID: {cred_id})")
-                    except Exception as e:
-                        logger(f"Warning: Could not process credential {cred_id}: {e}")
+                for field_name in CREDENTIAL_FIELD_NAMES:
+                    cred_id = node_data.get(field_name)
+                    
+                    if cred_id and isinstance(cred_id, str) and cred_id not in seen_credentials:
+                        try:
+                            cred_result = await db.execute(
+                                select(UserCredential).where(UserCredential.id == uuid.UUID(cred_id))
+                            )
+                            cred = cred_result.scalar_one_or_none()
+                            
+                            if cred:
+                                empty_secret = get_empty_secret_from_credential(cred)
+                                seen_credentials[cred_id] = {
+                                    "id": str(cred.id),  # Preserve original UUID
+                                    "name": cred.name,
+                                    "service_type": cred.service_type,
+                                    "secret": empty_secret
+                                }
+                                logger(f"Credential: {cred.name} (ID: {cred_id})")
+                        except Exception as e:
+                            logger(f"Warning: Could not process credential {cred_id}: {e}")
             
             # Save flow file (unchanged - keeps credential_id as-is)
             safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in workflow.name.lower())[:50]
