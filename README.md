@@ -15,9 +15,10 @@ You can run the full stack locally using Docker (with an external DB) or set up 
 
 ## 🎬 Showcase
 
-<!-- Inline demo video (GitHub renders HTML) -->
 
-<video src="https://github.com/user-attachments/assets/4ec7283c-c0f1-42ed-b9b9-a2c594d7c05c" autoplay loop muted playsinline width="100%"></video>
+<p>
+  <img src="./demo.gif" alt="KAI-Fusion Demo" width="100%" />
+</p>
 
 <p>
   <img src="./demo.png" alt="KAI‑Flow Screenshot" width="100%" />
