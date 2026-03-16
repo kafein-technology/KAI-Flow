@@ -1,6 +1,6 @@
-# KAI-Fusion User Guide
+# KAI-Flow User Guide
 
-Welcome to the KAI-Fusion User Guide! This comprehensive documentation will help you setup, navigate, and master the KAI-Fusion platform.
+Welcome to the KAI-Flow User Guide! This comprehensive documentation will help you setup, navigate, and master the KAI-Flow platform.
 
 ## Table of Contents
 
@@ -26,20 +26,20 @@ Welcome to the KAI-Fusion User Guide! This comprehensive documentation will help
 
 ## <a name="introduction"></a>Introduction
 
-KAI-Fusion is a tool that helps you create smart assistants. These assistants can answer questions, search for information on the internet, read documents, and complete tasks automatically. You do not need to know how to write code to use it.
+KAI-Flow is a tool that helps you create smart assistants. These assistants can answer questions, search for information on the internet, read documents, and complete tasks automatically. You do not need to know how to write code to use it.
 
 Think of it like building with blocks. You pick the pieces you need, connect them together, and your assistant is ready to work. For example, you can create an assistant that searches the web for news and summarizes it for you. Or one that reads your documents and answers questions about them.
 
 The platform shows everything visually on a canvas. You can see how your assistant works, test it by chatting with it, and make changes easily. When you are happy with your assistant, you can share it with others or add it to your website.
 
-KAI-Fusion is designed for everyone. Whether you are a business owner who wants to automate customer support, a researcher who needs help processing documents, or simply curious about what AI can do, this tool makes it possible without any technical background.
+KAI-Flow is designed for everyone. Whether you are a business owner who wants to automate customer support, a researcher who needs help processing documents, or simply curious about what AI can do, this tool makes it possible without any technical background.
 
 
 ## <a name="before-installation"></a>Before Installation
 
-Before installing KAI-Fusion, make sure you have the following ready:
+Before installing KAI-Flow, make sure you have the following ready:
 
-*   **Docker**: KAI-Fusion runs inside containers. You need Docker installed on your computer.
+*   **Docker**: KAI-Flow runs inside containers. You need Docker installed on your computer.
 *   **Git**: Required to download the project files.
 *   **Environment Files**: You will need to set up configuration files (`.env`) for the backend and frontend.
 *   **Database**: PostgreSQL is required. You can run it inside Docker or use an existing database.
@@ -64,7 +64,7 @@ To ensure smooth operation, particularly when orchestrating multiple concurrent 
 
 ## <a name="network-requirements"></a>Network Requirements
 
-KAI-Fusion runs on a microservices architecture. Ensure the following network configurations are set:
+KAI-Flow runs on a microservices architecture. Ensure the following network configurations are set:
 
 ### Internal Ports (Docker Network)
 The services communicate internally via the `kai_network` bridge network:
@@ -88,7 +88,7 @@ The backend requires outbound internet access to reach external AI providers and
 
 ## <a name="docker-installation"></a>Docker Installation
 
-Docker is the primary deployment method for KAI-Fusion.
+Docker is the primary deployment method for KAI-Flow.
 
 ### 1. Install Docker Engine
 *   **Windows & macOS**: Download and install **Docker Desktop** from [docs.docker.com](https://docs.docker.com/engine/install/).
@@ -116,8 +116,8 @@ If you are deploying from source code:
 1.  **Clone the Repository**: Open your terminal and run these commands one by one:
 
     ```bash
-    git clone https://github.com/kafein-product-space/KAI-Fusion.git
-    cd KAI-Fusion
+    git clone https://github.com/kafein-product-space/KAI-Flow.git
+    cd KAI-Flow
     ```
 
 If you have received a release archive (`.zip` or `.tar.gz`):
@@ -126,25 +126,25 @@ If you have received a release archive (`.zip` or `.tar.gz`):
     *   **Windows**: Right-click -> "Extract All".
     *   **Linux/macOS**:
         ```bash
-        unzip kai-fusion-release.zip
+        unzip kai-Flow-release.zip
         # or
-        tar -xvzf kai-fusion-release.tar.gz
+        tar -xvzf kai-Flow-release.tar.gz
         ```
 2.  **Navigate to Directory**: Open your terminal and go into the project folder:
 
     ```bash
-    cd kai-fusion
+    cd kai-Flow
     ```
 
 ---
 
 ## <a name="loading-docker-images"></a>Loading Docker Images
 
-You can deploy KAI-Fusion by building images locally or pulling them from a registry (if configured).
+You can deploy KAI-Flow by building images locally or pulling them from a registry (if configured).
 
 ### Option A: Build Locally (Recommended)
 
-This builds the `kaifusion-be`, `kaifusion-fe`, and `kai-widget` images from source. Open your terminal in the project folder and run:
+This builds the `kaiFlow-be`, `kaiFlow-fe`, and `kai-widget` images from source. Open your terminal in the project folder and run:
 
 ```bash
 docker compose build
@@ -162,7 +162,7 @@ docker compose pull
 
 ## <a name="deployment"></a>Deployment
 
-Follow these steps to launch the KAI-Fusion stack.
+Follow these steps to launch the KAI-Flow stack.
 
 ### 1. Configuration (`.env`)
 
@@ -192,7 +192,7 @@ POSTGRES_PASSWORD=kai
 # LangSmith / LangChain tracing (optional but recommended for debugging)
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_API_KEY=your_langchain_api_key
-LANGCHAIN_PROJECT=kai-fusion-workflows
+LANGCHAIN_PROJECT=kai-Flow-workflows
 LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 ENABLE_WORKFLOW_TRACING=true
 TRACE_MEMORY_OPERATIONS=true
@@ -273,7 +273,7 @@ For development purposes or if you prefer running without Docker Compose, you ca
 
 ## <a name="widget-integration"></a>Widget Integration
 
-Embed KAI-Fusion agents into any website using the standalone widget.
+Embed KAI-Flow agents into any website using the standalone widget.
 
 ### Installation
 
@@ -310,7 +310,7 @@ docker compose logs -f
 For detailed AI observability, configure LangSmith variables in `backend/.env`:
 *   `LANGCHAIN_TRACING_V2=true`
 *   `LANGCHAIN_API_KEY=<your-key>`
-*   `LANGCHAIN_PROJECT=kai-fusion-workflows`
+*   `LANGCHAIN_PROJECT=kai-Flow-workflows`
 
 This allows you to inspect every step of your agent's reasoning, tool calls, and latency usage in the LangSmith dashboard.
 

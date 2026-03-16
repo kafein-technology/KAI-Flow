@@ -85,21 +85,23 @@ async def get_credential_by_id(
     user_id = current_user.id
     
     try:
-        credential = await credential_service.get_by_user_and_id(
+        # Use get_decrypted_credential to return secret data for editing
+        decrypted = await credential_service.get_decrypted_credential(
             db, user_id, credential_id
         )
-        if not credential:
+        if not decrypted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Credential not found"
             )
         
         return CredentialDetailResponse(
-            id=credential.id,
-            name=credential.name,
-            service_type=credential.service_type,
-            created_at=credential.created_at,
-            updated_at=credential.updated_at
+            id=decrypted["id"],
+            name=decrypted["name"],
+            service_type=decrypted["service_type"],
+            created_at=decrypted["created_at"],
+            updated_at=decrypted["updated_at"],
+            secret=decrypted.get("secret", {})
         )
     
     except HTTPException:
