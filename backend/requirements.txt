@@ -30,14 +30,14 @@ bcrypt==4.0.1
 cryptography==45.0.6
 
 # AI/ML Framework
-langchain==0.3.27
-langchain-core==0.3.74
-langchain-community==0.3.27
+langchain==0.3.28
+langchain-core==0.3.81
+langchain-community==0.3.28
 langchain-openai==0.3.31
-langchain-tavily==0.2.11
+langchain-tavily==0.2.17
 langchain-text-splitters==0.3.9
 langchain-cohere==0.4.5
-langchain-postgres==0.0.15
+langchain-postgres==0.0.17
 langgraph==0.6.6
 langgraph-checkpoint==2.1.1
 langgraph-prebuilt==0.6.4

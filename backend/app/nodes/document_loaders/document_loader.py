@@ -581,7 +581,7 @@ class DocumentLoaderNode(ProcessorNode):
                     name="service_account_json",
                     displayName="Service Account JSON",
                     type=NodePropertyType.JSON_EDITOR,
-                    placeholder='{"type": "service_account", "project_id": "...", ...}',
+                    placeholder='Paste your service account JSON here',
                     displayOptions={
                         "show": {
                             "google_drive_auth_type": "service_account"
