@@ -718,7 +718,7 @@ class DocumentLoaderNode(ProcessorNode):
             "google-auth-oauthlib>=0.8.0",       # OAuth2 support
             "google-auth-httplib2>=0.1.0",       # HTTP transport for Google APIs
             "python-docx>=0.8.11",               # Word document processing
-            "PyPDF2>=3.0.1",                     # PDF text extraction
+            "pypdf>=6.7.3",                      # PDF text extraction
             "pdfplumber>=0.9.0",                 # Alternative PDF processing
             "langchain-core>=0.1.0",             # Core document classes
             "typing-extensions>=4.8.0"           # Advanced typing support
@@ -1171,11 +1171,11 @@ class DocumentLoaderNode(ProcessorNode):
             extraction_method = "none"
             page_count = 0
             
-            # Try PyPDF2 first
+            # Try pypdf first (modern replacement for PyPDF2)
             try:
-                import PyPDF2
+                from pypdf import PdfReader
                 with open(file_path, 'rb') as f:
-                    pdf_reader = PyPDF2.PdfReader(f)
+                    pdf_reader = PdfReader(f)
                     page_count = len(pdf_reader.pages)
                     
                     text_parts = []
@@ -1185,12 +1185,12 @@ class DocumentLoaderNode(ProcessorNode):
                             text_parts.append(page_text.strip())
                     
                     content = "\n\n".join(text_parts)
-                    extraction_method = "PyPDF2"
+                    extraction_method = "pypdf"
                     
             except ImportError:
-                logger.warning("PyPDF2 not available, trying pdfplumber")
+                logger.warning("pypdf not available, trying pdfplumber")
             
-            # Fallback to pdfplumber if PyPDF2 failed or not available
+            # Fallback to pdfplumber if pypdf failed or not available
             if not content:
                 try:
                     import pdfplumber
@@ -1210,7 +1210,7 @@ class DocumentLoaderNode(ProcessorNode):
                     logger.warning("pdfplumber not available")
             
             if not content:
-                raise ValueError("No PDF processing library available. Install PyPDF2 or pdfplumber: pip install PyPDF2 pdfplumber")
+                raise ValueError("No PDF processing library available. Install pypdf or pdfplumber: pip install pypdf pdfplumber")
             
             file_stat = Path(file_path).stat()
             
