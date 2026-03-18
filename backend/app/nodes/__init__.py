@@ -49,6 +49,10 @@ from .processing.code_node import CodeNode
 from .processing.condition_node import ConditionNode
 from .processing.kafka_producer import KafkaProducerNode
 
+# Decorative Nodes
+from .decorative.sticky_note import StickyNoteNode
+
+
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
 # New code should use the metadata-based node discovery system
@@ -96,4 +100,7 @@ __all__ = [
     "ConditionNode",
     "KafkaProducerNode",
     "KafkaTriggerNode",
+
+    # Decorative
+    "StickyNoteNode",
 ]

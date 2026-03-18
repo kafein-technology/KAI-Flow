@@ -23,6 +23,8 @@ import { useExecutionsStore } from "~/stores/executions";
 import { useSmartSuggestions } from "~/stores/smartSuggestions";
 import StartNode from "../node/StartNode";
 import CustomEdge from "../common/CustomEdge";
+import StickyNoteNode from "../node/StickyNoteNode";
+
 
 import type {
   WorkflowData,
@@ -526,6 +528,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           name: uniqueName,  // Must be after spread to override nodeType.data.name
           metadata: nodeMetadata,
         },
+        ...(nodeType.type === "StickyNoteNode" 
+            ? { width: 200, height: 200, style: { width: 200, height: 200 } } 
+            : {}),
       };
 
       setNodes((nds: Node[]) => nds.concat(newNode));
@@ -1069,6 +1074,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           EndNode: (props: any) => (
             <EndNode {...props} isActive={activeNodes.includes(props.id)} />
           ),
+          StickyNoteNode: (props: any) => (
+            <StickyNoteNode {...props} />
+          ),
         } as Record<string, React.ComponentType<any> | null>
       ),
     [nodes, handleStartNodeExecution, executionLoading, activeNodes]
@@ -1201,7 +1209,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       // Don't open modal if it's already in config mode or a double click
-      if (node.data?.isConfigMode || event.detail === 2) {
+      if (node.data?.isConfigMode || event.detail === 2 || node.type === "StickyNoteNode") {
         return;
       }
 

@@ -181,6 +181,12 @@ const Navbar: React.FC<NavbarProps> = ({
           // Remove React Flow internal state and redundant metadata
           const { measured, selected, dragging, width, height, ...cleanNode } = node;
 
+          // Preserve dimensions for specifically resizable nodes like Sticky Note
+          if (node.type === "StickyNoteNode") {
+            if (width !== undefined) cleanNode.width = width;
+            if (height !== undefined) cleanNode.height = height;
+          }
+
           if (cleanNode.data) {
             // Remove redundant metadata that can be rehydrated from registry
             const { metadata, icon, description, displayName, inputs, outputs, ...cleanData } = cleanNode.data;
