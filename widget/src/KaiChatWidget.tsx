@@ -695,7 +695,7 @@ export default function KaiChatWidget({
                     onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                     onFocus={() => setIsInputFocused(true)}
                     onBlur={() => setIsInputFocused(false)}
-                    placeholder="Mesajınızı yazın..."
+                    placeholder="Write your message..."
                     className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm py-1 text-black"
                     disabled={isLoading}
                   />
