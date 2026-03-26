@@ -234,7 +234,7 @@ export default function ChatComponent({
           ref={inputRef}
           type="text"
           className="flex-1 border rounded-lg px-3 py-2 text-sm border-gray-600 bg-gray-800 text-gray-100 placeholder-gray-400 focus:outline-none focus:border-blue-400"
-          placeholder="Mesajınızı yazın..."
+          placeholder="Write your message..."
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
           onKeyDown={(e) => {
