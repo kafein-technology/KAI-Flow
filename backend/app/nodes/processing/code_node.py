@@ -668,7 +668,7 @@ class CodeNode(ProcessorNode):
             "category": "Processing",
             "node_type": NodeType.PROCESSOR,
             "icon": {"name": "code", "path": None, "alt": None},
-            "colors": ["orange-500", "red-600"],
+            "colors": ["red-500", "red-600"],
             "inputs": [
                 NodeInput(
                     name="input",
