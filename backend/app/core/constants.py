@@ -104,20 +104,7 @@ IMPLEMENTATION DETAILS:
 import os
 import logging
 from pathlib import Path
-from dotenv import load_dotenv
 
-backend_dir = Path(__file__).parent.parent.parent
-env_file = backend_dir / '.env'
-if env_file.exists():
-    load_dotenv(dotenv_path=env_file)
-
-# Also load from root directory (KAI-Flow/.env) if it exists, to support user's config
-root_dir = backend_dir.parent
-root_env_file = root_dir / '.env'
-if root_env_file.exists():
-    load_dotenv(dotenv_path=root_env_file)
-else:
-    logging.info("Root .env file not found")
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
@@ -142,11 +129,10 @@ DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))
 DB_POOL_PRE_PING = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
 
-# Credential encryption key - MUST be set via environment variable in production
-_default_credential_key = "dev-only-insecure-key-change-me"
-CREDENTIAL_MASTER_KEY = os.getenv("CREDENTIAL_MASTER_KEY", _default_credential_key)
-if CREDENTIAL_MASTER_KEY == _default_credential_key:
-    print("WARNING: Using default CREDENTIAL_MASTER_KEY. Set CREDENTIAL_MASTER_KEY environment variable in production!")
+# Credential encryption key - MUST be set via environment variable
+CREDENTIAL_MASTER_KEY = os.getenv("CREDENTIAL_MASTER_KEY")
+if not CREDENTIAL_MASTER_KEY:
+    raise RuntimeError("CREDENTIAL_MASTER_KEY environment variable is required. Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
 # Logging
 LOG_LEVEL = "DEBUG"
 DEBUG = os.getenv("BACKEND_DEBUG", "false").lower() in ("true", "1", "t")
