@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Formik } from "formik";
 import type { FormikHelpers } from "formik";
-import { Link, Navigate, useLocation } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
 import PublicOnlyGuard from "~/components/PublicOnlyGuard";
 
@@ -13,8 +13,9 @@ interface RegisterFormValues {
 }
 
 const Register = () => {
-  const { signUp, isAuthenticated, isLoading, error, clearError } = useAuth();
+  const { signUp, signOut, isAuthenticated, isLoading, error, clearError } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [status, setStatus] = useState<{ registerError?: string } | null>(null);
 
   // Get the redirect path from location state
@@ -40,8 +41,10 @@ const Register = () => {
           credential: values.password,
         },
       });
+      // We are immediately logging out of the system to prevent Auth Guard's automatic redirection.
+      await signOut();
       setStatus(null);
-      // Navigation will be handled by the auth guard
+      // Navigate to sign in page upon successful registration      navigate("/signin", { state: { message: "Registration successful. Please sign in." } });
     } catch (err: any) {
       console.log("err", err);
       // Show specific error if user already exists
@@ -51,10 +54,10 @@ const Register = () => {
       ) {
         setStatus({
           registerError:
-            "Bu e-posta ile zaten bir hesap var. Lütfen giriş yapın.",
+            "An account with this email already exists. Please sign in.",
         });
       } else {
-        setStatus({ registerError: err?.message || "Kayıt başarısız oldu." });
+        setStatus({ registerError: err?.message || "Sign up failed." });
       }
       console.error("Sign up failed:", err);
     } finally {
@@ -165,11 +168,10 @@ const Register = () => {
                     onBlur={handleBlur}
                     value={values.fullName}
                     disabled={isLoading || isSubmitting}
-                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                      errors.fullName && touched.fullName
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-300 bg-white hover:border-gray-400"
-                    }`}
+                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.fullName && touched.fullName
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-300 bg-white hover:border-gray-400"
+                      }`}
                     placeholder="John Doe"
                   />
                   {errors.fullName && touched.fullName && (
@@ -189,11 +191,10 @@ const Register = () => {
                     onBlur={handleBlur}
                     value={values.email}
                     disabled={isLoading || isSubmitting}
-                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                      errors.email && touched.email
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-300 bg-white hover:border-gray-400"
-                    }`}
+                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.email && touched.email
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-300 bg-white hover:border-gray-400"
+                      }`}
                     placeholder="user@company.com"
                   />
                   {errors.email && touched.email && (
@@ -213,11 +214,10 @@ const Register = () => {
                     onBlur={handleBlur}
                     value={values.password}
                     disabled={isLoading || isSubmitting}
-                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                      errors.password && touched.password
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-300 bg-white hover:border-gray-400"
-                    }`}
+                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.password && touched.password
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-300 bg-white hover:border-gray-400"
+                      }`}
                     placeholder="••••••"
                   />
                   {errors.password && touched.password && (
@@ -237,11 +237,10 @@ const Register = () => {
                     onBlur={handleBlur}
                     value={values.confirmPassword}
                     disabled={isLoading || isSubmitting}
-                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                      errors.confirmPassword && touched.confirmPassword
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-300 bg-white hover:border-gray-400"
-                    }`}
+                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.confirmPassword && touched.confirmPassword
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-300 bg-white hover:border-gray-400"
+                      }`}
                     placeholder="••••••"
                   />
                   {errors.confirmPassword && touched.confirmPassword && (
@@ -255,11 +254,10 @@ const Register = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting || isLoading}
-                  className={`w-full py-3 px-4 rounded-md font-medium text-white transition-all duration-200 ${
-                    isSubmitting || isLoading
-                      ? "bg-purple-400 cursor-not-allowed"
-                      : "bg-purple-600 hover:bg-purple-700 active:bg-purple-800"
-                  }`}
+                  className={`w-full py-3 px-4 rounded-md font-medium text-white transition-all duration-200 ${isSubmitting || isLoading
+                    ? "bg-purple-400 cursor-not-allowed"
+                    : "bg-purple-600 hover:bg-purple-700 active:bg-purple-800"
+                    }`}
                 >
                   {isSubmitting || isLoading ? (
                     <div className="flex items-center justify-center">
@@ -320,12 +318,12 @@ const Register = () => {
                 {/* Sign In Link */}
                 <div className="text-center mt-8">
                   <p className="text-sm text-gray-600">
-                    Zaten hesabınız var mı?{" "}
+                    Already have an account?{" "}
                     <Link
                       to="/signin"
                       className="text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
                     >
-                      Giriş yap
+                      Sign In
                     </Link>
                   </p>
                 </div>

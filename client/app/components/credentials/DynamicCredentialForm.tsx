@@ -86,7 +86,6 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
 
   const formValues = useMemo(() => {
     const values: Record<string, any> = {
-      api_key: initialValues.id,
       ...initialValues,
     };
 

@@ -129,21 +129,21 @@ class ApiClient {
                         } else {
                             this.processQueue(new Error('No refresh token'), null);
                             TokenManager.clearTokens();
-                            // Redirect to login
+                            // Hard redirect to login - forces full page reload to clear stale React state
                             if (typeof window !== 'undefined') {
                                 const basePath = window.VITE_BASE_PATH || '';
-                                window.history.pushState({}, '', `${basePath}/signin`);
-                                window.dispatchEvent(new PopStateEvent('popstate'));
+                                window.location.href = `${basePath}/signin`;
+                                return new Promise(() => {}); // Prevent further execution during redirect
                             }
                         }
                     } catch (refreshError) {
                         this.processQueue(refreshError, null);
                         TokenManager.clearTokens();
-                        // Redirect to login
+                        // Hard redirect to login - forces full page reload to clear stale React state
                         if (typeof window !== 'undefined') {
                             const basePath = window.VITE_BASE_PATH || '';
-                            window.history.pushState({}, '', `${basePath}/signin`);
-                            window.dispatchEvent(new PopStateEvent('popstate'));
+                            window.location.href = `${basePath}/signin`;
+                            return new Promise(() => {}); // Prevent further execution during redirect
                         }
                         return Promise.reject(refreshError);
                     } finally {

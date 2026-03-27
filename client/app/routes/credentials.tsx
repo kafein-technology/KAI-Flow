@@ -90,9 +90,18 @@ function CredentialsLayout() {
 
     setIsSubmitting(true);
     try {
+      // Strip metadata fields from values, only send actual credential fields as data
+      const metaFields = new Set(["id", "name", "service_type", "created_at", "updated_at", "data", "secret"]);
+      const credentialData: Record<string, any> = {};
+      for (const [key, value] of Object.entries(values)) {
+        if (!metaFields.has(key)) {
+          credentialData[key] = value;
+        }
+      }
+
       const payload: CredentialCreateRequest = {
         name: values.name || `${selectedService.name} Credential`,
-        data: values,
+        data: credentialData,
         service_type: selectedService.id,
       };
 
@@ -119,8 +128,8 @@ function CredentialsLayout() {
     }
     try {
       const detail = await getUserCredentialById(credential.id);
-      if ((detail as any)?.secret && typeof (detail as any).secret === "object") {
-        setEditingInitialValues((detail as any).secret);
+      if (detail?.secret && typeof detail.secret === "object") {
+        setEditingInitialValues(detail.secret);
       } else {
         setEditingInitialValues({});
       }
@@ -135,15 +144,25 @@ function CredentialsLayout() {
 
     setIsSubmitting(true);
     try {
+      // Strip metadata fields from values, only send actual credential fields as data
+      const metaFields = new Set(["id", "name", "service_type", "created_at", "updated_at", "data", "secret"]);
+      const credentialData: Record<string, any> = {};
+      for (const [key, value] of Object.entries(values)) {
+        if (!metaFields.has(key)) {
+          credentialData[key] = value;
+        }
+      }
+
       const payload: Partial<CredentialCreateRequest> = {
         name: values.name || editingCredential.name,
-        data: values,
+        data: credentialData,
         service_type: selectedService.id,
       };
 
       await updateCredential(editingCredential.id, payload);
       setEditingCredential(null);
       setSelectedService(null);
+      setEditingInitialValues({});
     } catch (e: any) {
       console.error("Failed to update credential:", e);
     } finally {

@@ -110,7 +110,7 @@ export default function GenericNodeForm({
   const handleSubmit = (values: any) => {
     // Filter out optional fields that were not explicitly added by the user
     const optionalFieldNames = properties
-      .filter((p: NodeProperty) => !p.required)
+      .filter((p: NodeProperty) => !p.required && !(p.displayOptions?.show))
       .map((p: NodeProperty) => p.name);
 
     const filteredValues = { ...values };
