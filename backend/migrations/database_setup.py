@@ -64,6 +64,14 @@ from sqlalchemy.sql.sqltypes import TypeEngine
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, backend_dir)
 
+# Load .env - Priority: root .env (ana dizin) > backend/.env
+from dotenv import load_dotenv
+_root_env = os.path.join(backend_dir, "..", ".env")
+_backend_env = os.path.join(backend_dir, ".env")
+if os.path.exists(_root_env):
+    load_dotenv(_root_env)
+if os.path.exists(_backend_env):
+    load_dotenv(_backend_env, override=False)
 
 # Logging configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
