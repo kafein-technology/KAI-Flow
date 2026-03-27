@@ -1,0 +1,418 @@
+{
+  "id": "kafka-template",
+  "name": "Kafka Template",
+  "description": "Automated Data Security (DLP) review pipeline. Listens to Kafka for column classification requests (REVIEW/SUSPECT), uses AI to validate sample data against security rules, and publishes the final decision back to Kafka.",
+  "colorFrom": "from-rose-400",
+  "colorTo": "to-rose-600",
+  "icon": {
+    "name": "kafka",
+    "path": "icons/kafka.svg",
+    "alt": "Kafka Icon"
+  },
+  "flow_data": {
+    "nodes": [
+      {
+        "id": "KafkaConsumer__b5148bd3-fd7a-4383-b77c-c06fd759f50f",
+        "data": {
+          "name": "kafka_consumer_trigger",
+          "topic": "ai-column-review-request",
+          "group_id": "kai-fusion-test-group",
+          "credential": "f94f7bc2-341d-496c-97d0-6b481d88bdf3",
+          "only_message": true,
+          "_active_optional_fields": [
+            "only_message"
+          ]
+        },
+        "type": "KafkaConsumer",
+        "position": {
+          "x": 450,
+          "y": 170
+        }
+      },
+      {
+        "id": "CodeNode__3e7f1a2b-8c4d-4e5f-9a0b-1c2d3e4f5a6b",
+        "data": {
+          "code": "import json\n\ntry:\n    raw_str = ${{kafka_consumer_trigger | tojson | tojson}}\n    data = json.loads(raw_str)\n\n    columns = data.get('columns')\n    if not columns or not isinstance(columns, dict):\n        print(json.dumps({\"__error__\": \"Missing or invalid 'columns' field in request.\"}))\n    else:\n        available_classifications = data.get('availableClassifications', [])\n        classification_rules = data.get('classificationRules', [])\n        confidence_threshold = data.get('confidenceThreshold', 0.85)\n\n        column_classification = columns.get('classificationType', '')\n        relevant_rules = []\n        for r in classification_rules:\n            if r.get('classificationType') == column_classification and r.get('enabled', True):\n                relevant_rules.append(r)\n\n        raw_samples = columns.get('sampleValues', [])\n        safe_samples = []\n        for sv in raw_samples[:5]:\n            s = str(sv) if not isinstance(sv, str) else sv\n            safe_samples.append(s[:200] + '...' if len(s) > 200 else s)\n\n        context = {\n            \"column\": {\n                \"columnId\": columns.get('columnId'),\n                \"columnName\": columns.get('columnName'),\n                \"tableName\": columns.get('tableName'),\n                \"schemaName\": columns.get('schemaName'),\n                \"columnType\": columns.get('columnType'),\n                \"classificationType\": columns.get('classificationType'),\n                \"classificationStatus\": columns.get('classificationStatus'),\n                \"classificationRatio\": columns.get('classificationRatio'),\n                \"sampleValues\": safe_samples\n            },\n            \"availableClassifications\": available_classifications,\n            \"relevantRules\": relevant_rules,\n            \"confidenceThreshold\": confidence_threshold\n        }\n        print(json.dumps(context, ensure_ascii=False, indent=2))\n\nexcept Exception as e:\n    error_payload = {\n        \"requestId\": data.get(\"requestId\", \"unknown\") if 'data' in locals() and isinstance(data, dict) else \"unknown\",\n        \"pipelineId\": data.get(\"pipelineId\", \"unknown\") if 'data' in locals() and isinstance(data, dict) else \"unknown\",\n        \"status\": \"FAILED\",\n        \"error_details\": {\n            \"error_type\": type(e).__name__,\n            \"message\": str(e)\n        },\n        \"classificationStatus\": \"FAILED_SYSTEM_ERROR\"\n    }\n    print(json.dumps(error_payload, ensure_ascii=False))\n",
+          "name": "code_node_context",
+          "language": "python",
+          "_active_optional_fields": []
+        },
+        "type": "CodeNode",
+        "position": {
+          "x": 620,
+          "y": 180
+        }
+      },
+      {
+        "id": "CodeNode__b50416aa-7f07-4133-8136-7d214f7f0117",
+        "data": {
+          "code": "import json\n\ntry:\n    raw_str = ${{kafka_consumer_trigger | tojson | tojson}}\n    raw_input = json.loads(raw_str)\n    context_out = json.loads(node_data) if isinstance(node_data, str) else node_data\n\n    is_error = (\n        (isinstance(context_out, dict) and ('__error__' in context_out or context_out.get('status') == 'FAILED'))\n        or (isinstance(context_out, str) and '__error__' in context_out)\n    )\n\n    if is_error:\n        print('ERROR')\n    else:\n        print(raw_input['columns']['classificationStatus'])\n\nexcept Exception as e:\n    print('ERROR')\n",
+          "name": "code_node_4",
+          "language": "python",
+          "_active_optional_fields": []
+        },
+        "type": "CodeNode",
+        "position": {
+          "x": 630,
+          "y": 340
+        }
+      },
+      {
+        "id": "ConditionNode__1b53f37b-49a0-4984-b39d-35179678330a",
+        "data": {
+          "name": "condition",
+          "value1": "${{code_node_4}}",
+          "value2": "REVIEW",
+          "data_type": "string",
+          "operation": "equal",
+          "_active_optional_fields": []
+        },
+        "type": "ConditionNode",
+        "position": {
+          "x": 790,
+          "y": 300
+        }
+      },
+      {
+        "id": "ConditionNode__0de13585-53f7-45be-948a-a13a59de1739",
+        "data": {
+          "name": "condition_1",
+          "value1": "${{code_node_4}}",
+          "value2": "SUSPECT",
+          "data_type": "string",
+          "operation": "equal",
+          "_active_optional_fields": []
+        },
+        "type": "ConditionNode",
+        "position": {
+          "x": 810,
+          "y": 450
+        }
+      },
+      {
+        "id": "OpenAICompatibleNode__1f8e29f3-512a-4bf4-ac59-0f2283847616",
+        "data": {
+          "name": "openai_compatible",
+          "base_url": "https://openrouter.ai/api/v1",
+          "max_tokens": 4096,
+          "model_name": "google/gemma-3n-e4b-it",
+          "temperature": 0.7,
+          "credential_id": "f9a53225-a025-4286-920c-68f3abcc64dc",
+          "_active_optional_fields": []
+        },
+        "type": "OpenAICompatibleNode",
+        "position": {
+          "x": 940,
+          "y": 300
+        }
+      },
+      {
+        "id": "Agent__1557dc58-641f-4c79-894f-e848c32c232a",
+        "data": {
+          "name": "agent",
+          "agent_type": "react",
+          "temperature": 0.7,
+          "enable_tools": true,
+          "enable_memory": false,
+          "system_prompt": "You are a Data Security (DLP) expert. Your task is to analyze a database column with status \"REVIEW\".\n\nYou will receive a JSON context as the user message containing:\n- \"column\": column metadata and sample values\n- \"availableClassifications\": all supported classification types\n- \"relevantRules\": active rules for this column's predicted type (list, regex, or algorithm based)\n- \"confidenceThreshold\": minimum confidence score required for automatic processing\n\nAnalyze the column and choose ONE of the following actions:\n\n1. \"CONFIRM\": The column has been reviewed and is correctly handled. → Result: SAFE (no classification assigned). Set suggestedClassificationType to null.\n2. \"FALSE_POSITIVE\": The data is definitely not sensitive (e.g. order number, random ID, standard text). → Result: SAFE (no classification assigned). Set suggestedClassificationType to null.\n3. \"OVERRIDE\": The data IS sensitive but the system predicted the wrong classification type. → Result: SENSITIVE (classification changes). You MUST set suggestedClassificationType to one of the values from availableClassifications.\n4. \"IGNORE\": Skip evaluation regardless of content. → Result: SAFE (no classification assigned). Set suggestedClassificationType to null.\n\nIf you are uncertain and cannot decide confidently, respond with suggestedAction \"MANUAL_REVIEW\" so a human can decide.\n\nOutput ONLY valid JSON — single object, no Markdown, no code fences:\n{\n  \"columnId\": \"<columnId from input>\",\n  \"suggestedAction\": \"CONFIRM\" | \"FALSE_POSITIVE\" | \"OVERRIDE\" | \"IGNORE\" | \"MANUAL_REVIEW\",\n  \"suggestedClassificationType\": null,\n  \"confidence\": <0.0 to 1.0>,\n  \"reason\": \"<brief explanation of your decision in 1-2 sentences>\"\n}\n\nCRITICAL RULES:\n- \"reason\" MUST always be a short explanation string (max 200 characters). Never null.\n- \"suggestedClassificationType\" MUST be null for CONFIRM, FALSE_POSITIVE, IGNORE, MANUAL_REVIEW.\n- \"suggestedClassificationType\" MUST be one of the availableClassifications values only for OVERRIDE.\n- For OVERRIDE: \"suggestedClassificationType\" MUST be a DIFFERENT type than the column's current \"classificationType\". If the current classification is already correct, use CONFIRM or FALSE_POSITIVE instead — never OVERRIDE to the same type.\n- CONFIRM means the column requires NO classification (it is safe/handled). Do NOT use CONFIRM if you believe the data belongs to a specific sensitive classification — use OVERRIDE instead.\n- Decision process: (1) Use column name as context and analyze sample values to determine what the data ACTUALLY represents. (2) Compare that conclusion to the current classificationType: if they match -> CONFIRM; if they differ and the correct type exists in availableClassifications -> OVERRIDE with the correct type; if the data is not sensitive -> FALSE_POSITIVE. Example: column 'country', current type TCKN, but sample values are country names like 'Turkey', 'Germany' -> the data is actually Country, not TCKN -> use OVERRIDE with suggestedClassificationType=Country.",
+          "max_iterations": 5,
+          "user_prompt_template": "${{code_node_context}}",
+          "_active_optional_fields": [
+            "system_prompt"
+          ]
+        },
+        "type": "Agent",
+        "position": {
+          "x": 940,
+          "y": 150
+        }
+      },
+      {
+        "id": "CodeNode__fc918b7f-a96a-4b12-b94b-fc880fa595cc",
+        "data": {
+          "code": "import json\n\ntry:\n    raw_str = ${{kafka_consumer_trigger | tojson | tojson}}\n    data = json.loads(raw_str)\n\n    request_id = data['requestId']\n    column_id = data['columns']['columnId']\n    confidence_threshold = float(data.get('confidenceThreshold', 0.85))\n\n    ai_response_raw = node_data if isinstance(node_data, str) else (str(node_data) if node_data is not None else \"\")\n    error_message = None\n\n    # 1. Detect structured FAILED response from agent\n    agent_failed = False\n    try:\n        _agent_dict = json.loads(ai_response_raw)\n        if isinstance(_agent_dict, dict) and _agent_dict.get('status') == 'FAILED':\n            agent_failed = True\n            error_message = (_agent_dict.get('error_details') or {}).get('message', 'Agent execution failed.')\n    except json.JSONDecodeError:\n        pass\n\n    # 2. Legacy error string detection\n    if agent_failed or not ai_response_raw or 'execution failed' in ai_response_raw or ai_response_raw.startswith('Error'):\n        if not error_message:\n            error_message = ai_response_raw[:500] if ai_response_raw else 'Agent returned no response.'\n        result_data = {\n            \"columnId\": column_id,\n            \"suggestedAction\": \"MANUAL_REVIEW\",\n            \"confidence\": 0.0,\n            \"reason\": None,\n            \"suggestedClassificationType\": None,\n            \"error\": error_message\n        }\n    else:\n        # 3. Clean and parse JSON response\n        clean_response = ai_response_raw.strip('` \\n')\n        if clean_response.lower().startswith('json'):\n            clean_response = clean_response[4:].strip()\n\n        result_data = None\n        if clean_response and clean_response[0] in ('{', '['):\n            try:\n                parsed = json.loads(clean_response)\n                result_data = parsed[0] if isinstance(parsed, list) else parsed\n            except json.JSONDecodeError as parse_err:\n                error_message = 'JSON parse error: ' + str(parse_err) + ' | Raw: ' + clean_response[:300]\n\n        if result_data is None:\n            result_data = {\n                \"columnId\": column_id,\n                \"suggestedAction\": \"MANUAL_REVIEW\",\n                \"confidence\": 0.0,\n                \"reason\": None,\n                \"suggestedClassificationType\": None,\n                \"error\": error_message if error_message else 'Agent returned non-JSON response: ' + ai_response_raw[:300]\n            }\n\n    # 4. Ensure columnId is always present\n    result_data.setdefault('columnId', column_id)\n\n    # 5. Normalize suggestedClassificationType\n    if result_data.get('suggestedClassificationType'):\n        result_data['suggestedClassificationType'] = result_data['suggestedClassificationType'].strip()\n\n    # 6. Confidence threshold: downgrade to MANUAL_REVIEW if below threshold\n    ai_confidence = float(result_data.get('confidence') or 0.0)\n    if result_data.get('suggestedAction') not in ('MANUAL_REVIEW', 'IGNORE') and ai_confidence < confidence_threshold:\n        result_data['suggestedAction'] = 'MANUAL_REVIEW'\n\n    # 7. REVIEW path: enforce business rules\n    action = result_data.get('suggestedAction')\n    if action in ('CONFIRM', 'FALSE_POSITIVE', 'IGNORE'):\n        # SAFE → no classification assigned\n        result_data['suggestedClassificationType'] = None\n    # OVERRIDE → SENSITIVE, classification changes (keep suggestedClassificationType)\n\n    print(json.dumps({'requestId': request_id, 'result': result_data}))\n\nexcept Exception as e:\n    error_payload = {\n        \"requestId\": data.get(\"requestId\", \"unknown\") if 'data' in locals() and isinstance(data, dict) else \"unknown\",\n        \"pipelineId\": data.get(\"pipelineId\", \"unknown\") if 'data' in locals() and isinstance(data, dict) else \"unknown\",\n        \"status\": \"FAILED\",\n        \"error_details\": {\n            \"error_type\": type(e).__name__,\n            \"message\": str(e)\n        },\n        \"classificationStatus\": \"FAILED_SYSTEM_ERROR\"\n    }\n    print(json.dumps(error_payload, ensure_ascii=False))\n",
+          "name": "code_node_1",
+          "language": "python",
+          "continue_on_error": true,
+          "_active_optional_fields": [
+            "continue_on_error"
+          ]
+        },
+        "type": "CodeNode",
+        "position": {
+          "x": 1140,
+          "y": 150
+        }
+      },
+      {
+        "id": "KafkaProducer__c7ab3201-9ec9-4bc2-826f-60ac44d76866",
+        "data": {
+          "name": "kafka_producer_2",
+          "topic": "ai-column-review-response",
+          "message": "${{code_node_1}}",
+          "credential": "f94f7bc2-341d-496c-97d0-6b481d88bdf3",
+          "json_encode": false,
+          "_active_optional_fields": []
+        },
+        "type": "KafkaProducer",
+        "position": {
+          "x": 1300,
+          "y": 150
+        }
+      },
+      {
+        "id": "OpenAICompatibleNode__9402ea8d-c58e-40ae-b6c1-dc14e8502a53",
+        "data": {
+          "name": "openai_compatible_1",
+          "base_url": "https://openrouter.ai/api/v1",
+          "max_tokens": 4096,
+          "model_name": "google/gemma-3n-e4b-it",
+          "temperature": 0.7,
+          "credential_id": "f9a53225-a025-4286-920c-68f3abcc64dc",
+          "_active_optional_fields": []
+        },
+        "type": "OpenAICompatibleNode",
+        "position": {
+          "x": 1000,
+          "y": 570
+        }
+      },
+      {
+        "id": "Agent__2209910b-2a87-436b-b47c-3d99b2b72aa3",
+        "data": {
+          "name": "agent_1",
+          "agent_type": "react",
+          "temperature": 0.7,
+          "enable_tools": true,
+          "enable_memory": false,
+          "system_prompt": "You are a Data Security (DLP) expert. Your task is to analyze a database column with status \"SUSPECT\".\n\nYou will receive a JSON context as the user message containing:\n- \"column\": column metadata and sample values\n- \"availableClassifications\": all supported classification types\n- \"relevantRules\": active rules for this column's predicted type (list, regex, or algorithm based)\n- \"confidenceThreshold\": minimum confidence score required for automatic processing\n\nAnalyze the column and choose ONE of the following actions:\n\n1. \"CONFIRM\": The system's suspicion is correct — this data IS sensitive. → Result: SENSITIVE (current classification is confirmed). Set suggestedClassificationType to the current classificationType value from the input column.\n2. \"FALSE_POSITIVE\": The data is definitely not sensitive (e.g. order number, random ID). → Result: SAFE (no classification assigned). Set suggestedClassificationType to null.\n3. \"OVERRIDE\": The data IS sensitive but the system predicted the wrong classification type. → Result: SENSITIVE (classification changes). You MUST set suggestedClassificationType to one of the values from availableClassifications.\n4. \"IGNORE\": Skip evaluation regardless of content or status. → Result: SAFE (no classification assigned). Set suggestedClassificationType to null.\n\nIf you are uncertain and cannot decide confidently, respond with suggestedAction \"MANUAL_REVIEW\" so a human can decide.\n\nOutput ONLY valid JSON — single object, no Markdown, no code fences:\n{\n  \"columnId\": \"<columnId from input>\",\n  \"suggestedAction\": \"CONFIRM\" | \"FALSE_POSITIVE\" | \"OVERRIDE\" | \"IGNORE\" | \"MANUAL_REVIEW\",\n  \"suggestedClassificationType\": null,\n  \"confidence\": <0.0 to 1.0>,\n  \"reason\": \"<brief explanation of your decision in 1-2 sentences>\"\n}\n\nCRITICAL RULES:\n- \"reason\" MUST always be a short explanation string (max 200 characters). Never null.\n- \"suggestedClassificationType\" for CONFIRM: copy the EXACT current classificationType string from the input column — do not change it.\n- \"suggestedClassificationType\" MUST be null for FALSE_POSITIVE, IGNORE, MANUAL_REVIEW.\n- \"suggestedClassificationType\" MUST be one of the availableClassifications values only for OVERRIDE.\n- For OVERRIDE: \"suggestedClassificationType\" MUST be a DIFFERENT type than the column's current \"classificationType\". If the current classification is already correct, use CONFIRM instead — never OVERRIDE to the same type.\n- CONFIRM means the sample values genuinely match the CURRENT classificationType. If you believe the data belongs to a DIFFERENT type than currently classified, you MUST use OVERRIDE — never CONFIRM.\n- SELF-CHECK before responding: If your reason mentions a type that DIFFERS from the current classificationType, you are making a contradiction — switch to OVERRIDE. Example: current type is TCKN but sample values are IBAN numbers → use OVERRIDE with suggestedClassificationType=IBAN, NOT CONFIRM.\n- Decision process: (1) Use column name as context and analyze sample values to determine what the data ACTUALLY represents. (2) Compare that conclusion to the current classificationType: if they match -> CONFIRM; if they differ and the correct type exists in availableClassifications -> OVERRIDE with the correct type; if the data is not sensitive -> FALSE_POSITIVE. Example: column 'country', current type TCKN, but sample values are country names like 'Turkey', 'Germany' -> the data is actually Country, not TCKN -> use OVERRIDE with suggestedClassificationType=Country.\n- If sample values are clearly NOT personal data (e.g. URLs, file paths, IP addresses, timestamps, numeric IDs with no pattern matching the current type), use FALSE_POSITIVE regardless of the current classificationType.",
+          "max_iterations": 5,
+          "user_prompt_template": "${{code_node_context}}",
+          "_active_optional_fields": [
+            "system_prompt"
+          ]
+        },
+        "type": "Agent",
+        "position": {
+          "x": 960,
+          "y": 420
+        }
+      },
+      {
+        "id": "CodeNode__4a82144f-9249-4916-aeb7-cdfbededed43",
+        "data": {
+          "code": "import json\n\ntry:\n    raw_str = ${{kafka_consumer_trigger | tojson | tojson}}\n    data = json.loads(raw_str)\n\n    request_id = data['requestId']\n    column_id = data['columns']['columnId']\n    confidence_threshold = float(data.get('confidenceThreshold', 0.85))\n\n    ai_response_raw = node_data if isinstance(node_data, str) else (str(node_data) if node_data is not None else \"\")\n    error_message = None\n\n    # 1. Detect structured FAILED response from agent\n    agent_failed = False\n    try:\n        _agent_dict = json.loads(ai_response_raw)\n        if isinstance(_agent_dict, dict) and _agent_dict.get('status') == 'FAILED':\n            agent_failed = True\n            error_message = (_agent_dict.get('error_details') or {}).get('message', 'Agent execution failed.')\n    except json.JSONDecodeError:\n        pass\n\n    # 2. Legacy error string detection\n    if agent_failed or not ai_response_raw or 'execution failed' in ai_response_raw or ai_response_raw.startswith('Error'):\n        if not error_message:\n            error_message = ai_response_raw[:500] if ai_response_raw else 'Agent returned no response.'\n        result_data = {\n            \"columnId\": column_id,\n            \"suggestedAction\": \"MANUAL_REVIEW\",\n            \"confidence\": 0.0,\n            \"reason\": None,\n            \"suggestedClassificationType\": None,\n            \"error\": error_message\n        }\n    else:\n        # 3. Clean and parse JSON response\n        clean_response = ai_response_raw.strip('` \\n')\n        if clean_response.lower().startswith('json'):\n            clean_response = clean_response[4:].strip()\n\n        result_data = None\n        if clean_response and clean_response[0] in ('{', '['):\n            try:\n                parsed = json.loads(clean_response)\n                result_data = parsed[0] if isinstance(parsed, list) else parsed\n            except json.JSONDecodeError as parse_err:\n                error_message = 'JSON parse error: ' + str(parse_err) + ' | Raw: ' + clean_response[:300]\n\n        if result_data is None:\n            result_data = {\n                \"columnId\": column_id,\n                \"suggestedAction\": \"MANUAL_REVIEW\",\n                \"confidence\": 0.0,\n                \"reason\": None,\n                \"suggestedClassificationType\": None,\n                \"error\": error_message if error_message else 'Agent returned non-JSON response: ' + ai_response_raw[:300]\n            }\n\n    # 4. Ensure columnId is always present\n    result_data.setdefault('columnId', column_id)\n\n    # 5. Normalize suggestedClassificationType\n    if result_data.get('suggestedClassificationType'):\n        result_data['suggestedClassificationType'] = result_data['suggestedClassificationType'].strip()\n\n    # 6. Confidence threshold: downgrade to MANUAL_REVIEW if below threshold\n    ai_confidence = float(result_data.get('confidence') or 0.0)\n    if result_data.get('suggestedAction') not in ('MANUAL_REVIEW', 'IGNORE') and ai_confidence < confidence_threshold:\n        result_data['suggestedAction'] = 'MANUAL_REVIEW'\n\n    # 7. SUSPECT path: enforce business rules\n    action = result_data.get('suggestedAction')\n    original_type = data.get('columns', {}).get('classificationType')\n    if action in ('FALSE_POSITIVE', 'IGNORE'):\n        # SAFE → no classification assigned\n        result_data['suggestedClassificationType'] = None\n    elif action == 'CONFIRM':\n        # SENSITIVE, classification stays → force exact original type regardless of what AI returned\n        result_data['suggestedClassificationType'] = original_type\n    # OVERRIDE → SENSITIVE, classification changes (keep suggestedClassificationType from AI)\n\n    print(json.dumps({'requestId': request_id, 'result': result_data}))\n\nexcept Exception as e:\n    error_payload = {\n        \"requestId\": data.get(\"requestId\", \"unknown\") if 'data' in locals() and isinstance(data, dict) else \"unknown\",\n        \"pipelineId\": data.get(\"pipelineId\", \"unknown\") if 'data' in locals() and isinstance(data, dict) else \"unknown\",\n        \"status\": \"FAILED\",\n        \"error_details\": {\n            \"error_type\": type(e).__name__,\n            \"message\": str(e)\n        },\n        \"classificationStatus\": \"FAILED_SYSTEM_ERROR\"\n    }\n    print(json.dumps(error_payload, ensure_ascii=False))\n",
+          "name": "code_node_3",
+          "language": "python",
+          "continue_on_error": true,
+          "_active_optional_fields": [
+            "continue_on_error"
+          ]
+        },
+        "type": "CodeNode",
+        "position": {
+          "x": 1150,
+          "y": 420
+        }
+      },
+      {
+        "id": "KafkaProducer__6b2a5d7c-e52d-4c71-af9a-b25cf1e441f0",
+        "data": {
+          "name": "kafka_producer_1",
+          "topic": "ai-column-review-response",
+          "message": "${{code_node_3}}",
+          "credential": "f94f7bc2-341d-496c-97d0-6b481d88bdf3",
+          "json_encode": false,
+          "_active_optional_fields": []
+        },
+        "type": "KafkaProducer",
+        "position": {
+          "x": 1300,
+          "y": 420
+        }
+      },
+      {
+        "id": "CodeNode__02827c7e-69c3-4db3-85e9-b124d495070e",
+        "data": {
+          "code": "import json\n\ntry:\n    raw_str = ${{kafka_consumer_trigger | tojson | tojson}}\n    data = json.loads(raw_str)\n    request_id = data.get('requestId', '')\n    column_id = data.get('columns', {}).get('columnId', '')\n\n    ctx_str = ${{code_node_context | tojson | tojson}}\n    context_out = json.loads(ctx_str)\n    if not isinstance(context_out, dict):\n        context_out = {}\n\n    if '__error__' in context_out:\n        error_msg = context_out['__error__']\n    elif context_out.get('status') == 'FAILED':\n        error_msg = (context_out.get('error_details') or {}).get('message', 'Upstream node failed.')\n    else:\n        error_msg = 'Classification status not supported or an unexpected error occurred.'\n\n    output = {\n        \"requestId\": request_id,\n        \"result\": {\n            \"columnId\": column_id,\n            \"suggestedAction\": \"MANUAL_REVIEW\",\n            \"suggestedClassificationType\": None,\n            \"confidence\": 0.0,\n            \"reason\": \"Automatic classification failed. Manual review required. Error: \" + str(error_msg)[:300],\n            \"error\": error_msg\n        }\n    }\n    print(json.dumps(output))\n\nexcept Exception as e:\n    fallback = {\n        \"requestId\": data.get('requestId', 'unknown') if 'data' in locals() and isinstance(data, dict) else 'unknown',\n        \"result\": {\n            \"columnId\": data.get('columns', {}).get('columnId', 'unknown') if 'data' in locals() and isinstance(data, dict) else 'unknown',\n            \"suggestedAction\": \"MANUAL_REVIEW\",\n            \"suggestedClassificationType\": None,\n            \"confidence\": 0.0,\n            \"reason\": \"System error during processing. Manual review required.\",\n            \"error\": type(e).__name__ + \": \" + str(e)\n        }\n    }\n    print(json.dumps(fallback, ensure_ascii=False))\n",
+          "name": "code_node_9",
+          "language": "python",
+          "continue_on_error": true,
+          "_active_optional_fields": [
+            "continue_on_error"
+          ]
+        },
+        "type": "CodeNode",
+        "position": {
+          "x": 970,
+          "y": 710
+        }
+      },
+      {
+        "id": "KafkaProducer__d91922e8-8a6a-478c-9d70-a1550505a0f4",
+        "data": {
+          "name": "kafka_producer",
+          "topic": "ai-column-review-response",
+          "message": "${{code_node_9}}",
+          "credential": "f94f7bc2-341d-496c-97d0-6b481d88bdf3",
+          "json_encode": false,
+          "_active_optional_fields": []
+        },
+        "type": "KafkaProducer",
+        "position": {
+          "x": 1160,
+          "y": 710
+        }
+      },
+      {
+        "id": "EndNode__1533e16f-4ecc-4d68-af4c-e6bbdca01704",
+        "data": {
+          "name": "end_1"
+        },
+        "type": "EndNode",
+        "position": {
+          "x": 1490,
+          "y": 490
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "xy-edge__KafkaConsumer__b5148bd3-fd7a-4383-b77c-c06fd759f50fkafka_data-CodeNode__3e7f1a2b-8c4d-4e5f-9a0b-1c2d3e4f5a6binput",
+        "type": "custom",
+        "source": "KafkaConsumer__b5148bd3-fd7a-4383-b77c-c06fd759f50f",
+        "target": "CodeNode__3e7f1a2b-8c4d-4e5f-9a0b-1c2d3e4f5a6b",
+        "sourceHandle": "kafka_data",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__CodeNode__3e7f1a2b-8c4d-4e5f-9a0b-1c2d3e4f5a6boutput-CodeNode__b50416aa-7f07-4133-8136-7d214f7f0117input",
+        "type": "custom",
+        "source": "CodeNode__3e7f1a2b-8c4d-4e5f-9a0b-1c2d3e4f5a6b",
+        "target": "CodeNode__b50416aa-7f07-4133-8136-7d214f7f0117",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__CodeNode__b50416aa-7f07-4133-8136-7d214f7f0117output-ConditionNode__1b53f37b-49a0-4984-b39d-35179678330ainput",
+        "type": "custom",
+        "source": "CodeNode__b50416aa-7f07-4133-8136-7d214f7f0117",
+        "target": "ConditionNode__1b53f37b-49a0-4984-b39d-35179678330a",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__ConditionNode__1b53f37b-49a0-4984-b39d-35179678330atrue_output-Agent__1557dc58-641f-4c79-894f-e848c32c232ainput",
+        "type": "custom",
+        "source": "ConditionNode__1b53f37b-49a0-4984-b39d-35179678330a",
+        "target": "Agent__1557dc58-641f-4c79-894f-e848c32c232a",
+        "sourceHandle": "true_output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__ConditionNode__1b53f37b-49a0-4984-b39d-35179678330afalse_output-ConditionNode__0de13585-53f7-45be-948a-a13a59de1739input",
+        "type": "custom",
+        "source": "ConditionNode__1b53f37b-49a0-4984-b39d-35179678330a",
+        "target": "ConditionNode__0de13585-53f7-45be-948a-a13a59de1739",
+        "sourceHandle": "false_output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__ConditionNode__0de13585-53f7-45be-948a-a13a59de1739true_output-Agent__2209910b-2a87-436b-b47c-3d99b2b72aa3input",
+        "type": "custom",
+        "source": "ConditionNode__0de13585-53f7-45be-948a-a13a59de1739",
+        "target": "Agent__2209910b-2a87-436b-b47c-3d99b2b72aa3",
+        "sourceHandle": "true_output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__ConditionNode__0de13585-53f7-45be-948a-a13a59de1739false_output-CodeNode__02827c7e-69c3-4db3-85e9-b124d495070einput",
+        "type": "custom",
+        "source": "ConditionNode__0de13585-53f7-45be-948a-a13a59de1739",
+        "target": "CodeNode__02827c7e-69c3-4db3-85e9-b124d495070e",
+        "sourceHandle": "false_output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__OpenAICompatibleNode__1f8e29f3-512a-4bf4-ac59-0f2283847616llm-Agent__1557dc58-641f-4c79-894f-e848c32c232allm",
+        "type": "custom",
+        "source": "OpenAICompatibleNode__1f8e29f3-512a-4bf4-ac59-0f2283847616",
+        "target": "Agent__1557dc58-641f-4c79-894f-e848c32c232a",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
+      },
+      {
+        "id": "xy-edge__Agent__1557dc58-641f-4c79-894f-e848c32c232aoutput-CodeNode__fc918b7f-a96a-4b12-b94b-fc880fa595ccinput",
+        "type": "custom",
+        "source": "Agent__1557dc58-641f-4c79-894f-e848c32c232a",
+        "target": "CodeNode__fc918b7f-a96a-4b12-b94b-fc880fa595cc",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__CodeNode__fc918b7f-a96a-4b12-b94b-fc880fa595ccoutput-KafkaProducer__c7ab3201-9ec9-4bc2-826f-60ac44d76866input",
+        "type": "custom",
+        "source": "CodeNode__fc918b7f-a96a-4b12-b94b-fc880fa595cc",
+        "target": "KafkaProducer__c7ab3201-9ec9-4bc2-826f-60ac44d76866",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__KafkaProducer__c7ab3201-9ec9-4bc2-826f-60ac44d76866output-EndNode__1533e16f-4ecc-4d68-af4c-e6bbdca01704target",
+        "type": "custom",
+        "source": "KafkaProducer__c7ab3201-9ec9-4bc2-826f-60ac44d76866",
+        "target": "EndNode__1533e16f-4ecc-4d68-af4c-e6bbdca01704",
+        "sourceHandle": "output",
+        "targetHandle": "target"
+      },
+      {
+        "id": "xy-edge__OpenAICompatibleNode__9402ea8d-c58e-40ae-b6c1-dc14e8502a53llm-Agent__2209910b-2a87-436b-b47c-3d99b2b72aa3llm",
+        "type": "custom",
+        "source": "OpenAICompatibleNode__9402ea8d-c58e-40ae-b6c1-dc14e8502a53",
+        "target": "Agent__2209910b-2a87-436b-b47c-3d99b2b72aa3",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
+      },
+      {
+        "id": "xy-edge__Agent__2209910b-2a87-436b-b47c-3d99b2b72aa3output-CodeNode__4a82144f-9249-4916-aeb7-cdfbededed43input",
+        "type": "custom",
+        "source": "Agent__2209910b-2a87-436b-b47c-3d99b2b72aa3",
+        "target": "CodeNode__4a82144f-9249-4916-aeb7-cdfbededed43",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__CodeNode__4a82144f-9249-4916-aeb7-cdfbededed43output-KafkaProducer__6b2a5d7c-e52d-4c71-af9a-b25cf1e441f0input",
+        "type": "custom",
+        "source": "CodeNode__4a82144f-9249-4916-aeb7-cdfbededed43",
+        "target": "KafkaProducer__6b2a5d7c-e52d-4c71-af9a-b25cf1e441f0",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__KafkaProducer__6b2a5d7c-e52d-4c71-af9a-b25cf1e441f0output-EndNode__1533e16f-4ecc-4d68-af4c-e6bbdca01704target",
+        "type": "custom",
+        "source": "KafkaProducer__6b2a5d7c-e52d-4c71-af9a-b25cf1e441f0",
+        "target": "EndNode__1533e16f-4ecc-4d68-af4c-e6bbdca01704",
+        "sourceHandle": "output",
+        "targetHandle": "target"
+      },
+      {
+        "id": "xy-edge__CodeNode__02827c7e-69c3-4db3-85e9-b124d495070eoutput-KafkaProducer__d91922e8-8a6a-478c-9d70-a1550505a0f4input",
+        "type": "custom",
+        "source": "CodeNode__02827c7e-69c3-4db3-85e9-b124d495070e",
+        "target": "KafkaProducer__d91922e8-8a6a-478c-9d70-a1550505a0f4",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__KafkaProducer__d91922e8-8a6a-478c-9d70-a1550505a0f4output-EndNode__1533e16f-4ecc-4d68-af4c-e6bbdca01704target",
+        "type": "custom",
+        "source": "KafkaProducer__d91922e8-8a6a-478c-9d70-a1550505a0f4",
+        "target": "EndNode__1533e16f-4ecc-4d68-af4c-e6bbdca01704",
+        "sourceHandle": "output",
+        "targetHandle": "target"
+      }
+    ]
+  }
+}

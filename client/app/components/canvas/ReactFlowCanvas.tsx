@@ -61,8 +61,8 @@ export default function ReactFlowCanvas({
             status === 'success'
               ? { outline: '2px solid #22c55e', outlineOffset: 2, borderRadius: 12 }
               : status === 'failed'
-              ? { outline: '2px solid #ef4444', outlineOffset: 2, borderRadius: 12 }
-              : {};
+                ? { outline: '2px solid #ef4444', outlineOffset: 2, borderRadius: 12 }
+                : {};
           return {
             ...node,
             style: { ...(node.style || {}), ...statusStyle },
@@ -85,6 +85,7 @@ export default function ReactFlowCanvas({
         snapGrid={[10, 10]}
         fitView
         onNodeClick={onNodeClick}
+        proOptions={{ hideAttribution: true }}
       >
         <Controls position="top-right" className="bg-background text-black" />
         <Background gap={20} size={1} />
