@@ -43,6 +43,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           // Token bozuksa interceptor zaten yönlendirir
           setUser(null);
           setIsAuthenticated(false);
+          setChecking(false);
           setShouldRedirect(true);
           return;
         }

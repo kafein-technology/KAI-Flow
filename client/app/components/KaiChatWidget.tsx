@@ -667,7 +667,7 @@ export default function KaiChatWidget({
                       setTimeout(() => inputRef.current?.focus(), 0);
                     }
                   }}
-                  placeholder="Mesajınızı yazın..."
+                  placeholder="Write your message..."
                   className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm py-1"
                   disabled={isLoading}
                 />

@@ -45,7 +45,7 @@ class CredentialDetailResponse(BaseModel):
     service_type: str
     created_at: datetime
     updated_at: datetime
-    # Note: We don't include the actual secret data in responses for security
+    secret: Optional[Dict[str, Any]] = None  # Only included when fetching single credential for editing
 
     class Config:
         from_attributes = True
