@@ -557,7 +557,7 @@ function ExecutionsPage() {
                 {/* Executions Table */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full table-fixed">
+                    <table className="min-w-[1100px] w-full">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="w-10 px-3 py-3 text-left">
@@ -573,22 +573,22 @@ function ExecutionsPage() {
                               className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                             />
                           </th>
-                          <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="min-w-[180px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Workflow
                           </th>
-                          <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="min-w-[120px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Status
                           </th>
-                          <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="min-w-[120px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Started
                           </th>
-                          <th className="w-[8%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="min-w-[100px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Duration
                           </th>
-                          <th className="w-[22%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="min-w-[200px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Input
                           </th>
-                          <th className="w-[22%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="min-w-[200px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Output
                           </th>
                           <th className="w-12 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -616,7 +616,7 @@ function ExecutionsPage() {
                               <div className="flex items-center">
                                 <Play className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0" />
                                 <div className="min-w-0">
-                                  <div className="text-sm font-medium text-gray-900 truncate">
+                                  <div className="text-sm font-medium text-gray-900">
                                     {getWorkflowName(execution.workflow_id)}
                                   </div>
                                   <div className="text-xs text-gray-500">
@@ -655,10 +655,10 @@ function ExecutionsPage() {
                                 execution.completed_at
                               )}
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-900 truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Input Data", getInputData(execution))}>
+                            <td className="px-3 py-4 text-sm text-gray-900 max-w-[300px] truncate cursor-pointer hover:text-purple-600 transition-colors" title={formatDataForDisplay(getInputData(execution))} onClick={() => handleViewClick("Input Data", getInputData(execution))}>
                               {formatDataForDisplay(getInputData(execution))}
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-900 truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Output Data", getOutputData(execution))}>
+                            <td className="px-3 py-4 text-sm text-gray-900 max-w-[300px] truncate cursor-pointer hover:text-purple-600 transition-colors" title={formatDataForDisplay(getOutputData(execution))} onClick={() => handleViewClick("Output Data", getOutputData(execution))}>
                               {formatDataForDisplay(getOutputData(execution))}
                             </td>
                             <td className="px-3 py-4 text-right">
