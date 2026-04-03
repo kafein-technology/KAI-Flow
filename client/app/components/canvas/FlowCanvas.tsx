@@ -805,7 +805,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                       'ReactAgentNode', 'Agent', // Added 'Agent'
                       'VectorStoreOrchestrator',
                       'ChunkSplitterNode', 'ChunkSplitter',
-                      'CodeNode', 'ConditionNode'
+                      'CodeNode', 'ConditionNode', 'JsonParserNode'
                     ];
                     const isProcessorNode = currentNode && processorTypes.some(pt =>
                       currentNode.type?.includes(pt) || currentNode.type === pt
@@ -1779,7 +1779,7 @@ function useChatExecutionListener(
             'ReactAgentNode', 'Agent', // Added 'Agent'
             'VectorStoreOrchestrator',
             'ChunkSplitterNode', 'ChunkSplitter',
-            'CodeNode', 'ConditionNode'
+            'CodeNode', 'ConditionNode', 'JsonParserNode'
           ];
           const isProcessorNode = actualNode.type && processorTypes.some(pt =>
             actualNode.type?.includes(pt) || actualNode.type === pt

@@ -110,6 +110,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
         // Processing Nodes
         CodeNode: "icons/code.svg",
         ConditionNode: "icons/condition.svg",
+        JsonParserNode: "icons/parser.svg",
     };
 
     const relativePath = relativePaths[nodeType];
