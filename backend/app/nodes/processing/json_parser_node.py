@@ -194,14 +194,10 @@ class JsonParserNode(ProcessorNode):
 
         return input_data
 
-    def _clean_json_string(self, raw: str) -> str:
+    def _strip_wrappers(self, raw: str) -> str:
         """
-        Clean up a raw JSON string by removing common LLM artifacts.
-
-        Handles:
-        - Markdown code block wrappers (```json ... ```)
-        - Literal escaped newlines and tabs
-        - Leading/trailing whitespace and quotes
+        Remove markdown code fences and surrounding quotes without
+        touching escape sequences. This is safe to run before json.loads().
         """
         text = raw.strip()
 
@@ -210,9 +206,6 @@ class JsonParserNode(ProcessorNode):
         match = re.search(pattern, text)
         if match:
             text = match.group(1).strip()
-
-        # Replace literal \\n and \\t with actual whitespace
-        text = text.replace("\\n", "\n").replace("\\t", "\t")
 
         # Remove wrapping double-quotes around the whole JSON object/array
         if (
@@ -229,6 +222,17 @@ class JsonParserNode(ProcessorNode):
                 pass
 
         return text.strip()
+
+    def _unescape_and_parse(self, text: str) -> Any:
+        """
+        Fallback parser for double-escaped LLM output.
+
+        Only called when the initial json.loads() fails, so we know the
+        input is not valid JSON as-is. Replacing literal \\n / \\t here
+        is safe because the original parse already failed.
+        """
+        unescaped = text.replace("\\n", "\n").replace("\\t", "\t")
+        return json.loads(unescaped)
 
     def _extract_by_key(self, data: Any, key_path: str) -> Any:
         """
@@ -294,11 +298,26 @@ class JsonParserNode(ProcessorNode):
             connected = connected_nodes.get("input")
             if connected is not None:
                 extracted = self._extract_primary_output(connected)
-                raw_text = (
-                    extracted
-                    if isinstance(extracted, str)
-                    else json.dumps(extracted, ensure_ascii=False)
-                )
+                if isinstance(extracted, str):
+                    raw_text = extracted
+                elif isinstance(extracted, (dict, list)):
+                    # Already parsed - skip the string->parse roundtrip
+                    raw_text = extracted
+                else:
+                    try:
+                        raw_text = json.dumps(extracted, ensure_ascii=False)
+                    except (TypeError, ValueError) as e:
+                        logger.warning(
+                            f"Connected node output is not JSON-serializable: {e}"
+                        )
+                        return {
+                            "output": None,
+                            "parsed_data": None,
+                            "is_valid": False,
+                            "error": (
+                                f"Connected node output is not JSON-serializable: {e}"
+                            ),
+                        }
 
         if not raw_text or (isinstance(raw_text, str) and not raw_text.strip()):
             return {
@@ -312,22 +331,36 @@ class JsonParserNode(ProcessorNode):
         if isinstance(raw_text, (dict, list)):
             parsed = raw_text
         else:
-            # Clean up if enabled and mode is not strict
             text_to_parse = raw_text
-            if clean_output and parse_mode != "strict":
-                text_to_parse = self._clean_json_string(raw_text)
 
-            # Parse JSON
+            # Step 1: strip wrappers (code fences, outer quotes) - always safe
+            if clean_output and parse_mode != "strict":
+                text_to_parse = self._strip_wrappers(raw_text)
+
+            # Step 2: try parsing the cleaned text first
             try:
                 parsed = json.loads(text_to_parse)
-            except json.JSONDecodeError as e:
-                logger.warning(f"JSON parse error: {e}")
-                return {
-                    "output": raw_text,
-                    "parsed_data": None,
-                    "is_valid": False,
-                    "error": f"Invalid JSON: {e}",
-                }
+            except json.JSONDecodeError:
+                # Step 3: fallback - unescape double-escaped sequences and retry
+                if clean_output and parse_mode != "strict":
+                    try:
+                        parsed = self._unescape_and_parse(text_to_parse)
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"JSON parse error: {e}")
+                        return {
+                            "output": raw_text,
+                            "parsed_data": None,
+                            "is_valid": False,
+                            "error": f"Invalid JSON: {e}",
+                        }
+                else:
+                    logger.warning("JSON parse error in strict mode")
+                    return {
+                        "output": raw_text,
+                        "parsed_data": None,
+                        "is_valid": False,
+                        "error": "Invalid JSON in strict mode",
+                    }
 
         # Extract specific key if requested
         if parse_mode == "extract" and extract_key:
@@ -337,8 +370,8 @@ class JsonParserNode(ProcessorNode):
                 logger.warning(f"Key extraction error: {e}")
                 return {
                     "output": None,
-                    "parsed_data": None,
-                    "is_valid": True,
+                    "parsed_data": parsed,
+                    "is_valid": False,
                     "error": f"Extraction failed: {e}",
                 }
 

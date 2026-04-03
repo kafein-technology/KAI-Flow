@@ -48,6 +48,7 @@ from .text_processing.string_input_node import StringInputNode
 from .processing.code_node import CodeNode
 from .processing.condition_node import ConditionNode
 from .processing.kafka_producer import KafkaProducerNode
+from .processing.json_parser_node import JsonParserNode
 
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
@@ -96,4 +97,5 @@ __all__ = [
     "ConditionNode",
     "KafkaProducerNode",
     "KafkaTriggerNode",
+    "JsonParserNode",
 ]
