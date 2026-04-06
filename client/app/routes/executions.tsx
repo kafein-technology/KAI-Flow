@@ -597,7 +597,7 @@ function ExecutionsPage() {
                         <col style={{ width: columnWidths.duration }} />
                         <col style={{ width: columnWidths.input }} />
                         <col style={{ width: columnWidths.output }} />
-                        <col style={{ width: 48 }} />
+                        <col style={{ width: 80 }} />
                       </colgroup>
                       <thead className="bg-gray-50">
                         <tr>
