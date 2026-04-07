@@ -833,7 +833,7 @@ class GraphBuilder:
                         
                         if last_node_output:
                             state_dict["last_output"] = last_node_output
-                            logger.info(f"Extracted last_output from node_outputs: {last_node_output[:100]}")
+                            logger.info(f"Extracted last_output from node_outputs: {str(last_node_output)[:100]}")
                 
             except Exception as e:
                 logger.error(f"Error converting result_state to dict: {e}", exc_info=True)
@@ -859,10 +859,10 @@ class GraphBuilder:
                             else:
                                 result_output = str(output)
                             if result_output:
-                                logger.info(f"Extracted result from node_outputs[{node_id}]: {result_output[:100]}")
+                                logger.info(f"Extracted result from node_outputs[{node_id}]: {str(result_output)[:100]}")
                                 break
             
-            logger.info(f"Final result output: {result_output[:100] if result_output else '(empty)'}")
+            logger.info(f"Final result output: {str(result_output)[:100] if result_output else '(empty)'}")
             
             return {
                 "success": True,
