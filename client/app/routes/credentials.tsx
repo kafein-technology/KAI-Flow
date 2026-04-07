@@ -11,6 +11,7 @@ import {
   Cloud,
   Settings,
 } from "lucide-react";
+import { testUserCredential } from "~/services/userCredentialService";
 import React, { useState, useEffect } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useUserCredentialStore } from "../stores/userCredential";
@@ -178,6 +179,10 @@ function CredentialsLayout() {
     }
   };
 
+  const handleTestCredential = async (id: string) => {
+    return await testUserCredential(id);
+  };
+
   const getCategoryIcon = (category: string) => {
     const icons: Record<string, React.ReactNode> = {
       ai: <Zap className="w-4 h-4" />,
@@ -307,6 +312,7 @@ function CredentialsLayout() {
                     credential={credential}
                     onEdit={handleEditCredential}
                     onDelete={handleDeleteCredential}
+                    onTest={handleTestCredential}
                   />
                 ))}
               </div>

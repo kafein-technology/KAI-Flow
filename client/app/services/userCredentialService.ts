@@ -22,3 +22,7 @@ export const updateUserCredential = async (id: string, data: Partial<CredentialC
 export const deleteUserCredential = async (id: string): Promise<{ message: string; deleted_id: string }> => {
   return await apiClient.delete<{ message: string; deleted_id: string }>(API_ENDPOINTS.CREDENTIALS.DELETE(id));
 };
+
+export const testUserCredential = async (id: string): Promise<{ success: boolean; message: string }> => {
+  return await apiClient.post<{ success: boolean; message: string }>(API_ENDPOINTS.CREDENTIALS.TEST(id), {});
+};
