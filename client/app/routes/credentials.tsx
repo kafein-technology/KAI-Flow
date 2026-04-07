@@ -11,7 +11,6 @@ import {
   Cloud,
   Settings,
 } from "lucide-react";
-import { testUserCredential } from "~/services/userCredentialService";
 import React, { useState, useEffect } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useUserCredentialStore } from "../stores/userCredential";
@@ -179,10 +178,6 @@ function CredentialsLayout() {
     }
   };
 
-  const handleTestCredential = async (id: string) => {
-    return await testUserCredential(id);
-  };
-
   const getCategoryIcon = (category: string) => {
     const icons: Record<string, React.ReactNode> = {
       ai: <Zap className="w-4 h-4" />,
@@ -248,8 +243,8 @@ function CredentialsLayout() {
                 <button
                   onClick={() => setSelectedCategory("all")}
                   className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${selectedCategory === "all"
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
                     }`}
                 >
                   <div className="flex items-center gap-2">
@@ -262,8 +257,8 @@ function CredentialsLayout() {
                     key={category}
                     onClick={() => setSelectedCategory(category)}
                     className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${selectedCategory === category
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
                       }`}
                   >
                     <div className="flex items-center gap-2">
@@ -312,7 +307,6 @@ function CredentialsLayout() {
                     credential={credential}
                     onEdit={handleEditCredential}
                     onDelete={handleDeleteCredential}
-                    onTest={handleTestCredential}
                   />
                 ))}
               </div>
@@ -338,8 +332,8 @@ function CredentialsLayout() {
                           key={p}
                           onClick={() => setPage(p)}
                           className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-all duration-200 ${p === page
-                              ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
-                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
                             }`}
                         >
                           {p}
