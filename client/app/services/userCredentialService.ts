@@ -26,3 +26,13 @@ export const deleteUserCredential = async (id: string): Promise<{ message: strin
 export const testUserCredential = async (id: string): Promise<{ success: boolean; message: string }> => {
   return await apiClient.post<{ success: boolean; message: string }>(API_ENDPOINTS.CREDENTIALS.TEST(id), {});
 };
+
+export const testCredentialRaw = async (
+  serviceType: string,
+  data: Record<string, any>
+): Promise<{ success: boolean; message: string }> => {
+  return await apiClient.post<{ success: boolean; message: string }>(
+    API_ENDPOINTS.CREDENTIALS.TEST_RAW,
+    { service_type: serviceType, data }
+  );
+};

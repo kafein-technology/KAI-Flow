@@ -75,6 +75,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/credentials/${id}`,
     DELETE: (id: string) => `/credentials/${id}`,
     TEST: (id: string) => `/credentials/${id}/test`,
+    TEST_RAW: '/credentials/test-raw',
   },
   API_KEYS: {
     LIST: '/api-keys',

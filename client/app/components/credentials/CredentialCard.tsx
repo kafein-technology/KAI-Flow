@@ -37,7 +37,10 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
       setTestState("error");
       setTestMessage("Unexpected error. Please try again.");
     }
-    setTimeout(() => setTestState("idle"), 4000);
+    setTimeout(() => {
+      setTestState("idle");
+      setTestMessage("");
+    }, 4000);
   };
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">

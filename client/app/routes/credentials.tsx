@@ -11,7 +11,7 @@ import {
   Cloud,
   Settings,
 } from "lucide-react";
-import { testUserCredential } from "~/services/userCredentialService";
+import { testUserCredential, testCredentialRaw } from "~/services/userCredentialService";
 import React, { useState, useEffect } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useUserCredentialStore } from "../stores/userCredential";
@@ -420,6 +420,10 @@ function CredentialsLayout() {
                   setSelectedService(null);
                   setEditingCredential(null);
                   setEditingInitialValues({});
+                }}
+                onTest={async (values) => {
+                  const { name, ...data } = values;
+                  return await testCredentialRaw(selectedService.id, data);
                 }}
                 initialValues={
                   editingCredential

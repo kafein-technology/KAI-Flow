@@ -310,6 +310,11 @@ class CredentialTestResponse(BaseModel):
     message: str
 
 
+class CredentialTestRawRequest(BaseModel):
+    service_type: str
+    data: Dict[str, Any]
+
+
 async def _test_openai(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
         from openai import AsyncOpenAI
@@ -320,7 +325,13 @@ async def _test_openai(secret: Dict[str, Any]) -> CredentialTestResponse:
     except asyncio.TimeoutError:
         return CredentialTestResponse(success=False, message="Connection timed out.")
     except Exception as e:
-        return CredentialTestResponse(success=False, message=str(e))
+        msg = str(e)
+        if "invalid" in msg.lower() or "auth" in msg.lower():
+            msg += (
+                " Note: If this key is for an OpenAI-compatible provider "
+                "(OpenRouter, vLLM, etc.), it may still be valid for that provider."
+            )
+        return CredentialTestResponse(success=False, message=msg)
 
 
 async def _test_cohere(secret: Dict[str, Any]) -> CredentialTestResponse:
@@ -419,6 +430,39 @@ def _test_webhook_auth(secret: Dict[str, Any], service_type: str) -> CredentialT
     return CredentialTestResponse(success=False, message="Unknown credential type.")
 
 
+async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Route a test request to the appropriate handler based on service type."""
+    if service_type == "openai":
+        return await _test_openai(secret)
+    elif service_type == "cohere":
+        return await _test_cohere(secret)
+    elif service_type == "tavily_search":
+        return await _test_tavily(secret)
+    elif service_type == "postgresql_vectorstore":
+        return await _test_postgresql(secret)
+    elif service_type == "kafka":
+        return await _test_kafka(secret)
+    elif service_type in ("basic_auth", "header_auth"):
+        return _test_webhook_auth(secret, service_type)
+    else:
+        return CredentialTestResponse(
+            success=False, message=f"Test not supported for service type: {service_type}"
+        )
+
+
+@router.post("/test-raw", response_model=CredentialTestResponse)
+async def test_credential_raw(
+    request: CredentialTestRawRequest,
+    current_user=Depends(get_current_user),
+):
+    """Test credentials before saving, using raw data from the form."""
+    try:
+        return await _run_test(request.service_type, request.data)
+    except Exception as e:
+        logger.error(f"Unexpected error testing raw credential: {e}")
+        return CredentialTestResponse(success=False, message=f"Unexpected error: {e}")
+
+
 @router.post("/{credential_id}/test", response_model=CredentialTestResponse)
 async def test_credential(
     credential_id: uuid.UUID,
@@ -437,22 +481,7 @@ async def test_credential(
     secret: Dict[str, Any] = decrypted.get("secret", {})
 
     try:
-        if service_type == "openai":
-            return await _test_openai(secret)
-        elif service_type == "cohere":
-            return await _test_cohere(secret)
-        elif service_type == "tavily_search":
-            return await _test_tavily(secret)
-        elif service_type == "postgresql_vectorstore":
-            return await _test_postgresql(secret)
-        elif service_type == "kafka":
-            return await _test_kafka(secret)
-        elif service_type in ("basic_auth", "header_auth"):
-            return _test_webhook_auth(secret, service_type)
-        else:
-            return CredentialTestResponse(
-                success=False, message=f"Test not supported for service type: {service_type}"
-            )
+        return await _run_test(service_type, secret)
     except Exception as e:
         logger.error(f"Unexpected error testing credential {credential_id}: {e}")
         return CredentialTestResponse(success=False, message=f"Unexpected error: {e}")
