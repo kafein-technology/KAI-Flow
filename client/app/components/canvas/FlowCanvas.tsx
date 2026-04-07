@@ -195,7 +195,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     updateWorkflowVisibility,
   } = useWorkflows();
 
-  const { nodes: availableNodes } = useNodes();
+  const { nodes: availableNodes, customNodes } = useNodes();
 
   // Smart suggestions integration
   const { setLastAddedNode, updateRecommendations } = useSmartSuggestions();
@@ -331,14 +331,61 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
   }, [currentWorkflow?.id, clearAllChats, setCurrentExecutionForWorkflow, setActiveChatflowId]);
 
+  // Initialize nodes from store when loaded for the first time
+  useEffect(() => {
+    if (availableNodes.length > 0 && nodes.length === 0 && !currentWorkflow) {
+      // Sadece start node'u ekle
+      const startNodeMeta = availableNodes.find((n) => n.name === "StartNode");
+      if (startNodeMeta) {
+        setNodes([
+          {
+            id: "StartNode__" + crypto.randomUUID(),
+            type: "StartNode",
+            position: { x: 100, y: 100 },
+            data: {
+              name: "Start",
+              metadata: startNodeMeta,
+            },
+          },
+        ]);
+      }
+    }
+  }, [availableNodes, currentWorkflow, nodes.length, setNodes]);
+
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
-      const { nodes, edges } = currentWorkflow.flow_data;
-      setNodes(nodes || []);
+      const { nodes: rawNodes, edges } = currentWorkflow.flow_data;
+      
+      const combinedNodes = [...(availableNodes || []), ...(customNodes || [])];
+
+      // Inject missing metadata for nodes from availableNodes registry
+      const enrichedNodes = (rawNodes || []).map((node) => {
+        if (!node.data?.metadata && combinedNodes?.length > 0) {
+          const nodeDef = combinedNodes.find((n) => n.name === node.type || (n as any).id === node.type);
+          if (nodeDef) {
+            const def = nodeDef as any;
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                metadata: def,
+                icon: def.icon,
+                description: def.description,
+                displayName: def.display_name,
+                inputs: def.inputs,
+                outputs: def.outputs
+              }
+            };
+          }
+        }
+        return node;
+      });
+
+      setNodes(enrichedNodes);
 
       // Clean up invalid edges that reference non-existent nodes
-      if (edges && nodes) {
-        const nodeIds = new Set(nodes.map((n) => n.id));
+      if (edges && enrichedNodes) {
+        const nodeIds = new Set(enrichedNodes.map((n) => n.id));
         const validEdges = edges.filter(
           (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
         );
@@ -350,7 +397,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setNodes([]);
       setEdges([]);
     }
-  }, [currentWorkflow]);
+  }, [currentWorkflow, availableNodes]);
 
   useEffect(() => {
     if (currentWorkflow) {
@@ -763,7 +810,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                       'ReactAgentNode', 'Agent', // Added 'Agent'
                       'VectorStoreOrchestrator',
                       'ChunkSplitterNode', 'ChunkSplitter',
-                      'CodeNode', 'ConditionNode'
+                      'CodeNode', 'ConditionNode', 'JsonParserNode'
                     ];
                     const isProcessorNode = currentNode && processorTypes.some(pt =>
                       currentNode.type?.includes(pt) || currentNode.type === pt
@@ -1740,7 +1787,7 @@ function useChatExecutionListener(
             'ReactAgentNode', 'Agent', // Added 'Agent'
             'VectorStoreOrchestrator',
             'ChunkSplitterNode', 'ChunkSplitter',
-            'CodeNode', 'ConditionNode'
+            'CodeNode', 'ConditionNode', 'JsonParserNode'
           ];
           const isProcessorNode = actualNode.type && processorTypes.some(pt =>
             actualNode.type?.includes(pt) || actualNode.type === pt

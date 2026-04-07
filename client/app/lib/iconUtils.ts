@@ -113,6 +113,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
 
         // Decorative Nodes
         StickyNoteNode: "icons/sticky_note.svg",
+        JsonParserNode: "icons/parser.svg",
     };
 
     const relativePath = relativePaths[nodeType];

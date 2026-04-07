@@ -259,7 +259,7 @@ const Navbar: React.FC<NavbarProps> = ({
             </Link>
           </div>
 
-          <div className="flex flex-col items-center justify-center gap-3">
+          <div className="flex-1 flex justify-center items-center px-10">
             <input
               type="text"
               value={workflowName}
@@ -267,7 +267,7 @@ const Navbar: React.FC<NavbarProps> = ({
               onBlur={handleBlur}
               placeholder="Dosya Adı"
               required
-              className="text-3xl border-b-2 border-[#616161] w-full text-center focus:outline-none bg-transparent text-white"
+              className="text-lg font-medium text-white/90 bg-transparent px-4 py-1.5 rounded-md border border-transparent hover:border-white/20 focus:border-white/30 hover:bg-white/5 focus:bg-white/10 focus:outline-none transition-all duration-300 text-center w-full max-w-[400px] focus:max-w-[800px]"
             />
           </div>
           <div className="flex items-center space-x-4 gap-2 relative">

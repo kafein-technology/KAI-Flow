@@ -127,7 +127,7 @@ class FlowState(BaseModel):
     memory_data: Dict[str, Any] = Field(default_factory=dict, description="General purpose memory storage")
     
     # Last output from any node
-    last_output: Optional[str] = Field(default=None, description="Output from the last executed node")
+    last_output: Optional[Any] = Field(default=None, description="Output from the last executed node")
     
     # Current input being processed
     current_input: Optional[str] = Field(default=None, description="Current input being processed")
