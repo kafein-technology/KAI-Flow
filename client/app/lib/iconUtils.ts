@@ -110,6 +110,9 @@ export function getNodeTypeIconPath(nodeType: string): string {
         // Processing Nodes
         CodeNode: "icons/code.svg",
         ConditionNode: "icons/condition.svg",
+
+        // Decorative Nodes
+        StickyNoteNode: "icons/sticky_note.svg",
         JsonParserNode: "icons/parser.svg",
     };
 
