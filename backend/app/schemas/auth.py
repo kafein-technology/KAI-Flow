@@ -1,5 +1,5 @@
 import uuid
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator, Field
 from typing import Optional
 from datetime import datetime
 
@@ -7,14 +7,41 @@ from datetime import datetime
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=6, description="Password must be at least 6 characters")
     full_name: Optional[str] = None
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Password cannot be empty')
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters')
+        return v
 
 class UserSignUpData(BaseModel):
     email: EmailStr
     name: str
-    credential: str
+    credential: str = Field(..., min_length=6, description="Password must be at least 6 characters")
     tempToken: Optional[str] = None
+
+    @field_validator('credential')
+    @classmethod
+    def validate_credential(cls, v: str) -> str:
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Password cannot be empty')
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters')
+        return v
+    
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Name cannot be empty')
+        if len(v.strip()) < 2:
+            raise ValueError('Name must be at least 2 characters')
+        return v.strip()
 
 class SignUpRequest(BaseModel):
     user: UserSignUpData
@@ -25,7 +52,17 @@ class UserUpdate(BaseModel):
 
 class UserUpdateProfile(BaseModel):
     full_name: Optional[str] = None
-    password: Optional[str] = None
+    password: Optional[str] = Field(None, min_length=6, description="Password must be at least 6 characters")
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if len(v.strip()) == 0:
+                raise ValueError('Password cannot be empty')
+            if len(v) < 6:
+                raise ValueError('Password must be at least 6 characters')
+        return v
 
 class UserResponse(BaseModel):
     id: uuid.UUID

@@ -46,20 +46,39 @@ const Register = () => {
       setStatus(null);
       // Navigate to sign in page upon successful registration      navigate("/signin", { state: { message: "Registration successful. Please sign in." } });
     } catch (err: any) {
-      console.log("err", err);
-      // Show specific error if user already exists
-      if (
-        err?.response?.data?.detail === "User already exists" ||
-        err?.message?.includes("User already exists")
-      ) {
-        setStatus({
-          registerError:
-            "An account with this email already exists. Please sign in.",
-        });
-      } else {
-        setStatus({ registerError: err?.message || "Sign up failed." });
-      }
       console.error("Sign up failed:", err);
+      
+      // Backend'den gelen hata mesajını parse et
+      let errorMessage = "Sign up failed. Please try again.";
+      
+      if (err?.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        
+        // Pydantic validation hatalarını handle et
+        if (Array.isArray(detail)) {
+          errorMessage = detail.map((e: any) => e.msg || e.message).join(", ");
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        }
+        
+        // Özel hata mesajları
+        if (detail === "User already exists") {
+          errorMessage = "An account with this email already exists. Please sign in.";
+        }
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      // HTTP status code'a göre özel mesajlar
+      if (err?.response?.status === 400) {
+        // Validation error - mesajı olduğu gibi göster
+      } else if (err?.response?.status >= 500) {
+        errorMessage = "Server error. Please try again later.";
+      }
+      
+      setStatus({ registerError: errorMessage });
     } finally {
       setSubmitting(false);
     }

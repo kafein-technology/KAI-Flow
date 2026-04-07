@@ -39,11 +39,35 @@ const Signin = () => {
     } catch (err: any) {
       console.error("Sign in failed:", err);
 
-      // Hata mesajını Formik status'una ayarla
-      const errorMessage =
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        "Sign in failed. Please check your credentials.";
+      // Backend'den gelen hata mesajını parse et
+      let errorMessage = "Sign in failed. Please check your credentials.";
+      
+      if (err?.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        
+        // Pydantic validation hatalarını handle et
+        if (Array.isArray(detail)) {
+          errorMessage = detail.map((e: any) => e.msg || e.message).join(", ");
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        }
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      // HTTP status code'a göre özel mesajlar
+      if (err?.response?.status === 400) {
+        // Validation error - mesajı olduğu gibi göster
+      } else if (err?.response?.status === 401) {
+        errorMessage = "Incorrect email or password";
+      } else if (err?.response?.status === 403) {
+        errorMessage = "Your account is inactive. Please contact support.";
+      } else if (err?.response?.status >= 500) {
+        errorMessage = "Server error. Please try again later.";
+      }
+
       setStatus({ loginError: errorMessage });
     } finally {
       setSubmitting(false);

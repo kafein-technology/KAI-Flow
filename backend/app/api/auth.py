@@ -24,7 +24,7 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     UserUpdateProfile
 )
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator, Field
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -33,7 +33,16 @@ security = HTTPBearer()
 # Request/Response Models
 class SignInRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=6, description="Password must be at least 6 characters")
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Password cannot be empty')
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters')
+        return v
 
 class AuthResponse(BaseModel):
     user: UserResponse
@@ -59,13 +68,33 @@ async def signup(
     try:
         user_data = request.user
         
+        # Validate email
         if not user_data.email:
-            raise HTTPException(status_code=400, detail="Email is required")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Email is required"
+            )
+        
+        # Validate password (additional check beyond Pydantic validation)
+        if not user_data.credential or len(user_data.credential.strip()) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is required"
+            )
+        
+        if len(user_data.credential) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 6 characters"
+            )
         
         # Check if user already exists
         existing_user = await user_service.get_by_email(db, user_data.email)
         if existing_user:
-            raise HTTPException(status_code=400, detail="User already exists")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="User already exists"
+            )
         
         # Create new user
         new_user = await user_service.create_user(db, user_data)
@@ -85,9 +114,19 @@ async def signup(
         
     except HTTPException:
         raise
+    except ValueError as e:
+        # Catch Pydantic validation errors
+        logger.warning(f"Validation error during signup: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     except Exception as e:
         logger.error(f"Signup error: {e}")
-        raise HTTPException(status_code=500, detail="Registration failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail="Registration failed"
+        )
 
 @router.post("/signin", response_model=AuthResponse)
 async def signin(
@@ -96,31 +135,63 @@ async def signin(
     user_service: UserService = Depends(get_user_service_dep)
 ):
     """Authenticate user and return tokens"""
-    user = await user_service.authenticate_user(db, request.email, request.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+    try:
+        # Validate email
+        if not request.email or len(request.email.strip()) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is required"
+            )
+        
+        # Validate password
+        if not request.password or len(request.password.strip()) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is required"
+            )
+        
+        if len(request.password) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 6 characters"
+            )
+        
+        # Authenticate user
+        user = await user_service.authenticate_user(db, request.email, request.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+        
+        # Check account status
+        if user.status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is inactive"
+            )
+        
+        # Generate tokens
+        access_token = create_access_token({"sub": user.email, "user_id": str(user.id)})
+        refresh_token = create_refresh_token({"sub": user.email, "user_id": str(user.id)})
+        
+        user_response = create_user_response(user)
+        
+        return AuthResponse(
+            user=user_response,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer"
         )
     
-    if user.status != "active":
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Signin error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account is inactive"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Sign in failed"
         )
-    
-    # Generate tokens
-    access_token = create_access_token({"sub": user.email, "user_id": str(user.id)})
-    refresh_token = create_refresh_token({"sub": user.email, "user_id": str(user.id)})
-    
-    user_response = create_user_response(user)
-    
-    return AuthResponse(
-        user=user_response,
-        access_token=access_token,
-        refresh_token=refresh_token,
-        token_type="bearer"
-    )
 
 @router.post("/signout")
 async def signout():
