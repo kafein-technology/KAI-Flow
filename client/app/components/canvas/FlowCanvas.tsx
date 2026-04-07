@@ -115,6 +115,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const hasInitializedEmptyCanvas = useRef(false);
   const { screenToFlowPosition } = useReactFlow();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
@@ -301,6 +302,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           variant: "error",
         });
       });
+      hasInitializedEmptyCanvas.current = false;
     } else {
       // Yeni workflow: state'i sıfırla
       setCurrentWorkflow(null);
@@ -308,6 +310,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setEdges([]);
       setWorkflowName("isimsiz dosya");
       clearAllChats(); // Clear chats for new workflow
+      hasInitializedEmptyCanvas.current = false;
     }
   }, [workflowId]);
 
@@ -333,7 +336,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   // Initialize nodes from store when loaded for the first time
   useEffect(() => {
-    if (availableNodes.length > 0 && nodes.length === 0 && !currentWorkflow) {
+    if (availableNodes.length > 0 && nodes.length === 0 && !currentWorkflow && !hasInitializedEmptyCanvas.current) {
       // Sadece start node'u ekle
       const startNodeMeta = availableNodes.find((n) => n.name === "StartNode");
       if (startNodeMeta) {
@@ -348,6 +351,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             },
           },
         ]);
+        hasInitializedEmptyCanvas.current = true;
       }
     }
   }, [availableNodes, currentWorkflow, nodes.length, setNodes]);
