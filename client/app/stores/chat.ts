@@ -236,7 +236,7 @@ const executeWorkflowWithStreaming = async (
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
-  activeChatflowId: null,
+  activeChatflowId: typeof window !== 'undefined' ? sessionStorage.getItem('activeChatflowId') : null,
   loading: false,
   thinking: false, // Initialize thinking state
   error: null,
@@ -330,7 +330,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  setActiveChatflowId: (chatflow_id) => set({ activeChatflowId: chatflow_id }),
+  setActiveChatflowId: (chatflow_id) => {
+    if (typeof window !== 'undefined') {
+      if (chatflow_id) {
+        sessionStorage.setItem('activeChatflowId', chatflow_id);
+      } else {
+        sessionStorage.removeItem('activeChatflowId');
+      }
+    }
+    set({ activeChatflowId: chatflow_id });
+  },
   setLoading: (loading) => set({ loading }),
   setThinking: (thinking) => set({ thinking }), // Add setThinking
   setError: (error) => set({ error }),

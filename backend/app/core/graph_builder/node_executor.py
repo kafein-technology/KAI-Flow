@@ -99,25 +99,21 @@ class NodeExecutor:
                 except Exception as e:
                     logger.warning(f"Failed to inject credentials for node {node_id}: {e}")
 
+            # Resolve session_id once and write back to state for consistency
+            session_id = state.session_id
+            if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
+                session_id = f"session_{node_id}_{uuid.uuid4().hex[:8]}"
+                state.session_id = session_id
+                logger.warning(f"Generated fallback session_id: {session_id}")
+
             # Setup session for ReAct Agents and Tool Agents
             if gnode.type in PROCESSOR_NODE_TYPES and hasattr(gnode.node_instance, 'session_id'):
-                session_id = state.session_id or f"session_{node_id}"
-                
-                # Ensure session_id is valid
-                if not session_id or session_id == 'None' or len(session_id.strip()) == 0:
-                    session_id = f"session_{node_id}_{uuid.uuid4().hex[:8]}"
-                
                 gnode.node_instance.session_id = session_id
                 logger.debug(f"Set session_id on agent {node_id}: {session_id}")
-            
-            # Setup session for memory nodes (priority over user_id)
+
+            # Setup session for memory nodes
             if any(memory_type in gnode.type for memory_type in MEMORY_NODE_TYPES):
                 if hasattr(gnode.node_instance, 'session_id'):
-                    # Use state.session_id as primary source
-                    session_id = state.session_id
-                    if not session_id or session_id == 'None' or len(session_id.strip()) == 0:
-                        session_id = f"session_{node_id}_{uuid.uuid4().hex[:8]}"
-                    
                     gnode.node_instance.session_id = session_id
                     logger.debug(f"Set session_id on memory node {node_id}: {session_id}")
                 

@@ -116,8 +116,8 @@ async def delete_chatflow(
 @router.get("/active-session/id", response_model=Dict[str, Optional[str]])
 async def get_active_session_id(
     chatflow_id: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
 ):
-    db = next(get_db())
     session_id = memory_service.get_active_session_id(db, str(current_user.id), chatflow_id=chatflow_id)
     return {"session_id": session_id}
