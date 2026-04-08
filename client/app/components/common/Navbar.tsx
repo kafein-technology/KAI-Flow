@@ -32,6 +32,7 @@ interface NavbarProps {
   onAutoSaveSettings?: () => void;
   updateWorkflowStatus?: (id: string, is_active: boolean) => Promise<void>;
   updateWorkflowVisibility?: (id: string, is_public: boolean) => Promise<void>;
+  onImportStart?: () => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -49,6 +50,7 @@ const Navbar: React.FC<NavbarProps> = ({
   lastAutoSave,
   onAutoSaveSettings,
   updateWorkflowVisibility,
+  onImportStart,
 }) => {
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
@@ -141,6 +143,9 @@ const Navbar: React.FC<NavbarProps> = ({
             return node;
           });
 
+          // Signal FlowCanvas that an import is in progress
+          // This prevents the useEffect from clearing the canvas when currentWorkflow becomes null
+          if (onImportStart) onImportStart();
           setCurrentWorkflow(null);
           setNodes(enrichedNodes);
           setEdges(json.flow_data?.edges || []);
