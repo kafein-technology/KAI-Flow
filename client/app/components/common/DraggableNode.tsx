@@ -83,6 +83,7 @@ const iconAltText: Record<string, string> = {
   OpenAIEmbeddings: "openai-embeddings",
   CodeNode: "code-node",
   ConditionNode: "condition-node",
+  JsonParserNode: "parser",
 };
 
 /**

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Play,
   Clock,
@@ -85,6 +85,37 @@ function ExecutionsPage() {
       data,
     });
   };
+
+  // Column resize state
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
+    workflow: 180,
+    status: 120,
+    started: 120,
+    duration: 100,
+    input: 250,
+    output: 250,
+  });
+
+  const handleColumnResize = useCallback(
+    (columnKey: string, startX: number, startWidth: number) => {
+      const onMouseMove = (e: MouseEvent) => {
+        const diff = e.clientX - startX;
+        const newWidth = Math.max(80, startWidth + diff);
+        setColumnWidths((prev) => ({ ...prev, [columnKey]: newWidth }));
+      };
+      const onMouseUp = () => {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    []
+  );
 
   // Multi-select states
   const [selectedExecutions, setSelectedExecutions] = useState<Set<string>>(
@@ -557,10 +588,20 @@ function ExecutionsPage() {
                 {/* Executions Table */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full table-fixed">
+                    <table className="w-full" style={{ tableLayout: "fixed" }}>
+                      <colgroup>
+                        <col style={{ width: 40 }} />
+                        <col style={{ width: columnWidths.workflow }} />
+                        <col style={{ width: columnWidths.status }} />
+                        <col style={{ width: columnWidths.started }} />
+                        <col style={{ width: columnWidths.duration }} />
+                        <col style={{ width: columnWidths.input }} />
+                        <col style={{ width: columnWidths.output }} />
+                        <col style={{ width: 80 }} />
+                      </colgroup>
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="w-10 px-3 py-3 text-left">
+                          <th className="px-3 py-3 text-left">
                             <input
                               type="checkbox"
                               checked={isAllSelected}
@@ -573,25 +614,35 @@ function ExecutionsPage() {
                               className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                             />
                           </th>
-                          <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Workflow
-                          </th>
-                          <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Started
-                          </th>
-                          <th className="w-[8%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Duration
-                          </th>
-                          <th className="w-[22%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Input
-                          </th>
-                          <th className="w-[22%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Output
-                          </th>
-                          <th className="w-12 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {(
+                            [
+                              ["workflow", "Workflow"],
+                              ["status", "Status"],
+                              ["started", "Started"],
+                              ["duration", "Duration"],
+                              ["input", "Input"],
+                              ["output", "Output"],
+                            ] as const
+                          ).map(([key, label]) => (
+                            <th
+                              key={key}
+                              className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider select-none"
+                            >
+                              {label}
+                              <div
+                                className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-purple-400 active:bg-purple-500 transition-colors"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  handleColumnResize(
+                                    key,
+                                    e.clientX,
+                                    columnWidths[key]
+                                  );
+                                }}
+                              />
+                            </th>
+                          ))}
+                          <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                           </th>
                         </tr>
@@ -616,7 +667,7 @@ function ExecutionsPage() {
                               <div className="flex items-center">
                                 <Play className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0" />
                                 <div className="min-w-0">
-                                  <div className="text-sm font-medium text-gray-900 truncate">
+                                  <div className="text-sm font-medium text-gray-900">
                                     {getWorkflowName(execution.workflow_id)}
                                   </div>
                                   <div className="text-xs text-gray-500">
@@ -655,10 +706,18 @@ function ExecutionsPage() {
                                 execution.completed_at
                               )}
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-900 truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Input Data", getInputData(execution))}>
+                            <td
+                              className="px-3 py-4 text-sm text-gray-900 overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer hover:text-purple-600 transition-colors"
+                              title={formatDataForDisplay(getInputData(execution))}
+                              onClick={() => handleViewClick("Input Data", getInputData(execution))}
+                            >
                               {formatDataForDisplay(getInputData(execution))}
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-900 truncate cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleViewClick("Output Data", getOutputData(execution))}>
+                            <td
+                              className="px-3 py-4 text-sm text-gray-900 overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer hover:text-purple-600 transition-colors"
+                              title={formatDataForDisplay(getOutputData(execution))}
+                              onClick={() => handleViewClick("Output Data", getOutputData(execution))}
+                            >
                               {formatDataForDisplay(getOutputData(execution))}
                             </td>
                             <td className="px-3 py-4 text-right">

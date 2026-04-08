@@ -23,6 +23,8 @@ import { useExecutionsStore } from "~/stores/executions";
 import { useSmartSuggestions } from "~/stores/smartSuggestions";
 import StartNode from "../node/StartNode";
 import CustomEdge from "../common/CustomEdge";
+import StickyNoteNode from "../node/StickyNoteNode";
+
 
 import type {
   WorkflowData,
@@ -113,6 +115,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const hasInitializedEmptyCanvas = useRef(false);
   const { screenToFlowPosition } = useReactFlow();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
@@ -299,6 +302,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           variant: "error",
         });
       });
+      hasInitializedEmptyCanvas.current = false;
     } else {
       // Yeni workflow: state'i sıfırla
       setCurrentWorkflow(null);
@@ -306,6 +310,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setEdges([]);
       setWorkflowName("isimsiz dosya");
       clearAllChats(); // Clear chats for new workflow
+      hasInitializedEmptyCanvas.current = false;
     }
   }, [workflowId]);
 
@@ -331,7 +336,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   // Initialize nodes from store when loaded for the first time
   useEffect(() => {
-    if (availableNodes.length > 0 && nodes.length === 0 && !currentWorkflow) {
+    if (availableNodes.length > 0 && nodes.length === 0 && !currentWorkflow && !hasInitializedEmptyCanvas.current) {
       // Sadece start node'u ekle
       const startNodeMeta = availableNodes.find((n) => n.name === "StartNode");
       if (startNodeMeta) {
@@ -346,6 +351,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             },
           },
         ]);
+        hasInitializedEmptyCanvas.current = true;
       }
     }
   }, [availableNodes, currentWorkflow, nodes.length, setNodes]);
@@ -573,6 +579,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           name: uniqueName,  // Must be after spread to override nodeType.data.name
           metadata: nodeMetadata,
         },
+        ...(nodeType.type === "StickyNoteNode" 
+            ? { width: 200, height: 200, style: { width: 200, height: 200 } } 
+            : {}),
       };
 
       setNodes((nds: Node[]) => nds.concat(newNode));
@@ -805,7 +814,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                       'ReactAgentNode', 'Agent', // Added 'Agent'
                       'VectorStoreOrchestrator',
                       'ChunkSplitterNode', 'ChunkSplitter',
-                      'CodeNode', 'ConditionNode'
+                      'CodeNode', 'ConditionNode', 'JsonParserNode'
                     ];
                     const isProcessorNode = currentNode && processorTypes.some(pt =>
                       currentNode.type?.includes(pt) || currentNode.type === pt
@@ -1116,6 +1125,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           EndNode: (props: any) => (
             <EndNode {...props} isActive={activeNodes.includes(props.id)} />
           ),
+          StickyNoteNode: (props: any) => (
+            <StickyNoteNode {...props} />
+          ),
         } as Record<string, React.ComponentType<any> | null>
       ),
     [nodes, handleStartNodeExecution, executionLoading, activeNodes]
@@ -1248,7 +1260,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       // Don't open modal if it's already in config mode or a double click
-      if (node.data?.isConfigMode || event.detail === 2) {
+      if (node.data?.isConfigMode || event.detail === 2 || node.type === "StickyNoteNode") {
         return;
       }
 
@@ -1779,7 +1791,7 @@ function useChatExecutionListener(
             'ReactAgentNode', 'Agent', // Added 'Agent'
             'VectorStoreOrchestrator',
             'ChunkSplitterNode', 'ChunkSplitter',
-            'CodeNode', 'ConditionNode'
+            'CodeNode', 'ConditionNode', 'JsonParserNode'
           ];
           const isProcessorNode = actualNode.type && processorTypes.some(pt =>
             actualNode.type?.includes(pt) || actualNode.type === pt

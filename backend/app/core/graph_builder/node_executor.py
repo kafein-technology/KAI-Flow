@@ -239,7 +239,7 @@ class NodeExecutor:
             }
             
             logger.info(f"[SUCCESS] Processor node {node_id} completed successfully")
-            logger.debug(f"Output: '{last_output[:80]}...' ({len(str(last_output))} chars)")
+            logger.debug(f"Output: '{str(last_output)[:80]}...' ({len(str(last_output))} chars)")
             
             return result_dict
             

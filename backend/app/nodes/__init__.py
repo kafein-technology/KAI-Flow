@@ -47,7 +47,12 @@ from .text_processing.string_input_node import StringInputNode
 # Processing Nodes
 from .processing.code_node import CodeNode
 from .processing.condition_node import ConditionNode
+from .processing.json_parser_node import JsonParserNode
 from .processing.kafka_producer import KafkaProducerNode
+
+# Decorative Nodes
+from .decorative.sticky_note import StickyNoteNode
+
 
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
@@ -94,6 +99,10 @@ __all__ = [
     # Processing
     "CodeNode",
     "ConditionNode",
+    "JsonParserNode",
     "KafkaProducerNode",
     "KafkaTriggerNode",
+
+    # Decorative
+    "StickyNoteNode",
 ]
