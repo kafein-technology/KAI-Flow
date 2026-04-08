@@ -333,9 +333,10 @@ class KafkaListenerService:
                         await cls._trigger_workflow(listener_id, message_data)
                         stats["workflows_triggered"] += 1
                     except Exception as e:
-                        logger.error(f"Workflow tetiklenirken hata: {e}", exc_info=True)
+                        logger.error(f"Error while triggering workflow: {e}", exc_info=True)
                         stats["errors"] += 1
                         stats["last_error"] = str(e)
+                        stats["last_error_at"] = datetime.now(timezone.utc).isoformat()
 
                     # auto_commit_threshold: N mesajda bir manuel commit
                     if commit_threshold > 1:
@@ -533,17 +534,48 @@ class KafkaListenerService:
             )
 
             # Check execution result for errors
-            if isinstance(result, dict) and result.get("success") is False:
-                error_msg = result.get("error", "Unknown workflow error")
-                logger.error(
-                    f"Kafka-tetiklemeli workflow HATA ile tamamlandı: "
-                    f"workflow={workflow.id} listener={listener_id} "
-                    f"execution={ctx.execution_id} error={error_msg}"
+            if isinstance(result, dict):
+                # Check explicit success flag
+                if result.get("success") is False:
+                    error_msg = result.get("error", "Unknown workflow error")
+                    logger.error(
+                        f"Kafka-triggered workflow completed with ERROR: "
+                        f"workflow={workflow.id} listener={listener_id} "
+                        f"execution={ctx.execution_id} error={error_msg}"
+                    )
+                    raise RuntimeError(f"Workflow execution failed: {error_msg}")
+                
+                # Check state-level errors
+                state_data = result.get("state", {})
+                if isinstance(state_data, dict):
+                    state_errors = state_data.get("errors", [])
+                    if state_errors:
+                        error_msg = "; ".join(str(e) for e in state_errors)
+                        logger.error(
+                            f"Kafka-triggered workflow state errors: "
+                            f"workflow={workflow.id} listener={listener_id} "
+                            f"execution={ctx.execution_id} errors={error_msg}"
+                        )
+                        raise RuntimeError(f"Workflow completed with errors: {error_msg}")
+                
+                # Check node_outputs for errors
+                node_outputs = (
+                    state_data.get("node_outputs", {})
+                    if isinstance(state_data, dict)
+                    else result.get("node_outputs", {})
                 )
-                raise RuntimeError(f"Workflow execution failed: {error_msg}")
+                if isinstance(node_outputs, dict):
+                    for nid, nout in node_outputs.items():
+                        if isinstance(nout, dict) and nout.get("error"):
+                            error_msg = f"Node {nid} failed: {nout['error']}"
+                            logger.error(
+                                f"Kafka-triggered workflow node error: "
+                                f"workflow={workflow.id} listener={listener_id} error={error_msg}"
+                            )
+                            raise RuntimeError(error_msg)
 
             logger.info(
-                f"Kafka-tetiklemeli workflow tamamlandı: "
+                f"Kafka-triggered workflow completed: "
                 f"workflow={workflow.id} listener={listener_id} "
                 f"execution={ctx.execution_id}"
             )
