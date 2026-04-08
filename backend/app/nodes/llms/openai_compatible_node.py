@@ -160,7 +160,7 @@ class OpenAICompatibleNode(BaseNode):
                     placeholder="Select API Key",
                     required=True,
                     hint="Required for commercial providers, optional for some local servers",
-                    serviceType="openai",
+                    serviceType="openai_compatible",
                 ),
                 NodeProperty(
                     name="base_url",
