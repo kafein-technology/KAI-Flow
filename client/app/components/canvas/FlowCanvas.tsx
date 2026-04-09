@@ -116,6 +116,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const hasInitializedEmptyCanvas = useRef(false);
+  const isImportingRef = useRef(false);
   const { screenToFlowPosition } = useReactFlow();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
@@ -359,7 +360,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
       const { nodes: rawNodes, edges } = currentWorkflow.flow_data;
-      
+
       const combinedNodes = [...(availableNodes || []), ...(customNodes || [])];
 
       // Inject missing metadata for nodes from availableNodes registry
@@ -397,10 +398,12 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       } else {
         setEdges(edges || []);
       }
-    } else {
+    } else if (!isImportingRef.current) {
       setNodes([]);
       setEdges([]);
     }
+    // Reset import flag after every useEffect run (self-healing)
+    isImportingRef.current = false;
   }, [currentWorkflow, availableNodes]);
 
   useEffect(() => {
@@ -579,9 +582,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           name: uniqueName,  // Must be after spread to override nodeType.data.name
           metadata: nodeMetadata,
         },
-        ...(nodeType.type === "StickyNoteNode" 
-            ? { width: 200, height: 200, style: { width: 200, height: 200 } } 
-            : {}),
+        ...(nodeType.type === "StickyNoteNode"
+          ? { width: 200, height: 200, style: { width: 200, height: 200 } }
+          : {}),
       };
 
       setNodes((nds: Node[]) => nds.concat(newNode));
@@ -1338,6 +1341,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         onAutoSaveSettings={handleAutoSaveSettings}
         updateWorkflowStatus={updateWorkflowStatus}
         updateWorkflowVisibility={updateWorkflowVisibility}
+        onImportStart={() => { isImportingRef.current = true; }}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
         {/* Sidebar Toggle Button */}
