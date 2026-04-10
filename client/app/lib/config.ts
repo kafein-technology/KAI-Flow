@@ -6,6 +6,7 @@ interface Config {
   APP_NAME: string;
   ENVIRONMENT: 'development' | 'production' | 'testing';
   ENABLE_LOGGING: boolean;
+  IS_ENTERPRISE: boolean;
 }
 
 const getConfig = (): Config => {
@@ -24,6 +25,7 @@ const getConfig = (): Config => {
   const appName = getGlobalValue('VITE_APP_NAME');
   const env = getGlobalValue('VITE_NODE_ENV');
   const enableLogging = getGlobalValue('VITE_ENABLE_LOGGING') === 'true';
+  const isEnterprise = getGlobalValue('VITE_ENTERPRISE') === 'true';
 
   // Handle protocol-relative URLs (e.g., //localhost:8000)
   // This allows the frontend to automatically use the same protocol as the page
@@ -55,6 +57,7 @@ const getConfig = (): Config => {
     APP_NAME: appName,
     ENVIRONMENT: env,
     ENABLE_LOGGING: enableLogging,
+    IS_ENTERPRISE: isEnterprise,
   };
 };
 

@@ -33,6 +33,7 @@ import type {
 
 import { useAuth as useOidcAuth } from "react-oidc-context";
 import { resolveIconPath } from "~/lib/iconUtils";
+import { config } from "~/lib/config";
 
 interface SearchResult {
   id: string;
@@ -399,12 +400,14 @@ const Sidebar = () => {
               path="/credentials"
               active={location.pathname === "/credentials"}
             />
-            <SidebarLink
-              icon={<Store className="w-5 h-5" />}
-              label="Marketplace"
-              path="/marketplace"
-              active={location.pathname === "/marketplace"}
-            />
+            {!config.IS_ENTERPRISE && (
+              <SidebarLink
+                icon={<Store className="w-5 h-5" />}
+                label="Marketplace"
+                path="/marketplace"
+                active={location.pathname === "/marketplace"}
+              />
+            )}
 
             {/* Divider */}
             <div className="h-px bg-gradient-to-r from-transparent via-slate-600/50 to-transparent my-4" />

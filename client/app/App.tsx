@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from "react-router";
 import { useEffect } from "react";
+import { config } from "./lib/config";
 import "./app.css";
 import { SnackbarProvider } from "notistack";
 import { useThemeStore } from "./stores/theme";
@@ -91,7 +92,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/signin" element={<Signin />} />
-          <Route path="/register" element={<Register />} />
+          {!config.IS_ENTERPRISE && <Route path="/register" element={<Register />} />}
           <Route path="/workflows" element={<Workflows />} />
           <Route path="/pinned" element={<Pinned />} />
           <Route path="/settings" element={<Settings />} />
@@ -99,7 +100,7 @@ export default function App() {
           <Route path="/executions" element={<Executions />} />
           <Route path="/credentials" element={<Credentials />} />
           <Route path="/variables" element={<Variables />} />
-          <Route path="/marketplace" element={<Marketplace />} />
+          {!config.IS_ENTERPRISE && <Route path="/marketplace" element={<Marketplace />} />}
           <Route
             path="*"
             element={

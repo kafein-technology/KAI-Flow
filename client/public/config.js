@@ -9,3 +9,4 @@ window.VITE_API_VERSION = `/${window.VITE_API_START}/${window.VITE_API_VERSION_O
 window.VITE_APP_NAME = "KAI Fusion";
 window.VITE_NODE_ENV = "development";
 window.VITE_ENABLE_LOGGING = "true";
+window.VITE_ENTERPRISE = "false";

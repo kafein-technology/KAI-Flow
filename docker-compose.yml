@@ -64,6 +64,7 @@ services:
         VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
         VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
         VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
+        VITE_ENTERPRISE: ${ENTERPRISE}
     container_name: kai-fusion-frontend
     ports:
       - "23058:3000"
@@ -76,6 +77,7 @@ services:
       VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
       VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
       VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
+      VITE_ENTERPRISE: ${ENTERPRISE}
     networks:
       - kai_network
     restart: unless-stopped
