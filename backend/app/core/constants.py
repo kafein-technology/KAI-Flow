@@ -104,11 +104,18 @@ IMPLEMENTATION DETAILS:
 import os
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from backend/.env
+backend_dir = Path(__file__).parent.parent.parent
+env_file = backend_dir / '.env'
+if env_file.exists():
+    load_dotenv(dotenv_path=env_file)
 
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
-PORT = int(os.getenv("BACKEND_PORT"))
+PORT = int(os.getenv("BACKEND_PORT", "8000"))
 ROOT_PATH = os.getenv("ROOT_PATH")
 API_START = "api"
 API_VERSION = "v1"
