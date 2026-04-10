@@ -29,21 +29,42 @@ const Signin = () => {
     values: SignInFormValues,
     { setSubmitting, setStatus }: FormikHelpers<SignInFormValues>
   ) => {
+    console.log('🚀 [SignIn] Submit started', {
+      email: values.email,
+      timestamp: new Date().toISOString()
+    });
+
     try {
       // Önceki hataları temizle
       clearError();
       setStatus(null);
+      
+      console.log('📤 [SignIn] Sending signin request to backend...');
       await signIn(values);
+      
+      console.log('✅ [SignIn] Signin successful!', {
+        email: values.email,
+        timestamp: new Date().toISOString()
+      });
+      
       // Başarılı giriş sonrası yönlendirme
+      console.log('➡️ [SignIn] Navigating to home page');
       navigate("/");
     } catch (err: any) {
-      console.error("Sign in failed:", err);
+      console.error('❌ [SignIn] Signin failed:', {
+        error: err,
+        response: err?.response?.data,
+        status: err?.response?.status,
+        timestamp: new Date().toISOString()
+      });
 
       // Backend'den gelen hata mesajını parse et
       let errorMessage = "Sign in failed. Please check your credentials.";
       
       if (err?.response?.data?.detail) {
         const detail = err.response.data.detail;
+        
+        console.log('📋 [SignIn] Error detail from backend:', detail);
         
         // Pydantic validation hatalarını handle et
         if (Array.isArray(detail)) {
@@ -60,17 +81,22 @@ const Signin = () => {
       // HTTP status code'a göre özel mesajlar
       if (err?.response?.status === 400) {
         // Validation error - mesajı olduğu gibi göster
+        console.log('⚠️ [SignIn] Validation error (400):', errorMessage);
       } else if (err?.response?.status === 401) {
         errorMessage = "Incorrect email or password";
+        console.log('🔒 [SignIn] Authentication failed (401)');
       } else if (err?.response?.status === 403) {
         errorMessage = "Your account is inactive. Please contact support.";
+        console.log('🚫 [SignIn] Account inactive (403)');
       } else if (err?.response?.status >= 500) {
         errorMessage = "Server error. Please try again later.";
+        console.log('🔥 [SignIn] Server error (500+)');
       }
 
       setStatus({ loginError: errorMessage });
     } finally {
       setSubmitting(false);
+      console.log('🏁 [SignIn] Submit process completed');
     }
   };
 
@@ -108,8 +134,6 @@ const Signin = () => {
               }
               if (!values.password) {
                 errors.password = "Password is required";
-              } else if (values.password.length < 6) {
-                errors.password = "Password must be at least 6 characters";
               }
               return errors;
             }}

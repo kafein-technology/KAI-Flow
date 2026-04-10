@@ -1,38 +1,54 @@
 import uuid
+import re
 from pydantic import BaseModel, EmailStr, field_validator, Field
 from typing import Optional
 from datetime import datetime
 
 # Schemas from the old app/api/auth.py moved here for consistency
 
+# Centralized password validation function
+def validate_password_strength(password: str) -> str:
+    """
+    Centralized password validation with clear error messages.
+    Rules:
+    - Minimum 6 characters
+    - At least 1 uppercase letter
+    - At least 1 lowercase letter
+    """
+    if not password or len(password.strip()) == 0:
+        raise ValueError('Password cannot be empty')
+    
+    if len(password) < 6:
+        raise ValueError('Password must be at least 6 characters')
+    
+    if not re.search(r'[A-Z]', password):
+        raise ValueError('Password must contain at least 1 uppercase letter')
+    
+    if not re.search(r'[a-z]', password):
+        raise ValueError('Password must contain at least 1 lowercase letter')
+    
+    return password
+
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6, description="Password must be at least 6 characters")
+    password: str = Field(..., min_length=6, description="Password must be at least 6 characters, 1 uppercase, 1 lowercase")
     full_name: Optional[str] = None
 
     @field_validator('password')
     @classmethod
     def validate_password(cls, v: str) -> str:
-        if not v or len(v.strip()) == 0:
-            raise ValueError('Password cannot be empty')
-        if len(v) < 6:
-            raise ValueError('Password must be at least 6 characters')
-        return v
+        return validate_password_strength(v)
 
 class UserSignUpData(BaseModel):
     email: EmailStr
     name: str
-    credential: str = Field(..., min_length=6, description="Password must be at least 6 characters")
+    credential: str = Field(..., min_length=6, description="Password must be at least 6 characters, 1 uppercase, 1 lowercase")
     tempToken: Optional[str] = None
 
     @field_validator('credential')
     @classmethod
     def validate_credential(cls, v: str) -> str:
-        if not v or len(v.strip()) == 0:
-            raise ValueError('Password cannot be empty')
-        if len(v) < 6:
-            raise ValueError('Password must be at least 6 characters')
-        return v
+        return validate_password_strength(v)
     
     @field_validator('name')
     @classmethod
@@ -52,16 +68,13 @@ class UserUpdate(BaseModel):
 
 class UserUpdateProfile(BaseModel):
     full_name: Optional[str] = None
-    password: Optional[str] = Field(None, min_length=6, description="Password must be at least 6 characters")
+    password: Optional[str] = Field(None, min_length=6, description="Password must be at least 6 characters, 1 uppercase, 1 lowercase")
 
     @field_validator('password')
     @classmethod
     def validate_password(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
-            if len(v.strip()) == 0:
-                raise ValueError('Password cannot be empty')
-            if len(v) < 6:
-                raise ValueError('Password must be at least 6 characters')
+            return validate_password_strength(v)
         return v
 
 class UserResponse(BaseModel):

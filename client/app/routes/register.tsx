@@ -12,11 +12,23 @@ interface RegisterFormValues {
   confirmPassword: string;
 }
 
+interface PasswordValidation {
+  minLength: boolean;
+  hasUppercase: boolean;
+  hasLowercase: boolean;
+}
+
 const Register = () => {
   const { signUp, signOut, isAuthenticated, isLoading, error, clearError } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [status, setStatus] = useState<{ registerError?: string } | null>(null);
+  const [passwordValidation, setPasswordValidation] = useState<PasswordValidation>({
+    minLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+  });
+  const [showValidation, setShowValidation] = useState(false);
 
   // Get the redirect path from location state
   const from = location.state?.from || "/";
@@ -29,11 +41,29 @@ const Register = () => {
     };
   }, [clearError]);
 
+  // Real-time password validation
+  const validatePasswordRealtime = (password: string): PasswordValidation => {
+    return {
+      minLength: password.length >= 6,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+    };
+  };
+
   const handleSubmit = async (
     values: RegisterFormValues,
     { setSubmitting, setStatus }: FormikHelpers<RegisterFormValues>
   ) => {
+    console.log('🚀 [Register] Submit started', {
+      email: values.email,
+      fullName: values.fullName,
+      passwordLength: values.password.length,
+      timestamp: new Date().toISOString()
+    });
+
     try {
+      console.log('📤 [Register] Sending signup request to backend...');
+      
       await signUp({
         user: {
           email: values.email,
@@ -41,18 +71,36 @@ const Register = () => {
           credential: values.password,
         },
       });
+      
+      console.log('✅ [Register] Signup successful!', {
+        email: values.email,
+        timestamp: new Date().toISOString()
+      });
+      
       // We are immediately logging out of the system to prevent Auth Guard's automatic redirection.
+      console.log('🔄 [Register] Logging out to prevent auto-redirect...');
       await signOut();
+      
       setStatus(null);
-      // Navigate to sign in page upon successful registration      navigate("/signin", { state: { message: "Registration successful. Please sign in." } });
+      
+      console.log('➡️ [Register] Navigating to signin page');
+      navigate("/signin", { state: { message: "Registration successful. Please sign in." } });
+      
     } catch (err: any) {
-      console.error("Sign up failed:", err);
+      console.error('❌ [Register] Signup failed:', {
+        error: err,
+        response: err?.response?.data,
+        status: err?.response?.status,
+        timestamp: new Date().toISOString()
+      });
       
       // Backend'den gelen hata mesajını parse et
       let errorMessage = "Sign up failed. Please try again.";
       
       if (err?.response?.data?.detail) {
         const detail = err.response.data.detail;
+        
+        console.log('📋 [Register] Error detail from backend:', detail);
         
         // Pydantic validation hatalarını handle et
         if (Array.isArray(detail)) {
@@ -74,13 +122,16 @@ const Register = () => {
       // HTTP status code'a göre özel mesajlar
       if (err?.response?.status === 400) {
         // Validation error - mesajı olduğu gibi göster
+        console.log('⚠️ [Register] Validation error (400):', errorMessage);
       } else if (err?.response?.status >= 500) {
         errorMessage = "Server error. Please try again later.";
+        console.log('🔥 [Register] Server error (500+):', errorMessage);
       }
       
       setStatus({ registerError: errorMessage });
     } finally {
       setSubmitting(false);
+      console.log('🏁 [Register] Submit process completed');
     }
   };
 
@@ -139,8 +190,15 @@ const Register = () => {
 
               if (!values.password) {
                 errors.password = "Required";
-              } else if (values.password.length < 6) {
-                errors.password = "Password must be at least 6 characters";
+              } else {
+                // Match backend validation rules
+                if (values.password.length < 6) {
+                  errors.password = "Password must be at least 6 characters";
+                } else if (!/[A-Z]/.test(values.password)) {
+                  errors.password = "Password must contain at least 1 uppercase letter";
+                } else if (!/[a-z]/.test(values.password)) {
+                  errors.password = "Password must contain at least 1 lowercase letter";
+                }
               }
 
               if (!values.confirmPassword) {
@@ -229,7 +287,12 @@ const Register = () => {
                   <input
                     type="password"
                     name="password"
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      handleChange(e);
+                      const validation = validatePasswordRealtime(e.target.value);
+                      setPasswordValidation(validation);
+                      setShowValidation(e.target.value.length > 0);
+                    }}
                     onBlur={handleBlur}
                     value={values.password}
                     disabled={isLoading || isSubmitting}
@@ -239,6 +302,25 @@ const Register = () => {
                       }`}
                     placeholder="••••••"
                   />
+                  
+                  {/* Real-time Password Validation Messages */}
+                  {showValidation && (
+                    <div className="space-y-1 mt-2">
+                      <div className={`flex items-center text-sm ${passwordValidation.minLength ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className="mr-2">{passwordValidation.minLength ? '✓' : '✗'}</span>
+                        Password must be at least 6 characters
+                      </div>
+                      <div className={`flex items-center text-sm ${passwordValidation.hasUppercase ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className="mr-2">{passwordValidation.hasUppercase ? '✓' : '✗'}</span>
+                        Password must contain at least 1 uppercase letter
+                      </div>
+                      <div className={`flex items-center text-sm ${passwordValidation.hasLowercase ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className="mr-2">{passwordValidation.hasLowercase ? '✓' : '✗'}</span>
+                        Password must contain at least 1 lowercase letter
+                      </div>
+                    </div>
+                  )}
+                  
                   {errors.password && touched.password && (
                     <p className="text-red-500 text-sm">{errors.password}</p>
                   )}

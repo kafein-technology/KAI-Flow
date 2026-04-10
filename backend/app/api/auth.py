@@ -33,15 +33,13 @@ security = HTTPBearer()
 # Request/Response Models
 class SignInRequest(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6, description="Password must be at least 6 characters")
+    password: str = Field(..., min_length=1, description="Password is required")
 
     @field_validator('password')
     @classmethod
     def validate_password(cls, v: str) -> str:
         if not v or len(v.strip()) == 0:
             raise ValueError('Password cannot be empty')
-        if len(v) < 6:
-            raise ValueError('Password must be at least 6 characters')
         return v
 
 class AuthResponse(BaseModel):
@@ -68,26 +66,6 @@ async def signup(
     try:
         user_data = request.user
         
-        # Validate email
-        if not user_data.email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
-                detail="Email is required"
-            )
-        
-        # Validate password (additional check beyond Pydantic validation)
-        if not user_data.credential or len(user_data.credential.strip()) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password is required"
-            )
-        
-        if len(user_data.credential) < 6:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password must be at least 6 characters"
-            )
-        
         # Check if user already exists
         existing_user = await user_service.get_by_email(db, user_data.email)
         if existing_user:
@@ -96,7 +74,7 @@ async def signup(
                 detail="User already exists"
             )
         
-        # Create new user
+        # Create new user (validation happens in Pydantic schema)
         new_user = await user_service.create_user(db, user_data)
         
         # Generate tokens
@@ -115,7 +93,7 @@ async def signup(
     except HTTPException:
         raise
     except ValueError as e:
-        # Catch Pydantic validation errors
+        # Catch Pydantic validation errors with clear messages
         logger.warning(f"Validation error during signup: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -136,27 +114,7 @@ async def signin(
 ):
     """Authenticate user and return tokens"""
     try:
-        # Validate email
-        if not request.email or len(request.email.strip()) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email is required"
-            )
-        
-        # Validate password
-        if not request.password or len(request.password.strip()) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password is required"
-            )
-        
-        if len(request.password) < 6:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password must be at least 6 characters"
-            )
-        
-        # Authenticate user
+        # Authenticate user (validation happens in Pydantic schema)
         user = await user_service.authenticate_user(db, request.email, request.password)
         if not user:
             raise HTTPException(
