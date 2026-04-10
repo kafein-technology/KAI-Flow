@@ -19,7 +19,7 @@ interface PasswordValidation {
 }
 
 const Register = () => {
-  const { signUp, signOut, isAuthenticated, isLoading, error, clearError } = useAuth();
+  const { signUp, isAuthenticated, isLoading, error, clearError } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [status, setStatus] = useState<{ registerError?: string } | null>(null);
@@ -76,10 +76,6 @@ const Register = () => {
         email: values.email,
         timestamp: new Date().toISOString()
       });
-      
-      // We are immediately logging out of the system to prevent Auth Guard's automatic redirection.
-      console.log('🔄 [Register] Logging out to prevent auto-redirect...');
-      await signOut();
       
       setStatus(null);
       
