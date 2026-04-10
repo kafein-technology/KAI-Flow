@@ -485,6 +485,11 @@ class WorkflowExecutor:
                             else:
                                 outputs = {"result": "streamed", "failed": execution_failed}
                             
+                            # Include error details in outputs so they are visible in the executions page
+                            if execution_failed and error_msg:
+                                outputs["error"] = error_msg
+                                outputs["status"] = "failed"
+                            
                             await self.update_execution_status(
                                 db,
                                 execution_id,
@@ -519,6 +524,7 @@ class WorkflowExecutor:
                                 execution_id,
                                 status="failed",
                                 error_message=err_text,
+                                outputs={"error": err_text, "status": "failed"},
                                 completed_at=datetime.now(timezone.utc),
                             )
                         except Exception as update_error:
@@ -546,6 +552,26 @@ class WorkflowExecutor:
                         if errors:
                             execution_failed = True
                             error_msg = error_msg or "; ".join(str(e) for e in errors)
+                    # Check node_outputs for errors (same as Kafka/Webhook trigger checks)
+                    if not execution_failed:
+                        node_outputs = (
+                            state_data.get("node_outputs", {})
+                            if isinstance(state_data, dict)
+                            else result.get("node_outputs", {})
+                        )
+                        if isinstance(node_outputs, dict):
+                            node_errors = []
+                            for nid, nout in node_outputs.items():
+                                if isinstance(nout, dict) and nout.get("error"):
+                                    node_errors.append(f"Node {nid}: {nout['error']}")
+                            if node_errors:
+                                execution_failed = True
+                                error_msg = "; ".join(node_errors)
+                
+                # Include error details in outputs so they are visible in the executions page
+                if execution_failed and error_msg:
+                    outputs["error"] = error_msg
+                    outputs["status"] = "failed"
                 
                 final_status = "failed" if execution_failed else "completed"
                 await self.update_execution_status(
@@ -577,6 +603,7 @@ class WorkflowExecutor:
                     execution_id,
                     status="failed",
                     error_message=error_msg,
+                    outputs={"error": error_msg, "status": "failed"},
                     completed_at=datetime.now(timezone.utc),
                 )
             except Exception as update_error:

@@ -557,12 +557,24 @@ async def handle_webhook_request(
                 # Collect events and final result from stream
                 result = None
                 collected_events = []
+                collected_errors = []  # Track error events from stream
                 
                 if isinstance(result_stream, AsyncGenerator):
                     async for event_chunk in result_stream:
                         if isinstance(event_chunk, dict):
                             # Collect events for UI visualization
                             collected_events.append(event_chunk)
+                            
+                            # Track error events from stream
+                            if event_chunk.get("type") == "error":
+                                error_msg = event_chunk.get("error", "Unknown workflow error")
+                                node_id = event_chunk.get("node_id", "unknown")
+                                collected_errors.append({
+                                    "error": error_msg,
+                                    "node_id": node_id,
+                                    "error_type": event_chunk.get("error_type", "ExecutionError")
+                                })
+                                logger.warning(f"Stream error event for webhook {webhook_id}: node={node_id} error={error_msg}")
                             
                             # Check if this is the final result
                             # IMPORTANT:
@@ -683,6 +695,43 @@ async def handle_webhook_request(
                                 webhook_response_data = outputs.get("webhook_response")
                 
                 logger.debug(f"Webhook response data: {webhook_response_data}")
+                
+                # ── Error detection from stream events and result ──
+                execution_error = None
+                error_details = []
+                
+                # 1) Errors collected from stream error events
+                if collected_errors:
+                    error_details = collected_errors
+                    execution_error = "; ".join(e["error"] for e in collected_errors)
+                
+                # 2) Errors from result (state-level errors, success flag)
+                if isinstance(result, dict) and not execution_error:
+                    state_data = result.get("state", {})
+                    if isinstance(state_data, dict):
+                        state_errors = state_data.get("errors", [])
+                        if state_errors:
+                            execution_error = "; ".join(str(e) for e in state_errors)
+                    
+                    if result.get("success") is False:
+                        execution_error = execution_error or result.get("error", "Workflow execution failed")
+                
+                # 3) If no webhook_response_data AND execution had errors → return error response
+                if not webhook_response_data and execution_error:
+                    logger.warning(
+                        f"Workflow execution had errors for webhook {webhook_id}: {execution_error}"
+                    )
+                    return JSONResponse(
+                        status_code=500,
+                        content={
+                            "success": False,
+                            "error": execution_error,
+                            "error_details": error_details if error_details else None,
+                            "webhook_id": webhook_id,
+                            "correlation_id": correlation_id,
+                            "execution_id": str(ctx.execution_id) if ctx and ctx.execution_id else None,
+                        },
+                    )
 
         except Exception as e:
             logger.error(f"Workflow execution error for webhook {webhook_id}: {e}")
