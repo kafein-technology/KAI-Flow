@@ -601,7 +601,7 @@ function ExecutionsPage() {
                       </colgroup>
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-3 py-3 text-left">
+                          <th className="px-3 py-3 text-left border-r border-gray-200">
                             <input
                               type="checkbox"
                               checked={isAllSelected}
@@ -626,7 +626,7 @@ function ExecutionsPage() {
                           ).map(([key, label]) => (
                             <th
                               key={key}
-                              className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider select-none"
+                              className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider select-none border-r border-gray-200"
                             >
                               {label}
                               <div
