@@ -58,6 +58,32 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     ]
   },
   {
+    id: 'openai_compatible',
+    name: 'OpenAI Compatible',
+    description: 'Connect to any OpenAI-API compatible service like OpenRouter, vLLM, DeepSeek, or LM Studio.',
+    icon: 'openai.svg',
+    category: 'ai',
+    color: 'from-gray-500 to-slate-600',
+    fields: [
+      {
+        name: 'base_url',
+        label: 'Base URL',
+        type: 'text',
+        required: true,
+        placeholder: 'https://openrouter.ai/api/v1',
+        description: 'The endpoint URL for the compatible service'
+      },
+      {
+        name: 'api_key',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: '...',
+        description: 'The authentication key for the compatible service'
+      }
+    ]
+  },
+  {
     id: 'cohere',
     name: 'Cohere',
     description: 'Cohere AI API credentials for embeddings and reranking',
