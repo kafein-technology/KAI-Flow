@@ -21,6 +21,7 @@ window.VITE_API_VERSION = "/${VITE_API_START:-api}/${VITE_API_VERSION_ONLY:-v1}"
 window.VITE_APP_NAME = "${VITE_APP_NAME:-KAI Fusion}";
 window.VITE_NODE_ENV = "${VITE_NODE_ENV:-production}";
 window.VITE_ENABLE_LOGGING = "${VITE_ENABLE_LOGGING:-false}";
+window.VITE_ENTERPRISE = "${VITE_ENTERPRISE:-false}";
 EOF
 
 echo "Config written to $CONFIG_PATH"

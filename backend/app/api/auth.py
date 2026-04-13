@@ -57,6 +57,10 @@ async def signup(
 ):
     """Register a new user"""
     try:
+        import os
+        if os.getenv("ENTERPRISE", "false").lower() == "true":
+            raise HTTPException(status_code=403, detail="Sign up is disabled in enterprise mode")
+            
         user_data = request.user
         
         if not user_data.email:
