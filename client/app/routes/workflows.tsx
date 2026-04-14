@@ -198,6 +198,19 @@ function WorkflowsLayout() {
     setShowDeleteConfirm(true);
   };
 
+  const handleDownload = (workflow: Workflow) => {
+    const dataStr = JSON.stringify(workflow, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${workflow.name.replace(/\s+/g, '-')}-${workflow.id}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleFinalDeleteConfirm = async () => {
     if (!workflowToDelete) return;
 
@@ -677,6 +690,13 @@ function WorkflowsLayout() {
                             </Link>
 
                             <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleDownload(workflow)}
+                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200"
+                                title="Download workflow"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
                               <button
                                 onClick={() => handleEditClick(workflow)}
                                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
