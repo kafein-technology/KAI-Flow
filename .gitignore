@@ -63,9 +63,6 @@ supabase/.temp/
 supabase/.env
 supabase/.branches/
 
-# Docker
-.docker/
-
 # Logs
 *.log
 logs/

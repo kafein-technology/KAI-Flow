@@ -74,9 +74,9 @@ async def export_workflows(
     Credentials are exported with empty secrets (user fills them).
     """
     output_path = Path(output_dir)
-    # Sanitize export name
-    safe_export_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in export_name.strip().lower())
-    flows_dir = output_path / f"{safe_export_name}_flows"
+    # Sanitize export name: remove spaces entirely
+    safe_export_name = "".join(c for c in export_name.strip().lower() if c.isalnum() or c in "_-")
+    flows_dir = output_path / "flows"
     flows_dir.mkdir(parents=True, exist_ok=True)
     
     config = {
@@ -178,7 +178,7 @@ async def export_workflows(
             
             # Save flow file (unchanged - keeps credential_id as-is)
             safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in workflow.name.lower())[:50]
-            flow_file = f"{safe_export_name}_flows/{safe_name}.json"
+            flow_file = f"flows/{safe_name}.json"
             (output_path / flow_file).write_text(
                 json.dumps(flow_data, indent=2, default=str, ensure_ascii=False)
             )

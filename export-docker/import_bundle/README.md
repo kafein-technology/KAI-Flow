@@ -24,7 +24,7 @@ cd backend
 python -m scripts.import_workflows --config /path/to/<your_export_name>_workflows_config.yaml
 ```
 
-*Note: The script safely creates new UUID bounds, updates existing schemas if names match, and automatically links workflow internal dependencies avoiding any data-corruption or primary-key collisions across environments.*
+*Note: The script safely maps new UUID bounds, updates existing schemas if names match, and automatically links workflow internal dependencies avoiding any data-corruption or primary-key collisions across environments.*
 
 ## Workflows
 

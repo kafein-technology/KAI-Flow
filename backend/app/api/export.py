@@ -108,8 +108,8 @@ async def export_workflows(
     if not request.export_name or not request.export_name.strip():
         raise HTTPException(status_code=400, detail="Export name is required")
     
-    # Sanitize export name
-    export_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in request.export_name.strip().lower())
+    # Sanitize export name: remove spaces entirely
+    export_name = "".join(c for c in request.export_name.strip().lower() if c.isalnum() or c in "_-")
     
     config = {
         "version": "1.0",
@@ -214,7 +214,7 @@ async def export_workflows(
         
         # Create flow file
         safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in workflow.name.lower())[:50]
-        flow_filename = f"{export_name}_flows/{safe_name}.json"
+        flow_filename = f"flows/{safe_name}.json"
         flow_files[flow_filename] = json.dumps(flow_data, indent=2, default=str, ensure_ascii=False)
         
         config["workflows"].append({
