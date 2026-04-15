@@ -42,30 +42,35 @@ export const useAuthStore = create<AuthState>()(
 
     // Initialize auth state from localStorage
     initialize: async () => {
+      set({ isLoading: true });
+      
       const accessToken = localStorage.getItem('auth_access_token');
-      if (accessToken) {
-        set({ isAuthenticated: true, isLoading: true });
-        try {
-          const user = await AuthService.getProfile();
-          set({ 
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null
-          });
-        } catch (error: any) {
-          // Token expired or invalid, clear it
-          localStorage.removeItem('auth_access_token');
-          localStorage.removeItem('auth_refresh_token');
-          set({ 
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null
-          });
-        }
-      } else {
+      
+      if (!accessToken) {
         // Token yoksa direkt false state'e set et
+        set({ 
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null
+        });
+        return;
+      }
+
+      // Token varsa validate et
+      try {
+        const user = await AuthService.getProfile();
+        set({ 
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null
+        });
+      } catch (error: any) {
+        // Token expired or invalid, clear it
+        console.error('Token validation failed:', error);
+        localStorage.removeItem('auth_access_token');
+        localStorage.removeItem('auth_refresh_token');
         set({ 
           user: null,
           isAuthenticated: false,
