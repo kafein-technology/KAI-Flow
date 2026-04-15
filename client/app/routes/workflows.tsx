@@ -199,16 +199,54 @@ function WorkflowsLayout() {
   };
 
   const handleDownload = (workflow: Workflow) => {
-    const dataStr = JSON.stringify(workflow, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${workflow.name.replace(/\s+/g, '-')}-${workflow.id}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Clean up the workflow data for export (same logic as Navbar's handleExport)
+    const cleanWorkflow = {
+      id: workflow.id,
+      user_id: workflow.user_id,
+      name: workflow.name,
+      description: workflow.description,
+      is_public: workflow.is_public,
+      flow_data: {
+        nodes: (workflow.flow_data?.nodes || []).map((node: any) => {
+          // Remove React Flow internal state and redundant metadata
+          const { measured, selected, dragging, width, height, ...cleanNode } = node;
+
+          // Preserve dimensions for specifically resizable nodes like Sticky Note
+          if (node.type === "StickyNoteNode") {
+            if (width !== undefined) cleanNode.width = width;
+            if (height !== undefined) cleanNode.height = height;
+          }
+
+          if (cleanNode.data) {
+            // Remove redundant metadata that can be rehydrated from registry
+            const { metadata, icon, description, displayName, inputs, outputs, ...cleanData } = cleanNode.data;
+            cleanNode.data = cleanData;
+          }
+
+          return cleanNode;
+        }),
+        edges: (workflow.flow_data?.edges || []).map((edge: any) => {
+          // Remove potential internal edge state
+          const { selected, ...cleanEdge } = edge;
+          return cleanEdge;
+        }),
+      }
+    };
+
+    const dataStr =
+      "data:text/json;charset=utf-8," +
+      encodeURIComponent(JSON.stringify(cleanWorkflow, null, 2));
+    const downloadAnchorNode = document.createElement("a");
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute(
+      "download",
+      `${workflow.name.replace(/\s+/g, '-')}-${workflow.id}.json`
+    );
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    
+    enqueueSnackbar("Workflow exported successfully!", { variant: "success" });
   };
 
   const handleFinalDeleteConfirm = async () => {
