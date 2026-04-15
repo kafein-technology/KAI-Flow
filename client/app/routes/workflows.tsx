@@ -240,7 +240,7 @@ function WorkflowsLayout() {
     downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute(
       "download",
-      `${workflow.name.replace(/\s+/g, '-')}.json`
+      `${workflow.name}.json`
     );
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
