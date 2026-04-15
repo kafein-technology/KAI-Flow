@@ -33,6 +33,7 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 class ExportRequest(BaseModel):
     workflow_ids: List[str]
+    export_name: str
 
 
 def get_empty_secret_from_credential(encrypted_secret: str) -> dict:
@@ -99,9 +100,16 @@ async def export_workflows(
     """
     logger.info(f"Export request from user: {current_user.email}")
     logger.info(f"Workflow IDs: {request.workflow_ids}")
+    logger.info(f"Export name: {request.export_name}")
 
     if not request.workflow_ids:
         raise HTTPException(status_code=400, detail="No workflow IDs provided")
+    
+    if not request.export_name or not request.export_name.strip():
+        raise HTTPException(status_code=400, detail="Export name is required")
+    
+    # Sanitize export name
+    export_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in request.export_name.strip().lower())
     
     config = {
         "version": "1.0",
@@ -206,7 +214,7 @@ async def export_workflows(
         
         # Create flow file
         safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in workflow.name.lower())[:50]
-        flow_filename = f"flows/{safe_name}.json"
+        flow_filename = f"{export_name}_flows/{safe_name}.json"
         flow_files[flow_filename] = json.dumps(flow_data, indent=2, default=str, ensure_ascii=False)
         
         config["workflows"].append({
@@ -227,6 +235,7 @@ async def export_workflows(
     # Create README
     readme = f"""# KAI-Fusion Workflow Export Bundle
 
+Export Name: {export_name}
 Generated: {config['generated_at']}
 Exported by: {current_user.email}
 
@@ -236,7 +245,7 @@ Exported by: {current_user.email}
 
 ## Import Instructions
 
-### 1. Edit `workflows_config.yaml`
+### 1. Edit `{export_name}_workflows_config.yaml`
 
 - Set `target_user_email` to the target user's email
 - Fill in all credential `secret` values with actual API keys
@@ -245,7 +254,7 @@ Exported by: {current_user.email}
 
 ```bash
 cd backend
-python -m scripts.import_workflows --config /path/to/workflows_config.yaml
+python -m scripts.import_workflows --config /path/to/{export_name}_workflows_config.yaml
 ```
 
 ## Workflows
@@ -272,7 +281,7 @@ python -m scripts.import_workflows --config /path/to/workflows_config.yaml
             sort_keys=False,
             allow_unicode=True
         )
-        zf.writestr("workflows_config.yaml", yaml_content)
+        zf.writestr(f"{export_name}_workflows_config.yaml", yaml_content)
         
         # Add flow files
         for filename, content in flow_files.items():
@@ -285,7 +294,7 @@ python -m scripts.import_workflows --config /path/to/workflows_config.yaml
     
     # Generate filename with timestamp
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    zip_filename = f"workflows_export_{timestamp}.zip"
+    zip_filename = f"{export_name}_workflows_export_{timestamp}.zip"
     
     return StreamingResponse(
         zip_buffer,
