@@ -10,34 +10,30 @@ export default function PublicOnlyGuard({
 }) {
   const navigate = useNavigate();
   const { isAuthenticated, initialize, isLoading } = useAuth();
-  const [ready, setReady] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
     const init = async () => {
-      // localStorage'da token var mı kontrol et
-      const accessToken = localStorage.getItem("auth_access_token");
-
-      if (accessToken) {
-        // Token varsa initialize et
+      try {
         await initialize();
-        setReady(true);
-      } else {
-        // Token yoksa direkt ready yap
-        setReady(true);
+      } catch (error) {
+        console.error('Initialize failed:', error);
+      } finally {
+        setInitializing(false);
       }
     };
     init();
   }, [initialize]);
 
   useEffect(() => {
-    if (ready && isAuthenticated) {
+    if (!initializing && !isLoading && isAuthenticated) {
       // Giriş yapmışsa → anasayfa /
       navigate("/", { replace: true });
     }
-  }, [ready, isAuthenticated, navigate]);
+  }, [initializing, isLoading, isAuthenticated, navigate]);
 
-  // Token yoksa ve ready ise direkt children'ı göster
-  if (!ready) {
+  // Initialize veya loading sırasında spinner göster
+  if (initializing || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-4 h-4 animate-spin" />

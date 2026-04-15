@@ -10,10 +10,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, isAuthenticated, setUser, setIsAuthenticated } = useAuth();
   const [checking, setChecking] = useState(true);
-  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
+      // Keycloak redirect parametrelerini bekle
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.has("code") && searchParams.has("state")) {
         let retries = 0;
@@ -29,7 +29,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
       // 1. Token yoksa signin'e yönlendir
       if (!apiClient.isAuthenticated()) {
-        setShouldRedirect(true);
+        setChecking(false);
+        navigate("/signin", { replace: true, state: { from: location } });
         return;
       }
 
@@ -39,44 +40,38 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           const me = await apiClient.get("/auth/me");
           setUser(me);
           setIsAuthenticated(true);
+          setChecking(false);
         } catch (err) {
-          // Token bozuksa interceptor zaten yönlendirir
+          console.error('Auth check failed:', err);
+          // Token bozuksa temizle ve yönlendir
+          localStorage.removeItem('auth_access_token');
+          localStorage.removeItem('auth_refresh_token');
           setUser(null);
           setIsAuthenticated(false);
           setChecking(false);
-          setShouldRedirect(true);
-          return;
+          navigate("/signin", { replace: true, state: { from: location } });
         }
+      } else {
+        setChecking(false);
       }
-
-      setChecking(false);
     };
 
     checkAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Redirect effect
-  useEffect(() => {
-    if (shouldRedirect) {
-      navigate("/signin", { replace: true, state: { from: location } });
-    }
-  }, [shouldRedirect, navigate, location]);
-
-  // Auth durumu değişirse ve geçerli değilse yönlendir
-  useEffect(() => {
-    if (!checking && (!isAuthenticated || !user)) {
-      setShouldRedirect(true);
-    }
-  }, [checking, isAuthenticated, user]);
-
-  // Auth kontrolü sırasında veya kullanıcı yoksa loading göster
-  if (checking || !isAuthenticated || !user) {
+  // Auth kontrolü sırasında loading göster
+  if (checking) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-4 h-4 animate-spin" />
       </div>
     );
+  }
+
+  // Auth geçerli değilse null döndür (redirect zaten yapıldı)
+  if (!isAuthenticated || !user) {
+    return null;
   }
 
   return <>{children}</>;
