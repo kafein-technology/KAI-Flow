@@ -198,6 +198,57 @@ function WorkflowsLayout() {
     setShowDeleteConfirm(true);
   };
 
+  const handleDownload = (workflow: Workflow) => {
+    // Clean up the workflow data for export (same logic as Navbar's handleExport)
+    const cleanWorkflow = {
+      id: workflow.id,
+      user_id: workflow.user_id,
+      name: workflow.name,
+      description: workflow.description,
+      is_public: workflow.is_public,
+      flow_data: {
+        nodes: (workflow.flow_data?.nodes || []).map((node: any) => {
+          // Remove React Flow internal state and redundant metadata
+          const { measured, selected, dragging, width, height, ...cleanNode } = node;
+
+          // Preserve dimensions for specifically resizable nodes like Sticky Note
+          if (node.type === "StickyNoteNode") {
+            if (width !== undefined) cleanNode.width = width;
+            if (height !== undefined) cleanNode.height = height;
+          }
+
+          if (cleanNode.data) {
+            // Remove redundant metadata that can be rehydrated from registry
+            const { metadata, icon, description, displayName, inputs, outputs, ...cleanData } = cleanNode.data;
+            cleanNode.data = cleanData;
+          }
+
+          return cleanNode;
+        }),
+        edges: (workflow.flow_data?.edges || []).map((edge: any) => {
+          // Remove potential internal edge state
+          const { selected, ...cleanEdge } = edge;
+          return cleanEdge;
+        }),
+      }
+    };
+
+    const dataStr =
+      "data:text/json;charset=utf-8," +
+      encodeURIComponent(JSON.stringify(cleanWorkflow, null, 2));
+    const downloadAnchorNode = document.createElement("a");
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute(
+      "download",
+      `${workflow.name.replace(/\s+/g, '-')}-${workflow.id}.json`
+    );
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    
+    enqueueSnackbar("Workflow exported successfully!", { variant: "success" });
+  };
+
   const handleFinalDeleteConfirm = async () => {
     if (!workflowToDelete) return;
 
@@ -677,6 +728,13 @@ function WorkflowsLayout() {
                             </Link>
 
                             <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleDownload(workflow)}
+                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200"
+                                title="Download workflow"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
                               <button
                                 onClick={() => handleEditClick(workflow)}
                                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
