@@ -9,6 +9,7 @@ import type {
 
 export interface ExportRequest {
   workflow_ids: string[];
+  export_name: string;
 }
 
 /**
@@ -47,11 +48,11 @@ export const exportService = {
    * @param workflowIds - Array of workflow UUIDs to export
    * @returns Promise that triggers file download
    */
-  async exportWorkflows(workflowIds: string[]): Promise<void> {
+  async exportWorkflows(workflowIds: string[], exportName: string): Promise<void> {
     // apiClient.post returns response.data directly (the blob)
     const data = await apiClient.post(
       API_ENDPOINTS.EXPORT.WORKFLOWS,
-      { workflow_ids: workflowIds },
+      { workflow_ids: workflowIds, export_name: exportName },
       {
         responseType: 'blob',
       }
@@ -59,7 +60,7 @@ export const exportService = {
 
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '').slice(0, 14);
-    const filename = `workflows_export_${timestamp}.zip`;
+    const filename = `${exportName}_workflows_export_${timestamp}.zip`;
 
     // Create blob and trigger download
     const blob = new Blob([data], { type: 'application/zip' });

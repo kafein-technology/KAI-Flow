@@ -111,22 +111,38 @@ async def import_from_config(config_path: str, dry_run: bool = False):
 
             log(f"\nTarget user: {user.email} (id: {user.id})")
 
-            # 2. Create credentials with ORIGINAL UUIDs
+            # 2. Map or Create/Update credentials
+            uuid_mapping = {}
             created_credentials = 0
+            updated_credentials = 0
             skipped_credentials = 0
 
             log(f"\nProcessing credentials...")
 
             for cred_config in config.get("credentials", []):
-                cred_id = cred_config.get("id")
+                old_cred_id = cred_config.get("id")
                 name = cred_config.get("name")
                 service_type = cred_config.get("service_type")
                 secret = cred_config.get("secret", {})
 
-                if not cred_id or not name or not service_type:
+                if not old_cred_id or not name or not service_type:
                     log(f"  SKIP: Invalid credential config: {cred_config}")
                     skipped_credentials += 1
                     continue
+
+                # Check if a credential with same name and service_type exists for TARGET USER
+                existing_cred = None
+                try:
+                    existing = await db.execute(
+                        select(UserCredential).where(
+                            UserCredential.user_id == user.id,
+                            UserCredential.name == name,
+                            UserCredential.service_type == service_type
+                        )
+                    )
+                    existing_cred = existing.scalar_one_or_none()
+                except Exception as e:
+                    log(f"  WARN: Error checking credential {name}: {e}")
 
                 # Check if credential values are filled
                 has_values = any(v for v in secret.values() if v)
@@ -135,56 +151,65 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                     skipped_credentials += 1
                     continue
 
-                # Check if credential already exists (by ID)
-                try:
-                    existing = await db.execute(
-                        select(UserCredential).where(UserCredential.id == uuid.UUID(cred_id))
-                    )
-                    if existing.scalar_one_or_none():
-                        log(f"  SKIP: Credential already exists: {name} (ID: {cred_id})")
-                        skipped_credentials += 1
+                if existing_cred:
+                    uuid_mapping[old_cred_id] = str(existing_cred.id)
+                    if dry_run:
+                        log(f"  Would UPDATE: {name}")
                         continue
-                except Exception as e:
-                    log(f"  WARN: Error checking credential {cred_id}: {e}")
+                    
+                    try:
+                        encrypted_bytes = encrypt_data(secret)
+                        encrypted_secret = base64.b64encode(encrypted_bytes).decode('utf-8')
+                        existing_cred.encrypted_secret = encrypted_secret
+                        updated_credentials += 1
+                        log(f"  Updated: {name}")
+                    except Exception as e:
+                        log(f"  ERROR updating {name}: {e}")
+                        skipped_credentials += 1
+                else:
+                    if dry_run:
+                        log(f"  Would CREATE: {name}")
+                        continue
 
-                if dry_run:
-                    log(f"  Would create: {name} (ID: {cred_id})")
-                    continue
+                    # Generate NEW UUID for credential
+                    new_cred_id = uuid.uuid4()
+                    uuid_mapping[old_cred_id] = str(new_cred_id)
 
-                # Create credential with ORIGINAL UUID
-                try:
-                    encrypted_bytes = encrypt_data(secret)
-                    encrypted_secret = base64.b64encode(encrypted_bytes).decode('utf-8')
+                    # Create credential with NEW UUID
+                    try:
+                        encrypted_bytes = encrypt_data(secret)
+                        encrypted_secret = base64.b64encode(encrypted_bytes).decode('utf-8')
 
-                    credential = UserCredential(
-                        id=uuid.UUID(cred_id),  # Use ORIGINAL UUID
-                        user_id=user.id,
-                        name=name,
-                        service_type=service_type,
-                        encrypted_secret=encrypted_secret
-                    )
-                    db.add(credential)
-                    await db.flush()
+                        credential = UserCredential(
+                            id=new_cred_id,
+                            user_id=user.id,
+                            name=name,
+                            service_type=service_type,
+                            encrypted_secret=encrypted_secret
+                        )
+                        db.add(credential)
+                        await db.flush()
 
-                    created_credentials += 1
-                    log(f"  Created: {name} (ID: {cred_id})")
+                        created_credentials += 1
+                        log(f"  Created: {name}")
 
-                except Exception as e:
-                    log(f"  ERROR creating {name}: {e}")
-                    skipped_credentials += 1
+                    except Exception as e:
+                        log(f"  ERROR creating {name}: {e}")
+                        skipped_credentials += 1
 
-            # 3. Import workflows with ORIGINAL UUIDs
+            # 3. Import workflows with NEW UUIDs and mapped credentials
             created_workflows = 0
             skipped_workflows = 0
+            updated_workflows = 0
 
             log(f"\nProcessing workflows...")
 
             for wf_config in config.get("workflows", []):
-                wf_id = wf_config.get("id")
+                old_wf_id = wf_config.get("id")
                 wf_name = wf_config.get("name")
                 flow_file_rel = wf_config.get("flow_file")
 
-                if not wf_id or not wf_name or not flow_file_rel:
+                if not old_wf_id or not wf_name or not flow_file_rel:
                     log(f"  SKIP: Invalid workflow config: {wf_config}")
                     skipped_workflows += 1
                     continue
@@ -196,46 +221,73 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                     skipped_workflows += 1
                     continue
 
-                # Check if workflow already exists (by ID)
+                # Check if workflow with exact name already exists for target user
+                existing_wf = None
                 try:
                     existing = await db.execute(
-                        select(Workflow).where(Workflow.id == uuid.UUID(wf_id))
+                        select(Workflow).where(
+                            Workflow.user_id == user.id,
+                            Workflow.name == wf_name
+                        )
                     )
-                    if existing.scalar_one_or_none():
-                        log(f"  SKIP: Workflow already exists: {wf_name} (ID: {wf_id})")
-                        skipped_workflows += 1
-                        continue
+                    existing_wf = existing.scalar_one_or_none()
                 except Exception as e:
-                    log(f"  WARN: Error checking workflow {wf_id}: {e}")
+                    log(f"  WARN: Error checking workflow {wf_name}: {e}")
 
-                # Read flow data
+                # Read flow data and map credentials
                 try:
                     flow_data = json.loads(flow_file.read_text(encoding="utf-8"))
+                    
+                    # Replace old credential UUIDs with new/mapped ones
+                    CREDENTIAL_FIELD_NAMES = [
+                        "credential_id", "credential",
+                        "basic_auth_credential_id", "header_auth_credential_id"
+                    ]
+                    
+                    for node in flow_data.get("nodes", []):
+                        node_data = node.get("data", {})
+                        for field_name in CREDENTIAL_FIELD_NAMES:
+                            cred_val = node_data.get(field_name)
+                            if cred_val and isinstance(cred_val, str) and cred_val in uuid_mapping:
+                                node_data[field_name] = uuid_mapping[cred_val]
+                                
                 except Exception as e:
-                    log(f"  ERROR reading {flow_file}: {e}")
+                    log(f"  ERROR reading or parsing {flow_file}: {e}")
                     skipped_workflows += 1
                     continue
 
                 if dry_run:
-                    log(f"  Would import: {wf_name} (ID: {wf_id})")
+                    if existing_wf:
+                        log(f"  Would UPDATE: {wf_name}")
+                    else:
+                        log(f"  Would import: {wf_name}")
                     continue
 
-                # Create workflow with ORIGINAL UUID
+                # Create or Update Workflow
                 try:
-                    workflow = Workflow(
-                        id=uuid.UUID(wf_id),  # Use ORIGINAL UUID
-                        user_id=user.id,
-                        name=wf_name,
-                        description=wf_config.get("description", ""),
-                        is_public=wf_config.get("is_public", False),
-                        flow_data=flow_data
-                    )
-                    db.add(workflow)
-                    created_workflows += 1
-                    log(f"  Imported: {wf_name} (ID: {wf_id})")
+                    if existing_wf:
+                        # Update workflow
+                        existing_wf.description = wf_config.get("description", "")
+                        existing_wf.is_public = wf_config.get("is_public", False)
+                        existing_wf.flow_data = flow_data
+                        updated_workflows += 1
+                        log(f"  Updated: {wf_name}")
+                    else:
+                        # Create workflow with NEW UUID
+                        workflow = Workflow(
+                            id=uuid.uuid4(),
+                            user_id=user.id,
+                            name=wf_name,
+                            description=wf_config.get("description", ""),
+                            is_public=wf_config.get("is_public", False),
+                            flow_data=flow_data
+                        )
+                        db.add(workflow)
+                        created_workflows += 1
+                        log(f"  Imported: {wf_name}")
 
                 except Exception as e:
-                    log(f"  ERROR importing {wf_name}: {e}")
+                    log(f"  ERROR importing/updating {wf_name}: {e}")
                     skipped_workflows += 1
 
             # Commit all changes
@@ -245,8 +297,8 @@ async def import_from_config(config_path: str, dry_run: bool = False):
             # Summary
             log(f"\n{'=' * 50}")
             log(f"Import Summary")
-            log(f"  Credentials: {created_credentials} created, {skipped_credentials} skipped")
-            log(f"  Workflows: {created_workflows} imported, {skipped_workflows} skipped")
+            log(f"  Credentials: {created_credentials} created, {updated_credentials} updated, {skipped_credentials} skipped")
+            log(f"  Workflows: {created_workflows} imported, {updated_workflows} updated, {skipped_workflows} skipped")
 
             if dry_run:
                 log(f"\n** DRY RUN - No changes were made **")

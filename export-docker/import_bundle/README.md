@@ -1,35 +1,37 @@
 # KAI-Fusion Workflow Export Bundle
 
-Generated: 2026-01-15T06:09:00.663354Z
-Exported by: mmetehanaydemir@gmail.com
+Export Name: `<your_export_name>`
+Generated: `<timestamp>`
+Exported by: `<exporter_email>`
 
 ## Contents
-- 3 workflow(s)
-- 1 credential(s) (empty - fill before import)
+- `X` workflow(s)
+- `X` credential(s) (empty - fill before import)
 
 ## Import Instructions
 
-### 1. Edit `workflows_config.yaml`
+### 1. Edit `<your_export_name>_workflows_config.yaml`
 
-- Set `target_user_email` to the target user's email
-- Fill in all credential `secret` values with actual API keys
+- Set `target_user_email` to the target user's email ID. If the user does not exist within the system, you can provide a `user_password` to securely and automatically create the user account during import.
+- **Security Notice:** Check the YAML configurations and manually fill in all credential `secret` values (such as API Keys, Connection Strings, Base URLs) with actual values. **Do not commit the filled file to version control.**
 
 ### 2. Run Import Script
 
+Run the following command in the terminal within your backend deployment environment:
+
 ```bash
 cd backend
-python -m scripts.import_workflows --config /path/to/workflows_config.yaml
+python -m scripts.import_workflows --config /path/to/<your_export_name>_workflows_config.yaml
 ```
+
+*Note: The script safely creates new UUID bounds, updates existing schemas if names match, and automatically links workflow internal dependencies avoiding any data-corruption or primary-key collisions across environments.*
 
 ## Workflows
 
-- **Data Focus- Glossaries Generator** (ID: `02d9874c-9e48-4117-8aa6-35e6011d73a6`)
-- **Data Focus- Regex List Generation** (ID: `6f47a6c7-f59c-486d-b2ea-83d82872c54c`)
-- **Data Focus- List Generation** (ID: `4333653c-02ca-470f-8537-8eeda8ac6df6`)
+*The exported workflows are sequentially listed here with their names and reference IDs during a real export.*
+*- Example Workflow Name 1*
+*- Example Workflow Name 2*
 
 ## Credentials (fill these before import)
 
-- **Open Router** (openai)
-  - ID: `2da90dbb-80f4-4fad-8b51-a068e43a3b40`
-  - Fields: ['api_key', 'created_at', 'id', 'name', 'service_type', 'updated_at']
-
+*Details regarding sensitive logic, API keys, or database integrations needed by the specific workflows outline themselves here. The actual secret variables are excluded safely by KAI-Flow—you must securely assign them in your `.yaml` config before running the import step.*

@@ -66,14 +66,17 @@ def get_empty_secret_from_credential(credential: UserCredential) -> Dict[str, An
 async def export_workflows(
     workflow_ids: Optional[List[str]] = None,
     user_email: Optional[str] = None,
-    output_dir: str = "./export_bundle"
+    output_dir: str = "./export_bundle",
+    export_name: str = "default"
 ):
     """
     Export workflows preserving original UUIDs.
     Credentials are exported with empty secrets (user fills them).
     """
     output_path = Path(output_dir)
-    flows_dir = output_path / "flows"
+    # Sanitize export name
+    safe_export_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in export_name.strip().lower())
+    flows_dir = output_path / f"{safe_export_name}_flows"
     flows_dir.mkdir(parents=True, exist_ok=True)
     
     config = {
@@ -175,7 +178,7 @@ async def export_workflows(
             
             # Save flow file (unchanged - keeps credential_id as-is)
             safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in workflow.name.lower())[:50]
-            flow_file = f"flows/{safe_name}.json"
+            flow_file = f"{safe_export_name}_flows/{safe_name}.json"
             (output_path / flow_file).write_text(
                 json.dumps(flow_data, indent=2, default=str, ensure_ascii=False)
             )
@@ -201,7 +204,7 @@ async def export_workflows(
         sort_keys=False, 
         allow_unicode=True
     )
-    (output_path / "workflows_config.yaml").write_text(yaml_content, encoding="utf-8")
+    (output_path / f"{safe_export_name}_workflows_config.yaml").write_text(yaml_content, encoding="utf-8")
     
     # Write README
     readme = f"""# KAI-Flow Workflow Export Bundle
@@ -223,7 +226,7 @@ Generated: {config['generated_at']}
 
 ```bash
 cd backend
-python -m scripts.import_workflows --config /path/to/workflows_config.yaml
+python -m scripts.import_workflows --config /path/to/{safe_export_name}_workflows_config.yaml
 ```
 
 ## Workflows
@@ -253,6 +256,7 @@ def main():
     parser.add_argument("--ids", help="Comma-separated workflow UUIDs to export")
     parser.add_argument("--user-email", help="Export all workflows for this user")
     parser.add_argument("--output", required=True, help="Output directory path")
+    parser.add_argument("--name", required=True, help="Export name (used for folder/file naming)")
     
     args = parser.parse_args()
     
@@ -266,7 +270,8 @@ def main():
     asyncio.run(export_workflows(
         workflow_ids=workflow_ids,
         user_email=args.user_email,
-        output_dir=args.output
+        output_dir=args.output,
+        export_name=args.name
     ))
 
 
