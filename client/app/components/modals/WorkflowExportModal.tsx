@@ -70,8 +70,8 @@ export default function WorkflowExportModal({
         setError(null);
 
         try {
-            // Sanitize export name: replace spaces with underscores, lowercase
-            const sanitizedName = exportName.trim().replace(/\s+/g, '_').toLowerCase();
+            // Sanitize export name: remove spaces, lowercase
+            const sanitizedName = exportName.trim().replace(/\s+/g, '').toLowerCase();
             await exportWorkflows(Array.from(selectedIds), sanitizedName);
             onClose();
         } catch (err: any) {
@@ -148,7 +148,7 @@ export default function WorkflowExportModal({
                                 </div>
                             )}
                             <p className="mt-1.5 text-xs text-gray-400">
-                                ZIP will contain: <code className="bg-gray-100 px-1 py-0.5 rounded">{exportName.trim().replace(/\s+/g, '_').toLowerCase() || '...'}_flows/</code> and <code className="bg-gray-100 px-1 py-0.5 rounded">{exportName.trim().replace(/\s+/g, '_').toLowerCase() || '...'}_workflows_config.yaml</code>
+                                ZIP will contain: <code className="bg-gray-100 px-1 py-0.5 rounded">flows/</code> and <code className="bg-gray-100 px-1 py-0.5 rounded">{exportName.trim().replace(/\s+/g, '').toLowerCase() || '...'}_workflows_config.yaml</code>
                             </p>
                         </div>
 
