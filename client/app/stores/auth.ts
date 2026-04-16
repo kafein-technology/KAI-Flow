@@ -47,7 +47,7 @@ export const useAuthStore = create<AuthState>()(
       const accessToken = localStorage.getItem('auth_access_token');
       
       if (!accessToken) {
-        // Token yoksa direkt false state'e set et
+        // If no token, set state to false directly
         set({ 
           user: null,
           isAuthenticated: false,
@@ -57,7 +57,7 @@ export const useAuthStore = create<AuthState>()(
         return;
       }
 
-      // Token varsa validate et
+      // If token exists, validate it
       try {
         const user = await AuthService.getProfile();
         set({ 
@@ -132,7 +132,7 @@ export const useAuthStore = create<AuthState>()(
     },
 
     signOut: async () => {
-      // Önce state'i temizle
+      // Clear state first
       set({ 
         user: null,
         isAuthenticated: false,
@@ -144,7 +144,7 @@ export const useAuthStore = create<AuthState>()(
       localStorage.removeItem('auth_access_token');
       localStorage.removeItem('auth_refresh_token');
       
-      // API call'u background'da yap
+      // Make API call in background
       try {
         await AuthService.signOut();
       } catch (error) {

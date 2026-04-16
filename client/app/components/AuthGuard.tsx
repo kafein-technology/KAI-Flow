@@ -13,7 +13,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Keycloak redirect parametrelerini bekle
+      // Wait for Keycloak redirect parameters
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.has("code") && searchParams.has("state")) {
         let retries = 0;
@@ -27,14 +27,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 1. Token yoksa signin'e yönlendir
+      // 1. If no token, redirect to signin
       if (!apiClient.isAuthenticated()) {
         setChecking(false);
         navigate("/signin", { replace: true, state: { from: location } });
         return;
       }
 
-      // 2. Kullanıcı yoksa backend'den çek
+      // 2. If no user, fetch from backend
       if (!user) {
         try {
           const me = await apiClient.get("/auth/me");
@@ -43,7 +43,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           setChecking(false);
         } catch (err) {
           console.error('Auth check failed:', err);
-          // Token bozuksa temizle ve yönlendir
+          // If token is invalid, clear and redirect
           localStorage.removeItem('auth_access_token');
           localStorage.removeItem('auth_refresh_token');
           setUser(null);
@@ -60,7 +60,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auth kontrolü sırasında loading göster
+  // Show loading during auth check
   if (checking) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -69,7 +69,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Auth geçerli değilse null döndür (redirect zaten yapıldı)
+  // Return null if auth is invalid (redirect already done)
   if (!isAuthenticated || !user) {
     return null;
   }

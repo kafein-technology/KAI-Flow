@@ -27,12 +27,12 @@ export default function PublicOnlyGuard({
 
   useEffect(() => {
     if (!initializing && !isLoading && isAuthenticated) {
-      // Giriş yapmışsa → anasayfa /
+      // If logged in, redirect to home page
       navigate("/", { replace: true });
     }
   }, [initializing, isLoading, isAuthenticated, navigate]);
 
-  // Initialize veya loading sırasında spinner göster
+  // Show spinner during initialize or loading
   if (initializing || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -41,6 +41,6 @@ export default function PublicOnlyGuard({
     );
   }
 
-  // Giriş yapmamışsa, children'ı (örneğin signin formu) göster
+  // If not logged in, show children (e.g., signin form)
   return <>{children}</>;
 }
