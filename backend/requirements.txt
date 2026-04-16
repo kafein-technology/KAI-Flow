@@ -190,3 +190,9 @@ yarl==1.20.1
 zstandard==0.24.0
 cachetools==5.5.2
 confluent-kafka==2.3.0
+
+# Security / Red Teaming
+deepteam>=0.2.0
+
+# JSON repair for LLM output sanitisation (Python True/False, truncated JSON)
+json-repair>=0.7.0

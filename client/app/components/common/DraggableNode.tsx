@@ -1,6 +1,6 @@
 import React from "react";
 import type { ReactElement } from "react";
-import { Box } from "lucide-react";
+import { Box, ShieldAlert } from "lucide-react";
 import { getNodeTypeIconPath, hasNodeTypeIcon } from "~/lib/iconUtils";
 
 interface NodeType {
@@ -45,6 +45,7 @@ const staticIcons: Record<string, ReactElement> = {
     </svg>
   ),
   GenericNode: <Box className="w-6 h-6 text-blue-400" />,
+  LLMRedTeam: <ShieldAlert className="w-6 h-6 text-red-500" />,
 };
 
 // Alt text mapping for accessibility

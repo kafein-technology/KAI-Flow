@@ -459,12 +459,11 @@ class NodeExecutor:
             # This method is only called from execute_processor_node, so no additional gnode.type filter needed here.
 
             # Apply templating for all processor nodes.
-
-            # We need node_outputs and a populated nodes_registry.
-            if not hasattr(state, "node_outputs") or not state.node_outputs:
-                return user_inputs
-            if not getattr(self, "_nodes_registry", None):
-                return user_inputs
+            # IMPORTANT: Do NOT exit early just because node_outputs is empty.
+            # webhook_trigger / current_input context must be built even when this
+            # node is the very first processor in the graph (nothing in node_outputs yet).
+            has_node_outputs = hasattr(state, "node_outputs") and bool(state.node_outputs)
+            has_registry = bool(getattr(self, "_nodes_registry", None))
             
             # Build templating context from executed nodes' primary outputs
             context: Dict[str, Any] = {}
@@ -483,101 +482,102 @@ class NodeExecutor:
                 context['webhook_trigger'] = webhook_payload
                 logger.info(f"[TEMPLATE] Added webhook_trigger to context: {list(webhook_payload.keys()) if isinstance(webhook_payload, dict) else type(webhook_payload)}")
 
-            for other_node_id in state.node_outputs.keys():
-                graph_node = self._nodes_registry.get(other_node_id)
-                if not graph_node:
-                    continue
+            # Only iterate node outputs when they are available
+            if has_node_outputs and has_registry:
+                for other_node_id in state.node_outputs.keys():
+                    graph_node = self._nodes_registry.get(other_node_id)
+                    if not graph_node:
+                        continue
 
-                # Build a prioritized list of candidate names for this node:
+                    # Build a prioritized list of candidate names for this node:
 
-                # 1) UI-visible name from user_data["name"] (what you see on the canvas)
-                # 2) NodeMetadata.display_name
-                # 3) NodeMetadata.name
-                # 4) GraphNodeInstance.metadata["display_name"/"name"]
-                # 5) Fallback: node_id
-                alias_candidates: list[tuple[str, str]] = []
+                    # 1) UI-visible name from user_data["name"] (what you see on the canvas)
+                    # 2) NodeMetadata.display_name
+                    # 3) NodeMetadata.name
+                    # 4) GraphNodeInstance.metadata["display_name"/"name"]
+                    # 5) Fallback: node_id
+                    alias_candidates: list[tuple[str, str]] = []
 
-                # 1) UI name (highest priority, what the user edited on the frontend)
-                ui_name = None
-                try:
-                    user_data = getattr(graph_node, "user_data", {}) or {}
-                    if isinstance(user_data, dict):
-                        ui_name = user_data.get("name")
-                except Exception:
-                    user_data = {}
+                    # 1) UI name (highest priority, what the user edited on the frontend)
                     ui_name = None
+                    try:
+                        user_data = getattr(graph_node, "user_data", {}) or {}
+                        if isinstance(user_data, dict):
+                            ui_name = user_data.get("name")
+                    except Exception:
+                        user_data = {}
+                        ui_name = None
 
-                if ui_name:
-                    alias_candidates.append(("ui_name", str(ui_name)))
+                    if ui_name:
+                        alias_candidates.append(("ui_name", str(ui_name)))
 
-                # 2) Pydantic NodeMetadata from node instance
-                node_meta_model = None
-                try:
-                    node_meta_model = getattr(graph_node.node_instance, "metadata", None)
-                except Exception:
+                    # 2) Pydantic NodeMetadata from node instance
                     node_meta_model = None
+                    try:
+                        node_meta_model = getattr(graph_node.node_instance, "metadata", None)
+                    except Exception:
+                        node_meta_model = None
 
-                if node_meta_model is not None:
-                    display_name = getattr(node_meta_model, "display_name", None)
-                    meta_name = getattr(node_meta_model, "name", None)
+                    if node_meta_model is not None:
+                        display_name = getattr(node_meta_model, "display_name", None)
+                        meta_name = getattr(node_meta_model, "name", None)
 
-                    if display_name:
-                        alias_candidates.append(("display_name", str(display_name)))
-                    if meta_name and meta_name != display_name:
-                        alias_candidates.append(("meta_name", str(meta_name)))
+                        if display_name:
+                            alias_candidates.append(("display_name", str(display_name)))
+                        if meta_name and meta_name != display_name:
+                            alias_candidates.append(("meta_name", str(meta_name)))
 
-                # 3) Fallback to GraphNodeInstance.metadata dict
-                metadata_dict = getattr(graph_node, "metadata", {}) or {}
-                if isinstance(metadata_dict, dict):
-                    md_display = metadata_dict.get("display_name")
-                    md_name = metadata_dict.get("name")
+                    # 3) Fallback to GraphNodeInstance.metadata dict
+                    metadata_dict = getattr(graph_node, "metadata", {}) or {}
+                    if isinstance(metadata_dict, dict):
+                        md_display = metadata_dict.get("display_name")
+                        md_name = metadata_dict.get("name")
 
-                    if md_display:
-                        alias_candidates.append(("graph_display_name", str(md_display)))
-                    if md_name and md_name != md_display:
-                        alias_candidates.append(("graph_name", str(md_name)))
+                        if md_display:
+                            alias_candidates.append(("graph_display_name", str(md_display)))
+                        if md_name and md_name != md_display:
+                            alias_candidates.append(("graph_name", str(md_name)))
 
-                # 4) Final fallback: raw node_id
-                alias_candidates.append(("node_id", str(other_node_id)))
+                    # 4) Final fallback: raw node_id
+                    alias_candidates.append(("node_id", str(other_node_id)))
 
-                primary_value = self._get_primary_output_for_node(other_node_id, state)
-                if primary_value is None:
-                    continue
-
-                # SPECIAL CASE: If this is a StartNode, also add its output as 'input'.
-                # This allows {{input}} to work like a chat system with StartNode.
-                is_start_node = False
-                try:
-                    if hasattr(graph_node, 'type') and graph_node.type == 'StartNode':
-                        is_start_node = True
-                        if 'input' not in context:  # Don't overwrite if already set
-                            context['input'] = primary_value
-                            print(f"[TEMPLATE DEBUG] Added 'input' context from StartNode output: {primary_value}")
-                except Exception:
-                    pass
-
-                # Normalize and save all aliases without overwriting existing keys.
-                # This preserves backward compatibility (type-based aliases) while
-                # allowing clean UI-based aliases like {{openai_gpt}}.
-                for source_type, raw_name in alias_candidates:
-                    normalized = self._normalize_display_name_for_template(raw_name)
-                    if not normalized:
+                    primary_value = self._get_primary_output_for_node(other_node_id, state)
+                    if primary_value is None:
                         continue
 
-                    if normalized in context:
-                        # Do not overwrite existing mapping; just log once for visibility
+                    # SPECIAL CASE: If this is a StartNode, also add its output as 'input'.
+                    # This allows {{input}} to work like a chat system with StartNode.
+                    try:
+                        if hasattr(graph_node, 'type') and graph_node.type == 'StartNode':
+                            if 'input' not in context:  # Don't overwrite if already set
+                                context['input'] = primary_value
+                                print(f"[TEMPLATE DEBUG] Added 'input' context from StartNode output: {primary_value}")
+                    except Exception:
+                        pass
+
+                    # Normalize and save all aliases without overwriting existing keys.
+                    # This preserves backward compatibility (type-based aliases) while
+                    # allowing clean UI-based aliases like {{openai_gpt}}.
+                    for source_type, raw_name in alias_candidates:
+                        normalized = self._normalize_display_name_for_template(raw_name)
+                        if not normalized:
+                            continue
+
+                        if normalized in context:
+                            # Do not overwrite existing mapping; just log once for visibility
+                            logger.debug(
+                                f"[TEMPLATE] Skipping duplicate alias '{normalized}' from {source_type} "
+                                f"for node {other_node_id} while building context for {gnode.id}"
+                            )
+                            continue
+
+                        context[normalized] = primary_value
                         logger.debug(
-                            f"[TEMPLATE] Skipping duplicate alias '{normalized}' from {source_type} "
-                            f"for node {other_node_id} while building context for {gnode.id}"
+                            f"[TEMPLATE] Added alias '{normalized}' from {source_type} "
+                            f"for node '{other_node_id}' (raw='{raw_name}') into context for {gnode.id}"
                         )
-                        continue
 
-                    context[normalized] = primary_value
-                    logger.debug(
-                        f"[TEMPLATE] Added alias '{normalized}' from {source_type} "
-                        f"for node '{other_node_id}' (raw='{raw_name}') into context for {gnode.id}"
-                    )
-            
+            # Bail out only if no context at all was built (no webhook, no input, no upstream outputs)
             if not context:
                 logger.debug(f"[TEMPLATE] No context built for node {gnode.id}; skipping templating")
                 return user_inputs
