@@ -27,20 +27,28 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 1. Token yoksa signin'e yönlendir
+      // 1. No token — redirect to signin
       if (!apiClient.isAuthenticated()) {
         setShouldRedirect(true);
         return;
       }
 
-      // 2. Kullanıcı yoksa backend'den çek
+      // 2. No user in store — fetch from backend
       if (!user) {
         try {
-          const me = await apiClient.get("/auth/me");
-          setUser(me);
+          const me = await Promise.race([
+            apiClient.get("/auth/me"),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Auth check timeout")), 5000)
+            ),
+          ]);
+          setUser(me as any);
           setIsAuthenticated(true);
         } catch (err) {
-          // Token bozuksa interceptor zaten yönlendirir
+          // Token invalid or timeout — clear tokens and redirect to signin
+          console.warn("AuthGuard: auth check failed:", err);
+          localStorage.removeItem("auth_access_token");
+          localStorage.removeItem("auth_refresh_token");
           setUser(null);
           setIsAuthenticated(false);
           setChecking(false);
@@ -63,14 +71,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [shouldRedirect, navigate, location]);
 
-  // Auth durumu değişirse ve geçerli değilse yönlendir
+  // If auth state changes and becomes invalid, redirect
   useEffect(() => {
     if (!checking && (!isAuthenticated || !user)) {
       setShouldRedirect(true);
     }
   }, [checking, isAuthenticated, user]);
 
-  // Auth kontrolü sırasında veya kullanıcı yoksa loading göster
+  // Show loading during auth check or when user is not loaded
   if (checking || !isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">

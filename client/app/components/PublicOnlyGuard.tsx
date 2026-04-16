@@ -14,15 +14,26 @@ export default function PublicOnlyGuard({
 
   useEffect(() => {
     const init = async () => {
-      // localStorage'da token var mı kontrol et
+      // Check if token exists in localStorage
       const accessToken = localStorage.getItem("auth_access_token");
 
       if (accessToken) {
-        // Token varsa initialize et
-        await initialize();
+        try {
+          // Initialize with timeout — proceed if not completed within 5 seconds
+          await Promise.race([
+            initialize(),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Auth init timeout")), 5000)
+            ),
+          ]);
+        } catch (error) {
+          console.warn("Auth initialization failed, clearing tokens:", error);
+          localStorage.removeItem("auth_access_token");
+          localStorage.removeItem("auth_refresh_token");
+        }
         setReady(true);
       } else {
-        // Token yoksa direkt ready yap
+        // No token found, set ready immediately
         setReady(true);
       }
     };
@@ -31,12 +42,12 @@ export default function PublicOnlyGuard({
 
   useEffect(() => {
     if (ready && isAuthenticated) {
-      // Giriş yapmışsa → anasayfa /
+      // Already authenticated → redirect to home
       navigate("/", { replace: true });
     }
   }, [ready, isAuthenticated, navigate]);
 
-  // Token yoksa ve ready ise direkt children'ı göster
+  // Show loading spinner until ready
   if (!ready) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -45,6 +56,6 @@ export default function PublicOnlyGuard({
     );
   }
 
-  // Giriş yapmamışsa, children'ı (örneğin signin formu) göster
+  // Not authenticated — render children (e.g. signin form)
   return <>{children}</>;
 }
