@@ -434,10 +434,12 @@ async def update_workflow(
         workflow = await workflow_service.get_by_id(db, workflow_id, user_id)
         
         if not workflow:
+            logger.warning(f"Workflow {workflow_id} not found for user {user_id}")
             raise HTTPException(status_code=404, detail="Workflow not found")
         
         # Only owner can update
         if workflow.user_id != user_id:
+            logger.warning(f"User {user_id} attempted to update workflow {workflow_id} owned by {workflow.user_id}")
             raise HTTPException(status_code=403, detail="Only workflow owner can update")
         
         # Update fields that are provided
@@ -449,17 +451,22 @@ async def update_workflow(
         if 'flow_data' in update_data:
             workflow.version += 1
         
-        await db.commit()
-        await db.refresh(workflow)
+        try:
+            await db.commit()
+            await db.refresh(workflow)
+        except Exception as commit_error:
+            await db.rollback()
+            logger.error(f"Database commit failed for workflow {workflow_id}: {commit_error}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to save workflow to database")
         
-        logger.info(f"Updated workflow {workflow_id} for user {user_id}")
+        logger.info(f"Successfully updated workflow {workflow_id} for user {user_id}")
         return WorkflowResponse.model_validate(workflow)
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
         logger.error(f"Error updating workflow {workflow_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to update workflow")
+        raise HTTPException(status_code=500, detail=f"Failed to update workflow: {str(e)}")
 
 
 @router.delete("/{workflow_id}")

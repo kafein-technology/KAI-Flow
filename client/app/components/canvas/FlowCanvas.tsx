@@ -605,7 +605,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     };
 
     if (!workflowName || workflowName.trim() === "") {
-      enqueueSnackbar("Lütfen bir dosya adı girin.", { variant: "warning" });
+      enqueueSnackbar("Please enter a workflow name", { variant: "warning" });
       return;
     }
 
@@ -616,13 +616,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           description: "",
           flow_data: flowData,
         });
+        
+        if (!newWorkflow || !newWorkflow.id) {
+          throw new Error("Failed to create workflow - invalid response");
+        }
+        
         setCurrentWorkflow(newWorkflow);
-        setHasUnsavedChanges(false); // Kaydetme başarılı olduğunda false yap
+        setHasUnsavedChanges(false);
         enqueueSnackbar(`Workflow "${workflowName}" created and saved!`, {
           variant: "success",
         });
-      } catch (error) {
-        enqueueSnackbar("Failed to create workflow.", { variant: "error" });
+      } catch (error: any) {
+        console.error("Failed to create workflow:", error);
+        const errorMessage = error?.response?.data?.detail || error?.message || "Failed to create workflow";
+        enqueueSnackbar(errorMessage, { variant: "error" });
       }
       return;
     }
@@ -633,11 +640,15 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         description: currentWorkflow.description,
         flow_data: flowData,
       });
-      setHasUnsavedChanges(false); // Kaydetme başarılı olduğunda false yap
+      
+      // Only set unsaved changes to false after successful update
+      setHasUnsavedChanges(false);
       enqueueSnackbar("Workflow saved successfully!", { variant: "success" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save workflow:", error);
-      enqueueSnackbar("Failed to save workflow.", { variant: "error" });
+      const errorMessage = error?.response?.data?.detail || error?.message || "Failed to save workflow";
+      enqueueSnackbar(errorMessage, { variant: "error" });
+      // Don't set hasUnsavedChanges to false on error
     }
   }, [
     currentWorkflow,
