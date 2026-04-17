@@ -15,6 +15,7 @@ KEY FEATURES:
 
 import logging
 from typing import Dict, Any, Optional, List
+import httpx
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
 from pydantic import SecretStr
@@ -61,7 +62,7 @@ class OpenAICompatibleNode(BaseNode):
                     name="model_name",
                     type="str",
                     description="Model identifier (e.g. llama3-70b-8192)",
-                    default="anthropic/claude-3.5-sonnet",
+                    default="google/gemma-3n-e4b-it",
                     required=True,
                 ),
                 NodeInput(
@@ -134,6 +135,13 @@ class OpenAICompatibleNode(BaseNode):
                     description="Request timeout in seconds",
                     default=60,
                     required=False,
+                ),
+                NodeInput(
+                    name="verify_ssl",
+                    type="bool",
+                    description="Enable SSL certificate verification (disable for self-signed certificates)",
+                    default=True,
+                    required=False,
                 )
             ],
             "outputs": [
@@ -177,7 +185,7 @@ class OpenAICompatibleNode(BaseNode):
                     displayName="Model Name",
                     tabName="basic",
                     type=NodePropertyType.TEXT,
-                    default="anthropic/claude-3.5-sonnet",
+                    default="google/gemma-3n-e4b-it",
                     placeholder="e.g. meta-llama/llama-3-70b-instruct",
                     description="Enter the exact model ID from the provider",
                     required=True
@@ -259,6 +267,15 @@ class OpenAICompatibleNode(BaseNode):
                     max=600,
                     description="Request timeout in seconds",
                     required=False
+                ),
+                NodeProperty(
+                    name="verify_ssl",
+                    displayName="SSL Certificate Verification",
+                    tabName="advanced",
+                    type=NodePropertyType.CHECKBOX,
+                    default=True,
+                    description="Enable SSL certificate verification. Disable this only when connecting to servers with self-signed certificates (e.g. internal/local deployments)",
+                    required=False
                 )
             ]
         }
@@ -275,7 +292,7 @@ class OpenAICompatibleNode(BaseNode):
         
         # Extract configuration
         base_url = self.user_data.get("base_url", "https://openrouter.ai/api/v1")
-        model_name = self.user_data.get("model_name", "anthropic/claude-3.5-sonnet")
+        model_name = self.user_data.get("model_name", "google/gemma-3n-e4b-it")
         temperature = float(self.user_data.get("temperature", 0.7))
         max_tokens = int(self.user_data.get("max_tokens", 4096))
 
@@ -288,6 +305,12 @@ class OpenAICompatibleNode(BaseNode):
         presence_penalty = float(self.user_data["presence_penalty"]) if "presence_penalty" in active_optional and "presence_penalty" in self.user_data else None
         timeout = int(self.user_data["timeout"]) if "timeout" in active_optional and "timeout" in self.user_data else None
         streaming = bool(self.user_data["streaming"]) if "streaming" in active_optional and "streaming" in self.user_data else False
+        
+        # SSL verification - default to True (secure) unless explicitly disabled
+        verify_ssl = self.user_data.get("verify_ssl", True)
+        if isinstance(verify_ssl, str):
+            verify_ssl = verify_ssl.lower() not in ("false", "0", "no")
+        verify_ssl = bool(verify_ssl)
         
         # OpenRouter specific params
         site_url = self.user_data.get("site_url", "")
@@ -343,6 +366,12 @@ class OpenAICompatibleNode(BaseNode):
 
         if extra_headers:
             llm_config["model_kwargs"] = {"extra_headers": extra_headers}
+        
+        # Create custom HTTP client for self-signed certificate support
+        if not verify_ssl:
+            logger.warning("SSL certificate verification is DISABLED for this node. Use only for trusted internal endpoints.")
+            llm_config["http_client"] = httpx.Client(verify=False)
+            llm_config["http_async_client"] = httpx.AsyncClient(verify=False)
         
         try:
             llm = ChatOpenAI(**llm_config)

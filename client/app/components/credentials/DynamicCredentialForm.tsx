@@ -146,6 +146,18 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
           <Field type="password" {...commonProps} autoComplete="new-password" />
         );
 
+      case "checkbox":
+        return (
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <Field
+              type="checkbox"
+              name={field.name}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+            <span className="text-sm text-gray-700">{field.label}</span>
+          </label>
+        );
+
       default:
         return <Field type="text" {...commonProps} />;
     }
@@ -215,12 +227,14 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
 
               return (
                 <div key={field.name} className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    {field.label}
-                    {field.required && (
-                      <span className="text-red-500 ml-1">*</span>
-                    )}
-                  </label>
+                  {field.type !== "checkbox" && (
+                    <label className="block text-sm font-medium text-gray-700">
+                      {field.label}
+                      {field.required && (
+                        <span className="text-red-500 ml-1">*</span>
+                      )}
+                    </label>
+                  )}
 
                   {renderField(field)}
 
