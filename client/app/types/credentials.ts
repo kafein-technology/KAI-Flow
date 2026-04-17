@@ -1,7 +1,7 @@
 export interface ServiceField {
   name: string;
   label: string;
-  type: 'text' | 'password' | 'textarea' | 'select';
+  type: 'text' | 'password' | 'textarea' | 'select' | 'checkbox';
   required: boolean;
   placeholder?: string;
   default?: string;
@@ -80,6 +80,14 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         required: true,
         placeholder: '...',
         description: 'The authentication key for the compatible service'
+      },
+      {
+        name: 'skip_ssl_verify',
+        label: 'Skip SSL Certificate Verification',
+        type: 'checkbox',
+        required: false,
+        default: '',
+        description: 'Enable this when connecting to servers with self-signed certificates (e.g. internal/local deployments)'
       }
     ]
   },
