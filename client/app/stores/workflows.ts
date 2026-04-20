@@ -99,13 +99,22 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
     set({ isLoading: true });
     try {
       const updatedWorkflow = await WorkflowService.updateWorkflow(id, data);
+
+      // Validate response
+      if (!updatedWorkflow || !updatedWorkflow.id) {
+        throw new Error("Invalid response from server");
+      }
+
       set((state) => ({
         workflows: state.workflows.map((w) => (w.id === id ? updatedWorkflow : w)),
         currentWorkflow: state.currentWorkflow?.id === id ? updatedWorkflow : state.currentWorkflow,
         isLoading: false,
+        error: null,
       }));
     } catch (error: any) {
-      set({ error: error.message, isLoading: false });
+      const errorMessage = error?.response?.data?.detail || error?.message || "Failed to update workflow";
+      console.error("Update workflow error:", errorMessage, error);
+      set({ error: errorMessage, isLoading: false });
       throw error;
     }
   },
