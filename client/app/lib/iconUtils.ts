@@ -111,6 +111,9 @@ export function getNodeTypeIconPath(nodeType: string): string {
         CodeNode: "icons/code.svg",
         ConditionNode: "icons/condition.svg",
 
+        // Security Nodes
+        LLMRedTeam: "icons/flag.svg",
+
         // Decorative Nodes
         StickyNoteNode: "icons/sticky_note.svg",
         JsonParserNode: "icons/parser.svg",

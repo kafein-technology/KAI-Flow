@@ -5,6 +5,7 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+import httpx
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -343,10 +344,23 @@ async def _test_openai_compatible(secret: Dict[str, Any]) -> CredentialTestRespo
         if not api_key:
             api_key = "dummy_for_local"
 
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=secret.get("base_url", "")
-        )
+        # Check if SSL verification should be skipped
+        skip_ssl = secret.get("skip_ssl_verify", False)
+        if isinstance(skip_ssl, str):
+            skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
+        skip_ssl = bool(skip_ssl)
+
+        client_kwargs = {
+            "api_key": api_key,
+            "base_url": secret.get("base_url", "")
+        }
+
+        # Inject custom HTTP client to bypass SSL verification
+        if skip_ssl:
+            logger.info("SSL verification disabled for test connection.")
+            client_kwargs["http_client"] = httpx.AsyncClient(verify=False)
+
+        client = AsyncOpenAI(**client_kwargs)
         
         # 1. Ensure the endpoint exists and responds to OpenAI format
         await asyncio.wait_for(client.models.list(), timeout=10)
@@ -371,7 +385,10 @@ async def _test_openai_compatible(secret: Dict[str, Any]) -> CredentialTestRespo
             # If it's a 400 Bad Request or 404 Model Not Found, it means authentication passed!
             pass
 
-        return CredentialTestResponse(success=True, message="Connected to OpenAI Compatible provider successfully.")
+        msg = "Connected to OpenAI Compatible provider successfully."
+        if skip_ssl:
+            msg += " (SSL verification was skipped)"
+        return CredentialTestResponse(success=True, message=msg)
     except asyncio.TimeoutError:
         return CredentialTestResponse(success=False, message="Connection timed out.")
     except Exception as e:

@@ -141,20 +141,20 @@ function WorkflowsLayout() {
   const [updatingVisibilityId, setUpdatingVisibilityId] = useState<string | null>(null);
 
   // External workflows state
-//   const [externalWorkflows, setExternalWorkflows] = useState<
-//     ExternalWorkflowInfo[]
-//   >([]);
-//   const [externalLoading, setExternalLoading] = useState(false);
-//   const [externalError, setExternalError] = useState<string | null>(null);
-//   const [showAddExternalModal, setShowAddExternalModal] = useState(false);
-//   const [selectedExternalWorkflow, setSelectedExternalWorkflow] =
-//     useState<ExternalWorkflowInfo | null>(null);
-//   const [showExternalChatModal, setShowExternalChatModal] = useState(false);
-//   const [showExternalViewerModal, setShowExternalViewerModal] = useState(false);
-//   const [externalWorkflowToRemove, setExternalWorkflowToRemove] =
-//     useState<ExternalWorkflowInfo | null>(null);
-//   const [showRemoveExternalConfirm, setShowRemoveExternalConfirm] =
-//     useState(false);
+  //   const [externalWorkflows, setExternalWorkflows] = useState<
+  //     ExternalWorkflowInfo[]
+  //   >([]);
+  //   const [externalLoading, setExternalLoading] = useState(false);
+  //   const [externalError, setExternalError] = useState<string | null>(null);
+  //   const [showAddExternalModal, setShowAddExternalModal] = useState(false);
+  //   const [selectedExternalWorkflow, setSelectedExternalWorkflow] =
+  //     useState<ExternalWorkflowInfo | null>(null);
+  //   const [showExternalChatModal, setShowExternalChatModal] = useState(false);
+  //   const [showExternalViewerModal, setShowExternalViewerModal] = useState(false);
+  //   const [externalWorkflowToRemove, setExternalWorkflowToRemove] =
+  //     useState<ExternalWorkflowInfo | null>(null);
+  //   const [showRemoveExternalConfirm, setShowRemoveExternalConfirm] =
+  //     useState(false);
   const [page, setPage] = useState(1);
   const [showExportModal, setShowExportModal] = useState(false);
 
@@ -173,12 +173,12 @@ function WorkflowsLayout() {
   useEffect(() => {
     fetchWorkflows();
   }, [fetchWorkflows]);
-// 
-//   useEffect(() => {
-//     if (activeTab === "external-workflows") {
-//       fetchExternalWorkflows();
-//     }
-//   }, [activeTab]);
+  // 
+  //   useEffect(() => {
+  //     if (activeTab === "external-workflows") {
+  //       fetchExternalWorkflows();
+  //     }
+  //   }, [activeTab]);
 
   const filteredWorkflows = workflows.filter((workflow) => {
     const matchesSearch =
@@ -196,6 +196,57 @@ function WorkflowsLayout() {
   const handleDelete = async (workflow: Workflow) => {
     setWorkflowToDelete(workflow);
     setShowDeleteConfirm(true);
+  };
+
+  const handleDownload = (workflow: Workflow) => {
+    // Clean up the workflow data for export (same logic as Navbar's handleExport)
+    const cleanWorkflow = {
+      id: workflow.id,
+      user_id: workflow.user_id,
+      name: workflow.name,
+      description: workflow.description,
+      is_public: workflow.is_public,
+      flow_data: {
+        nodes: (workflow.flow_data?.nodes || []).map((node: any) => {
+          // Remove React Flow internal state and redundant metadata
+          const { measured, selected, dragging, width, height, ...cleanNode } = node;
+
+          // Preserve dimensions for specifically resizable nodes like Sticky Note
+          if (node.type === "StickyNoteNode") {
+            if (width !== undefined) cleanNode.width = width;
+            if (height !== undefined) cleanNode.height = height;
+          }
+
+          if (cleanNode.data) {
+            // Remove redundant metadata that can be rehydrated from registry
+            const { metadata, icon, description, displayName, inputs, outputs, ...cleanData } = cleanNode.data;
+            cleanNode.data = cleanData;
+          }
+
+          return cleanNode;
+        }),
+        edges: (workflow.flow_data?.edges || []).map((edge: any) => {
+          // Remove potential internal edge state
+          const { selected, ...cleanEdge } = edge;
+          return cleanEdge;
+        }),
+      }
+    };
+
+    const dataStr =
+      "data:text/json;charset=utf-8," +
+      encodeURIComponent(JSON.stringify(cleanWorkflow, null, 2));
+    const downloadAnchorNode = document.createElement("a");
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute(
+      "download",
+      `${workflow.name}.json`
+    );
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+
+    enqueueSnackbar("Workflow exported successfully!", { variant: "success" });
   };
 
   const handleFinalDeleteConfirm = async () => {
@@ -258,90 +309,90 @@ function WorkflowsLayout() {
   };
 
   // External workflow functions
-//   const fetchExternalWorkflows = async () => {
-//     setExternalLoading(true);
-//     setExternalError(null);
-//     try {
-//       const data = await externalWorkflowService.listExternalWorkflows();
-//       setExternalWorkflows(data);
-//     } catch (error) {
-//       setExternalError(
-//         error instanceof Error
-//           ? error.message
-//           : "Failed to fetch external workflows"
-//       );
-//     } finally {
-//       setExternalLoading(false);
-//     }
-//   };
-// 
-//   const handleRegisterExternalWorkflow = async (
-//     config: ExternalWorkflowConfig
-//   ) => {
-//     try {
-//       await externalWorkflowService.registerExternalWorkflow(config);
-//       enqueueSnackbar("External workflow registered successfully!", {
-//         variant: "success",
-//       });
-//       setShowAddExternalModal(false);
-//       fetchExternalWorkflows();
-//     } catch (error) {
-//       enqueueSnackbar(
-//         error instanceof Error
-//           ? error.message
-//           : "Failed to register external workflow",
-//         { variant: "error" }
-//       );
-//     }
-//   };
-// 
-//   const handleChatWithExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
-//     setSelectedExternalWorkflow(workflow);
-//     setShowExternalChatModal(true);
-//   };
-// 
-//   const handleViewExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
-//     setSelectedExternalWorkflow(workflow);
-//     setShowExternalViewerModal(true);
-//   };
-// 
-//   const handleRemoveExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
-//     setExternalWorkflowToRemove(workflow);
-//     setShowRemoveExternalConfirm(true);
-//   };
-// 
-//   const handleFinalRemoveExternalConfirm = async () => {
-//     if (!externalWorkflowToRemove) return;
-// 
-//     try {
-//       await externalWorkflowService.unregisterExternalWorkflow(
-//         externalWorkflowToRemove.workflow_id
-//       );
-//       enqueueSnackbar("External workflow removed successfully", {
-//         variant: "success",
-//       });
-// 
-      // Remove from local state
-//       setExternalWorkflows((prev) =>
-//         prev.filter(
-//           (w) => w.workflow_id !== externalWorkflowToRemove.workflow_id
-//         )
-//       );
-//     } catch (error: any) {
-//       console.error("Remove external workflow error:", error);
-//       const errorMessage =
-//         error?.message || error?.detail || "Failed to remove external workflow";
-//       enqueueSnackbar(errorMessage, { variant: "error" });
-//     } finally {
-//       setExternalWorkflowToRemove(null);
-//       setShowRemoveExternalConfirm(false);
-//     }
-//   };
-// 
-//   const handleCancelRemoveExternal = () => {
-//     setShowRemoveExternalConfirm(false);
-//     setExternalWorkflowToRemove(null);
-//   };
+  //   const fetchExternalWorkflows = async () => {
+  //     setExternalLoading(true);
+  //     setExternalError(null);
+  //     try {
+  //       const data = await externalWorkflowService.listExternalWorkflows();
+  //       setExternalWorkflows(data);
+  //     } catch (error) {
+  //       setExternalError(
+  //         error instanceof Error
+  //           ? error.message
+  //           : "Failed to fetch external workflows"
+  //       );
+  //     } finally {
+  //       setExternalLoading(false);
+  //     }
+  //   };
+  // 
+  //   const handleRegisterExternalWorkflow = async (
+  //     config: ExternalWorkflowConfig
+  //   ) => {
+  //     try {
+  //       await externalWorkflowService.registerExternalWorkflow(config);
+  //       enqueueSnackbar("External workflow registered successfully!", {
+  //         variant: "success",
+  //       });
+  //       setShowAddExternalModal(false);
+  //       fetchExternalWorkflows();
+  //     } catch (error) {
+  //       enqueueSnackbar(
+  //         error instanceof Error
+  //           ? error.message
+  //           : "Failed to register external workflow",
+  //         { variant: "error" }
+  //       );
+  //     }
+  //   };
+  // 
+  //   const handleChatWithExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
+  //     setSelectedExternalWorkflow(workflow);
+  //     setShowExternalChatModal(true);
+  //   };
+  // 
+  //   const handleViewExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
+  //     setSelectedExternalWorkflow(workflow);
+  //     setShowExternalViewerModal(true);
+  //   };
+  // 
+  //   const handleRemoveExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
+  //     setExternalWorkflowToRemove(workflow);
+  //     setShowRemoveExternalConfirm(true);
+  //   };
+  // 
+  //   const handleFinalRemoveExternalConfirm = async () => {
+  //     if (!externalWorkflowToRemove) return;
+  // 
+  //     try {
+  //       await externalWorkflowService.unregisterExternalWorkflow(
+  //         externalWorkflowToRemove.workflow_id
+  //       );
+  //       enqueueSnackbar("External workflow removed successfully", {
+  //         variant: "success",
+  //       });
+  // 
+  // Remove from local state
+  //       setExternalWorkflows((prev) =>
+  //         prev.filter(
+  //           (w) => w.workflow_id !== externalWorkflowToRemove.workflow_id
+  //         )
+  //       );
+  //     } catch (error: any) {
+  //       console.error("Remove external workflow error:", error);
+  //       const errorMessage =
+  //         error?.message || error?.detail || "Failed to remove external workflow";
+  //       enqueueSnackbar(errorMessage, { variant: "error" });
+  //     } finally {
+  //       setExternalWorkflowToRemove(null);
+  //       setShowRemoveExternalConfirm(false);
+  //     }
+  //   };
+  // 
+  //   const handleCancelRemoveExternal = () => {
+  //     setShowRemoveExternalConfirm(false);
+  //     setExternalWorkflowToRemove(null);
+  //   };
 
   const validateWorkflow = (values: WorkflowFormValues) => {
     const errors: Partial<WorkflowFormValues> = {};
@@ -408,7 +459,7 @@ function WorkflowsLayout() {
                   </p>
                 </div>
 
-{/* DISABLED Tab Navigation
+                {/* DISABLED Tab Navigation
                 { Tab Navigation }
                 <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                   <button
@@ -509,7 +560,7 @@ function WorkflowsLayout() {
                   </div>
                 )}
 
-{/* DISABLED Add External Row
+                {/* DISABLED Add External Row
                 { Add External Workflow Row - Only for external workflows }
                 {activeTab === "external-workflows" && (
                   <div className="flex justify-end">
@@ -630,26 +681,26 @@ function WorkflowsLayout() {
                                 )}
                               </span>
                               */}
-     
+
                             </div>
-                          {/* Activity Toggle */}
-                          <div className="flex flex-col items-end">
-                            <span className="text-[12px] font-medium text-gray-500">
-                              Activity
-                            </span>
-                            <CompactToggleSwitch
-                              isActive={workflow.is_public || false}
-                              disabled={updatingVisibilityId === workflow.id}
-                              onToggle={(isPublic) =>
-                                handleToggleWorkflowVisibility(
-                                  workflow.id,
-                                  isPublic
-                                )
-                              }
-                              activeIcon={<Globe className="w-3 h-3 text-green-600" />}
-                              inactiveIcon={<Lock className="w-3 h-3 text-gray-500" />}
-                            />
-                          </div>
+                            {/* Activity Toggle */}
+                            <div className="flex flex-col items-end">
+                              <span className="text-[12px] font-medium text-gray-500">
+                                Activity
+                              </span>
+                              <CompactToggleSwitch
+                                isActive={workflow.is_public || false}
+                                disabled={updatingVisibilityId === workflow.id}
+                                onToggle={(isPublic) =>
+                                  handleToggleWorkflowVisibility(
+                                    workflow.id,
+                                    isPublic
+                                  )
+                                }
+                                activeIcon={<Globe className="w-3 h-3 text-green-600" />}
+                                inactiveIcon={<Lock className="w-3 h-3 text-gray-500" />}
+                              />
+                            </div>
                           </div>
 
                           {/* Metadata */}
@@ -677,6 +728,13 @@ function WorkflowsLayout() {
                             </Link>
 
                             <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleDownload(workflow)}
+                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200"
+                                title="Download workflow"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
                               <button
                                 onClick={() => handleEditClick(workflow)}
                                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
@@ -759,7 +817,7 @@ function WorkflowsLayout() {
                 )}
               </>
             ) : null}
-{/* DISABLED External Content
+            {/* DISABLED External Content
 (
                External Workflows Content 
               <div className="space-y-6">
@@ -1049,7 +1107,7 @@ function WorkflowsLayout() {
         </div>
       </dialog>
 
-{/* DISABLED Modals
+      {/* DISABLED Modals
       { Remove External Workflow Confirm Modal }
       <dialog
         open={showRemoveExternalConfirm}
