@@ -29,6 +29,8 @@ interface ReactFlowCanvasProps {
   nodeStatus?: Record<string, 'success' | 'failed' | 'pending'>;
   edgeStatus?: Record<string, 'success' | 'failed' | 'pending'>;
   onNodeClick?: (event: React.MouseEvent, node: Node) => void;
+  onNodeContextMenu?: (event: React.MouseEvent, node: Node) => void;
+  onPaneClick?: (event: React.MouseEvent) => void;
 }
 
 export default function ReactFlowCanvas({
@@ -46,6 +48,8 @@ export default function ReactFlowCanvas({
   nodeStatus = {},
   edgeStatus = {},
   onNodeClick,
+  onNodeContextMenu,
+  onPaneClick,
 }: ReactFlowCanvasProps) {
   return (
     <div
@@ -85,6 +89,8 @@ export default function ReactFlowCanvas({
         snapGrid={[10, 10]}
         fitView
         onNodeClick={onNodeClick}
+        onNodeContextMenu={onNodeContextMenu}
+        onPaneClick={onPaneClick}
         proOptions={{ hideAttribution: true }}
       >
         <Controls position="top-right" className="bg-background text-black" />
