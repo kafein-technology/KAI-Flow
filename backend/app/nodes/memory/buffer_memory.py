@@ -147,7 +147,7 @@ LICENSE: Proprietary - KAI-Flow Platform
 
 from ..base import MemoryNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
 import logging
-from langchain.memory import ConversationBufferMemory
+from langchain_classic.memory import ConversationBufferMemory
 from langchain_core.runnables import Runnable
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from typing import cast, Dict, Optional, List

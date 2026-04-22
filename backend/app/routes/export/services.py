@@ -70,7 +70,7 @@ def clean_node_source_for_export(source_code: str, node_type: str) -> str:
     # Keep external imports (LangChain, etc.)
     external_imports = [
         "from langchain_openai import", "from langchain_tavily import", 
-        "from langchain_cohere import", "from langchain.memory import"
+        "from langchain_cohere import", "from langchain_classic.memory import"
     ]
     
     for import_line in external_imports:
