@@ -45,7 +45,7 @@ from datetime import datetime
 from langchain_core.tools import Tool
 from langchain_core.retrievers import BaseRetriever
 from langchain_postgres import PGVector
-from langchain.retrievers import ContextualCompressionRetriever
+from langchain_classic.retrievers import ContextualCompressionRetriever
 
 from app.nodes.base import ProviderNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
 
