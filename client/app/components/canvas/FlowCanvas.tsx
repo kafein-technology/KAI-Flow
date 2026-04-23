@@ -331,15 +331,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
   }, [currentWorkflow?.name]);
 
-  // Clear chats and execution data when workflow changes to prevent accumulation
+  // Clear chats and execution data only when switching to a DIFFERENT workflow
+  const prevWorkflowIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (currentWorkflow?.id) {
-      // Reset active chat when switching to a different workflow
-      setActiveChatflowId(null);
-      // Clear chats when switching to a different workflow
-      clearAllChats();
-      // Clear execution data for the previous workflow
+    if (currentWorkflow?.id && currentWorkflow.id !== prevWorkflowIdRef.current) {
+      if (prevWorkflowIdRef.current !== null) {
+        // Actually switching workflows — clear previous session
+        setActiveChatflowId(null);
+        clearAllChats();
+      }
       setCurrentExecutionForWorkflow(currentWorkflow.id, null);
+      prevWorkflowIdRef.current = currentWorkflow.id;
     }
   }, [currentWorkflow?.id, clearAllChats, setCurrentExecutionForWorkflow, setActiveChatflowId]);
 
