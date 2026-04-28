@@ -18,8 +18,9 @@ import {
   X,
   Download,
   Lock,
+  Upload,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
@@ -114,6 +115,7 @@ function WorkflowsLayout() {
     error,
     fetchWorkflows,
     deleteWorkflow,
+    createWorkflow,
     clearError,
     updateWorkflow,
     updateWorkflowStatus,
@@ -157,6 +159,8 @@ function WorkflowsLayout() {
   //     useState(false);
   const [page, setPage] = useState(1);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sayfalama hesaplamaları
   const totalItems = workflows.length; // Use workflows from the store for total count
@@ -306,6 +310,62 @@ function WorkflowsLayout() {
 
   const handleToggleWorkflowStatus = (workflowId: string, isActive: boolean) => {
     console.log("Handling toggle workflow status", workflowId, isActive);
+  };
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsImporting(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        try {
+          const text = await file.text();
+          const workflowData = JSON.parse(text);
+          
+          // Create new workflow from imported data
+          await createWorkflow({
+            name: workflowData.name || `Imported ${file.name}`,
+            description: workflowData.description || "",
+            flow_data: workflowData.flow_data,
+          });
+          
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to import ${file.name}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Show result message
+      if (successCount > 0) {
+        enqueueSnackbar(
+          `Successfully imported ${successCount} workflow${successCount > 1 ? 's' : ''}`,
+          { variant: "success" }
+        );
+        fetchWorkflows(); // Refresh list
+      }
+      
+      if (errorCount > 0) {
+        enqueueSnackbar(
+          `Failed to import ${errorCount} workflow${errorCount > 1 ? 's' : ''}`,
+          { variant: "error" }
+        );
+      }
+    } catch (error) {
+      enqueueSnackbar("Import failed", { variant: "error" });
+    } finally {
+      setIsImporting(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   // External workflow functions
@@ -557,6 +617,33 @@ function WorkflowsLayout() {
                       <Download className="w-4 h-4" />
                       Export
                     </button>
+
+                    {/* Import Workflows Button */}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isImporting}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {isImporting ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          Import
+                        </>
+                      )}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="application/json"
+                      multiple
+                      onChange={handleImport}
+                      className="hidden"
+                    />
                   </div>
                 )}
 
