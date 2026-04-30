@@ -164,16 +164,20 @@ class KafkaListenerService:
 
         task = entry.get("task")
         if task and not task.done():
-            task.cancel()
             try:
-                await asyncio.wait_for(asyncio.shield(task), timeout=10)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                pass
+                await asyncio.wait_for(task, timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.warning(f"Consumer {listener_id} It wasn't shut down on time; it's being forcibly cancelled.")
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
         # Memory leak fix: stopped listener'ı dict'ten sil
         del cls._listeners[listener_id]
 
-        logger.info(f"Kafka listener durduruldu ve temizlendi: {listener_id}")
+        logger.info(f"Kafka listener has been stopped and cleaned: {listener_id}")
 
         return {"status": "stopped", "listener_id": listener_id}
 
@@ -766,6 +770,8 @@ async def _start_from_desired(node_id: str, desired_entry: Dict[str, Any]):
     )
 
 
+kafka_reconciliation_wakeup = asyncio.Event()
+
 async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVAL_SECONDS):
     """
     Periyodik Kafka listener reconciliation döngüsü.
@@ -787,7 +793,11 @@ async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVA
 
     while True:
         if not first_run:
-            await asyncio.sleep(interval)
+            try:
+                await asyncio.wait_for(kafka_reconciliation_wakeup.wait(), timeout=interval)
+                kafka_reconciliation_wakeup.clear()
+            except asyncio.TimeoutError:
+                pass
         first_run = False
 
         try:
