@@ -66,6 +66,18 @@ IMPLEMENTATION DETAILS:
 
 import asyncio
 import logging
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env BEFORE any app imports so that os.getenv() picks up the values
+# Priority: root .env (ana dizin) > backend/.env
+_root_env = Path(__file__).resolve().parent.parent / ".env"
+_backend_env = Path(__file__).resolve().parent / ".env"
+if _root_env.exists():
+    load_dotenv(_root_env)
+if _backend_env.exists():
+    load_dotenv(_backend_env, override=False)
+
 from app.core.enhanced_logging import auto_configure_enhanced_logging
 import os
 from contextlib import asynccontextmanager
