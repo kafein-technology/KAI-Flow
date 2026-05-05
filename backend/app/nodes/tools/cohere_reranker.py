@@ -23,7 +23,7 @@ try:
     from langchain_cohere import CohereRerank
 except ImportError:
     # Fallback to legacy import if langchain_cohere is not working
-    from langchain.retrievers.document_compressors import CohereRerank
+    from langchain_cohere import CohereRerank
 from langchain_core.runnables import Runnable
 
 from ..base import ProviderNode, NodeType, NodeInput, NodeOutput, NodeProperty, NodePosition, NodePropertyType

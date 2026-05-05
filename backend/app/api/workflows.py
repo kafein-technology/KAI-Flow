@@ -670,8 +670,11 @@ async def update_workflow_visibility(
         
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
+            
+        from app.nodes.triggers.kafka_trigger import kafka_reconciliation_wakeup
+        kafka_reconciliation_wakeup.set()
         
-        logger.info(f"Updated workflow {workflow_id} visibility to {'public' if is_public else 'private'}")
+        logger.info(f"Updated workflow {workflow_id} visibility to {'public' if is_public else 'private'} and triggered reconciliation")
         return {"message": f"Workflow visibility updated to {'public' if is_public else 'private'}"}
     except HTTPException:
         raise

@@ -15,7 +15,7 @@ import weakref
 from collections import defaultdict
 import sys
 
-from langchain.memory import ConversationBufferMemory
+from langchain_classic.memory import ConversationBufferMemory
 from langchain_core.runnables import Runnable
 
 logger = logging.getLogger(__name__)

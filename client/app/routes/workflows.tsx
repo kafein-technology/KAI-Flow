@@ -18,8 +18,9 @@ import {
   X,
   Download,
   Lock,
+  Upload,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
@@ -118,6 +119,7 @@ function WorkflowsLayout() {
     updateWorkflow,
     updateWorkflowStatus,
     updateWorkflowVisibility,
+    createWorkflow,
   } = useWorkflows();
 
   // Tab state
@@ -139,6 +141,8 @@ function WorkflowsLayout() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState(6);
   const [updatingVisibilityId, setUpdatingVisibilityId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // External workflows state
   //   const [externalWorkflows, setExternalWorkflows] = useState<
@@ -247,6 +251,61 @@ function WorkflowsLayout() {
     downloadAnchorNode.remove();
 
     enqueueSnackbar("Workflow exported successfully!", { variant: "success" });
+  };
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsImporting(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          const text = await file.text();
+          const workflowData = JSON.parse(text);
+
+          // Create workflow using the store
+          await createWorkflow({
+            name: workflowData.name || `Imported Workflow ${i + 1}`,
+            description: workflowData.description || "Imported workflow",
+            is_public: workflowData.is_public || false,
+            flow_data: workflowData.flow_data || { nodes: [], edges: [] },
+          });
+
+          successCount++;
+        } catch (error) {
+          console.error(`Error importing ${file.name}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Show results
+      if (successCount > 0) {
+        enqueueSnackbar(
+          `Successfully imported ${successCount} workflow${successCount > 1 ? "s" : ""}`,
+          { variant: "success" }
+        );
+      }
+      if (errorCount > 0) {
+        enqueueSnackbar(
+          `Failed to import ${errorCount} workflow${errorCount > 1 ? "s" : ""}`,
+          { variant: "error" }
+        );
+      }
+
+      // Refresh workflow list
+      await fetchWorkflows();
+    } finally {
+      setIsImporting(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   const handleFinalDeleteConfirm = async () => {
@@ -557,6 +616,26 @@ function WorkflowsLayout() {
                       <Download className="w-4 h-4" />
                       Export
                     </button>
+
+                    {/* Import Workflows Button */}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isImporting}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      <Upload className="w-4 h-4" />
+                      {isImporting ? "Importing..." : "Import"}
+                    </button>
+
+                    {/* Hidden File Input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="application/json"
+                      multiple
+                      onChange={handleImport}
+                      className="hidden"
+                    />
                   </div>
                 )}
 

@@ -42,6 +42,7 @@ import ChatHistorySidebar from "./ChatHistorySidebar";
 import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
+import NodeContextMenu from "./NodeContextMenu";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
 import EndNode from "../node/EndNode";
@@ -167,6 +168,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(
     null
   );
+
+  // Context Menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    nodeId: string;
+  } | null>(null);
 
   // Auto-save settings modal ref
   const autoSaveSettingsModalRef = useRef<HTMLDialogElement>(null);
@@ -661,6 +669,74 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setHasUnsavedChanges,
     workflowName,
   ]);
+
+  // Context Menu Handlers
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      setContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        nodeId: node.id,
+      });
+    },
+    []
+  );
+
+  const onPaneClick = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const duplicateNode = useCallback(
+    (nodeId: string) => {
+      setNodes((currentNodes) => {
+        const originalNode = currentNodes.find((n) => n.id === nodeId);
+        if (!originalNode) return currentNodes;
+
+        const clonedNode = JSON.parse(JSON.stringify(originalNode));
+        const newUuid = uuidv4();
+        const baseNodeType = clonedNode.type || "GenericNode";
+        const newId = `${baseNodeType}__${newUuid}`;
+
+        let originalName = clonedNode.data?.name || "Node";
+        let newName = `${originalName}_copy`; // Adds '_copy' cumulatively each time
+
+        let display_name = clonedNode.data?.display_name || clonedNode.data?.displayName || clonedNode.data?.metadata?.display_name || "Generic Node";
+        let newDisplayName = display_name; // Ensure the display name in the icon doesn't change
+
+        const newNode: Node = {
+          ...clonedNode,
+          id: newId,
+          position: {
+            x: clonedNode.position.x + 150,
+            y: clonedNode.position.y,
+          },
+          data: {
+            ...clonedNode.data,
+            id: newId,
+            name: newName, // Internal naming changes (e.g., agent_copy_copy)
+            display_name: newDisplayName, // Display name remains the same!
+            displayName: newDisplayName, // Added as a fallback
+          },
+          selected: false,
+        };
+
+        // Log the duplication process
+        console.log(`[Node Clone] Node duplicated: ${originalName} -> ${newName}`, {
+          originalId: originalNode.id,
+          newId: newNode.id,
+          nodeType: newNode.type,
+          nodeData: newNode.data
+        });
+
+        return [...currentNodes, newNode];
+      });
+
+      enqueueSnackbar("Node duplicated", { variant: "info", autoHideDuration: 2000 });
+      setContextMenu(null);
+    },
+    [setNodes, enqueueSnackbar]
+  );
 
   // Auto-save function
   const handleAutoSave = useCallback(async () => {
@@ -1389,7 +1465,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             nodeStatus={nodeStatus}
             edgeStatus={edgeStatus}
             onNodeClick={handleNodeClick}
+            onNodeContextMenu={onNodeContextMenu}
+            onPaneClick={onPaneClick}
           />
+
+          {/* Context Menu Render */}
+          {contextMenu && (
+            <NodeContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              nodeId={contextMenu.nodeId}
+              onDuplicate={duplicateNode}
+              onClose={() => setContextMenu(null)}
+            />
+          )}
 
           {/* Chat Toggle Button */}
           <button
