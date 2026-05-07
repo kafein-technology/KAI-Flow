@@ -479,6 +479,55 @@ async def _test_kafka(secret: Dict[str, Any]) -> CredentialTestResponse:
         return CredentialTestResponse(success=False, message=str(e))
 
 
+async def _test_minio(secret: Dict[str, Any]) -> CredentialTestResponse:
+    try:
+        from app.services.minio_service import minio_service
+        import asyncio
+        import boto3
+        from botocore.exceptions import ClientError, EndpointConnectionError
+        
+        endpoint = secret.get("endpoint", "").strip()
+        # Strip protocols if user entered them
+        if endpoint.startswith("http://"):
+            endpoint = endpoint[7:]
+        elif endpoint.startswith("https://"):
+            endpoint = endpoint[8:]
+            
+        if not endpoint:
+            return CredentialTestResponse(success=False, message="Endpoint URL is required (e.g. host.docker.internal:9000).")
+            
+        access_key = secret.get("access_key") or secret.get("username", "")
+        secret_key = secret.get("secret_key") or secret.get("password", "")
+        
+        if not access_key or not secret_key:
+            return CredentialTestResponse(success=False, message="Access Key and Secret Key are required.")
+
+        use_ssl_val = secret.get('use_ssl', False)
+        use_ssl = use_ssl_val is True or str(use_ssl_val).lower() in ['true', '1', 'yes']
+
+        def _connect():
+            logger.info(f"Testing MinIO connection to {endpoint} (SSL: {use_ssl})")
+            # Force path-style for MinIO
+            client = minio_service.get_client(endpoint, access_key, secret_key, use_ssl=use_ssl)
+            # Try to list buckets to verify credentials and connectivity
+            client.list_buckets()
+
+        await asyncio.wait_for(asyncio.get_event_loop().run_in_executor(None, _connect), timeout=12)
+        return CredentialTestResponse(success=True, message="Connected to MinIO/S3 successfully.")
+    except asyncio.TimeoutError:
+        logger.error("MinIO test timed out")
+        return CredentialTestResponse(success=False, message="Connection timed out. Check your Endpoint URL and Firewall.")
+    except EndpointConnectionError as e:
+        logger.error(f"MinIO endpoint error: {e}")
+        return CredentialTestResponse(success=False, message=f"Could not connect to endpoint: {e}")
+    except ClientError as e:
+        logger.error(f"MinIO client error: {e}")
+        return CredentialTestResponse(success=False, message=f"Authentication failed: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected MinIO test error: {type(e).__name__}: {e}")
+        return CredentialTestResponse(success=False, message=f"Connection failed: {str(e)}")
+
+
 def _test_webhook_auth(secret: Dict[str, Any], service_type: str) -> CredentialTestResponse:
     if service_type == "basic_auth":
         if secret.get("username") and secret.get("password"):
@@ -505,6 +554,8 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_postgresql(secret)
     elif service_type == "kafka":
         return await _test_kafka(secret)
+    elif service_type == "minio":
+        return await _test_minio(secret)
     elif service_type in ("basic_auth", "header_auth"):
         return _test_webhook_auth(secret, service_type)
     else:
@@ -585,6 +636,8 @@ def _detect_service_type(data: dict) -> str:
         return "oauth"
     elif "username" in data and "password" in data:
         return "basic_auth"
+    elif ("access_key" in data and "secret_key" in data) or "endpoint" in data:
+        return "minio"
     elif "private_key" in data or "certificate" in data:
         return "certificate"
     else:

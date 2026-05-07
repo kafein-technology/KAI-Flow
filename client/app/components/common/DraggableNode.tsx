@@ -45,7 +45,6 @@ const staticIcons: Record<string, ReactElement> = {
     </svg>
   ),
   GenericNode: <Box className="w-6 h-6 text-blue-400" />,
-  LLMRedTeam: <ShieldAlert className="w-6 h-6 text-red-500" />,
 };
 
 // Alt text mapping for accessibility
@@ -85,6 +84,9 @@ const iconAltText: Record<string, string> = {
   CodeNode: "code-node",
   ConditionNode: "condition-node",
   JsonParserNode: "parser",
+  LLMRedTeam: "llm-red-team-scanner",
+  AgenticRedTeam: "agentic-red-team-scanner",
+  CustomRedTeam: "custom-red-team-scanner",
 };
 
 /**
