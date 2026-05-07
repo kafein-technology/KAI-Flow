@@ -4,7 +4,7 @@ export interface ServiceField {
   type: 'text' | 'password' | 'textarea' | 'select' | 'checkbox';
   required: boolean;
   placeholder?: string;
-  default?: string;
+  default?: any;
   options?: { value: string; label: string }[];
   description?: string;
   dependsOn?: {
@@ -326,6 +326,48 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
           field: 'security_protocol',
           values: ['SSL', 'SASL_SSL']
         }
+      }
+    ]
+  },
+  {
+    id: 'minio',
+    name: 'MinIO / S3 Storage',
+    description: 'S3-compatible object storage credentials for MinIO or AWS S3',
+    icon: 'minio-credentials.svg',
+    category: 'storage',
+    color: 'from-blue-600 to-indigo-700',
+    fields: [
+      {
+        name: 'endpoint',
+        label: 'Endpoint URL',
+        type: 'text',
+        required: true,
+        placeholder: 'e.g. localhost:9000 or s3.amazonaws.com',
+        helpText: 'The host and port for your MinIO/S3 instance (without http/https)'
+      },
+      {
+        name: 'access_key',
+        label: 'Access Key',
+        type: 'text',
+        required: true,
+        placeholder: 'e.g. minioadmin',
+        helpText: 'The access key ID for your MinIO/S3 storage'
+      },
+      {
+        name: 'secret_key',
+        label: 'Secret Key',
+        type: 'password',
+        required: true,
+        placeholder: 'e.g. minioadmin',
+        helpText: 'The secret access key for your MinIO/S3 storage'
+      },
+      {
+        name: 'use_ssl',
+        label: 'Use SSL (HTTPS)',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        helpText: 'Toggle on if your endpoint requires HTTPS'
       }
     ]
   }

@@ -56,9 +56,8 @@ from .decorative.sticky_note import StickyNoteNode
 
 # Security Nodes
 from .security.llm_red_team_node import LLMRedTeamNode
-
-# Security Nodes
-from .security.llm_red_team_node import LLMRedTeamNode
+from .security.agentic_red_team_node import AgenticRedTeamNode
+from .security.custom_red_team_node import CustomRedTeamNode
 
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
@@ -111,10 +110,9 @@ __all__ = [
 
     # Security
     "LLMRedTeamNode",
+    "AgenticRedTeamNode",
+    "CustomRedTeamNode",
 
     # Decorative
     "StickyNoteNode",
-
-    # Security
-    "LLMRedTeamNode",
 ]

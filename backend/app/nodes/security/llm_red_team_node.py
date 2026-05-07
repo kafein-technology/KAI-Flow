@@ -144,7 +144,7 @@ class LLMRedTeamNode(ProcessorNode):
             "category": "Security",
             "node_type": NodeType.PROCESSOR,
             "colors": ["red-500", "rose-600"],
-            "icon": {"name": "shield-alert", "path": None, "alt": None},
+            "icon": {"name": "redteaming", "path": "icons/red_teaming.svg", "alt": None},
             "inputs": self._build_inputs(),
             "outputs": self._build_outputs(),
             "properties": self._build_properties(),
@@ -200,8 +200,9 @@ class LLMRedTeamNode(ProcessorNode):
                          hint="Comma-separated. Supports Jinja: ${{ webhook_trigger.attacks }}. E.g: Prompt Injection, Jailbreaking, ROT13, Leetspeak",
                          required=True),
             NodeProperty(name="attacks_per_vuln_type", displayName="Attacks Per Vulnerability",
-                         type=NodePropertyType.NUMBER, default=3, min=1, max=50,
-                         hint="Number of attack attempts per vulnerability type.", required=True),
+                         type=NodePropertyType.TEXT, default="3",
+                         hint="Number of attack attempts per vulnerability type. Supports Jinja: ${{ webhook_trigger.attacks_per_vuln_type }}",
+                         placeholder="3", required=True),
             # ── Advanced ──
             NodeProperty(name="max_concurrent", displayName="Max Concurrent",
                          type=NodePropertyType.NUMBER, default=1, min=1, max=20,
@@ -247,7 +248,17 @@ class LLMRedTeamNode(ProcessorNode):
         target_api_key       = inputs.get("target_api_key", "").strip() or "sk-no-key"
         target_system_prompt = inputs.get("target_system_prompt", "").strip()
         target_purpose       = inputs.get("target_purpose", "General purpose chatbot")
-        attacks_per_vuln     = int(inputs.get("attacks_per_vuln_type", 3))
+        
+        # Convert attacks_per_vuln_type from string to int (supports Jinja)
+        attacks_per_vuln_raw = inputs.get("attacks_per_vuln_type", "3")
+        try:
+            attacks_per_vuln = int(str(attacks_per_vuln_raw).strip())
+            if attacks_per_vuln < 1 or attacks_per_vuln > 50:
+                logger.warning(f"attacks_per_vuln_type out of range ({attacks_per_vuln}). Clamping to 1-50.")
+                attacks_per_vuln = max(1, min(50, attacks_per_vuln))
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid attacks_per_vuln_type: {attacks_per_vuln_raw}. Using default: 3")
+            attacks_per_vuln = 3
 
         if not target_base_url or not target_model_name:
             raise ValueError(
