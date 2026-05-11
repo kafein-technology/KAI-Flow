@@ -31,7 +31,7 @@ cryptography==46.0.7
 
 # AI/ML Framework
 langchain==1.2.16
-langchain-core==1.3.2
+langchain-core==1.3.3
 langchain-community==0.4.1
 langchain-openai==1.2.1
 langchain-tavily==0.2.18
