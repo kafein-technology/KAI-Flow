@@ -112,7 +112,9 @@ export function getNodeTypeIconPath(nodeType: string): string {
         ConditionNode: "icons/condition.svg",
 
         // Security Nodes
-        LLMRedTeam: "icons/flag.svg",
+        LLMRedTeam: "icons/red_teaming_menu.svg",
+        AgenticRedTeam: "icons/redteaming_agentic_menu.svg",
+        CustomRedTeam: "icons/redteaming_custom_menu.svg",
 
         // Decorative Nodes
         StickyNoteNode: "icons/sticky_note.svg",
