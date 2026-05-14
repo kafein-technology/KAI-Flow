@@ -157,12 +157,12 @@ const isProviderNode = (node?: Node): boolean => {
   if (!node?.type) return false;
   const providerTypes = [
     "OpenAINode", "OpenAIChat", "OpenAICompatibleNode",
-    "OpenAIEmbeddingsProvider",
+    "OpenAIEmbeddingsProvider", "OpenAIEmbeddings", "CohereEmbeddings",
     "BufferMemoryNode", "BufferMemory",
     "ConversationMemoryNode", "ConversationMemory",
     "RetrieverProvider",
     "TavilySearchNode", "TavilySearch",
-    "CohereRerankerNode",
+    "CohereRerankerNode", "CohereRerankerProvider",
     "VectorStoreOrchestrator",
     "ChunkSplitterNode", "ChunkSplitter",
     "DocumentLoaderNode",
@@ -187,14 +187,29 @@ const resolveExecutionEdges = (
     const eventEdgeSet = new Set(eventEdgeIds);
     const eventEdges = edges.filter((edge) => eventEdgeSet.has(edge.id));
 
-    // Processor node ise (Agent gibi), backend'den gelmese bile provider'lardan gelen edge'leri ekle
     if (isProcessorNode(actualNode)) {
-      const allIncomingEdges = edges.filter((e) => e.target === actualNode.id);
-      const extraProviderEdges = allIncomingEdges.filter((edge) => {
-        if (eventEdgeSet.has(edge.id)) return false; // zaten listede var
-        const sourceNode = nodes.find((n) => n.id === edge.source);
-        return isProviderNode(sourceNode);
-      });
+      const extraProviderEdges: Edge[] = [];
+      const nodesToCheck = [actualNode.id];
+      const checkedNodes = new Set<string>();
+
+      while (nodesToCheck.length > 0) {
+        const currentNodeId = nodesToCheck.pop()!;
+        if (checkedNodes.has(currentNodeId)) continue;
+        checkedNodes.add(currentNodeId);
+
+        const incomingEdges = edges.filter((e) => e.target === currentNodeId);
+
+        for (const edge of incomingEdges) {
+          const sourceNode = nodes.find((n) => n.id === edge.source);
+          if (isProviderNode(sourceNode)) {
+            if (!eventEdgeSet.has(edge.id) && !extraProviderEdges.some(e => e.id === edge.id)) {
+              extraProviderEdges.push(edge);
+            }
+            nodesToCheck.push(sourceNode!.id);
+          }
+        }
+      }
+
       return [...eventEdges, ...extraProviderEdges];
     }
     return eventEdges;
@@ -1927,18 +1942,24 @@ function useChatExecutionListener(
             [actualNode.id]: "success",
           }));
 
-          // Only mark the edge that was set as pending (from node_start) as success
-          // This ensures only the actual execution flow edge gets marked
-          setEdgeStatus((prev) => {
-            const updated = { ...prev };
-            Object.keys(updated).forEach((edgeId) => {
-              const edge = edges.find((e) => e.id === edgeId);
-              if (edge && edge.target === actualNode.id && updated[edgeId] === "pending") {
-                updated[edgeId] = "success";
-              }
+          const completedEdges = resolveExecutionEdges(data, actualNode, nodes, edges);
+          if (completedEdges.length > 0) {
+            setEdgeStatus((prev) => ({
+              ...prev,
+              ...Object.fromEntries(completedEdges.map((e) => [e.id, "success" as const])),
+            }));
+          } else {
+            setEdgeStatus((prev) => {
+              const updated = { ...prev };
+              Object.keys(updated).forEach((edgeId) => {
+                const edge = edges.find((e) => e.id === edgeId);
+                if (edge && edge.target === actualNode.id && updated[edgeId] === "pending") {
+                  updated[edgeId] = "success";
+                }
+              });
+              return updated;
             });
-            return updated;
-          });
+          }
         }
       }
     };
