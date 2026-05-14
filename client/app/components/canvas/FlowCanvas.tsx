@@ -185,7 +185,19 @@ const resolveExecutionEdges = (
   const eventEdgeIds = getEventEdgeIds(eventData);
   if (eventEdgeIds.length > 0) {
     const eventEdgeSet = new Set(eventEdgeIds);
-    return edges.filter((edge) => eventEdgeSet.has(edge.id));
+    const eventEdges = edges.filter((edge) => eventEdgeSet.has(edge.id));
+
+    // Processor node ise (Agent gibi), backend'den gelmese bile provider'lardan gelen edge'leri ekle
+    if (isProcessorNode(actualNode)) {
+      const allIncomingEdges = edges.filter((e) => e.target === actualNode.id);
+      const extraProviderEdges = allIncomingEdges.filter((edge) => {
+        if (eventEdgeSet.has(edge.id)) return false; // zaten listede var
+        const sourceNode = nodes.find((n) => n.id === edge.source);
+        return isProviderNode(sourceNode);
+      });
+      return [...eventEdges, ...extraProviderEdges];
+    }
+    return eventEdges;
   }
 
   const allIncomingEdges = edges.filter((edge) => edge.target === actualNode.id);
