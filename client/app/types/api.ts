@@ -403,6 +403,12 @@ export interface ExecutionEvent {
   result?: any;
   error?: string;
   status?: "success" | "failed" | "error";
+  previous_node_id?: string;
+  edge_id?: string;
+  edge_ids?: string[];
+  active_edge_ids?: string[];
+  incoming_edge_ids?: string[];
+  outgoing_edge_ids?: string[];
   metadata?: Record<string, any>;
   event?: string; // Backward compatibility
   inputs?: Record<string, any>;

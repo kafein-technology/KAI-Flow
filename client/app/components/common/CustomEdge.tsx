@@ -52,12 +52,12 @@ function CustomAnimatedEdge({
         style={{
           ...style,
           stroke:
-            status === 'success'
+            isActive
+              ? "url(#electric-gradient-" + id + ")"
+              : status === 'success'
               ? '#22c55e'
               : status === 'failed'
               ? '#ef4444'
-              : isActive
-              ? "url(#electric-gradient-" + id + ")"
               : "#6b7280",
           strokeWidth: isActive ? 3 : 2,
           strokeDasharray: isActive ? "12 8" : "none",
