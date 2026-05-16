@@ -43,9 +43,11 @@ COPY --from=build /app/public/config.js ./dist/config.js
 
 # Copy entrypoint script for runtime config generation
 COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 3000
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+# Explicitly use sh to run the entrypoint to avoid shebang/format issues on Windows
+ENTRYPOINT ["sh", "/docker-entrypoint.sh"]
 CMD ["serve", "-s", "dist", "-l", "3000"]

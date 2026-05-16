@@ -64,6 +64,8 @@ from sqlalchemy.sql.sqltypes import TypeEngine
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, backend_dir)
 
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
 
 # Logging configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -159,7 +161,7 @@ class DatabaseSetup:
                 pool_pre_ping=True,
                 pool_recycle=3600,
                 connect_args={
-                    "server_settings": {"application_name": "kai-fusion-setup"},
+                    "server_settings": {"application_name": "kai-Flow-setup"},
                     "statement_cache_size": 1000,
                     "prepared_statement_cache_size": 100,
                     "command_timeout": 60,
@@ -641,7 +643,7 @@ class DatabaseSetup:
                              sync_columns: bool = True, add_missing_columns: bool = True,
                              remove_extra_columns: bool = False):
         """Main database setup function."""
-        logger.info("KAI-Fusion Database Setup Script Starting...")
+        logger.info("KAI-Flow Database Setup Script Starting...")
 
         # Initialize
         if not await self.initialize():
@@ -766,7 +768,7 @@ class DatabaseSetup:
 
 async def main():
     """Main function."""
-    parser = argparse.ArgumentParser(description="KAI-Fusion Database Setup Script")
+    parser = argparse.ArgumentParser(description="KAI-Flow Database Setup Script")
     parser.add_argument("--force", action="store_true", help="Drops and recreates existing tables")
     parser.add_argument("--check-only", action="store_true", help="Only checks existing tables")
     parser.add_argument("--drop-all", action="store_true", help="Drops all tables and recreates them")
