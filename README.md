@@ -93,7 +93,12 @@ Once running, open:
 Rename `.env.example` to `.env` in the project root directory and update the values as needed.
 ```
 
-### Step 2 — Set Up a Python Environment
+### Step 2 - Edit Constant in .env file
+
+```bash
+Replace host.docker.internal with 127.0.0.1 in the DATABASE_URL variable in the .env file.
+```
+### Step 3 — Set Up a Python Environment
 
 #### Option A — venv (recommended)
 
@@ -118,7 +123,7 @@ conda activate kai-flow
 pip install -r backend/requirements.txt
 ```
 ___
-### Step 3 — Start PostgreSQL
+### Step 4 — Start PostgreSQL
 
 ```bash
 docker run --name kai ^
@@ -129,7 +134,7 @@ docker run --name kai ^
   -d postgres:15
 ```
 
-### Step 4 — Initialize the Database Schema
+### Step 5 — Initialize the Database Schema
 
 Ensure your PostgreSQL container is running, then:
 
@@ -137,13 +142,13 @@ Ensure your PostgreSQL container is running, then:
 python backend/migrations/database_setup.py
 ```
 
-### Step 5 — Run the Backend
+### Step 6 — Run the Backend
 
 ```bash
 python backend/main.py
 ```
 
-### Step 6 — Run the Frontend open another terminal
+### Step 7 — Run the Frontend open another terminal
 
 ```bash
 cd client
