@@ -108,7 +108,7 @@ from pathlib import Path
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
-PORT = int(os.getenv("BACKEND_PORT"))
+PORT = int(os.getenv("BACKEND_PORT","23056"))
 ROOT_PATH = os.getenv("ROOT_PATH")
 API_START = "api"
 API_VERSION = "v1"
