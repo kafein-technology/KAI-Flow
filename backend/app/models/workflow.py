@@ -300,6 +300,13 @@ class Workflow(Base):
     description = Column(Text)
     is_public = Column(Boolean, default=False, index=True)
     version = Column(Integer, default=1)
+    error_workflow = Column(
+        "error_workflow_id",
+        UUID(as_uuid=True),
+        ForeignKey("workflows.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     flow_data = Column(JSONB, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now(), index=True)
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now(), index=True)

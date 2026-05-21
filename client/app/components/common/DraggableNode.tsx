@@ -1,6 +1,6 @@
 import React from "react";
 import type { ReactElement } from "react";
-import { Box } from "lucide-react";
+import { Box, ShieldAlert } from "lucide-react";
 import { getNodeTypeIconPath, hasNodeTypeIcon } from "~/lib/iconUtils";
 
 interface NodeType {
@@ -83,6 +83,10 @@ const iconAltText: Record<string, string> = {
   OpenAIEmbeddings: "openai-embeddings",
   CodeNode: "code-node",
   ConditionNode: "condition-node",
+  JsonParserNode: "parser",
+  LLMRedTeam: "llm-red-team-scanner",
+  AgenticRedTeam: "agentic-red-team-scanner",
+  CustomRedTeam: "custom-red-team-scanner",
 };
 
 /**

@@ -285,6 +285,29 @@ class WorkflowExecutor:
         logger.debug(f"Updated execution {execution_id} status to {status}")
         
         return execution
+
+    async def _trigger_error_workflow_if_configured(
+        self,
+        db: AsyncSession,
+        ctx: WorkflowExecutionContext,
+        execution_id: uuid.UUID,
+        error: BaseException,
+    ) -> None:
+        try:
+            from app.services.error_handler_service import get_error_handler_service
+
+            svc = get_error_handler_service()
+            eid = svc.extract_error_workflow_id(ctx.workflow)
+            if not eid:
+                return
+            trigger_type = ctx.user_context.get("trigger_type") or "unknown"
+            if ctx.user_context.get("is_webhook"):
+                trigger_type = "webhook"
+            err = error if isinstance(error, Exception) else Exception(str(error))
+            data = svc.build_error_data(err, ctx.workflow, str(execution_id), trigger_type, ctx.execution_inputs)
+            await svc.trigger_error_workflow(db, eid, data, ctx.workflow)
+        except Exception as ex:
+            logger.error("Failed to trigger error handler workflow: %s", ex, exc_info=True)
     
     async def prepare_execution_context(
         self,
@@ -485,6 +508,11 @@ class WorkflowExecutor:
                             else:
                                 outputs = {"result": "streamed", "failed": execution_failed}
                             
+                            # Include error details in outputs so they are visible in the executions page
+                            if execution_failed and error_msg:
+                                outputs["error"] = error_msg
+                                outputs["status"] = "failed"
+                            
                             await self.update_execution_status(
                                 db,
                                 execution_id,
@@ -494,6 +522,10 @@ class WorkflowExecutor:
                                 completed_at=datetime.now(timezone.utc),
                             )
                             logger.info(f"Execution {execution_id} finalized with status: {final_status}")
+                            if execution_failed and error_msg:
+                                await self._trigger_error_workflow_if_configured(
+                                    db, ctx, execution_id, Exception(error_msg)
+                                )
                         except Exception as update_error:
                             logger.error(f"Failed to update final execution status ({final_status}): {update_error}")
                             
@@ -519,8 +551,10 @@ class WorkflowExecutor:
                                 execution_id,
                                 status="failed",
                                 error_message=err_text,
+                                outputs={"error": err_text, "status": "failed"},
                                 completed_at=datetime.now(timezone.utc),
                             )
+                            await self._trigger_error_workflow_if_configured(db, ctx, execution_id, e)
                         except Exception as update_error:
                             logger.error(f"Failed to update execution status to failed (crash): {update_error}")
                         raise
@@ -546,6 +580,26 @@ class WorkflowExecutor:
                         if errors:
                             execution_failed = True
                             error_msg = error_msg or "; ".join(str(e) for e in errors)
+                    # Check node_outputs for errors (same as Kafka/Webhook trigger checks)
+                    if not execution_failed:
+                        node_outputs = (
+                            state_data.get("node_outputs", {})
+                            if isinstance(state_data, dict)
+                            else result.get("node_outputs", {})
+                        )
+                        if isinstance(node_outputs, dict):
+                            node_errors = []
+                            for nid, nout in node_outputs.items():
+                                if isinstance(nout, dict) and nout.get("error"):
+                                    node_errors.append(f"Node {nid}: {nout['error']}")
+                            if node_errors:
+                                execution_failed = True
+                                error_msg = "; ".join(node_errors)
+                
+                # Include error details in outputs so they are visible in the executions page
+                if execution_failed and error_msg:
+                    outputs["error"] = error_msg
+                    outputs["status"] = "failed"
                 
                 final_status = "failed" if execution_failed else "completed"
                 await self.update_execution_status(
@@ -558,6 +612,9 @@ class WorkflowExecutor:
                 )
                 if execution_failed:
                     logger.warning(f"Execution {execution_id} completed with errors: {error_msg}")
+                    await self._trigger_error_workflow_if_configured(
+                        db, ctx, execution_id, Exception(error_msg)
+                    )
             except Exception as e:
                 logger.error(f"Failed to update execution status: {e}")
 
@@ -577,8 +634,10 @@ class WorkflowExecutor:
                     execution_id,
                     status="failed",
                     error_message=error_msg,
+                    outputs={"error": error_msg, "status": "failed"},
                     completed_at=datetime.now(timezone.utc),
                 )
+                await self._trigger_error_workflow_if_configured(db, ctx, execution_id, e)
             except Exception as update_error:
                 logger.error(f"Failed to update execution status to failed: {update_error}")
             

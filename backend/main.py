@@ -63,6 +63,9 @@ IMPLEMENTATION DETAILS:
 • Features: Health monitoring, error handling, service integration, analytics
 ──────────────────────────────────────────────────────────────
 """
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
 
 import asyncio
 import logging
@@ -161,7 +164,7 @@ async def lifespan(app: FastAPI):
         logger.error(f"Database initialization failed: {e}")
         raise e
     
-    logger.info("Backend initialization complete - KAI Fusion Ready!")
+    logger.info("Backend initialization complete - KAI Flow Ready!")
     
     # Start Kafka reconciliation loop — periodic listener synchronization
     _kafka_reconciliation_task = None
@@ -175,7 +178,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Cleanup
-    logger.info("Shutting down KAI Fusion Backend...")
+    logger.info("Shutting down KAI Flow Backend...")
     
     # Stop the reconciliation loop.
     if _kafka_reconciliation_task and not _kafka_reconciliation_task.done():

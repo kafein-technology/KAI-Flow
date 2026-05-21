@@ -1,4 +1,4 @@
-# Contributing to KAI‑Fusion
+# Contributing to KAI‑Flow
 
 We appreciate **any** form of contribution — from starring the repo to deep core changes. This guide explains the ways you can help and the workflow we use.
 
@@ -19,7 +19,7 @@ We appreciate **any** form of contribution — from starring the repo to deep co
 
 ## 🙌 Share Workflows
 
-* Sharing how you use KAI‑Fusion is a great contribution.
+* Sharing how you use KAI‑Flow is a great contribution.
 * Export your workflow as **JSON**, attach a screenshot/GIF, and post it in **Show & Tell**.
 
 ## 💡 Ideas
@@ -130,7 +130,7 @@ Not sure where to start? Ideas:
 
 ## 👩‍🚀 Developers
 
-KAI‑Fusion is a dual‑stack app:
+KAI‑Flow is a dual‑stack app:
 
 * **backend/** — Python **FastAPI** serving REST APIs, tracing hooks, and persistence
 * **client/** — **React (Vite)** visual builder and runtime UI
@@ -297,7 +297,7 @@ By participating, you agree to our [Code of Conduct](./CODE_OF_CONDUCT.md). Repo
 
 ### About
 
-**KAI‑Fusion** — Build AI Agents, Visually
+**KAI‑Flow** — Build AI Agents, Visually
 
 ### Resources
 
@@ -327,4 +327,4 @@ By participating, you agree to our [Code of Conduct](./CODE_OF_CONDUCT.md). Repo
 
 ---
 
-> © KAI‑Fusion contributors. 
+> © KAI‑Flow contributors. 

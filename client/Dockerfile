@@ -14,6 +14,7 @@ ARG VITE_API_VERSION
 ARG VITE_BASE_PATH
 ARG VITE_NODE_ENV
 ARG VITE_ENABLE_LOGGING
+ARG VITE_ENTERPRISE
 
 # ✅ Build ortamına geçiriliyor
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
@@ -21,6 +22,7 @@ ENV VITE_API_VERSION=$VITE_API_VERSION
 ENV VITE_BASE_PATH=$VITE_BASE_PATH
 ENV VITE_NODE_ENV=$VITE_NODE_ENV
 ENV VITE_ENABLE_LOGGING=$VITE_ENABLE_LOGGING
+ENV VITE_ENTERPRISE=$VITE_ENTERPRISE
 
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
@@ -41,9 +43,11 @@ COPY --from=build /app/public/config.js ./dist/config.js
 
 # Copy entrypoint script for runtime config generation
 COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 3000
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+# Explicitly use sh to run the entrypoint to avoid shebang/format issues on Windows
+ENTRYPOINT ["sh", "/docker-entrypoint.sh"]
 CMD ["serve", "-s", "dist", "-l", "3000"]

@@ -1,10 +1,10 @@
 export interface ServiceField {
   name: string;
   label: string;
-  type: 'text' | 'password' | 'textarea' | 'select';
+  type: 'text' | 'password' | 'textarea' | 'select' | 'checkbox';
   required: boolean;
   placeholder?: string;
-  default?: string;
+  default?: any;
   options?: { value: string; label: string }[];
   description?: string;
   dependsOn?: {
@@ -54,6 +54,40 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
             return undefined;
           }
         }
+      }
+    ]
+  },
+  {
+    id: 'openai_compatible',
+    name: 'OpenAI Compatible',
+    description: 'Connect to any OpenAI-API compatible service like OpenRouter, vLLM, DeepSeek, or LM Studio.',
+    icon: 'openai.svg',
+    category: 'ai',
+    color: 'from-gray-500 to-slate-600',
+    fields: [
+      {
+        name: 'base_url',
+        label: 'Base URL',
+        type: 'text',
+        required: true,
+        placeholder: 'https://openrouter.ai/api/v1',
+        description: 'The endpoint URL for the compatible service'
+      },
+      {
+        name: 'api_key',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: '...',
+        description: 'The authentication key for the compatible service'
+      },
+      {
+        name: 'skip_ssl_verify',
+        label: 'Skip SSL Certificate Verification',
+        type: 'checkbox',
+        required: false,
+        default: '',
+        description: 'Enable this when connecting to servers with self-signed certificates (e.g. internal/local deployments)'
       }
     ]
   },
@@ -292,6 +326,48 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
           field: 'security_protocol',
           values: ['SSL', 'SASL_SSL']
         }
+      }
+    ]
+  },
+  {
+    id: 'minio',
+    name: 'MinIO / S3 Storage',
+    description: 'S3-compatible object storage credentials for MinIO or AWS S3',
+    icon: 'minio-credentials.svg',
+    category: 'storage',
+    color: 'from-blue-600 to-indigo-700',
+    fields: [
+      {
+        name: 'endpoint',
+        label: 'Endpoint URL',
+        type: 'text',
+        required: true,
+        placeholder: 'e.g. localhost:9000 or s3.amazonaws.com',
+        helpText: 'The host and port for your MinIO/S3 instance (without http/https)'
+      },
+      {
+        name: 'access_key',
+        label: 'Access Key',
+        type: 'text',
+        required: true,
+        placeholder: 'e.g. minioadmin',
+        helpText: 'The access key ID for your MinIO/S3 storage'
+      },
+      {
+        name: 'secret_key',
+        label: 'Secret Key',
+        type: 'password',
+        required: true,
+        placeholder: 'e.g. minioadmin',
+        helpText: 'The secret access key for your MinIO/S3 storage'
+      },
+      {
+        name: 'use_ssl',
+        label: 'Use SSL (HTTPS)',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        helpText: 'Toggle on if your endpoint requires HTTPS'
       }
     ]
   }

@@ -40,6 +40,7 @@ from .default.end_node import EndNode
 from .triggers.webhook_trigger import WebhookTriggerNode
 from .triggers.kafka_trigger import KafkaTriggerNode
 from .triggers.timer_start_node import TimerStartNode
+from .triggers.error_trigger import ErrorTriggerNode
 
 # Text Processing Nodes
 from .text_processing.string_input_node import StringInputNode
@@ -47,7 +48,17 @@ from .text_processing.string_input_node import StringInputNode
 # Processing Nodes
 from .processing.code_node import CodeNode
 from .processing.condition_node import ConditionNode
+from .processing.json_parser_node import JsonParserNode
 from .processing.kafka_producer import KafkaProducerNode
+
+# Decorative Nodes
+from .decorative.sticky_note import StickyNoteNode
+
+
+# Security Nodes
+from .security.llm_red_team_node import LLMRedTeamNode
+from .security.agentic_red_team_node import AgenticRedTeamNode
+from .security.custom_red_team_node import CustomRedTeamNode
 
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
@@ -86,7 +97,7 @@ __all__ = [
     "VectorStoreOrchestrator",
     
     # Default & Triggers
-    "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode",
+    "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode", "ErrorTriggerNode",
     
     # Other
     "StringInputNode",
@@ -94,6 +105,15 @@ __all__ = [
     # Processing
     "CodeNode",
     "ConditionNode",
+    "JsonParserNode",
     "KafkaProducerNode",
     "KafkaTriggerNode",
+
+    # Security
+    "LLMRedTeamNode",
+    "AgenticRedTeamNode",
+    "CustomRedTeamNode",
+
+    # Decorative
+    "StickyNoteNode",
 ]

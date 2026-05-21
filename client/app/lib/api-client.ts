@@ -93,6 +93,11 @@ class ApiClient {
             async (error: AxiosError) => {
                 const originalRequest = error.config as any;
 
+                // Skip interceptor logic for auth endpoints
+                if (originalRequest.url?.includes('/auth/signin') || originalRequest.url?.includes('/auth/signup')) {
+                    return Promise.reject(this.handleError(error));
+                }
+
                 if (error.response?.status === 401 && !originalRequest._retry) {
                     if (this.isRefreshing) {
                         // If refresh is already in progress, queue the request
@@ -129,21 +134,20 @@ class ApiClient {
                         } else {
                             this.processQueue(new Error('No refresh token'), null);
                             TokenManager.clearTokens();
-                            // Hard redirect to login - forces full page reload to clear stale React state
-                            if (typeof window !== 'undefined') {
+                            // Redirect to login only if not already on signin page
+                            if (typeof window !== 'undefined' && !window.location.pathname.endsWith('/signin')) {
                                 const basePath = window.VITE_BASE_PATH || '';
-                                window.location.href = `${basePath}/signin`;
-                                return new Promise(() => {}); // Prevent further execution during redirect
+                                window.location.replace(`${basePath}/signin`);
                             }
+                            return Promise.reject(new Error('Authentication failed - no refresh token'));
                         }
                     } catch (refreshError) {
                         this.processQueue(refreshError, null);
                         TokenManager.clearTokens();
-                        // Hard redirect to login - forces full page reload to clear stale React state
-                        if (typeof window !== 'undefined') {
+                        // Redirect to login only if not already on signin page
+                        if (typeof window !== 'undefined' && !window.location.pathname.endsWith('/signin')) {
                             const basePath = window.VITE_BASE_PATH || '';
-                            window.location.href = `${basePath}/signin`;
-                            return new Promise(() => {}); // Prevent further execution during redirect
+                            window.location.replace(`${basePath}/signin`);
                         }
                         return Promise.reject(refreshError);
                     } finally {

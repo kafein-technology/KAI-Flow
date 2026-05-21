@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from "react-router";
 import { useEffect } from "react";
+import { config } from "./lib/config";
 import "./app.css";
 import { SnackbarProvider } from "notistack";
 import { useThemeStore } from "./stores/theme";
@@ -37,6 +38,20 @@ function AuthSynchronizer() {
 
   useEffect(() => {
     if (isAuthenticated && user?.access_token) {
+      // Check if token is expired — don't write expired tokens to localStorage
+      try {
+        const payload = JSON.parse(atob(user.access_token.split('.')[1]));
+        const isExpired = payload.exp * 1000 < Date.now();
+        if (isExpired) {
+          console.warn('OIDC token expired, skipping localStorage sync');
+          return;
+        }
+      } catch (e) {
+        // If token cannot be parsed, skip writing
+        console.warn('Could not parse OIDC token, skipping sync:', e);
+        return;
+      }
+
       localStorage.setItem("auth_access_token", user.access_token);
       if (user.refresh_token) {
         localStorage.setItem("auth_refresh_token", user.refresh_token);
@@ -91,7 +106,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/signin" element={<Signin />} />
-          <Route path="/register" element={<Register />} />
+          {!config.IS_ENTERPRISE && <Route path="/register" element={<Register />} />}
           <Route path="/workflows" element={<Workflows />} />
           <Route path="/pinned" element={<Pinned />} />
           <Route path="/settings" element={<Settings />} />
@@ -99,7 +114,7 @@ export default function App() {
           <Route path="/executions" element={<Executions />} />
           <Route path="/credentials" element={<Credentials />} />
           <Route path="/variables" element={<Variables />} />
-          <Route path="/marketplace" element={<Marketplace />} />
+          {!config.IS_ENTERPRISE && <Route path="/marketplace" element={<Marketplace />} />}
           <Route
             path="*"
             element={

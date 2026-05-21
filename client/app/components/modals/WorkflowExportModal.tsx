@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Download, Package, Check, Square, CheckSquare } from "lucide-react";
+import { X, Download, Package, Check, Square, CheckSquare, AlertCircle } from "lucide-react";
 import { exportWorkflows } from "~/services/exportService";
 import type { Workflow } from "~/types/api";
 
@@ -17,6 +17,8 @@ export default function WorkflowExportModal({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isExporting, setIsExporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [exportName, setExportName] = useState("");
+    const [exportNameTouched, setExportNameTouched] = useState(false);
 
     if (!isOpen) return null;
 
@@ -40,7 +42,25 @@ export default function WorkflowExportModal({
         }
     };
 
+    // Validate export name
+    const getExportNameError = (): string | null => {
+        if (!exportName.trim()) return "Export name is required";
+        if (exportName.trim().length < 2) return "Export name must be at least 2 characters";
+        if (!/^[a-zA-Z0-9_\-\s]+$/.test(exportName.trim())) return "Only letters, numbers, spaces, hyphens and underscores allowed";
+        return null;
+    };
+
+    const exportNameError = exportNameTouched ? getExportNameError() : null;
+    const isExportDisabled = isExporting || selectedIds.size === 0 || !!getExportNameError();
+
     const handleExport = async () => {
+        setExportNameTouched(true);
+        const nameError = getExportNameError();
+        if (nameError) {
+            setError(nameError);
+            return;
+        }
+
         if (selectedIds.size === 0) {
             setError("Please select at least one workflow");
             return;
@@ -50,7 +70,9 @@ export default function WorkflowExportModal({
         setError(null);
 
         try {
-            await exportWorkflows(Array.from(selectedIds));
+            // Sanitize export name: remove spaces, lowercase
+            const sanitizedName = exportName.trim().replace(/\s+/g, '').toLowerCase();
+            await exportWorkflows(Array.from(selectedIds), sanitizedName);
             onClose();
         } catch (err: any) {
             setError(err?.message || "Failed to export workflows");
@@ -98,6 +120,38 @@ export default function WorkflowExportModal({
 
                     {/* Content */}
                     <div className="flex-1 overflow-y-auto p-6">
+                        {/* Export Name Input */}
+                        <div className="mb-5">
+                            <label htmlFor="export-name" className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Export Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                id="export-name"
+                                type="text"
+                                value={exportName}
+                                onChange={(e) => {
+                                    setExportName(e.target.value);
+                                    if (!exportNameTouched) setExportNameTouched(true);
+                                }}
+                                onBlur={() => setExportNameTouched(true)}
+                                placeholder="e.g. my_project"
+                                className={`w-full px-3 py-2 border rounded-lg text-sm transition-all duration-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                                    exportNameError
+                                        ? "border-red-300 bg-red-50"
+                                        : "border-gray-300 bg-white hover:border-gray-400"
+                                }`}
+                            />
+                            {exportNameError && (
+                                <div className="flex items-center gap-1 mt-1.5 text-xs text-red-600">
+                                    <AlertCircle className="w-3 h-3" />
+                                    {exportNameError}
+                                </div>
+                            )}
+                            <p className="mt-1.5 text-xs text-gray-400">
+                                ZIP will contain: <code className="bg-gray-100 px-1 py-0.5 rounded">flows/</code> and <code className="bg-gray-100 px-1 py-0.5 rounded">{exportName.trim().replace(/\s+/g, '').toLowerCase() || '...'}_workflows_config.yaml</code>
+                            </p>
+                        </div>
+
                         {/* Select All */}
                         <button
                             onClick={handleSelectAll}
@@ -183,7 +237,7 @@ export default function WorkflowExportModal({
                             </button>
                             <button
                                 onClick={handleExport}
-                                disabled={isExporting || selectedIds.size === 0}
+                                disabled={isExportDisabled}
                                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                             >
                                 {isExporting ? (

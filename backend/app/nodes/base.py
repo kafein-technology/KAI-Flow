@@ -765,25 +765,21 @@ class BaseNode(ABC):
                 if node_id not in updated_executed_nodes:
                     updated_executed_nodes.append(node_id)
 
-                # Store node output in state.node_outputs for TerminatorNode (like standard nodes)
-                # This ensures RespondToWebhook and other terminator nodes appear in node_outputs
-                if self.metadata.node_type == NodeType.TERMINATOR:
-                    try:
-                        if not hasattr(state, "node_outputs"):
-                            state.node_outputs = {}
-                        serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=False)
-                        state.node_outputs[node_id] = serializable_result
-                    except Exception as e:
-                        # Log but don't fail if storing node_outputs fails
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.warning(f"Failed to store TerminatorNode output in node_outputs for {node_id}: {e}")
+                # Ensure node_outputs is updated for ALL node types so templating can see them
+                if not hasattr(state, "node_outputs"):
+                    state.node_outputs = {}
+                
+                try:
+                    serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=False)
+                    state.node_outputs[node_id] = serializable_result
+                except Exception as e:
+                    logger.warning(f"Failed to store node output in node_outputs for {node_id}: {e}")
 
                 return {
                     unique_output_key: processed_result,
                     "executed_nodes": updated_executed_nodes,
                     "last_output": str(processed_result),
-                    "node_outputs": getattr(state, "node_outputs", {})
+                    "node_outputs": state.node_outputs
                 }
                 
             except Exception as e:

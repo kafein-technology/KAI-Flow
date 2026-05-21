@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
 import { KeycloakLoginButton } from "~/components/KeycloakLoginButton";
 import PublicOnlyGuard from "~/components/PublicOnlyGuard";
+import { config } from "~/lib/config";
 
 interface SignInFormValues {
   email: string;
@@ -264,17 +265,19 @@ const Signin = () => {
                 </div>
 
                 {/* Sign Up Link */}
-                <div className="text-center mt-8">
-                  <p className="text-sm text-gray-600">
-                    Don't have an account?{" "}
-                    <Link
-                      to="/register"
-                      className="text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
-                    >
-                      Sign Up
-                    </Link>
-                  </p>
-                </div>
+                {!config.IS_ENTERPRISE && (
+                  <div className="text-center mt-8">
+                    <p className="text-sm text-gray-600">
+                      Don't have an account?{" "}
+                      <Link
+                        to="/register"
+                        className="text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
+                      >
+                        Sign Up
+                      </Link>
+                    </p>
+                  </div>
+                )}
               </form>
             )}
           </Formik>

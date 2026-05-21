@@ -90,6 +90,8 @@ export function getNodeTypeIconPath(nodeType: string): string {
         WebScraper: "icons/pickaxe.svg",
         HttpRequest: "icons/globe.svg",
         WebhookTrigger: "icons/webhook.svg",
+        ErrorTrigger: "icons/error_trigger.svg",
+        ErrorTriggerNode: "icons/error_trigger.svg",
         RespondToWebhook: "icons/webhook.svg",
         KafkaConsumer: "icons/kafka.svg",
         KafkaProducer: "icons/kafka.svg",
@@ -110,6 +112,15 @@ export function getNodeTypeIconPath(nodeType: string): string {
         // Processing Nodes
         CodeNode: "icons/code.svg",
         ConditionNode: "icons/condition.svg",
+
+        // Security Nodes
+        LLMRedTeam: "icons/red_teaming_menu.svg",
+        AgenticRedTeam: "icons/redteaming_agentic_menu.svg",
+        CustomRedTeam: "icons/redteaming_custom_menu.svg",
+
+        // Decorative Nodes
+        StickyNoteNode: "icons/sticky_note.svg",
+        JsonParserNode: "icons/parser.svg",
     };
 
     const relativePath = relativePaths[nodeType];

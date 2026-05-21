@@ -23,6 +23,8 @@ import { useExecutionsStore } from "~/stores/executions";
 import { useSmartSuggestions } from "~/stores/smartSuggestions";
 import StartNode from "../node/StartNode";
 import CustomEdge from "../common/CustomEdge";
+import StickyNoteNode from "../node/StickyNoteNode";
+
 
 import type {
   WorkflowData,
@@ -40,6 +42,7 @@ import ChatHistorySidebar from "./ChatHistorySidebar";
 import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
+import NodeContextMenu from "./NodeContextMenu";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
 import EndNode from "../node/EndNode";
@@ -107,12 +110,156 @@ const normalizeFlowDataForComparison = (flowData: WorkflowData | undefined): str
   return stableStringify({ nodes: normalizedNodes, edges: normalizedEdges });
 };
 
+const findCanvasNode = (nodes: Node[], nodeId?: string): Node | undefined => {
+  if (!nodeId) return undefined;
+
+  const exact = nodes.find((n) => n.id === nodeId);
+  if (exact) return exact;
+
+  return nodes.find((n) => {
+    if (n.data?.name === nodeId || n.data?.node_name === nodeId) return true;
+    if (n.type === nodeId) {
+      return nodes.filter((node) => node.type === n.type).length === 1;
+    }
+
+    const cleanNodeId = nodeId.includes("__")
+      ? nodeId.split("__")[0]
+      : nodeId.replace(/\-\d+$/, "");
+
+    return !!n.type && n.type === cleanNodeId && nodes.filter((node) => node.type === n.type).length === 1;
+  });
+};
+
+const getEventEdgeIds = (eventData: any): string[] => {
+  const raw =
+    eventData?.active_edge_ids ??
+    eventData?.incoming_edge_ids ??
+    eventData?.edge_ids ??
+    eventData?.edge_id ??
+    [];
+
+  if (Array.isArray(raw)) return raw.filter(Boolean).map(String);
+  return raw ? [String(raw)] : [];
+};
+
+const isProcessorNode = (node?: Node): boolean => {
+  if (!node?.type) return false;
+  const processorTypes = [
+    "ReactAgentNode", "Agent",
+    "VectorStoreOrchestrator",
+    "ChunkSplitterNode", "ChunkSplitter",
+    "CodeNode", "ConditionNode", "JsonParserNode",
+  ];
+  return processorTypes.some((type) => node.type?.includes(type) || node.type === type);
+};
+
+const isProviderNode = (node?: Node): boolean => {
+  if (!node?.type) return false;
+  const providerTypes = [
+    "OpenAINode", "OpenAIChat", "OpenAICompatibleNode",
+    "OpenAIEmbeddingsProvider", "OpenAIEmbeddings", "CohereEmbeddings",
+    "BufferMemoryNode", "BufferMemory",
+    "ConversationMemoryNode", "ConversationMemory",
+    "RetrieverProvider",
+    "TavilySearchNode", "TavilySearch",
+    "CohereRerankerNode", "CohereRerankerProvider",
+    "VectorStoreOrchestrator",
+    "ChunkSplitterNode", "ChunkSplitter",
+    "DocumentLoaderNode",
+    "WebScraperNode", "WebScraper",
+    "StringInputNode",
+  ];
+  return providerTypes.some((type) =>
+    node.type?.includes(type) ||
+    (node.type ? type.includes(node.type) : false) ||
+    node.type === type
+  );
+};
+
+const resolveExecutionEdges = (
+  eventData: any,
+  actualNode: Node,
+  nodes: Node[],
+  edges: Edge[]
+): Edge[] => {
+  const eventEdgeIds = getEventEdgeIds(eventData);
+  if (eventEdgeIds.length > 0) {
+    const eventEdgeSet = new Set(eventEdgeIds);
+    const eventEdges = edges.filter((edge) => eventEdgeSet.has(edge.id));
+
+    if (isProcessorNode(actualNode)) {
+      const extraProviderEdges: Edge[] = [];
+      const nodesToCheck = [actualNode.id];
+      const checkedNodes = new Set<string>();
+
+      while (nodesToCheck.length > 0) {
+        const currentNodeId = nodesToCheck.pop()!;
+        if (checkedNodes.has(currentNodeId)) continue;
+        checkedNodes.add(currentNodeId);
+
+        const incomingEdges = edges.filter((e) => e.target === currentNodeId);
+
+        for (const edge of incomingEdges) {
+          const sourceNode = nodes.find((n) => n.id === edge.source);
+          if (isProviderNode(sourceNode)) {
+            if (!eventEdgeSet.has(edge.id) && !extraProviderEdges.some(e => e.id === edge.id)) {
+              extraProviderEdges.push(edge);
+            }
+            nodesToCheck.push(sourceNode!.id);
+          }
+        }
+      }
+
+      return [...eventEdges, ...extraProviderEdges];
+    }
+    return eventEdges;
+  }
+
+  const allIncomingEdges = edges.filter((edge) => edge.target === actualNode.id);
+  const previousNodeId = eventData?.previous_node_id;
+
+  let executionFlowEdge: Edge | null = null;
+  if (previousNodeId) {
+    executionFlowEdge =
+      allIncomingEdges.find((edge) => edge.source === previousNodeId) || null;
+
+    if (!executionFlowEdge) {
+      const cleanPrevId = previousNodeId.includes("__")
+        ? previousNodeId.split("__")[0]
+        : previousNodeId;
+      executionFlowEdge =
+        allIncomingEdges.find((edge) =>
+          edge.source.startsWith(cleanPrevId + "__") || edge.source === cleanPrevId
+        ) || null;
+    }
+  }
+
+  const providerInputEdges = isProcessorNode(actualNode)
+    ? allIncomingEdges.filter((edge) => {
+      if (executionFlowEdge && edge.id === executionFlowEdge.id) return false;
+      const sourceNode = nodes.find((node) => node.id === edge.source);
+      return isProviderNode(sourceNode);
+    })
+    : [];
+
+  const edgesToAnimate: Edge[] = [];
+  if (executionFlowEdge) {
+    edgesToAnimate.push(executionFlowEdge);
+  } else if (!previousNodeId && allIncomingEdges.length === 1) {
+    edgesToAnimate.push(allIncomingEdges[0]);
+  }
+
+  edgesToAnimate.push(...providerInputEdges);
+  return edgesToAnimate;
+};
 
 function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const hasInitializedEmptyCanvas = useRef(false);
+  const isImportingRef = useRef(false);
   const { screenToFlowPosition } = useReactFlow();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
@@ -163,6 +310,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(
     null
   );
+
+  // Context Menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    nodeId: string;
+  } | null>(null);
 
   // Auto-save settings modal ref
   const autoSaveSettingsModalRef = useRef<HTMLDialogElement>(null);
@@ -223,6 +377,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setActiveEdges,
     setActiveNodes,
     workflowId,
+    currentWorkflow?.id,
+    setCurrentExecutionForWorkflow
+  );
+
+  useKafkaExecutionListener(
+    nodes,
+    setNodeStatus,
+    edges,
+    setEdgeStatus,
+    setActiveEdges,
+    setActiveNodes,
     currentWorkflow?.id,
     setCurrentExecutionForWorkflow
   );
@@ -299,6 +464,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           variant: "error",
         });
       });
+      hasInitializedEmptyCanvas.current = false;
     } else {
       // Yeni workflow: state'i sıfırla
       setCurrentWorkflow(null);
@@ -306,6 +472,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setEdges([]);
       setWorkflowName("isimsiz dosya");
       clearAllChats(); // Clear chats for new workflow
+      hasInitializedEmptyCanvas.current = false;
     }
   }, [workflowId]);
 
@@ -331,7 +498,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   // Initialize nodes from store when loaded for the first time
   useEffect(() => {
-    if (availableNodes.length > 0 && nodes.length === 0 && !currentWorkflow) {
+    if (availableNodes.length > 0 && nodes.length === 0 && !currentWorkflow && !hasInitializedEmptyCanvas.current) {
       // Sadece start node'u ekle
       const startNodeMeta = availableNodes.find((n) => n.name === "StartNode");
       if (startNodeMeta) {
@@ -346,6 +513,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             },
           },
         ]);
+        hasInitializedEmptyCanvas.current = true;
       }
     }
   }, [availableNodes, currentWorkflow, nodes.length, setNodes]);
@@ -353,7 +521,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
       const { nodes: rawNodes, edges } = currentWorkflow.flow_data;
-      
+
       const combinedNodes = [...(availableNodes || []), ...(customNodes || [])];
 
       // Inject missing metadata for nodes from availableNodes registry
@@ -391,10 +559,12 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       } else {
         setEdges(edges || []);
       }
-    } else {
+    } else if (!isImportingRef.current) {
       setNodes([]);
       setEdges([]);
     }
+    // Reset import flag after every useEffect run (self-healing)
+    isImportingRef.current = false;
   }, [currentWorkflow, availableNodes]);
 
   useEffect(() => {
@@ -435,13 +605,21 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       console.error("❌ Chat execution error received:", event.detail);
 
       const errorDetails = {
-        message: event.detail.error || "Chat execution failed",
+        message: event.detail.error || event.detail.message || "Chat execution failed",
         type: event.detail.error_type || "execution",
-        nodeId: event.detail.node_id,
+        nodeId: event.detail.node_id || event.detail.nodeId,
+        nodeType: event.detail.node_type || event.detail.nodeType,
         timestamp: new Date().toLocaleTimeString(),
+        stackTrace: event.detail.stack_trace || event.detail.stackTrace,
       };
 
       setDetailedExecutionError(errorDetails);
+
+      // Display snackbar with the direct error message
+      enqueueSnackbar(errorDetails.message, {
+        variant: "error",
+        autoHideDuration: 5000,
+      });
     };
 
     window.addEventListener(
@@ -573,6 +751,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           name: uniqueName,  // Must be after spread to override nodeType.data.name
           metadata: nodeMetadata,
         },
+        ...(nodeType.type === "StickyNoteNode"
+          ? { width: 200, height: 200, style: { width: 200, height: 200 } }
+          : {}),
       };
 
       setNodes((nds: Node[]) => nds.concat(newNode));
@@ -590,10 +771,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     const flowData: WorkflowData = {
       nodes: nodes as WorkflowNode[],
       edges: edges as WorkflowEdge[],
+      settings: currentWorkflow?.flow_data?.settings,
     };
 
     if (!workflowName || workflowName.trim() === "") {
-      enqueueSnackbar("Lütfen bir dosya adı girin.", { variant: "warning" });
+      enqueueSnackbar("Please enter a workflow name", { variant: "warning" });
       return;
     }
 
@@ -604,13 +786,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           description: "",
           flow_data: flowData,
         });
+
+        if (!newWorkflow || !newWorkflow.id) {
+          throw new Error("Failed to create workflow - invalid response");
+        }
+
         setCurrentWorkflow(newWorkflow);
-        setHasUnsavedChanges(false); // Kaydetme başarılı olduğunda false yap
+        setHasUnsavedChanges(false);
         enqueueSnackbar(`Workflow "${workflowName}" created and saved!`, {
           variant: "success",
         });
-      } catch (error) {
-        enqueueSnackbar("Failed to create workflow.", { variant: "error" });
+      } catch (error: any) {
+        console.error("Failed to create workflow:", error);
+        const errorMessage = error?.response?.data?.detail || error?.message || "Failed to create workflow";
+        enqueueSnackbar(errorMessage, { variant: "error" });
       }
       return;
     }
@@ -621,11 +810,15 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         description: currentWorkflow.description,
         flow_data: flowData,
       });
-      setHasUnsavedChanges(false); // Kaydetme başarılı olduğunda false yap
+
+      // Only set unsaved changes to false after successful update
+      setHasUnsavedChanges(false);
       enqueueSnackbar("Workflow saved successfully!", { variant: "success" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save workflow:", error);
-      enqueueSnackbar("Failed to save workflow.", { variant: "error" });
+      const errorMessage = error?.response?.data?.detail || error?.message || "Failed to save workflow";
+      enqueueSnackbar(errorMessage, { variant: "error" });
+      // Don't set hasUnsavedChanges to false on error
     }
   }, [
     currentWorkflow,
@@ -639,6 +832,74 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     workflowName,
   ]);
 
+  // Context Menu Handlers
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      setContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        nodeId: node.id,
+      });
+    },
+    []
+  );
+
+  const onPaneClick = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const duplicateNode = useCallback(
+    (nodeId: string) => {
+      setNodes((currentNodes) => {
+        const originalNode = currentNodes.find((n) => n.id === nodeId);
+        if (!originalNode) return currentNodes;
+
+        const clonedNode = JSON.parse(JSON.stringify(originalNode));
+        const newUuid = uuidv4();
+        const baseNodeType = clonedNode.type || "GenericNode";
+        const newId = `${baseNodeType}__${newUuid}`;
+
+        let originalName = clonedNode.data?.name || "Node";
+        let newName = `${originalName}_copy`; // Adds '_copy' cumulatively each time
+
+        let display_name = clonedNode.data?.display_name || clonedNode.data?.displayName || clonedNode.data?.metadata?.display_name || "Generic Node";
+        let newDisplayName = display_name; // Ensure the display name in the icon doesn't change
+
+        const newNode: Node = {
+          ...clonedNode,
+          id: newId,
+          position: {
+            x: clonedNode.position.x + 150,
+            y: clonedNode.position.y,
+          },
+          data: {
+            ...clonedNode.data,
+            id: newId,
+            name: newName, // Internal naming changes (e.g., agent_copy_copy)
+            display_name: newDisplayName, // Display name remains the same!
+            displayName: newDisplayName, // Added as a fallback
+          },
+          selected: false,
+        };
+
+        // Log the duplication process
+        console.log(`[Node Clone] Node duplicated: ${originalName} -> ${newName}`, {
+          originalId: originalNode.id,
+          newId: newNode.id,
+          nodeType: newNode.type,
+          nodeData: newNode.data
+        });
+
+        return [...currentNodes, newNode];
+      });
+
+      enqueueSnackbar("Node duplicated", { variant: "info", autoHideDuration: 2000 });
+      setContextMenu(null);
+    },
+    [setNodes, enqueueSnackbar]
+  );
+
   // Auto-save function
   const handleAutoSave = useCallback(async () => {
     if (!autoSaveEnabled || !hasUnsavedChanges || !currentWorkflow) {
@@ -651,6 +912,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       const flowData: WorkflowData = {
         nodes: nodes as WorkflowNode[],
         edges: edges as WorkflowEdge[],
+        settings: currentWorkflow.flow_data?.settings,
       };
 
       await updateWorkflow(currentWorkflow.id, {
@@ -741,6 +1003,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         const flowData: WorkflowData = {
           nodes: nodes as WorkflowNode[],
           edges: edges as WorkflowEdge[],
+          settings: {
+            ...(currentWorkflow.flow_data?.settings || {}),
+            error_workflow_id:
+              currentWorkflow.error_workflow ||
+              currentWorkflow.flow_data?.settings?.error_workflow_id ||
+              null,
+          },
         };
 
         // Prepare execution inputs
@@ -783,81 +1052,15 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 const t = evt.type as string | undefined;
                 if (t === "node_start") {
                   const nid = String(evt.node_id || "");
-                  const previousNodeId = evt.previous_node_id;
 
                   if (nid) {
                     setActiveNodes([nid]);
                     setNodeStatus((s) => ({ ...s, [nid]: "pending" }));
 
-                    // Get all incoming edges to this node
-                    const allIncomingEdges = (edges as Edge[]).filter(
-                      (e) => e.target === nid
-                    );
-
-                    // Separate edges into execution flow (from previous node) and provider inputs
-                    const executionFlowEdge = previousNodeId
-                      ? allIncomingEdges.find((e) => e.source === previousNodeId)
-                      : null;
-
-                    // Check if THIS node is a processor type that accepts provider inputs
                     const currentNode = nodes.find((n) => n.id === nid);
-                    const processorTypes = [
-                      'ReactAgentNode', 'Agent', // Added 'Agent'
-                      'VectorStoreOrchestrator',
-                      'ChunkSplitterNode', 'ChunkSplitter',
-                      'CodeNode', 'ConditionNode'
-                    ];
-                    const isProcessorNode = currentNode && processorTypes.some(pt =>
-                      currentNode.type?.includes(pt) || currentNode.type === pt
-                    );
-
-                    // Provider input edges - ONLY for processor nodes
-                    let providerInputEdges: Edge[] = [];
-                    if (isProcessorNode) {
-                      providerInputEdges = allIncomingEdges.filter((e) => {
-                        // Skip the execution flow edge
-                        if (executionFlowEdge && e.id === executionFlowEdge.id) return false;
-
-                        // Check if source node is a provider type
-                        const sourceNode = nodes.find((n) => n.id === e.source);
-                        if (!sourceNode) return false;
-
-                        // Provider node types that supply data to processors
-                        const providerTypes = [
-                          'OpenAINode', 'OpenAIChat', 'OpenAICompatibleNode',
-                          'OpenAIEmbeddingsProvider',
-                          'BufferMemoryNode', 'BufferMemory',
-                          'ConversationMemoryNode', 'ConversationMemory',
-                          'RetrieverProvider',
-                          'TavilySearchNode', 'TavilySearch',
-                          'CohereRerankerNode',
-                          'VectorStoreOrchestrator',
-                          'ChunkSplitterNode', 'ChunkSplitter',
-                          'DocumentLoaderNode',
-                          'WebScraperNode', 'WebScraper',
-                          'StringInputNode'
-                        ];
-
-                        return providerTypes.some(pt =>
-                          sourceNode.type?.includes(pt) ||
-                          (sourceNode.type && pt.includes(sourceNode.type)) ||
-                          sourceNode.type === pt
-                        );
-                      });
-                    }
-
-                    // Combine edges to animate
-                    const edgesToAnimate: Edge[] = [];
-
-                    if (executionFlowEdge) {
-                      edgesToAnimate.push(executionFlowEdge);
-                    } else if (!previousNodeId && allIncomingEdges.length === 1) {
-                      // First node with single incoming edge
-                      edgesToAnimate.push(allIncomingEdges[0]);
-                    }
-
-                    // Add provider input edges (only for processor nodes)
-                    edgesToAnimate.push(...providerInputEdges);
+                    const edgesToAnimate = currentNode
+                      ? resolveExecutionEdges(evt, currentNode, nodes, edges as Edge[])
+                      : [];
 
                     if (edgesToAnimate.length > 0) {
                       console.log(
@@ -1000,7 +1203,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
         setDetailedExecutionError(errorDetails);
 
-        enqueueSnackbar(`Error executing workflow: ${error.message}`, {
+        enqueueSnackbar(error.message, {
           variant: "error",
         });
 
@@ -1061,7 +1264,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
       setDetailedExecutionError(errorDetails);
 
-      enqueueSnackbar(`Execution error: ${executionError}`, {
+      enqueueSnackbar(executionError, {
         variant: "error",
       });
       clearExecutionError();
@@ -1115,6 +1318,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           ),
           EndNode: (props: any) => (
             <EndNode {...props} isActive={activeNodes.includes(props.id)} />
+          ),
+          StickyNoteNode: (props: any) => (
+            <StickyNoteNode {...props} />
           ),
         } as Record<string, React.ComponentType<any> | null>
       ),
@@ -1194,6 +1400,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     const flowData: WorkflowData = {
       nodes: nodes as WorkflowNode[],
       edges: edges as WorkflowEdge[],
+      settings: currentWorkflow?.flow_data?.settings,
     };
 
     try {
@@ -1248,7 +1455,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       // Don't open modal if it's already in config mode or a double click
-      if (node.data?.isConfigMode || event.detail === 2) {
+      if (node.data?.isConfigMode || event.detail === 2 || node.type === "StickyNoteNode") {
         return;
       }
 
@@ -1326,6 +1533,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         onAutoSaveSettings={handleAutoSaveSettings}
         updateWorkflowStatus={updateWorkflowStatus}
         updateWorkflowVisibility={updateWorkflowVisibility}
+        onImportStart={() => { isImportingRef.current = true; }}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
         {/* Sidebar Toggle Button */}
@@ -1362,7 +1570,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             nodeStatus={nodeStatus}
             edgeStatus={edgeStatus}
             onNodeClick={handleNodeClick}
+            onNodeContextMenu={onNodeContextMenu}
+            onPaneClick={onPaneClick}
           />
+
+          {/* Context Menu Render */}
+          {contextMenu && (
+            <NodeContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              nodeId={contextMenu.nodeId}
+              onDuplicate={duplicateNode}
+              onClose={() => setContextMenu(null)}
+            />
+          )}
 
           {/* Chat Toggle Button */}
           <button
@@ -1705,133 +1926,16 @@ function useChatExecutionListener(
       const { event: eventType, node_id, ...data } = event.detail;
 
       if (eventType === "node_start" && node_id) {
-        // PRIORITY 1: Exact ID match (most reliable)
-        let actualNode = nodes.find((n) => n.id === node_id);
-
-        // PRIORITY 2: If no exact match, try fuzzy matching as fallback
-        if (!actualNode) {
-          actualNode = nodes.find((n) => {
-            // Match by data.name (user-defined name)
-            if (n.data.name === node_id) {
-              return true;
-            }
-
-            // Match by type (only if exactly one node of this type exists)
-            if (n.type === node_id) {
-              const sameTypeNodes = nodes.filter((node) => node.type === n.type);
-              return sameTypeNodes.length === 1;
-            }
-
-            // Derive a clean node type/id token. New ids use `Type__UUID`.
-            const cleanNodeId = node_id.includes("__")
-              ? node_id.split("__")[0]
-              : node_id.replace(/\-\d+$/, "");
-
-            // Only use includes matching if there's exactly one node of this type
-            if (n.type && n.type === cleanNodeId) {
-              const sameTypeNodes = nodes.filter((node) => node.type === n.type);
-              return sameTypeNodes.length === 1;
-            }
-
-            // Match by data properties if available
-            if (n.data?.node_name && n.data.node_name === node_id) {
-              return true;
-            }
-
-            return false;
-          });
-        }
+        const actualNode = findCanvasNode(nodes, node_id);
 
         if (actualNode) {
-          // Set active node (for flow animation)
           setActiveNodes([actualNode.id]);
           setNodeStatus((prev) => ({
             ...prev,
-            [actualNode.id]: "pending", // Start with pending like in start node execution
+            [actualNode.id]: "pending",
           }));
 
-          // Get all incoming edges to this node
-          const allIncomingEdges = edges.filter((e) => e.target === actualNode.id);
-
-          // Use previous_node_id from backend to find execution flow edge
-          const previousNodeId = data.previous_node_id;
-
-          // Find execution flow edge (from previous node in sequence)
-          let executionFlowEdge: Edge | null = null;
-          if (previousNodeId) {
-            executionFlowEdge = allIncomingEdges.find(
-              (e) => e.source === previousNodeId
-            ) || null;
-
-            // Fuzzy match if exact not found
-            if (!executionFlowEdge) {
-              const cleanPrevId = previousNodeId.includes("__")
-                ? previousNodeId.split("__")[0]
-                : previousNodeId;
-              executionFlowEdge = allIncomingEdges.find((e) =>
-                e.source.startsWith(cleanPrevId + "__") || e.source === cleanPrevId
-              ) || null;
-            }
-          }
-
-          // Check if THIS node is a processor type that accepts provider inputs
-          const processorTypes = [
-            'ReactAgentNode', 'Agent', // Added 'Agent'
-            'VectorStoreOrchestrator',
-            'ChunkSplitterNode', 'ChunkSplitter',
-            'CodeNode', 'ConditionNode'
-          ];
-          const isProcessorNode = actualNode.type && processorTypes.some(pt =>
-            actualNode.type?.includes(pt) || actualNode.type === pt
-          );
-
-          // Provider input edges - ONLY for processor nodes
-          let providerInputEdges: Edge[] = [];
-          if (isProcessorNode) {
-            providerInputEdges = allIncomingEdges.filter((e) => {
-              // Skip execution flow edge
-              if (executionFlowEdge && e.id === executionFlowEdge.id) return false;
-
-              // Check if source is a provider node
-              const sourceNode = nodes.find((n) => n.id === e.source);
-              if (!sourceNode) return false;
-
-              const providerTypes = [
-                'OpenAINode', 'OpenAIChat', 'OpenAICompatibleNode',
-                'OpenAIEmbeddingsProvider',
-                'BufferMemoryNode', 'BufferMemory',
-                'ConversationMemoryNode', 'ConversationMemory',
-                'RetrieverProvider',
-                'TavilySearchNode', 'TavilySearch',
-                'CohereRerankerNode',
-                'VectorStoreOrchestrator',
-                'ChunkSplitterNode', 'ChunkSplitter',
-                'DocumentLoaderNode',
-                'WebScraperNode', 'WebScraper',
-                'StringInputNode'
-              ];
-
-              const isProvider = providerTypes.some(pt =>
-                sourceNode.type?.includes(pt) ||
-                (sourceNode.type && pt.includes(sourceNode.type)) ||
-                sourceNode.type === pt
-              );
-
-              return isProvider;
-            });
-          }
-
-          // Combine edges to animate
-          const edgesToAnimate: Edge[] = [];
-
-          if (executionFlowEdge) {
-            edgesToAnimate.push(executionFlowEdge);
-          } else if (!previousNodeId && allIncomingEdges.length === 1) {
-            edgesToAnimate.push(allIncomingEdges[0]);
-          }
-
-          // Add provider edges (only for processor nodes)
-          edgesToAnimate.push(...providerInputEdges);
+          const edgesToAnimate = resolveExecutionEdges(data, actualNode, nodes, edges);
 
           setActiveEdges(edgesToAnimate.map((e) => e.id));
           if (edgesToAnimate.length > 0) {
@@ -1841,49 +1945,14 @@ function useChatExecutionListener(
                 edgesToAnimate.map((e) => [e.id, "pending" as const])
               ),
             }));
-          } else if (allIncomingEdges.length > 0) {
+          } else if (edges.some((edge) => edge.target === actualNode.id)) {
             console.log("No matching edges to animate for", actualNode.id);
           }
         }
       }
 
       if (eventType === "node_end" && node_id) {
-        // PRIORITY 1: Exact ID match (most reliable)
-        let actualNode = nodes.find((n) => n.id === node_id);
-
-        // PRIORITY 2: If no exact match, try fuzzy matching as fallback
-        if (!actualNode) {
-          actualNode = nodes.find((n) => {
-            // Match by data.name (user-defined name)
-            if (n.data.name === node_id) {
-              return true;
-            }
-
-            // Match by type (only if exactly one node of this type exists)
-            if (n.type === node_id) {
-              const sameTypeNodes = nodes.filter((node) => node.type === n.type);
-              return sameTypeNodes.length === 1;
-            }
-
-            // Derive a clean node type/id token. New ids use `Type__UUID`.
-            const cleanNodeId = node_id.includes("__")
-              ? node_id.split("__")[0]
-              : node_id.replace(/\-\d+$/, "");
-
-            // Only use includes matching if there's exactly one node of this type
-            if (n.type && n.type === cleanNodeId) {
-              const sameTypeNodes = nodes.filter((node) => node.type === n.type);
-              return sameTypeNodes.length === 1;
-            }
-
-            // Match by data properties if available
-            if (n.data?.node_name && n.data.node_name === node_id) {
-              return true;
-            }
-
-            return false;
-          });
-        }
+        const actualNode = findCanvasNode(nodes, node_id);
 
         if (actualNode) {
           setNodeStatus((prev) => ({
@@ -1891,18 +1960,24 @@ function useChatExecutionListener(
             [actualNode.id]: "success",
           }));
 
-          // Only mark the edge that was set as pending (from node_start) as success
-          // This ensures only the actual execution flow edge gets marked
-          setEdgeStatus((prev) => {
-            const updated = { ...prev };
-            Object.keys(updated).forEach((edgeId) => {
-              const edge = edges.find((e) => e.id === edgeId);
-              if (edge && edge.target === actualNode.id && updated[edgeId] === "pending") {
-                updated[edgeId] = "success";
-              }
+          const completedEdges = resolveExecutionEdges(data, actualNode, nodes, edges);
+          if (completedEdges.length > 0) {
+            setEdgeStatus((prev) => ({
+              ...prev,
+              ...Object.fromEntries(completedEdges.map((e) => [e.id, "success" as const])),
+            }));
+          } else {
+            setEdgeStatus((prev) => {
+              const updated = { ...prev };
+              Object.keys(updated).forEach((edgeId) => {
+                const edge = edges.find((e) => e.id === edgeId);
+                if (edge && edge.target === actualNode.id && updated[edgeId] === "pending") {
+                  updated[edgeId] = "success";
+                }
+              });
+              return updated;
             });
-            return updated;
-          });
+          }
         }
       }
     };
@@ -1994,7 +2069,7 @@ function useWebhookExecutionListener(
     }>();
 
     // Get base URL with fallback
-    const baseUrl = import.meta.env.VITE_API_BASE_URL;
+    const baseUrl = config.API_BASE_URL;
 
     // Connect to webhook stream for each webhook node
     webhookNodes.forEach((node) => {
@@ -2215,25 +2290,7 @@ function useWebhookExecutionListener(
 
               // Handle node_start events
               if (eventType === "node_start" && node_id) {
-                const actualNode = nodes.find((n) => {
-                  if (
-                    n.id === node_id ||
-                    n.data?.name === node_id ||
-                    n.type === node_id
-                  ) {
-                    return true;
-                  }
-                  const cleanNodeId = node_id.includes("__")
-                    ? node_id.split("__")[0]
-                    : node_id.replace(/\-\d+$/, "");
-                  if (
-                    n.type &&
-                    (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
-                  ) {
-                    return true;
-                  }
-                  return false;
-                });
+                const actualNode = findCanvasNode(nodes, node_id);
 
                 if (actualNode) {
                   throttledUpdate(() => {
@@ -2243,13 +2300,13 @@ function useWebhookExecutionListener(
                       [actualNode.id]: "pending",
                     }));
 
-                    const incomingEdges = edges.filter((e) => e.target === actualNode.id);
+                    const incomingEdges = resolveExecutionEdges(executionEvent, actualNode, nodes, edges);
                     if (incomingEdges.length > 0) {
-                      setActiveEdges(incomingEdges.map((e) => e.id));
+                      setActiveEdges(incomingEdges.map((edge) => edge.id));
                       setEdgeStatus((prev) => ({
                         ...prev,
                         ...Object.fromEntries(
-                          incomingEdges.map((e) => [e.id, "pending" as const])
+                          incomingEdges.map((edge) => [edge.id, "pending" as const])
                         ),
                       }));
                     }
@@ -2259,41 +2316,40 @@ function useWebhookExecutionListener(
 
               // Handle node_end events
               if (eventType === "node_end" && node_id) {
-                const actualNode = nodes.find((n) => {
-                  if (
-                    n.id === node_id ||
-                    n.data?.name === node_id ||
-                    n.type === node_id
-                  ) {
-                    return true;
-                  }
-                  const cleanNodeId = node_id.includes("__")
-                    ? node_id.split("__")[0]
-                    : node_id.replace(/\-\d+$/, "");
-                  if (
-                    n.type &&
-                    (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
-                  ) {
-                    return true;
-                  }
-                  return false;
-                });
+                const actualNode = findCanvasNode(nodes, node_id);
 
                 if (actualNode) {
                   const isError = executionEvent.error || executionEvent.status === "error";
+
+                  // Handle error for snackbar notification
+                  if (isError) {
+                    window.dispatchEvent(
+                      new CustomEvent("chat-execution-error", {
+                        detail: {
+                          error: executionEvent.error || `Node ${node_id} failed`,
+                          message: executionEvent.error || `Node ${node_id} failed`,
+                          type: executionEvent.error_type || "execution",
+                          nodeId: actualNode.id,
+                          nodeType: actualNode.type,
+                          stackTrace: executionEvent.stack_trace,
+                        },
+                      })
+                    );
+                  }
+
                   throttledUpdate(() => {
                     setNodeStatus((prev) => ({
                       ...prev,
                       [actualNode.id]: isError ? "failed" : "success",
                     }));
 
-                    const incomingEdges = edges.filter((e) => e.target === actualNode.id);
+                    const incomingEdges = resolveExecutionEdges(executionEvent, actualNode, nodes, edges);
                     if (incomingEdges.length > 0) {
                       const edgeStatus: NodeStatus = isError ? "failed" : "success";
                       setEdgeStatus((prev) => ({
                         ...prev,
                         ...Object.fromEntries(
-                          incomingEdges.map((e) => [e.id, edgeStatus])
+                          incomingEdges.map((edge) => [edge.id, edgeStatus])
                         ),
                       }));
                     }
@@ -2307,6 +2363,21 @@ function useWebhookExecutionListener(
                   setActiveEdges([]);
                   setActiveNodes([]);
                 });
+              }
+
+              // Handle general execution error event
+              if (eventType === "error" || eventType === "workflow_error") {
+                window.dispatchEvent(
+                  new CustomEvent("chat-execution-error", {
+                    detail: {
+                      error: executionEvent.error || "Workflow execution failed",
+                      message: executionEvent.error || "Workflow execution failed",
+                      type: executionEvent.error_type || "execution",
+                      nodeId: executionEvent.node_id,
+                      stackTrace: executionEvent.stack_trace,
+                    },
+                  })
+                );
               }
             }
           } catch (error) {
@@ -2337,7 +2408,180 @@ function useWebhookExecutionListener(
       pendingUpdates.length = 0;
       webhookExecutionData.clear();
     };
-  }, [nodes, workflowId, currentWorkflowId, setCurrentExecutionForWorkflow]);
+  }, [nodes, edges, workflowId, currentWorkflowId, setCurrentExecutionForWorkflow]);
+}
+
+function useKafkaExecutionListener(
+  nodes: Node[],
+  setNodeStatus: React.Dispatch<React.SetStateAction<Record<string, NodeStatus>>>,
+  edges: Edge[],
+  setEdgeStatus: React.Dispatch<React.SetStateAction<Record<string, NodeStatus>>>,
+  setActiveEdges: React.Dispatch<React.SetStateAction<string[]>>,
+  setActiveNodes: React.Dispatch<React.SetStateAction<string[]>>,
+  currentWorkflowId?: string,
+  setCurrentExecutionForWorkflow?: (workflowId: string, execution: any) => void
+) {
+  useEffect(() => {
+    const kafkaNodes = nodes.filter(
+      (node) => node.type === "KafkaConsumer" || node.type === "KafkaTrigger"
+    );
+
+    if (kafkaNodes.length === 0) return;
+
+    const eventSources: EventSource[] = [];
+    const executionData = new Map<string, {
+      executionId: string;
+      nodeOutputs: Record<string, any>;
+      executedNodes: string[];
+      sessionId?: string;
+      result?: any;
+      startedAt: string;
+      completedAt?: string;
+    }>();
+
+    kafkaNodes.forEach((node) => {
+      const listenerId = node.id;
+      const streamUrl = `${config.API_BASE_URL}/${config.API_START}/${config.API_VERSION_ONLY}/kafka/listeners/${listenerId}/stream`;
+      const eventSource = new EventSource(streamUrl);
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "connected" || data.type === "ping") return;
+          if (data.type !== "kafka_execution_event" || !data.event) return;
+
+          const executionEvent = data.event;
+          const eventType = executionEvent.type || executionEvent.event;
+          const nodeId = executionEvent.node_id;
+          const executionId = data.execution_id || "unknown";
+
+          if (!executionData.has(executionId)) {
+            executionData.set(executionId, {
+              executionId,
+              nodeOutputs: {},
+              executedNodes: [],
+              startedAt: data.timestamp || new Date().toISOString(),
+            });
+          }
+
+          const execData = executionData.get(executionId)!;
+
+          if (eventType === "node_start" && nodeId) {
+            if (!execData.executedNodes.includes(nodeId)) {
+              execData.executedNodes.push(nodeId);
+            }
+
+            const actualNode = findCanvasNode(nodes, nodeId);
+            if (actualNode) {
+              const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, nodes, edges);
+              setActiveNodes([actualNode.id]);
+              setNodeStatus((prev) => ({ ...prev, [actualNode.id]: "pending" }));
+              setActiveEdges(activeFlowEdges.map((edge) => edge.id));
+              setEdgeStatus((prev) => ({
+                ...prev,
+                ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, "pending" as const])),
+              }));
+            }
+          }
+
+          if (eventType === "node_end" && nodeId) {
+            execData.nodeOutputs[nodeId] = {
+              ...(execData.nodeOutputs[nodeId] || {}),
+              output: executionEvent.output || executionEvent.result,
+              outputs: executionEvent.output || executionEvent.result,
+              status: executionEvent.error ? "failed" : "completed",
+            };
+
+            const actualNode = findCanvasNode(nodes, nodeId);
+            if (actualNode) {
+              const isError = executionEvent.error || executionEvent.status === "error";
+
+              // Handle error for snackbar notification
+              if (isError) {
+                window.dispatchEvent(
+                  new CustomEvent("chat-execution-error", {
+                    detail: {
+                      error: executionEvent.error || `Node ${nodeId} failed`,
+                      message: executionEvent.error || `Node ${nodeId} failed`,
+                      type: executionEvent.error_type || "execution",
+                      nodeId: actualNode.id,
+                      nodeType: actualNode.type,
+                      stackTrace: executionEvent.stack_trace,
+                    },
+                  })
+                );
+              }
+
+              const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, nodes, edges);
+              setNodeStatus((prev) => ({ ...prev, [actualNode.id]: isError ? "failed" : "success" }));
+              setEdgeStatus((prev) => ({
+                ...prev,
+                ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, isError ? "failed" as const : "success" as const])),
+              }));
+            }
+          }
+
+          // Handle general execution error event
+          if (eventType === "error" || eventType === "workflow_error") {
+            window.dispatchEvent(
+              new CustomEvent("chat-execution-error", {
+                detail: {
+                  error: executionEvent.error || "Workflow execution failed",
+                  message: executionEvent.error || "Workflow execution failed",
+                  type: executionEvent.error_type || "execution",
+                  nodeId: executionEvent.node_id,
+                  stackTrace: executionEvent.stack_trace,
+                },
+              })
+            );
+          }
+
+          if (eventType === "complete" || eventType === "workflow_complete") {
+            execData.completedAt = data.timestamp || new Date().toISOString();
+            execData.result = executionEvent.result;
+            execData.nodeOutputs = {
+              ...execData.nodeOutputs,
+              ...(executionEvent.node_outputs || {}),
+            };
+            execData.executedNodes = executionEvent.executed_nodes || execData.executedNodes;
+            execData.sessionId = executionEvent.session_id;
+
+            if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+              setCurrentExecutionForWorkflow(currentWorkflowId, {
+                id: executionId,
+                workflow_id: currentWorkflowId,
+                input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                result: {
+                  result: execData.result,
+                  executed_nodes: execData.executedNodes,
+                  node_outputs: execData.nodeOutputs,
+                  session_id: execData.sessionId,
+                  status: "completed" as const,
+                },
+                started_at: execData.startedAt,
+                completed_at: execData.completedAt,
+                status: "completed" as const,
+              });
+            }
+
+            setTimeout(() => {
+              setActiveEdges([]);
+              setActiveNodes([]);
+            }, 1500);
+          }
+        } catch (error) {
+          console.error("Error parsing Kafka execution event:", error);
+        }
+      };
+
+      eventSources.push(eventSource);
+    });
+
+    return () => {
+      eventSources.forEach((source) => source.close());
+      executionData.clear();
+    };
+  }, [nodes, edges, currentWorkflowId, setCurrentExecutionForWorkflow, setNodeStatus, setEdgeStatus, setActiveEdges, setActiveNodes]);
 }
 
 interface FlowCanvasWrapperProps {

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
+import { Check, Loader2, X as XIcon, Zap } from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
 import type { ServiceDefinition, ServiceField } from "~/types/credentials";
 
@@ -7,18 +8,24 @@ interface DynamicCredentialFormProps {
   service: ServiceDefinition;
   onSubmit: (values: any) => void;
   onCancel: () => void;
+  onTest?: (data: Record<string, any>) => Promise<{ success: boolean; message: string }>;
   initialValues?: Record<string, any>;
   isSubmitting?: boolean;
 }
+
+type TestState = "idle" | "loading" | "success" | "error";
 
 const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
   service,
   onSubmit,
   onCancel,
+  onTest,
   initialValues = {},
   isSubmitting = false,
 }) => {
   const [iconFailed, setIconFailed] = useState(false);
+  const [testState, setTestState] = useState<TestState>("idle");
+  const [testMessage, setTestMessage] = useState("");
   const validateField = (
     field: ServiceField,
     value: any
@@ -139,6 +146,18 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
           <Field type="password" {...commonProps} autoComplete="new-password" />
         );
 
+      case "checkbox":
+        return (
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <Field
+              type="checkbox"
+              name={field.name}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+            <span className="text-sm text-gray-700">{field.label}</span>
+          </label>
+        );
+
       default:
         return <Field type="text" {...commonProps} />;
     }
@@ -208,12 +227,14 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
 
               return (
                 <div key={field.name} className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    {field.label}
-                    {field.required && (
-                      <span className="text-red-500 ml-1">*</span>
-                    )}
-                  </label>
+                  {field.type !== "checkbox" && (
+                    <label className="block text-sm font-medium text-gray-700">
+                      {field.label}
+                      {field.required && (
+                        <span className="text-red-500 ml-1">*</span>
+                      )}
+                    </label>
+                  )}
 
                   {renderField(field)}
 
@@ -232,6 +253,13 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
               );
             })}
 
+            {/* Test result message */}
+            {testMessage && testState !== "loading" && (
+              <p className={`text-sm ${testState === "success" ? "text-green-600" : "text-red-500"}`}>
+                {testMessage}
+              </p>
+            )}
+
             {/* Form Actions */}
             <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
               <button
@@ -241,6 +269,41 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
               >
                 Cancel
               </button>
+              {onTest && (
+                <button
+                  type="button"
+                  disabled={testState === "loading"}
+                  onClick={async () => {
+                    setTestState("loading");
+                    setTestMessage("");
+                    try {
+                      const result = await onTest(values);
+                      setTestState(result.success ? "success" : "error");
+                      setTestMessage(result.message);
+                    } catch {
+                      setTestState("error");
+                      setTestMessage("Unexpected error. Please try again.");
+                    }
+                    setTimeout(() => {
+                      setTestState("idle");
+                      setTestMessage("");
+                    }, 4000);
+                  }}
+                  className={`flex items-center gap-1.5 px-5 py-2.5 rounded-lg border transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+                    ${testState === "success"
+                      ? "text-green-600 border-green-300 bg-green-50"
+                      : testState === "error"
+                        ? "text-red-500 border-red-300 bg-red-50"
+                        : "text-gray-700 border-gray-300 bg-white hover:bg-gray-50"
+                    }`}
+                >
+                  {testState === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {testState === "success" && <Check className="w-4 h-4" />}
+                  {testState === "error" && <XIcon className="w-4 h-4" />}
+                  {testState === "idle" && <Zap className="w-4 h-4" />}
+                  Test Connection
+                </button>
+              )}
               <button
                 type="submit"
                 disabled={isSubmitting}

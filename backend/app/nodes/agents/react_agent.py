@@ -105,7 +105,7 @@ from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.tools import BaseTool
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.memory import BaseMemory
+from langchain_classic.schema.memory import BaseMemory
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver

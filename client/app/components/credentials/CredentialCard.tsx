@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pencil, Trash } from "lucide-react";
+import { Check, Loader2, Pencil, Trash, Zap, X as XIcon } from "lucide-react";
 import { timeAgo } from "~/lib/dateFormatter";
 import { resolveIconPath } from "~/lib/iconUtils";
 import { getServiceDefinition } from "~/types/credentials";
@@ -9,16 +9,39 @@ interface CredentialCardProps {
   credential: UserCredential;
   onEdit: (credential: UserCredential) => void;
   onDelete: (id: string) => void;
+  onTest: (id: string) => Promise<{ success: boolean; message: string }>;
 }
+
+type TestState = "idle" | "loading" | "success" | "error";
 
 const CredentialCard: React.FC<CredentialCardProps> = ({
   credential,
   onEdit,
   onDelete,
+  onTest,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const serviceDefinition = getServiceDefinition(credential.service_type);
   const [iconFailed, setIconFailed] = useState(false);
+  const [testState, setTestState] = useState<TestState>("idle");
+  const [testMessage, setTestMessage] = useState<string>("");
+
+  const handleTest = async () => {
+    setTestState("loading");
+    setTestMessage("");
+    try {
+      const result = await onTest(credential.id);
+      setTestState(result.success ? "success" : "error");
+      setTestMessage(result.message);
+    } catch {
+      setTestState("error");
+      setTestMessage("Unexpected error. Please try again.");
+    }
+    setTimeout(() => {
+      setTestState("idle");
+      setTestMessage("");
+    }, 4000);
+  };
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">
       {/* Header */}
@@ -71,8 +94,32 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
         <span>Updated: {timeAgo(credential.updated_at)}</span>
       </div>
 
+      {/* Test result message */}
+      {testMessage && testState !== "loading" && (
+        <p className={`text-xs mt-1 mb-1 ${testState === "success" ? "text-green-600" : "text-red-500"}`}>
+          {testMessage}
+        </p>
+      )}
+
       {/* Actions */}
       <div className="flex items-center justify-end gap-1.5">
+        <button
+          onClick={handleTest}
+          disabled={testState === "loading"}
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-all duration-200
+            ${testState === "success" ? "text-green-600 bg-green-50" :
+              testState === "error" ? "text-red-500 bg-red-50" :
+                "text-gray-400 hover:text-purple-600 hover:bg-purple-50"}
+            disabled:opacity-50 disabled:cursor-not-allowed`}
+          title="Test connection"
+        >
+          {testState === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          {testState === "success" && <Check className="w-3.5 h-3.5" />}
+          {testState === "error" && <XIcon className="w-3.5 h-3.5" />}
+          {testState === "idle" && <Zap className="w-3.5 h-3.5" />}
+          Test
+        </button>
+
         <button
           onClick={() => onEdit(credential)}
           className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all duration-200"

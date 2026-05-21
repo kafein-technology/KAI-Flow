@@ -1,9 +1,24 @@
 version: "3"
 services:
-  kaifusion-be:
+  db:
+    image: postgres:15-alpine
+    container_name: kai-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kai}
+      POSTGRES_USER: ${POSTGRES_USERNAME:-kai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kai}
+    ports:
+      - "5432:5432"
+    volumes:
+      - kai_db_data:/var/lib/postgresql/data
+    networks:
+      - kai_network
+
+  kai-flow-backend:
     build: .
-    image: kaifusion:latest
-    container_name: kai-fusion-backend
+    image: kai-flow-backend:latest
+    container_name: kai-flow-backend
     ports:
       - "${BACKEND_PORT:-23056}:8000"
     environment:
@@ -41,16 +56,20 @@ services:
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
-      KEYCLOAK_VERIFY_SSL: ${KEYCLOAK_VERIFY_SSL}      
-
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+      KEYCLOAK_VERIFY_SSL: ${KEYCLOAK_VERIFY_SSL}
+    command: >
+      sh -c "python migrations/database_setup.py && 
+             uvicorn main:app --host 0.0.0.0 --port 8000"
     networks:
       - kai_network
     stdin_open: true
-    restart: always
     tty: true
 
-  kaifusion-fe:
+    depends_on:
+      - db
+    restart: always
+
+  kai-flow-frontend:
     build:
       context: ./client
       dockerfile: Dockerfile
@@ -64,7 +83,8 @@ services:
         VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
         VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
         VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
-    container_name: kai-fusion-frontend
+        VITE_ENTERPRISE: ${ENTERPRISE}
+    container_name: kai-flow-frontend
     ports:
       - "23058:3000"
     environment:
@@ -76,12 +96,16 @@ services:
       VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
       VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
       VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
+      VITE_ENTERPRISE: ${ENTERPRISE}
     networks:
       - kai_network
     restart: unless-stopped
     depends_on:
-      - kaifusion-be
+      - kai-flow-backend
 
 networks:
   kai_network:
     driver: bridge
+
+volumes:
+  kai_db_data:

@@ -24,6 +24,31 @@ logger = logging.getLogger(__name__)
 
 # Kafka reconciliation loop execution interval (seconds)
 KAFKA_RECONCILIATION_INTERVAL_SECONDS = 60
+KAFKA_STREAM_MAX_QUEUE_LENGTH = 100
+kafka_execution_subscribers: Dict[str, List[asyncio.Queue]] = {}
+
+
+async def broadcast_kafka_execution_event(listener_id: str, event: Dict[str, Any]) -> None:
+    """Broadcast Kafka-triggered workflow execution events to canvas subscribers."""
+    subscribers = kafka_execution_subscribers.get(listener_id, [])
+    if not subscribers:
+        return
+
+    stale_subscribers: List[asyncio.Queue] = []
+    for queue in subscribers.copy():
+        try:
+            if queue.qsize() >= KAFKA_STREAM_MAX_QUEUE_LENGTH:
+                stale_subscribers.append(queue)
+                continue
+            queue.put_nowait(event)
+        except asyncio.QueueFull:
+            stale_subscribers.append(queue)
+        except Exception:
+            stale_subscribers.append(queue)
+
+    for queue in stale_subscribers:
+        if queue in subscribers:
+            subscribers.remove(queue)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -164,16 +189,20 @@ class KafkaListenerService:
 
         task = entry.get("task")
         if task and not task.done():
-            task.cancel()
             try:
-                await asyncio.wait_for(asyncio.shield(task), timeout=10)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                pass
+                await asyncio.wait_for(task, timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.warning(f"Consumer {listener_id} It wasn't shut down on time; it's being forcibly cancelled.")
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
         # Memory leak fix: stopped listener'ı dict'ten sil
         del cls._listeners[listener_id]
 
-        logger.info(f"Kafka listener durduruldu ve temizlendi: {listener_id}")
+        logger.info(f"Kafka listener has been stopped and cleaned: {listener_id}")
 
         return {"status": "stopped", "listener_id": listener_id}
 
@@ -526,11 +555,31 @@ class KafkaListenerService:
                 is_webhook=False,      # Kafka trigger webhook değil
             )
 
-            result = await executor.execute_workflow(
+            result_stream = await executor.execute_workflow(
                 ctx=ctx,
                 db=db,
-                stream=False,
+                stream=True,
             )
+
+            result = None
+            if hasattr(result_stream, "__aiter__"):
+                async for event_chunk in result_stream:
+                    if isinstance(event_chunk, dict):
+                        if event_chunk.get("type") in ("complete", "workflow_complete"):
+                            result = event_chunk
+
+                        ui_event = {
+                            "type": "kafka_execution_event",
+                            "listener_id": listener_id,
+                            "workflow_id": str(workflow.id),
+                            "execution_id": str(ctx.execution_id) if ctx.execution_id else None,
+                            "event": event_chunk,
+                            "kafka_payload": message_data,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                        await broadcast_kafka_execution_event(listener_id, ui_event)
+            else:
+                result = result_stream
 
             # Check execution result for errors
             if isinstance(result, dict) and result.get("success") is False:
@@ -766,6 +815,8 @@ async def _start_from_desired(node_id: str, desired_entry: Dict[str, Any]):
     )
 
 
+kafka_reconciliation_wakeup = asyncio.Event()
+
 async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVAL_SECONDS):
     """
     Periyodik Kafka listener reconciliation döngüsü.
@@ -787,7 +838,11 @@ async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVA
 
     while True:
         if not first_run:
-            await asyncio.sleep(interval)
+            try:
+                await asyncio.wait_for(kafka_reconciliation_wakeup.wait(), timeout=interval)
+                kafka_reconciliation_wakeup.clear()
+            except asyncio.TimeoutError:
+                pass
         first_run = False
 
         try:
@@ -863,6 +918,42 @@ async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVA
 # ══════════════════════════════════════════════════════════════════
 
 kafka_router = APIRouter(prefix=f"/{API_START}/{API_VERSION}/kafka")
+
+
+@kafka_router.get("/listeners/{listener_id}/stream")
+async def stream_kafka_listener_execution(listener_id: str):
+    """Stream Kafka-triggered workflow execution events for the canvas UI."""
+
+    async def event_stream():
+        queue: asyncio.Queue = asyncio.Queue(maxsize=KAFKA_STREAM_MAX_QUEUE_LENGTH)
+        kafka_execution_subscribers.setdefault(listener_id, []).append(queue)
+
+        try:
+            yield f"data: {json.dumps({'type': 'connected', 'listener_id': listener_id, 'timestamp': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
+
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield f"data: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'type': 'ping', 'timestamp': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            subscribers = kafka_execution_subscribers.get(listener_id, [])
+            if queue in subscribers:
+                subscribers.remove(queue)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )
 
 
 @kafka_router.post("/listeners/{listener_id}/stop")

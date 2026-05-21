@@ -548,11 +548,12 @@ class ValidationEngine:
         """
         try:
             # Check for required StartNode and EndNode
-            # WebhookTrigger, KafkaConsumer, KafkaTrigger nodes can also serve as entry points
+            # WebhookTrigger, KafkaConsumer, KafkaTrigger, and ErrorTrigger nodes can also serve as entry points
             start_nodes = [n for n in nodes if n.get("type") == START_NODE_TYPE]
             webhook_trigger_nodes = [n for n in nodes if n.get("type") == "WebhookTrigger"]
             kafka_trigger_nodes = [n for n in nodes if n.get("type") in ("KafkaConsumer", "KafkaTrigger")]
-            entry_nodes = start_nodes + webhook_trigger_nodes + kafka_trigger_nodes
+            error_trigger_nodes = [n for n in nodes if n.get("type") in ("ErrorTrigger", "ErrorTriggerNode")]
+            entry_nodes = start_nodes + webhook_trigger_nodes + kafka_trigger_nodes + error_trigger_nodes
             
             # Check for terminal nodes (EndNode OR RespondToWebhook)
             # These are valid workflow exit points
@@ -561,7 +562,7 @@ class ValidationEngine:
             respond_to_webhook_nodes = [n for n in nodes if n.get("type") == "RespondToWebhook"]
             
             if not entry_nodes:
-                result.add_error("Workflow must contain at least one StartNode, WebhookTrigger, or KafkaTrigger node")
+                result.add_error("Workflow must contain at least one StartNode, WebhookTrigger, KafkaTrigger, or ErrorTrigger node")
             
             # Only warn if NO terminal nodes exist (neither EndNode nor RespondToWebhook)
             if not terminal_nodes:
@@ -572,9 +573,12 @@ class ValidationEngine:
             
             # Check for multiple start nodes (allowed but should be noted)
             if len(entry_nodes) > 1:
-                result.add_warning(f"Workflow has {len(start_nodes)} StartNode(s) and {len(webhook_trigger_nodes)} WebhookTrigger node(s) - ensure this is intentional")
+                result.add_warning(f"Workflow has {len(entry_nodes)} entry node(s) - ensure this is intentional")
             
-            logger.debug(f"Required node validation: {len(start_nodes)} start, {len(webhook_trigger_nodes)} webhook trigger, {len(terminal_nodes)} terminal nodes")
+            logger.debug(
+                f"Required node validation: {len(start_nodes)} start, {len(webhook_trigger_nodes)} webhook, "
+                f"{len(error_trigger_nodes)} error trigger, {len(terminal_nodes)} terminal nodes"
+            )
             
         except Exception as e:
             result.add_error(f"Required node validation failed: {str(e)}")
