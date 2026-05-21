@@ -371,6 +371,7 @@ async def create_workflow(
             name=workflow_data.name,
             description=workflow_data.description,
             is_public=workflow_data.is_public,
+            error_workflow=workflow_data.error_workflow,
             flow_data=workflow_data.flow_data
         )
         
@@ -444,6 +445,27 @@ async def update_workflow(
         
         # Update fields that are provided
         update_data = workflow_data.model_dump(exclude_unset=True)
+        if "error_workflow" in update_data and update_data["error_workflow"] is not None:
+            error_workflow_id = update_data["error_workflow"]
+            if error_workflow_id == workflow_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A workflow cannot use itself as its error workflow",
+                )
+            error_wf = await workflow_service.get_accessible_workflow(db, error_workflow_id, user_id)
+            if not error_wf:
+                raise HTTPException(status_code=404, detail="Error workflow not found")
+            nodes = error_wf.flow_data.get("nodes", []) if isinstance(error_wf.flow_data, dict) else []
+            has_error_trigger = any(
+                isinstance(n, dict) and n.get("type") in ("ErrorTrigger", "ErrorTriggerNode")
+                for n in nodes
+            )
+            if not has_error_trigger:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Selected workflow must contain an Error Trigger node",
+                )
+
         for field, value in update_data.items():
             setattr(workflow, field, value)
         
@@ -994,6 +1016,23 @@ async def execute_adhoc_workflow(
         # Use workflow's flow_data if not provided
         if not req.flow_data:
             req.flow_data = workflow.flow_data
+        else:
+            class _ExecutionWorkflow:
+                """Use request flow_data for this run without persisting to the DB row."""
+
+                __slots__ = ("id", "user_id", "name", "description", "is_public", "version", "error_workflow", "flow_data")
+
+                def __init__(self, original: Workflow, flow_data: Dict[str, Any]):
+                    self.id = original.id
+                    self.user_id = original.user_id
+                    self.name = original.name
+                    self.description = original.description
+                    self.is_public = original.is_public
+                    self.version = getattr(original, "version", 1)
+                    self.error_workflow = getattr(original, "error_workflow", None)
+                    self.flow_data = flow_data
+
+            workflow = _ExecutionWorkflow(workflow, req.flow_data)
     else:
         # Create temporary workflow object for adhoc execution
         # This allows us to use WorkflowExecutor even without a saved workflow

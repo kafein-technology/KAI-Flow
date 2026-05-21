@@ -8,12 +8,15 @@ import {
   Loader,
   Clock,
   MessageSquare,
+  ShieldAlert,
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
 import ToggleSwitch from "./ToggleSwitch";
 import WidgetExportModal from "../modals/WidgetExportModal";
+import ErrorWorkflowModal from "../modals/ErrorWorkflowModal";
+import WorkflowService from "~/services/workflows";
 import { useNodeStore } from "~/stores/nodes";
 
 interface NavbarProps {
@@ -60,6 +63,23 @@ const Navbar: React.FC<NavbarProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const widgetExportDialogRef = useRef<HTMLDialogElement>(null);
+  const errorWorkflowDialogRef = useRef<HTMLDialogElement>(null);
+  
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [errorWorkflowId, setErrorWorkflowId] = useState<string | undefined>(
+    () =>
+      currentWorkflow?.error_workflow ||
+      currentWorkflow?.flow_data?.settings?.error_workflow_id ||
+      undefined
+  );
+
+  useEffect(() => {
+    setErrorWorkflowId(
+      currentWorkflow?.error_workflow ||
+        currentWorkflow?.flow_data?.settings?.error_workflow_id ||
+        undefined
+    );
+  }, [currentWorkflow]);
 
   // Dışarı tıklayınca dropdown'u kapat
   useEffect(() => {
@@ -93,11 +113,9 @@ const Navbar: React.FC<NavbarProps> = ({
     if (workflowName.trim() === "") {
       setWorkflowName("New Workflow");
     }
-
     enqueueSnackbar("Workflow name updated", { variant: "success" });
   };
 
-  // Load handler
   const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -106,7 +124,6 @@ const Navbar: React.FC<NavbarProps> = ({
       try {
         const json = JSON.parse(event.target?.result as string);
         if (setCurrentWorkflow && setNodes && setEdges) {
-          // Ensure we have metadata before rehydrating
           let nodeStore = useNodeStore.getState();
           if (nodeStore.nodes.length === 0) {
             await nodeStore.fetchNodes();
@@ -114,13 +131,9 @@ const Navbar: React.FC<NavbarProps> = ({
             nodeStore = useNodeStore.getState();
           }
 
-          // Search both built-in and custom nodes
           const allNodesMetadata = [...(nodeStore.nodes || []), ...(nodeStore.customNodes || [])];
-
           const enrichedNodes = (json.flow_data?.nodes || []).map((node: any) => {
             if (!node.data?.metadata && allNodesMetadata.length > 0) {
-              // Priority 1: Built-in nodes use 'name' as unique type identifier
-              // Priority 2: Custom nodes use 'id'
               const metadata = allNodesMetadata.find(
                 m => m.name === node.type || (m as any).id === node.type
               );
@@ -143,8 +156,6 @@ const Navbar: React.FC<NavbarProps> = ({
             return node;
           });
 
-          // Signal FlowCanvas that an import is in progress
-          // This prevents the useEffect from clearing the canvas when currentWorkflow becomes null
           if (onImportStart) onImportStart();
           
           if (currentWorkflow && setCurrentWorkflow) {
@@ -163,13 +174,10 @@ const Navbar: React.FC<NavbarProps> = ({
 
           setNodes(enrichedNodes);
           setEdges(json.flow_data?.edges || []);
-          // Update workflow name from loaded file
           if (json.name) {
             setWorkflowName(json.name);
           }
-          enqueueSnackbar("Workflow loaded successfully!", {
-            variant: "success",
-          });
+          enqueueSnackbar("Workflow loaded successfully!", { variant: "success" });
         }
       } catch (err) {
         console.error("Load error:", err);
@@ -181,14 +189,12 @@ const Navbar: React.FC<NavbarProps> = ({
     e.target.value = "";
   };
 
-  // Export handler
   const handleExport = () => {
     if (!currentWorkflow) {
       enqueueSnackbar("No workflow to export!", { variant: "warning" });
       return;
     }
 
-    // Clean up the workflow data for export
     const cleanWorkflow = {
       id: currentWorkflow.id,
       user_id: currentWorkflow.user_id,
@@ -197,47 +203,34 @@ const Navbar: React.FC<NavbarProps> = ({
       is_public: currentWorkflow.is_public,
       flow_data: {
         nodes: (currentWorkflow.flow_data?.nodes || []).map((node: any) => {
-          // Remove React Flow internal state and redundant metadata
           const { measured, selected, dragging, width, height, ...cleanNode } = node;
-
-          // Preserve dimensions for specifically resizable nodes like Sticky Note
           if (node.type === "StickyNoteNode") {
             if (width !== undefined) cleanNode.width = width;
             if (height !== undefined) cleanNode.height = height;
           }
-
           if (cleanNode.data) {
-            // Remove redundant metadata that can be rehydrated from registry
             const { metadata, icon, description, displayName, inputs, outputs, ...cleanData } = cleanNode.data;
             cleanNode.data = cleanData;
           }
-
           return cleanNode;
         }),
         edges: (currentWorkflow.flow_data?.edges || []).map((edge: any) => {
-          // Remove potential internal edge state
           const { selected, ...cleanEdge } = edge;
           return cleanEdge;
         }),
       }
     };
 
-    const dataStr =
-      "data:text/json;charset=utf-8," +
-      encodeURIComponent(JSON.stringify(cleanWorkflow, null, 2));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cleanWorkflow, null, 2));
     const downloadAnchorNode = document.createElement("a");
     downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute(
-      "download",
-      `${currentWorkflow.name || "workflow"}.json`
-    );
+    downloadAnchorNode.setAttribute("download", `${currentWorkflow.name || "workflow"}.json`);
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
     setIsDropdownOpen(false);
   };
 
-  // Delete handler
   const handleDelete = async () => {
     if (!currentWorkflow || !deleteWorkflow) return;
     try {
@@ -246,22 +239,18 @@ const Navbar: React.FC<NavbarProps> = ({
       setCurrentWorkflow && setCurrentWorkflow(null);
       setNodes && setNodes([]);
       setEdges && setEdges([]);
-      // Workflow name'ini de sıfırla
       setWorkflowName("New Workflow");
-      // Workflows sayfasına yönlendir
       navigate("/workflows");
     } catch (err) {
       console.error("Delete error:", err);
-      enqueueSnackbar("Workflow deleted successfully!", { variant: "error" });
+      enqueueSnackbar("Failed to delete workflow", { variant: "error" });
     }
     deleteDialogRef.current?.close();
   };
 
-
-
   return (
     <>
-      <header className="w-full h-16 bg-[#18181B] text-foreground  fixed top-0 left-0 z-20 ">
+      <header className="w-full h-16 bg-[#18181B] text-foreground fixed top-0 left-0 z-20">
         <nav className="flex justify-between items-center p-4 bg-background text-foreground m-auto">
           <div className="flex items-center gap-2">
             <Link
@@ -285,54 +274,36 @@ const Navbar: React.FC<NavbarProps> = ({
               onChange={(e) => setWorkflowName(e.target.value)}
               onBlur={handleBlur}
               placeholder="Dosya Adı"
-              required
               className="text-lg font-medium text-white/90 bg-transparent px-4 py-1.5 rounded-md border border-transparent hover:border-white/20 focus:border-white/30 hover:bg-white/5 focus:bg-white/10 focus:outline-none transition-all duration-300 text-center w-full max-w-[400px] focus:max-w-[800px]"
             />
           </div>
+
           <div className="flex items-center space-x-4 gap-2 relative">
-            {/* Workflow Public Status Toggle */}
             {currentWorkflow && updateWorkflowVisibility && (
-              <div className="flex items-center gap-2">
-                <ToggleSwitch
-                  isActive={currentWorkflow.is_public ?? false}
-                  disabled={isPublicTogglePending}
-                  onToggle={async (isPublic) => {
-                    if (isPublicTogglePending) return;
-                    setIsPublicTogglePending(true);
-                    try {
-                      if (updateWorkflowVisibility) {
-                        await updateWorkflowVisibility(currentWorkflow.id, isPublic);
-
-                        // Update local state to reflect change immediately
-                        if (setCurrentWorkflow) {
-                          setCurrentWorkflow({
-                            ...currentWorkflow,
-                            is_public: isPublic,
-                          });
-                        }
-
-                        enqueueSnackbar(
-                          `Workflow is now ${isPublic ? "Public" : "Private"}`,
-                          { variant: "success" }
-                        );
-                      }
-                    } catch (error) {
-                      enqueueSnackbar("Workflow visibility could not be updated", {
-                        variant: "error",
-                      });
-                    } finally {
-                      setIsPublicTogglePending(false);
+              <ToggleSwitch
+                isActive={currentWorkflow.is_public ?? false}
+                disabled={isPublicTogglePending}
+                onToggle={async (isPublic) => {
+                  if (isPublicTogglePending) return;
+                  setIsPublicTogglePending(true);
+                  try {
+                    await updateWorkflowVisibility(currentWorkflow.id, isPublic);
+                    if (setCurrentWorkflow) {
+                      setCurrentWorkflow({ ...currentWorkflow, is_public: isPublic });
                     }
-                  }}
-                  size="sm"
-                  label="Activity"
-                  description={
-                    currentWorkflow.is_public ? "Active" : "Inactive"
+                    enqueueSnackbar(`Workflow is now ${isPublic ? "Public" : "Private"}`, { variant: "success" });
+                  } catch (error) {
+                    enqueueSnackbar("Workflow visibility could not be updated", { variant: "error" });
+                  } finally {
+                    setIsPublicTogglePending(false);
                   }
-                />
-              </div>
+                }}
+                size="sm"
+                label="Activity"
+                description={currentWorkflow.is_public ? "Active" : "Inactive"}
+              />
             )}
-            {/* Auto-save indicator */}
+
             {autoSaveStatus && (
               <div className="flex items-center gap-2">
                 {autoSaveStatus === "saving" && (
@@ -354,106 +325,93 @@ const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 )}
                 {lastAutoSave && autoSaveStatus === "idle" && (
-                  <div className="flex items-center gap-1 text-gray-400">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                    <span className="text-xs">
-                      Last saved: {lastAutoSave.toLocaleTimeString()}
-                    </span>
+                  <div className="flex items-center gap-1 text-gray-400 text-xs">
+                    Last saved: {lastAutoSave.toLocaleTimeString()}
                   </div>
                 )}
               </div>
             )}
 
-            <div>
+            <div className="flex items-center gap-2">
               {isLoading ? (
-                <Loader className="animate-spin text-white cursor-pointer w-10 h-10 p-2 rounded-4xl" />
+                <Loader className="animate-spin text-white w-10 h-10 p-2 rounded-4xl" />
               ) : (
                 <Save
-                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                  className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
                   onClick={onSave}
                 />
               )}
-            </div>
-
-            {/* Auto-save settings button */}
-            {onAutoSaveSettings && (
-              <div>
+              {onAutoSaveSettings && (
                 <Clock
-                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                  className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
                   onClick={onAutoSaveSettings}
                 />
-              </div>
-            )}
-            <div className="text-xs text-foreground relative">
-              <Settings
-                className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
-                onClick={() => setIsDropdownOpen((v) => !v)}
-              />
-              {isDropdownOpen && (
-                <div
-                  ref={dropdownRef}
-                  className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2"
-                >
-                  {/* Load */}
-                  <button
-                    className="w-full font-medium text-black text-left px-3 py-2 hover:bg-blue-50 rounded flex gap-3 justify-start items-center transition-colors duration-200"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <FileUp className="w-5 h-5 text-blue-600" />
-                    Load Workflow
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="application/json"
-                    className="hidden"
-                    onChange={handleLoad}
-                  />
-                  {/* Export JSON */}
-                  <button
-                    className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
-                    onClick={handleExport}
-                  >
-                    <Download className="w-5 h-5" />
-                    Export JSON
-                  </button>
-
-                  {/* Export Widget */}
-                  <button
-                    className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      setTimeout(
-                        () => widgetExportDialogRef.current?.showModal(),
-                        100
-                      );
-                    }}
-                  >
-                    <MessageSquare className="w-5 h-5" />
-                    Export Widget
-                  </button>
-
-                  {/* Delete */}
-                  <button
-                    className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded flex gap-3 justify-start items-center transition-colors duration-200"
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      setTimeout(
-                        () => deleteDialogRef.current?.showModal(),
-                        100
-                      );
-                    }}
-                  >
-                    <Trash className="w-5 h-5 text-red-600" />
-                    Delete Workflow
-                  </button>
-                </div>
               )}
+              <div className="relative">
+                <Settings
+                  className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                />
+                {isDropdownOpen && (
+                  <div
+                    ref={dropdownRef}
+                    className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2"
+                  >
+                    <button
+                      className="w-full font-medium text-black text-left px-3 py-2 hover:bg-blue-50 rounded flex gap-3 items-center transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <FileUp className="w-5 h-5 text-blue-600" />
+                      Load Workflow
+                    </button>
+                    <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleLoad} />
+                    
+                    <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center" onClick={handleExport}>
+                      <Download className="w-5 h-5" />
+                      Export JSON
+                    </button>
+
+                    <button
+                      className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center"
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        setTimeout(() => widgetExportDialogRef.current?.showModal(), 100);
+                      }}
+                    >
+                      <MessageSquare className="w-5 h-5" />
+                      Export Widget
+                    </button>
+
+                    <button
+                      className="w-full text-left px-3 py-2 text-black hover:bg-red-50 hover:text-red-600 rounded flex gap-3 items-center transition-colors"
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        setIsErrorModalOpen(true);
+                        setTimeout(() => errorWorkflowDialogRef.current?.showModal(), 100);
+                      }}
+                    >
+                      <ShieldAlert className="w-5 h-5" />
+                      Error Handler
+                    </button>
+
+                    <button
+                      className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded flex gap-3 items-center transition-colors"
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        setTimeout(() => deleteDialogRef.current?.showModal(), 100);
+                      }}
+                    >
+                      <Trash className="w-5 h-5" />
+                      Delete Workflow
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </nav>
       </header>
-      {/* Delete Workflow Modal */}
+
       <dialog ref={deleteDialogRef} className="modal">
         <div className="modal-box bg-white border border-gray-200 rounded-lg shadow-xl">
           <div className="flex items-center gap-3 mb-4">
@@ -463,29 +421,14 @@ const Navbar: React.FC<NavbarProps> = ({
             <h3 className="font-bold text-lg text-gray-900">Workflow'u Sil</h3>
           </div>
           <p className="py-4 text-gray-700">
-            <strong className="font-semibold text-gray-900">
-              {currentWorkflow?.name}
-            </strong>{" "}
-            workflow'unu silmek istediğine emin misin?
+            <strong className="font-semibold text-gray-900">{currentWorkflow?.name}</strong> workflow'unu silmek istediğine emin misin?
             <br />
-            <span className="text-red-600 text-sm font-medium mt-2 block">
-              ⚠️ Bu işlem geri alınamaz!
-            </span>
+            <span className="text-red-600 text-sm font-medium mt-2 block">⚠️ Bu işlem geri alınamaz!</span>
           </p>
           <div className="modal-action">
             <form method="dialog" className="flex items-center gap-3">
-              <button
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                type="button"
-                onClick={() => deleteDialogRef.current?.close()}
-              >
-                Vazgeç
-              </button>
-              <button
-                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
-                type="button"
-                onClick={handleDelete}
-              >
+              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50" type="button" onClick={() => deleteDialogRef.current?.close()}>Vazgeç</button>
+              <button className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center gap-2" type="button" onClick={handleDelete}>
                 <Trash className="w-4 h-4" />
                 Sil
               </button>
@@ -494,12 +437,46 @@ const Navbar: React.FC<NavbarProps> = ({
         </div>
       </dialog>
 
-      <WidgetExportModal
-        ref={widgetExportDialogRef}
-        workflowId={currentWorkflow?.id || ""}
+      <WidgetExportModal ref={widgetExportDialogRef} workflowId={currentWorkflow?.id || ""} />
+
+      <ErrorWorkflowModal
+        ref={errorWorkflowDialogRef}
+        isOpen={isErrorModalOpen}
+        onClose={() => {
+          setIsErrorModalOpen(false);
+          errorWorkflowDialogRef.current?.close();
+        }}
+        currentWorkflowId={currentWorkflow?.id}
+        selectedErrorWorkflowId={errorWorkflowId}
+        onSelect={async (id) => {
+          setErrorWorkflowId(id || undefined);
+          if (!currentWorkflow || !setCurrentWorkflow) return;
+
+          const updatedWorkflow = {
+            ...currentWorkflow,
+            error_workflow: id,
+            flow_data: {
+              ...currentWorkflow.flow_data,
+              settings: { ...currentWorkflow.flow_data?.settings, error_workflow_id: id }
+            }
+          };
+          setCurrentWorkflow(updatedWorkflow);
+
+          try {
+            const saved = await WorkflowService.updateWorkflow(currentWorkflow.id, {
+              error_workflow: id,
+              flow_data: updatedWorkflow.flow_data,
+            });
+            setCurrentWorkflow(saved);
+            setErrorWorkflowId(saved.error_workflow || undefined);
+            enqueueSnackbar(id ? "Error handler workflow updated" : "Error handler removed", { variant: "success" });
+          } catch (error: any) {
+            setErrorWorkflowId(currentWorkflow.error_workflow || undefined);
+            setCurrentWorkflow(currentWorkflow);
+            enqueueSnackbar(error?.response?.data?.detail || error?.message || "Failed to update error handler", { variant: "error" });
+          }
+        }}
       />
-
-
     </>
   );
 };

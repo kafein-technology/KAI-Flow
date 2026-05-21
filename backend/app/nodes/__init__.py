@@ -40,6 +40,7 @@ from .default.end_node import EndNode
 from .triggers.webhook_trigger import WebhookTriggerNode
 from .triggers.kafka_trigger import KafkaTriggerNode
 from .triggers.timer_start_node import TimerStartNode
+from .triggers.error_trigger import ErrorTriggerNode
 
 # Text Processing Nodes
 from .text_processing.string_input_node import StringInputNode
@@ -96,7 +97,7 @@ __all__ = [
     "VectorStoreOrchestrator",
     
     # Default & Triggers
-    "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode",
+    "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode", "ErrorTriggerNode",
     
     # Other
     "StringInputNode",

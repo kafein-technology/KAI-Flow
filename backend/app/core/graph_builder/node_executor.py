@@ -288,6 +288,10 @@ class NodeExecutor:
                             f"[TEMPLATE] Standard node {node_id} stored in state.node_outputs "
                             f"with type={type(primary_raw)}"
                         )
+                        # CRITICAL: Ensure the returned result dict also has the updated node_outputs
+                        # to prevent LangGraph's merge from overwriting the in-place change with an old version
+                        if isinstance(result, dict):
+                            result["node_outputs"] = state.node_outputs
             except Exception as e:
                 logger.warning(f"[TEMPLATE] Failed to store standard node output for {node_id}: {e}")
             

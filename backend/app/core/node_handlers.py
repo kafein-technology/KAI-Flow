@@ -609,7 +609,51 @@ class ProcessorNodeHandler(NodeExecutionHandler):
                     return result[key]
         
         # Return full result if no specific key found
+        logger.debug("[DEBUG] Using full stored result as fallback")
         return result
+
+
+class TerminatorNodeHandler(NodeExecutionHandler):
+    """
+    Handler for Terminator node types.
+    
+    Terminator nodes usually finalize workflows or format outputs.
+    They behave similarly to Processor nodes when being extracted as a connection.
+    """
+    
+    def __init__(self):
+        """Initialize terminator node handler."""
+        super().__init__()
+    
+    def extract_connected_instance(self,
+                                 connection_info: Dict[str, str],
+                                 source_node_instance: Any,
+                                 gnode_instance: Any,
+                                 state: FlowState) -> Any:
+        """Extract terminator node output."""
+        node_id = connection_info["source_node_id"]
+        input_name = connection_info.get("target_handle", "output")
+        
+        self._log_execution(node_id, "terminator", "extracting")
+        
+        # 1. Try to get cached output first
+        if hasattr(state, 'node_outputs') and node_id in state.node_outputs:
+            stored_result = state.node_outputs[node_id]
+            if isinstance(stored_result, dict) and input_name in stored_result:
+                return stored_result[input_name]
+            return stored_result
+        
+        # 2. If no cache, try to execute it as a simple processor
+        try:
+            # Inject user_id
+            self._inject_user_context(source_node_instance, state, node_id)
+            
+            # Simple execution for terminator (passing current state as inputs)
+            result = source_node_instance.execute(state.variables, {})
+            return result
+        except Exception as e:
+            logger.warning(f"[TERMINATOR] Re-execution failed for {node_id}: {e}")
+            return None
 
 
 class NodeHandlerRegistry:
@@ -625,7 +669,8 @@ class NodeHandlerRegistry:
         self._handlers = {
             NodeType.MEMORY: MemoryNodeHandler(),
             NodeType.PROVIDER: ProviderNodeHandler(),
-            NodeType.PROCESSOR: ProcessorNodeHandler()
+            NodeType.PROCESSOR: ProcessorNodeHandler(),
+            NodeType.TERMINATOR: TerminatorNodeHandler()
         }
     
     def get_handler(self, node_type: NodeType) -> Optional[NodeExecutionHandler]:

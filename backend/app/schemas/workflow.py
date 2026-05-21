@@ -18,6 +18,7 @@ class WorkflowBase(BaseModel):
     name: str
     description: Optional[str] = None
     is_public: bool = False
+    error_workflow: Optional[uuid.UUID] = None
     flow_data: Dict[str, Any] = Field(default_factory=dict)
 
 # Schema for creating a workflow
@@ -29,6 +30,7 @@ class WorkflowUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     is_public: Optional[bool] = None
+    error_workflow: Optional[uuid.UUID] = None
     flow_data: Optional[Dict[str, Any]] = None
 
 # Schema for API responses

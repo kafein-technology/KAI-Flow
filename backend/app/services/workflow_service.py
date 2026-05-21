@@ -438,6 +438,7 @@ class WorkflowService(BaseService[Workflow]):
             name=new_name or f"{source.name} (Copy)",
             description=source.description,
             is_public=False,  # Copies are private by default
+            error_workflow=getattr(source, "error_workflow", None),
             flow_data=source.flow_data,
             version=1  # Reset version for the copy
         )

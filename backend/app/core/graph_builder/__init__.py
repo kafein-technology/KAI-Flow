@@ -127,6 +127,9 @@ class GraphBuilder:
         self.explicit_start_nodes: set[str] = set()
         self.end_nodes_for_connections: Dict[str, Dict[str, Any]] = {}
         self.graph: Optional[CompiledStateGraph] = None
+        self.visual_edges: List[Dict[str, Any]] = []
+        self._incoming_visual_edges: Dict[str, List[Dict[str, Any]]] = {}
+        self._outgoing_visual_edges: Dict[str, List[Dict[str, Any]]] = {}
         
         # Enhanced metrics and monitoring
         self._build_metrics: Dict[str, Any] = {}
@@ -230,21 +233,26 @@ class GraphBuilder:
         self.control_flow_nodes.clear()
         self.explicit_start_nodes.clear()
         self.end_nodes_for_connections.clear()
+        self.visual_edges.clear()
+        self._incoming_visual_edges.clear()
+        self._outgoing_visual_edges.clear()
 
         # Analyze existing nodes
         start_nodes = [n for n in nodes if n.get("type") == "StartNode"]
         webhook_trigger_nodes = [n for n in nodes if n.get("type") == "WebhookTrigger"]
         kafka_trigger_nodes = [n for n in nodes if n.get("type") in ("KafkaConsumer", "KafkaTrigger")]
-        entry_nodes = start_nodes + webhook_trigger_nodes + kafka_trigger_nodes
+        error_trigger_nodes = [n for n in nodes if n.get("type") in ("ErrorTrigger", "ErrorTriggerNode")]
+        entry_nodes = start_nodes + webhook_trigger_nodes + kafka_trigger_nodes + error_trigger_nodes
         end_nodes = [n for n in nodes if n.get("type") == "EndNode"]
         start_node_ids = {n["id"] for n in start_nodes}
         webhook_trigger_node_ids = {n["id"] for n in webhook_trigger_nodes}
         kafka_trigger_node_ids = {n["id"] for n in kafka_trigger_nodes}
-        entry_node_ids = start_node_ids | webhook_trigger_node_ids | kafka_trigger_node_ids
+        error_trigger_node_ids = {n["id"] for n in error_trigger_nodes}
+        entry_node_ids = start_node_ids | webhook_trigger_node_ids | kafka_trigger_node_ids | error_trigger_node_ids
         end_node_ids = {n["id"] for n in end_nodes}
 
         if not entry_nodes:
-            raise ValueError("Workflow must contain at least one StartNode, WebhookTrigger, or KafkaTrigger node.")
+            raise ValueError("Workflow must contain at least one StartNode, WebhookTrigger, KafkaTrigger, or ErrorTrigger node.")
 
         return {
             "nodes": nodes,
@@ -252,14 +260,53 @@ class GraphBuilder:
             "start_nodes": start_nodes,
             "webhook_trigger_nodes": webhook_trigger_nodes,
             "kafka_trigger_nodes": kafka_trigger_nodes,
+            "error_trigger_nodes": error_trigger_nodes,
             "entry_nodes": entry_nodes,
             "end_nodes": end_nodes,
             "start_node_ids": start_node_ids,
             "webhook_trigger_node_ids": webhook_trigger_node_ids,
             "kafka_trigger_node_ids": kafka_trigger_node_ids,
+            "error_trigger_node_ids": error_trigger_node_ids,
             "entry_node_ids": entry_node_ids,
             "end_node_ids": end_node_ids
         }
+
+    def _index_visual_edges(self, edges: List[Dict[str, Any]]) -> None:
+        """Index original canvas edges so stream events can reference real UI edge IDs."""
+        self.visual_edges = [edge for edge in edges if edge.get("source") and edge.get("target")]
+        self._incoming_visual_edges = {}
+        self._outgoing_visual_edges = {}
+
+        for edge in self.visual_edges:
+            self._incoming_visual_edges.setdefault(edge["target"], []).append(edge)
+            self._outgoing_visual_edges.setdefault(edge["source"], []).append(edge)
+
+    def _visual_edge_ids_for_node(
+        self,
+        node_id: str,
+        previous_node_id: Optional[str] = None,
+    ) -> List[str]:
+        """Return the canvas edge IDs that represent data entering node_id."""
+        incoming = self._incoming_visual_edges.get(node_id, [])
+        if not incoming:
+            return []
+
+        if previous_node_id:
+            matched = [edge for edge in incoming if edge.get("source") == previous_node_id]
+            if matched:
+                return [edge.get("id") or self._fallback_edge_id(edge) for edge in matched]
+
+        return [edge.get("id") or self._fallback_edge_id(edge) for edge in incoming]
+
+    def _visual_outgoing_edge_ids_for_node(self, node_id: str) -> List[str]:
+        outgoing = self._outgoing_visual_edges.get(node_id, [])
+        return [edge.get("id") or self._fallback_edge_id(edge) for edge in outgoing]
+
+    @staticmethod
+    def _fallback_edge_id(edge: Dict[str, Any]) -> str:
+        source_handle = edge.get("sourceHandle") or "output"
+        target_handle = edge.get("targetHandle") or "input"
+        return f"{edge.get('source')}-{source_handle}-{edge.get('target')}-{target_handle}"
 
     def _handle_start_end_nodes(self, workflow_data: Dict) -> Dict[str, Any]:
         """Handle StartNode, WebhookTrigger, KafkaConsumer/KafkaTrigger, and EndNode special cases."""
@@ -272,7 +319,11 @@ class GraphBuilder:
         start_node_ids = workflow_data["start_node_ids"]
         webhook_trigger_node_ids = workflow_data.get("webhook_trigger_node_ids", set())
         kafka_trigger_node_ids = workflow_data.get("kafka_trigger_node_ids", set())
-        entry_node_ids = workflow_data.get("entry_node_ids", start_node_ids | webhook_trigger_node_ids | kafka_trigger_node_ids)
+        error_trigger_node_ids = workflow_data.get("error_trigger_node_ids", set())
+        entry_node_ids = workflow_data.get(
+            "entry_node_ids",
+            start_node_ids | webhook_trigger_node_ids | kafka_trigger_node_ids | error_trigger_node_ids,
+        )
         end_node_ids = workflow_data["end_node_ids"]
 
         # Check for terminal nodes (EndNode OR RespondToWebhook)
@@ -298,10 +349,11 @@ class GraphBuilder:
             # SAFE: Add virtual node to working copy
             nodes.append(virtual_end_node)
 
-            # Find the last nodes in the workflow (BEFORE filtering)
-            all_targets = {e["target"] for e in edges}
+            # Find nodes with no outgoing edges (BEFORE filtering) and connect
+            # them to the virtual EndNode. ErrorTrigger-only workflows must still run.
+            all_node_ids = {n["id"] for n in nodes if n.get("id")}
             all_sources = {e["source"] for e in edges}
-            last_nodes = all_sources - all_targets - entry_node_ids
+            last_nodes = all_node_ids - all_sources - start_node_ids - end_node_ids
 
             # SAFE: Add virtual edges to working copy
             for node_id in last_nodes:
@@ -319,6 +371,8 @@ class GraphBuilder:
             end_nodes.append(virtual_end_node)
             end_node_ids.add("virtual-end-node")
 
+        self._index_visual_edges(edges)
+
         # Identify explicit start connections from StartNodes
         start_node_targets = {e["target"] for e in edges if e.get("source") in start_node_ids}
         
@@ -327,6 +381,9 @@ class GraphBuilder:
         
         # Identify explicit start connections from KafkaConsumer/KafkaTrigger nodes
         kafka_trigger_targets = {e["target"] for e in edges if e.get("source") in kafka_trigger_node_ids}
+
+        # ErrorTrigger: same pattern as Kafka — run trigger first so error_data is in state
+        error_trigger_targets = {e["target"] for e in edges if e.get("source") in error_trigger_node_ids}
         
         # If WebhookTrigger nodes have outgoing edges, use those targets as start nodes
         # Otherwise, use the WebhookTrigger nodes themselves as start nodes
@@ -343,17 +400,24 @@ class GraphBuilder:
         elif kafka_trigger_node_ids:
             kafka_start_nodes = kafka_trigger_node_ids
         
+        # ErrorTrigger: run the trigger node itself so it can process error_data
+        error_start_nodes = error_trigger_node_ids
+        
         # Combine all start targets
-        self.explicit_start_nodes = start_node_targets | webhook_start_nodes | kafka_start_nodes
+        self.explicit_start_nodes = (
+            start_node_targets | webhook_start_nodes | kafka_start_nodes | error_start_nodes
+        )
 
         # Debug logging
         logger.debug(f"Edge filtering analysis: {len(edges)} edges")
         edges_from_start_nodes = [e for e in edges if e.get("source") in start_node_ids]
         edges_from_webhook_triggers = [e for e in edges if e.get("source") in webhook_trigger_node_ids]
         edges_from_kafka_triggers = [e for e in edges if e.get("source") in kafka_trigger_node_ids]
+        edges_from_error_triggers = [e for e in edges if e.get("source") in error_trigger_node_ids]
         logger.debug(f"Found {len(edges_from_start_nodes)} edges FROM StartNodes")
         logger.debug(f"Found {len(edges_from_webhook_triggers)} edges FROM WebhookTrigger nodes")
         logger.debug(f"Found {len(edges_from_kafka_triggers)} edges FROM KafkaTrigger nodes")
+        logger.debug(f"Found {len(edges_from_error_triggers)} edges FROM ErrorTrigger nodes")
         logger.debug(f"Explicit start nodes: {self.explicit_start_nodes}")
 
         # SAFE filtering AFTER all additions
@@ -409,6 +473,8 @@ class GraphBuilder:
         for node_def in nodes:
             node_id = node_def["id"]
             node_type = node_def["type"]
+            if node_type == "ErrorTriggerNode":
+                node_type = "ErrorTrigger"
             user_data = node_def.get("data", {})
 
             if node_id in self.control_flow_nodes:
@@ -437,7 +503,13 @@ class GraphBuilder:
                     user_data=user_data,
                 )
                 
-                logger.debug(f"Created {node_id} ({node_type})")
+                log_msg = f"Created {node_id} ({node_type}) with user_data keys: {list(user_data.keys())}"
+                logger.debug(log_msg)
+                print(log_msg)
+                if node_type in ("ErrorTrigger", "ErrorTriggerNode"):
+                    log_msg = f"[ErrorTrigger Debug] Node {node_id} user_data: {user_data}"
+                    logger.debug(log_msg)
+                    print(log_msg)
                 
             except Exception as e:
                 logger.error(f"Failed to create node {node_id}: {e}")
@@ -896,15 +968,24 @@ class GraphBuilder:
                 node_name = ev.get("name", "unknown")
                 
                 if ev_type == "on_chain_start":
+                    if node_name not in self.nodes:
+                        continue
+                    incoming_edge_ids = self._visual_edge_ids_for_node(node_name, previous_node_id)
                     yield {
                         "type": "node_start", 
                         "node_id": node_name,
-                        "previous_node_id": previous_node_id  # Include previous node for edge animation
+                        "previous_node_id": previous_node_id,
+                        "incoming_edge_ids": incoming_edge_ids,
+                        "active_edge_ids": incoming_edge_ids,
+                        "outgoing_edge_ids": self._visual_outgoing_edge_ids_for_node(node_name),
                     }
                 elif ev_type == "on_chain_end":
+                    if node_name not in self.nodes:
+                        continue
                     # Extract output from the event data for node_end
                     ev_data = ev.get("data", {})
                     node_output = ev_data.get("output", {})
+                    incoming_edge_ids = self._visual_edge_ids_for_node(node_name, previous_node_id)
                     
                     # Try to extract meaningful output from various formats
                     output_data = {}
@@ -924,6 +1005,10 @@ class GraphBuilder:
                     yield {
                         "type": "node_end",
                         "node_id": node_name,
+                        "previous_node_id": previous_node_id,
+                        "incoming_edge_ids": incoming_edge_ids,
+                        "active_edge_ids": incoming_edge_ids,
+                        "outgoing_edge_ids": self._visual_outgoing_edge_ids_for_node(node_name),
                         "output": output_data
                     }
                     
@@ -941,10 +1026,12 @@ class GraphBuilder:
                 last_output = final_state.values.get('last_output', 'No output')
                 executed_nodes = final_state.values.get('executed_nodes', [])
                 node_outputs = final_state.values.get('node_outputs', {})
+                errors = final_state.values.get('errors', [])
             else:
                 last_output = ""
                 executed_nodes = []
                 node_outputs = {}
+                errors = []
             
             # Yield completion event with node_outputs for frontend display
             yield {
@@ -952,6 +1039,7 @@ class GraphBuilder:
                 "result": last_output,
                 "executed_nodes": executed_nodes,
                 "node_outputs": node_outputs,
+                "errors": errors,
                 "session_id": init_state.session_id,
             }
             

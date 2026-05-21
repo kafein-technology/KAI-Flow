@@ -85,7 +85,7 @@ export default function ReactFlowCanvas({
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
         connectionRadius={30}
-        snapToGrid={true}
+        snapToGrid={false}
         snapGrid={[10, 10]}
         fitView
         onNodeClick={onNodeClick}

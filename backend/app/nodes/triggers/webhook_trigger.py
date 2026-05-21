@@ -1021,7 +1021,7 @@ async def get_webhook_production(
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
 @webhook_production_router.post("/{webhook_id}")
 async def post_webhook_production(
@@ -1030,7 +1030,7 @@ async def post_webhook_production(
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
 @webhook_production_router.put("/{webhook_id}")
 async def put_webhook_production(
@@ -1039,7 +1039,7 @@ async def put_webhook_production(
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
 @webhook_production_router.patch("/{webhook_id}")
 async def patch_webhook_production(
@@ -1048,7 +1048,7 @@ async def patch_webhook_production(
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
 @webhook_production_router.delete("/{webhook_id}")
 async def delete_webhook_production(
@@ -1057,7 +1057,7 @@ async def delete_webhook_production(
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
 @webhook_production_router.head("/{webhook_id}")
 async def head_webhook_production(
@@ -1066,7 +1066,7 @@ async def head_webhook_production(
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
 # Webhook streaming endpoint - PRODUCTION ROUTER (empty stream, no frontend events)
 @webhook_production_router.get("/{webhook_id}/stream")
