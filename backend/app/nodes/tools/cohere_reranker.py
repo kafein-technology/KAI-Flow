@@ -201,8 +201,11 @@ class CohereRerankerNode(ProviderNode):
         # Note: max_chunks_per_doc removed as it's not supported by LangChain CohereRerank
 
         # If credential_id is present, fetch the actual API key
-        credential_id = self.user_data.get("credential_id")
-        cohere_api_key = self.get_credential(credential_id).get('secret').get('api_key')
+        credential_id = kwargs.get("credential_id") or self.user_data.get("credential_id")
+        if credential_id:
+            cred = self.get_credential(credential_id)
+            if cred and cred.get('secret'):
+                cohere_api_key = cred.get('secret').get('api_key')
         
         # Validate API key
         if not cohere_api_key:
