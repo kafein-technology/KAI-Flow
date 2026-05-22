@@ -204,16 +204,18 @@ class PythonSandbox:
             return f"Code validation error: {str(e)}"
 
     def _build_wrapper_script(self) -> str:
+        import base64 as _b64
         context_json = json.dumps(self.context, default=str, ensure_ascii=False)
-        context_json_escaped = context_json.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
+        context_b64 = _b64.b64encode(context_json.encode("utf-8")).decode("ascii")
 
-        user_code_escaped = self.code.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
+        user_code_b64 = _b64.b64encode(self.code.encode("utf-8")).decode("ascii")
 
         safe_builtins_list = list(SAFE_PYTHON_BUILTINS)
         safe_modules_list = sorted(SAFE_PYTHON_MODULES)
 
         wrapper = f'''# -*- coding: utf-8 -*-
 import sys
+import base64
 import json
 import math
 import random
@@ -258,7 +260,7 @@ def main():
     }}
 
     try:
-        context = json.loads("""{context_json_escaped}""")
+        context = json.loads(base64.b64decode("{context_b64}").decode("utf-8"))
         exec_globals.update(context)
     except Exception as ctx_err:
         print("{PY_MARKER_START}")
@@ -272,7 +274,7 @@ def main():
 
     exec_locals = {{}}
     try:
-        user_code = """{user_code_escaped}"""
+        user_code = base64.b64decode("{user_code_b64}").decode("utf-8")
         exec(user_code, exec_globals, exec_locals)
 
         output = exec_locals.get("output", exec_locals.get("result", None))
@@ -581,6 +583,9 @@ def _extract_input_payload(input_data: Any) -> Any:
         if "content" in input_data:
             return input_data["content"]
 
+        if "value" in input_data and len(input_data) == 1:
+            return input_data["value"]
+
         return input_data
 
     if hasattr(input_data, "page_content"):
@@ -767,6 +772,8 @@ class CodeNode(ProcessorNode):
         input_data = connected_nodes.get("input", None)
         logger.info("RAW INPUT (before extraction): %s", input_data)
         input_data = _extract_input_payload(input_data)
+        if isinstance(input_data, str):
+            input_data = input_data.lstrip("﻿")
         logger.info("PROCESSED INPUT (after extraction): %s", input_data)
 
         context = {
@@ -789,10 +796,14 @@ class CodeNode(ProcessorNode):
             logger.info("Execution success=%s time=%.2fms", result.get("success"), execution_time_ms)
 
             if result.get("success"):
+                output_var = result.get("output")
                 stdout_output = (result.get("stdout") or "").strip()
-                
-                # SMART OUTPUT DETECTION: If stdout looks like a Python dict/list repr,
-                # automatically convert to proper JSON format
+
+                if output_var is not None:
+                    if not isinstance(output_var, str):
+                        output_var = json.dumps(output_var, default=str, ensure_ascii=False)
+                    return {"output": output_var}
+
                 if stdout_output and (
                     (stdout_output.startswith('{') and stdout_output.endswith('}')) or
                     (stdout_output.startswith('[') and stdout_output.endswith(']'))
