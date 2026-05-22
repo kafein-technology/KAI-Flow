@@ -37,7 +37,7 @@ class MemoryMetrics:
 class MemoryCleanupPolicy:
     """Memory cleanup policy configuration."""
     max_session_age_hours: int = 24      # 24 hours
-    max_inactive_hours: int = 2          # 2 hours
+    max_inactive_hours: int = 6          # 6 hours
     max_messages_per_session: int = 1000 # 1000 messages
     max_memory_mb_per_session: int = 50  # 50MB per session
     cleanup_interval_minutes: int = 15   # 15 minutes

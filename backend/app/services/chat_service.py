@@ -287,7 +287,7 @@ class ChatService:
         self._workflow_built = False
         self._last_workflow_id = None
     
-    async def _execute_workflow(self, user_input: str, chatflow_id: UUID, workflow_id: UUID = None) -> str:
+    async def _execute_workflow(self, user_input: str, chatflow_id: UUID, workflow_id: UUID = None, user_id: UUID = None) -> str:
         """
         Execute the actual workflow with user input and return LLM response.
         
@@ -654,7 +654,7 @@ class ChatService:
             db_chat_message.content = self._encrypt_content(new_content)
 
         # 3. Regenerate a new response from the LLM using actual workflow
-        llm_response_content = await self._execute_workflow(new_content, chatflow_id)
+        llm_response_content = await self._execute_workflow(new_content, chatflow_id, user_id=user_id)
         encrypted_llm_content = self._encrypt_content(llm_response_content)
         llm_message = ChatMessage(
             role="assistant",
@@ -732,7 +732,7 @@ class ChatService:
         await self.create_chat_message(user_message)
 
         # 3. Execute the actual workflow with the specified workflow_id
-        llm_response_content = await self._execute_workflow(user_input, chatflow_id, workflow_id)
+        llm_response_content = await self._execute_workflow(user_input, chatflow_id, workflow_id, user_id=user_id)
 
         # 4. Save LLM's response (create_chat_message will handle encryption)
         llm_message = ChatMessageCreate(
@@ -759,7 +759,7 @@ class ChatService:
         await self.create_chat_message(user_message)
 
         # 2. Execute the actual workflow with the specified workflow_id
-        llm_response_content = await self._execute_workflow(user_input, chatflow_id, workflow_id)
+        llm_response_content = await self._execute_workflow(user_input, chatflow_id, workflow_id, user_id=user_id)
 
         # 3. Save LLM's response (create_chat_message will handle encryption)
         llm_message = ChatMessageCreate(
