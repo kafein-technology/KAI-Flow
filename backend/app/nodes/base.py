@@ -719,15 +719,20 @@ class BaseNode(ABC):
                 metadata = self.metadata
                 node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
                 
+                from app.core.templating import apply_jinja_to_inputs
+                nodes_registry = getattr(state, "nodes_registry", None)
+
                 # Prepare inputs based on node type and connections
                 if self.metadata.node_type == NodeType.PROVIDER:
                     # Provider nodes create objects from user inputs only
                     inputs = self._extract_user_inputs(state, metadata.inputs)
+                    inputs = apply_jinja_to_inputs(inputs, state, node_id, nodes_registry)
                     result = self.execute(**inputs)
                     
                 elif self.metadata.node_type == NodeType.PROCESSOR:
                     # Processor nodes need both connected nodes and user inputs
                     user_inputs = self._extract_user_inputs(state, metadata.inputs)
+                    user_inputs = apply_jinja_to_inputs(user_inputs, state, node_id, nodes_registry)
                     connected_nodes = self._extract_connected_inputs(state, metadata.inputs)
                     
                     # Log connection details for debugging
@@ -740,6 +745,7 @@ class BaseNode(ABC):
                     # Terminator nodes process previous node output
                     connected_inputs = self._extract_connected_inputs(state, metadata.inputs)
                     user_inputs = self._extract_user_inputs(state, metadata.inputs)
+                    user_inputs = apply_jinja_to_inputs(user_inputs, state, node_id, nodes_registry)
                     
                     # Get the primary input from connections
                     previous_node = None
@@ -752,6 +758,7 @@ class BaseNode(ABC):
                 else:
                     # Fallback for unknown node types
                     inputs = self._extract_all_inputs(state, metadata.inputs)
+                    inputs = apply_jinja_to_inputs(inputs, state, node_id, nodes_registry)
                     result = self.execute(**inputs)
                 
                 # Handle different result types

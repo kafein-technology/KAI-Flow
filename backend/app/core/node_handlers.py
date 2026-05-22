@@ -20,11 +20,11 @@ import logging
 import re
 import json
 import uuid
-from jinja2 import Environment
 
 from app.core.state import FlowState
 from app.nodes.base import NodeType
 from app.core.credential_provider import credential_provider
+from app.core.templating import apply_jinja_to_inputs
 
 logger = logging.getLogger(__name__)
 
@@ -151,176 +151,12 @@ class MemoryNodeHandler(NodeExecutionHandler):
         # Pass current state variables to memory node (allows templated/variable-driven config)
         memory_inputs.update(state.variables)
 
-
         # Apply Jinja templating to memory inputs so they can reference upstream node outputs
-        memory_inputs = self._apply_jinja_templating(memory_inputs, source_node_instance, state)
+        node_id = getattr(source_node_instance, "node_id", "MemoryNode")
+        memory_inputs = apply_jinja_to_inputs(memory_inputs, state, node_id, self.nodes_registry)
 
         return memory_inputs
 
-
-    def _apply_jinja_templating(
-        self,
-        memory_inputs: Dict[str, Any],
-        source_node_instance: Any,
-        state: FlowState,
-    ) -> Dict[str, Any]:
-
-        # Quick check: any input actually contain a template marker?
-        has_templates = any(
-            isinstance(v, str) and "{{" in v and "}}" in v
-            for v in memory_inputs.values()
-        )
-        if not has_templates:
-            return memory_inputs
-
-        # We need node_outputs and a populated nodes_registry.
-        if not hasattr(state, "node_outputs") or not state.node_outputs:
-            return memory_inputs
-        if not getattr(self, "nodes_registry", None):
-            return memory_inputs
-
-        try:
-            # Build templating context from executed nodes' primary outputs
-            context: Dict[str, Any] = {}
-
-            # Add current_input as 'input'
-            if hasattr(state, "current_input") and state.current_input is not None:
-                context["input"] = state.current_input
-
-            # Add webhook data
-            if hasattr(state, "webhook_data") and state.webhook_data:
-                context["webhook_data"] = state.webhook_data
-                webhook_payload = state.webhook_data.get("data", state.webhook_data)
-                context["webhook_trigger"] = webhook_payload
-
-            for other_node_id in state.node_outputs.keys():
-                graph_node = self.nodes_registry.get(other_node_id)
-                if not graph_node:
-                    continue
-
-                # Collect candidate alias names (same priority as NodeExecutor)
-                alias_candidates: list[tuple[str, str]] = []
-
-                # 1) UI name
-                try:
-                    user_data = getattr(graph_node, "user_data", {}) or {}
-                    ui_name = user_data.get("name") if isinstance(user_data, dict) else None
-                except Exception:
-                    ui_name = None
-                if ui_name:
-                    alias_candidates.append(("ui_name", str(ui_name)))
-
-                # 2) Pydantic NodeMetadata
-                node_meta = getattr(graph_node.node_instance, "metadata", None) if hasattr(graph_node, "node_instance") else None
-                if node_meta is not None:
-                    dn = getattr(node_meta, "display_name", None)
-                    mn = getattr(node_meta, "name", None)
-                    if dn:
-                        alias_candidates.append(("display_name", str(dn)))
-                    if mn and mn != dn:
-                        alias_candidates.append(("meta_name", str(mn)))
-
-                # 3) GraphNodeInstance metadata dict
-                metadata_dict = getattr(graph_node, "metadata", {}) or {}
-                if isinstance(metadata_dict, dict):
-                    md_display = metadata_dict.get("display_name")
-                    md_name = metadata_dict.get("name")
-                    if md_display:
-                        alias_candidates.append(("graph_display_name", str(md_display)))
-                    if md_name and md_name != md_display:
-                        alias_candidates.append(("graph_name", str(md_name)))
-
-                # 4) Fallback: node_id
-                alias_candidates.append(("node_id", str(other_node_id)))
-
-                # Get primary output value
-                primary_value = self._get_primary_output(other_node_id, state)
-                if primary_value is None:
-                    continue
-
-                # StartNode → 'input' alias
-                try:
-                    if hasattr(graph_node, "type") and graph_node.type == "StartNode":
-                        if "input" not in context:
-                            context["input"] = primary_value
-                except Exception:
-                    pass
-
-                for _, raw_name in alias_candidates:
-                    normalized = self._normalize_name(raw_name)
-                    if normalized and normalized not in context:
-                        context[normalized] = primary_value
-
-            if not context:
-                return memory_inputs
-
-            logger.debug(
-                f"[TEMPLATE-MEMORY] Built context for memory node: keys={list(context.keys())}"
-            )
-
-            # Render templates in string inputs
-            rendered: Dict[str, Any] = {}
-            for key, value in memory_inputs.items():
-                if isinstance(value, str) and "{{" in value and "}}" in value:
-                    rendered[key] = self._render_template(value, context)
-                    if rendered[key] != value:
-                        logger.info(
-                            f"[TEMPLATE-MEMORY] Input '{key}' rendered: "
-                            f"'{value}' → '{rendered[key]}'"
-                        )
-                else:
-                    rendered[key] = value
-
-            return rendered
-
-        except Exception as e:
-            logger.error(f"[TEMPLATE-MEMORY] Failed to apply templating: {e}")
-            return memory_inputs
-
-    @staticmethod
-    def _normalize_name(name: str) -> str:
-        """Normalize a display name to a Jinja-safe identifier."""
-        if not name:
-            return ""
-        normalized = re.sub(r"[^0-9a-zA-Z_]+", "_", name).strip("_")
-        if not normalized:
-            return ""
-        if normalized[0].isdigit():
-            normalized = f"n_{normalized}"
-        return normalized
-
-    @staticmethod
-    def _get_primary_output(node_id: str, state: FlowState) -> Any:
-        """Get the primary output value for a node from state.node_outputs."""
-        node_output = state.node_outputs.get(node_id)
-        if node_output is None:
-            return None
-        if isinstance(node_output, dict):
-            if "output" in node_output:
-                return node_output["output"]
-            if "content" in node_output:
-                return node_output["content"]
-            if len(node_output) == 1:
-                return next(iter(node_output.values()))
-            return node_output
-        return node_output
-
-    @staticmethod
-    def _render_template(template_str: str, context: Dict[str, Any]) -> str:
-        """Render a Jinja2 template string. Supports ${{var}} and {{var}}."""
-        try:
-            def _tojson_unicode(value):
-                return json.dumps(value, ensure_ascii=False, default=str)
-
-            env = Environment()
-            env.filters["tojson"] = _tojson_unicode
-
-            processed = template_str.replace("${" + "{", "{{").replace("}}", "}}")
-            template = env.from_string(processed)
-            return template.render(**context)
-        except Exception as e:
-            logger.warning(f"[TEMPLATE-MEMORY] Render failed: {e}")
-            return template_str
 
 
 class ProviderNodeHandler(NodeExecutionHandler):
@@ -347,6 +183,7 @@ class ProviderNodeHandler(NodeExecutionHandler):
         try:
             # Extract provider-specific inputs from user configuration
             provider_inputs = self._extract_provider_inputs(source_node_instance, state)
+            provider_inputs = apply_jinja_to_inputs(provider_inputs, state, node_id, self.nodes_registry)
             
             # NEW: Extract connected inputs for provider nodes that need them
             connected_inputs = self._extract_connected_inputs(source_node_instance, gnode_instance, state)
@@ -424,6 +261,7 @@ class ProviderNodeHandler(NodeExecutionHandler):
                     if source_node_type.value == "provider":
                         # Execute source provider to get its instance
                         provider_inputs = self._extract_provider_inputs(source_instance, state)
+                        provider_inputs = apply_jinja_to_inputs(provider_inputs, state, source_node_id, self.nodes_registry)
                         
                         # Inject user_id if supported
                         self._inject_user_context(source_instance, state, source_node_id)
@@ -492,7 +330,7 @@ class ProcessorNodeHandler(NodeExecutionHandler):
             # Inject user_id if supported
             self._inject_user_context(source_node_instance, state, node_id)
             
-            return self._re_execute_processor(source_node_instance, gnode_instance, state)
+            return self._re_execute_processor(source_node_instance, gnode_instance, state, node_id)
             
         except Exception as e:
             logger.error(f"[ERROR] Failed to extract processor node {node_id}: {e}")
@@ -532,7 +370,7 @@ class ProcessorNodeHandler(NodeExecutionHandler):
         logger.debug("[DEBUG] Using full stored result as fallback")
         return stored_result
     
-    def _re_execute_processor(self, source_node_instance: Any, gnode_instance: Any, state: FlowState) -> Any:
+    def _re_execute_processor(self, source_node_instance: Any, gnode_instance: Any, state: FlowState, node_id: str) -> Any:
         """
         Re-execute a processor node when cached output is not available.
         
@@ -542,6 +380,7 @@ class ProcessorNodeHandler(NodeExecutionHandler):
         
         # Extract user inputs for processor
         processor_inputs = self._extract_processor_inputs(source_node_instance, state)
+        processor_inputs = apply_jinja_to_inputs(processor_inputs, state, node_id, self.nodes_registry)
         
         # Build connected nodes for processor (recursive but controlled)
         processor_connected_nodes = self._build_connected_nodes_for_processor(
@@ -648,8 +487,9 @@ class TerminatorNodeHandler(NodeExecutionHandler):
             # Inject user_id
             self._inject_user_context(source_node_instance, state, node_id)
             
-            # Simple execution for terminator (passing current state as inputs)
-            result = source_node_instance.execute(state.variables, {})
+            # Simple execution for terminator (passing current state as inputs, templated dynamically)
+            templated_inputs = apply_jinja_to_inputs(state.variables, state, node_id, self.nodes_registry)
+            result = source_node_instance.execute(templated_inputs, {})
             return result
         except Exception as e:
             logger.warning(f"[TERMINATOR] Re-execution failed for {node_id}: {e}")

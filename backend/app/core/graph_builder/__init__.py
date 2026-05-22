@@ -585,6 +585,9 @@ class GraphBuilder:
             try:
                 logger.info(f"EXECUTING: {node_id} ({gnode.type}) with NodeExecutor")
                 
+                # Inject nodes registry into state so that nodes can resolve Jinja variables with friendly names
+                state.nodes_registry = self.nodes
+                
                 # Merge user data into node instance before execution
                 gnode.node_instance.user_data.update(gnode.user_data)
                 

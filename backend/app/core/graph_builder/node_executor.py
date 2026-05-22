@@ -21,16 +21,6 @@ import datetime
 import traceback
 import re
 import json
-from jinja2 import Environment
-
-# Custom Jinja2 environment with Unicode-safe tojson filter
-# This prevents Turkish/Unicode characters from being escaped to \uXXXX format
-def _tojson_unicode(value):
-    """JSON encode preserving Unicode characters (no ASCII escaping)"""
-    return json.dumps(value, ensure_ascii=False, default=str)
-
-_jinja_env = Environment()
-_jinja_env.filters['tojson'] = _tojson_unicode
 
 from .types import (
     GraphNodeInstance,
@@ -42,6 +32,7 @@ from .types import (
 )
 from .exceptions import NodeExecutionError
 from app.core.state import FlowState
+from app.core.templating import apply_jinja_to_inputs
 from app.core.output_cache import default_connection_extractor
 from app.core.node_handlers import node_handler_registry
 from app.core.connection_pool import ConnectionPool, PooledConnection
@@ -152,7 +143,7 @@ class NodeExecutor:
             logger.debug(f"User inputs extracted: {list(user_inputs.keys()) if user_inputs else 'None'}")
             
             # Apply node-output templating so processor inputs can reference upstream node outputs
-            user_inputs = self._apply_node_output_templating(gnode, user_inputs, state)
+            user_inputs = apply_jinja_to_inputs(user_inputs, state, node_id, self._nodes_registry)
             logger.debug(f"Templated user inputs: {list(user_inputs.keys()) if user_inputs else 'None'}")
             
             # Extract connected node instances
@@ -374,254 +365,9 @@ class NodeExecutor:
         logger.debug(f"Processor {gnode.id} resolved user_inputs: {user_inputs}")
         return user_inputs
     
-    def _normalize_display_name_for_template(self, name: str) -> str:
-        """
-        Normalize a node display name to a Jinja-safe identifier.
-        
-        Example:
-            "OpenAI GPT" -> "openai_gpt"
-        """
-        if not name:
-            return ""
-        
-        normalized = re.sub(r"[^0-9a-zA-Z_]+", "_", name).strip("_")
-        if not normalized:
-            return ""
-        
-        # Jinja identifiers should not start with a digit
-        if normalized[0].isdigit():
-            normalized = f"n_{normalized}"
-        
-        return normalized
-    
-    def _get_primary_output_for_node(self, node_id: str, state: FlowState) -> Any:
-        """
-        Determine the primary output value for a given node from FlowState.
-
-        Heuristic:
-        - If node_outputs[node_id] is a dict:
-          - Prefer 'output'
-          - Then 'content'
-          - If only one key, return that single value
-          - Otherwise return the entire dict
-        - Otherwise, return the stored value directly.
-        """
-        if not hasattr(state, "node_outputs"):
-            return None
-        
-        node_output = state.node_outputs.get(node_id)
-        if node_output is None:
-            return None
-        
-        if isinstance(node_output, dict):
-            if "output" in node_output:
-                return node_output["output"]
-            if "content" in node_output:
-                return node_output["content"]
-            if len(node_output) == 1:
-                return next(iter(node_output.values()))
-            return node_output
-        
-        return node_output
-    
-    def _render_template_string(self, template_str: str, context: Dict[str, Any], node_id: str) -> str:
-        """
-        Render a Jinja2 template string with the given context.
-
-        Supports both ${{var}} and {{var}} syntax for variables.
-        ${{var}} syntax avoids conflicts with { } characters commonly used in system prompts (JSON schemas, etc.).
-        {{var}} syntax is also supported for compatibility.
-        """
-        # Only process templates with {{...}} syntax (either ${{...}} or {{...}})
-        if "{{" not in template_str or "}}" not in template_str:
-            return template_str
-
-        try:
-            # Convert ${{var}} to {{var}} for Jinja2 rendering (if not already)
-            processed_template = template_str.replace("${" + "{", "{{").replace("}}", "}}")
-
-            template = _jinja_env.from_string(processed_template)
-            return template.render(**context)
-        except Exception as e:
-            logger.warning(f"Node templating failed for {node_id}: {e}")
-            return template_str
-    
-    def _apply_node_output_templating(
-        self,
-        gnode: GraphNodeInstance,
-        user_inputs: Dict[str, Any],
-        state: FlowState
-    ) -> Dict[str, Any]:
-        """
-        Apply Jinja2 templating to processor user inputs so they can reference upstream node outputs by normalized display name.
-
-        Example usage in processor node input:
-        "Use previous answer: {{openai_gpt}}"
-        where "OpenAI GPT" is the display name of the upstream node.
-        """
-        try:
-            # This method is only called from execute_processor_node, so no additional gnode.type filter needed here.
-
-            # Apply templating for all processor nodes.
-            # IMPORTANT: Do NOT exit early just because node_outputs is empty.
-            # webhook_trigger / current_input context must be built even when this
-            # node is the very first processor in the graph (nothing in node_outputs yet).
-            has_node_outputs = hasattr(state, "node_outputs") and bool(state.node_outputs)
-            has_registry = bool(getattr(self, "_nodes_registry", None))
-            
-            # Build templating context from executed nodes' primary outputs
-            context: Dict[str, Any] = {}
-
-            # SPECIAL CASE: Add current_input as 'input' for chat-like behavior
-            # This allows {{input}} to work even when running with StartNode
-            if hasattr(state, 'current_input') and state.current_input is not None:
-                context['input'] = state.current_input
-
-            # SPECIAL CASE: Add webhook data for webhook-triggered workflows
-            # This allows {{webhook_trigger.anyfield}} and {{webhook_data}} templates
-            if hasattr(state, 'webhook_data') and state.webhook_data:
-                context['webhook_data'] = state.webhook_data
-                # webhook_trigger = the actual payload data for easy access
-                webhook_payload = state.webhook_data.get('data', state.webhook_data)
-                context['webhook_trigger'] = webhook_payload
-                logger.info(f"[TEMPLATE] Added webhook_trigger to context: {list(webhook_payload.keys()) if isinstance(webhook_payload, dict) else type(webhook_payload)}")
-
-            # Only iterate node outputs when they are available
-            if has_node_outputs and has_registry:
-                for other_node_id in state.node_outputs.keys():
-                    graph_node = self._nodes_registry.get(other_node_id)
-                    if not graph_node:
-                        continue
-
-                    # Build a prioritized list of candidate names for this node:
-
-                    # 1) UI-visible name from user_data["name"] (what you see on the canvas)
-                    # 2) NodeMetadata.display_name
-                    # 3) NodeMetadata.name
-                    # 4) GraphNodeInstance.metadata["display_name"/"name"]
-                    # 5) Fallback: node_id
-                    alias_candidates: list[tuple[str, str]] = []
-
-                    # 1) UI name (highest priority, what the user edited on the frontend)
-                    ui_name = None
-                    try:
-                        user_data = getattr(graph_node, "user_data", {}) or {}
-                        if isinstance(user_data, dict):
-                            ui_name = user_data.get("name")
-                    except Exception:
-                        user_data = {}
-                        ui_name = None
-
-                    if ui_name:
-                        alias_candidates.append(("ui_name", str(ui_name)))
-
-                    # 2) Pydantic NodeMetadata from node instance
-                    node_meta_model = None
-                    try:
-                        node_meta_model = getattr(graph_node.node_instance, "metadata", None)
-                    except Exception:
-                        node_meta_model = None
-
-                    if node_meta_model is not None:
-                        display_name = getattr(node_meta_model, "display_name", None)
-                        meta_name = getattr(node_meta_model, "name", None)
-
-                        if display_name:
-                            alias_candidates.append(("display_name", str(display_name)))
-                        if meta_name and meta_name != display_name:
-                            alias_candidates.append(("meta_name", str(meta_name)))
-
-                    # 3) Fallback to GraphNodeInstance.metadata dict
-                    metadata_dict = getattr(graph_node, "metadata", {}) or {}
-                    if isinstance(metadata_dict, dict):
-                        md_display = metadata_dict.get("display_name")
-                        md_name = metadata_dict.get("name")
-
-                        if md_display:
-                            alias_candidates.append(("graph_display_name", str(md_display)))
-                        if md_name and md_name != md_display:
-                            alias_candidates.append(("graph_name", str(md_name)))
-
-                    # 4) Final fallback: raw node_id
-                    alias_candidates.append(("node_id", str(other_node_id)))
-
-                    primary_value = self._get_primary_output_for_node(other_node_id, state)
-                    if primary_value is None:
-                        continue
-
-                    # SPECIAL CASE: If this is a StartNode, also add its output as 'input'.
-                    # This allows {{input}} to work like a chat system with StartNode.
-                    try:
-                        if hasattr(graph_node, 'type') and graph_node.type == 'StartNode':
-                            if 'input' not in context:  # Don't overwrite if already set
-                                context['input'] = primary_value
-                                print(f"[TEMPLATE DEBUG] Added 'input' context from StartNode output: {primary_value}")
-                    except Exception:
-                        pass
-
-                    # Normalize and save all aliases without overwriting existing keys.
-                    # This preserves backward compatibility (type-based aliases) while
-                    # allowing clean UI-based aliases like {{openai_gpt}}.
-                    for source_type, raw_name in alias_candidates:
-                        normalized = self._normalize_display_name_for_template(raw_name)
-                        if not normalized:
-                            continue
-
-                        if normalized in context:
-                            # Do not overwrite existing mapping; just log once for visibility
-                            logger.debug(
-                                f"[TEMPLATE] Skipping duplicate alias '{normalized}' from {source_type} "
-                                f"for node {other_node_id} while building context for {gnode.id}"
-                            )
-                            continue
-
-                        context[normalized] = primary_value
-                        logger.debug(
-                            f"[TEMPLATE] Added alias '{normalized}' from {source_type} "
-                            f"for node '{other_node_id}' (raw='{raw_name}') into context for {gnode.id}"
-                        )
-
-            # Bail out only if no context at all was built (no webhook, no input, no upstream outputs)
-            if not context:
-                logger.debug(f"[TEMPLATE] No context built for node {gnode.id}; skipping templating")
-                return user_inputs
-            
-            logger.debug(
-                f"[TEMPLATE] Built templating context for node {gnode.id}: "
-                f"keys={list(context.keys())}"
-            )
-            
-            # Apply templating only to string inputs containing '{{' and '}}'
-            rendered_inputs: Dict[str, Any] = {}
-            for key, value in user_inputs.items():
-                if isinstance(value, str) and "{{" in value and "}}" in value:
-                    original = value
-                    rendered = self._render_template_string(
-                        original, context, gnode.id
-                    )
-                    print(
-                        f"[TEMPLATE DEBUG] Node {gnode.id} input '{key}' "
-                        f"before='{original}' after='{rendered}'"
-                    )
-                    if rendered != original:
-                        logger.info(
-                            f"[TEMPLATE] Node {gnode.id} input '{key}' templated from "
-                            f"'{original}' to '{rendered}'"
-                        )
-                    else:
-                        logger.info(
-                            f"[TEMPLATE] Node {gnode.id} input '{key}' contained templates "
-                            f"but rendered unchanged: '{original}'"
-                        )
-                    rendered_inputs[key] = rendered
-                else:
-                    rendered_inputs[key] = value
-            
-            return rendered_inputs
-        
-        except Exception as e:
-            logger.error(f"Failed to apply node output templating for {gnode.id}: {e}")
-            return user_inputs
+    # Note: Redundant helper methods _normalize_display_name_for_template, _get_primary_output_for_node,
+    # _render_template_string, and _apply_node_output_templating were removed.
+    # Centralized templating from app.core.templating is used instead.
     
     def extract_connected_node_instances(self, gnode: GraphNodeInstance, state: FlowState) -> Dict[str, Any]:
         """

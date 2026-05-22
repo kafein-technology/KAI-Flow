@@ -748,20 +748,60 @@ class OpenAINode(BaseNode):
         """Execute OpenAI node with enhanced configuration and validation."""
         logger.info("\nOPENAI LLM SETUP")
         
-        # Get configuration from user_data
-        model_name = self.user_data.get("model_name", "gpt-4o")
-        temperature = float(self.user_data.get("temperature", 0.1))
-        max_tokens = self.user_data.get("max_tokens", 10000)  # Default to 10000 tokens
-        top_p = float(self.user_data.get("top_p", 1.0))
-        frequency_penalty = float(self.user_data.get("frequency_penalty", 0.0))
-        presence_penalty = float(self.user_data.get("presence_penalty", 0.0))
-        streaming = bool(self.user_data.get("streaming", False))
-        timeout = int(self.user_data.get("timeout", 60))
+        # Get configuration from kwargs or user_data fallback
+        model_name = kwargs.get("model_name") or self.user_data.get("model_name", "gpt-4o")
+        
+        temperature_val = kwargs.get("temperature")
+        if temperature_val is None:
+            temperature_val = self.user_data.get("temperature", 0.1)
+        temperature = float(temperature_val)
+        
+        max_tokens = kwargs.get("max_tokens")
+        if max_tokens is None:
+            max_tokens = self.user_data.get("max_tokens", 10000)
+        if max_tokens is not None:
+            max_tokens = int(max_tokens)
+            
+        top_p_val = kwargs.get("top_p")
+        if top_p_val is None:
+            top_p_val = self.user_data.get("top_p", 1.0)
+        top_p = float(top_p_val)
+        
+        frequency_penalty_val = kwargs.get("frequency_penalty")
+        if frequency_penalty_val is None:
+            frequency_penalty_val = self.user_data.get("frequency_penalty", 0.0)
+        frequency_penalty = float(frequency_penalty_val)
+        
+        presence_penalty_val = kwargs.get("presence_penalty")
+        if presence_penalty_val is None:
+            presence_penalty_val = self.user_data.get("presence_penalty", 0.0)
+        presence_penalty = float(presence_penalty_val)
+        
+        streaming_val = kwargs.get("streaming")
+        if streaming_val is None:
+            streaming_val = self.user_data.get("streaming", False)
+        if isinstance(streaming_val, str):
+            streaming = streaming_val.lower() in ("true", "1", "yes")
+        else:
+            streaming = bool(streaming_val)
+            
+        timeout_val = kwargs.get("timeout")
+        if timeout_val is None:
+            timeout_val = self.user_data.get("timeout", 60)
+        timeout = int(timeout_val)
         
         # Get API key from user configuration (database/UI)
-        credential_id = self.user_data.get("credential_id")
-        api_key = self.get_credential(credential_id).get('secret').get('api_key')
+        credential_id = kwargs.get("credential_id") or self.user_data.get("credential_id")
+        api_key = None
+        if credential_id:
+            cred = self.get_credential(credential_id)
+            if cred and cred.get('secret'):
+                api_key = cred.get('secret').get('api_key')
         
+        if not api_key:
+            import os
+            api_key = os.getenv("OPENAI_API_KEY")
+            
         if not api_key:
             raise ValueError(
                 "OpenAI API key is required. Please provide it in the node configuration through the UI."
