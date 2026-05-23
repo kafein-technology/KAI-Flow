@@ -86,6 +86,9 @@ SAFE_PYTHON_BUILTINS = {
     "type", "zip", # Additional safe functions (note: broadens sandbox surface, kept for backward compatibility)
     "hasattr", "getattr", "setattr", "delattr", "hash", "id", "callable", "classmethod", "staticmethod", "property",
     "locals", "globals", "vars",
+    "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "RuntimeError",
+    "StopIteration", "GeneratorExit", "ArithmeticError", "ZeroDivisionError", "OverflowError",
+    "LookupError", "IOError", "OSError", "ImportError", "NotImplementedError",
 }
 
 SAFE_PYTHON_MODULES = {
@@ -272,21 +275,21 @@ def main():
     exec_globals["_now"] = datetime.datetime.now
     exec_globals["_utcnow"] = lambda: datetime.datetime.now(datetime.timezone.utc)
 
-    exec_locals = {{}}
     try:
         user_code = base64.b64decode("{user_code_b64}").decode("utf-8")
-        exec(user_code, exec_globals, exec_locals)
+        exec(user_code, exec_globals)
 
-        output = exec_locals.get("output", exec_locals.get("result", None))
+        output = exec_globals.get("output", exec_globals.get("result", None))
 
         serializable_locals = {{}}
-        for k, v in exec_locals.items():
-            if not k.startswith("_") and not callable(v):
-                try:
-                    json.dumps(v, default=str)
-                    serializable_locals[k] = v
-                except Exception:
-                    serializable_locals[k] = str(v)
+        for k, v in exec_globals.items():
+            if k.startswith("_") or callable(v) or k == "__builtins__":
+                continue
+            try:
+                json.dumps(v, default=str)
+                serializable_locals[k] = v
+            except Exception:
+                serializable_locals[k] = str(v)
 
         print("{PY_MARKER_START}")
         print(json.dumps({{
