@@ -379,10 +379,11 @@ async def _test_openai_compatible(secret: Dict[str, Any]) -> CredentialTestRespo
                 timeout=10
             )
         except Exception as auth_test_e:
-            err_msg = str(auth_test_e).lower()
-            if "401" in err_msg or "unauthorized" in err_msg or "invalid" in err_msg:
+            status_code = getattr(auth_test_e, "status_code", None)
+            if status_code == 401:
                 return CredentialTestResponse(success=False, message="Invalid API Key or Unauthorized.")
-            # If it's a 400 Bad Request or 404 Model Not Found, it means authentication passed!
+            if status_code == 403:
+                return CredentialTestResponse(success=False, message="API Key forbidden (403).")
             pass
 
         msg = "Connected to OpenAI Compatible provider successfully."
