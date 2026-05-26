@@ -580,14 +580,11 @@ class RetrieverProvider(ProviderNode):
 
             except Exception as e:
                 error_msg = str(e)
+                logger.warning(f"Search failed for collection {collection_name}: {error_msg}")
                 return f"""[SEARCH] SEARCH RESULTS - {collection_name}
     Query: A technical issue occurred while searching for '{query}'.
     
     # WARNING: ERROR DETAILS:
-<<<<<<< HEAD
-=======
-    logger.warning("ERROR DETAILS:")
->>>>>>> 1d60ab3d09dee3c7342b3417ca162d19832e7f31
     {error_msg}
     
     SEARCH SUMMARY:
