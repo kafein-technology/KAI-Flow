@@ -22,9 +22,11 @@ from .tools.tavily_search import TavilySearchNode
 from .tools.http_client import HttpClientNode
 from .tools.cohere_reranker import CohereRerankerNode
 from .tools.retriever import RetrieverProvider
+from .tools.markitdown_tool import MarkItDownToolNode
 
 # Document Loaders
 from .document_loaders.web_scraper import WebScraperNode
+from .document_loaders.document_loader import DocumentLoaderNode
 
 # Splitters (moved from text_processing)
 from .splitters.chunk_splitter import ChunkSplitterNode
@@ -85,10 +87,10 @@ __all__ = [
     "ConversationMemoryNode", "BufferMemoryNode",
     
     # Tools
-    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider",
+    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode",
     
     # Document Loaders
-    "WebScraperNode",
+    "WebScraperNode", "DocumentLoaderNode",
     
     # Splitters
     "ChunkSplitterNode",
