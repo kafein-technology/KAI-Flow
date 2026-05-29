@@ -304,6 +304,10 @@ class ConditionNode(ProcessorNode):
         """
         if input_data is None:
             return None
+            
+        # Peel off the standardized wrapper if present
+        if isinstance(input_data, dict) and "success" in input_data and "output" in input_data and "nodeId" in input_data:
+            input_data = input_data["output"]
         
         # Handle LangChain Document objects directly
         if hasattr(input_data, 'page_content'):

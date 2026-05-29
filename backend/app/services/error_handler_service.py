@@ -1,12 +1,13 @@
 """Trigger a configured error-handling workflow when a source workflow fails."""
 
+import asyncio
 import copy
 import logging
 import re
 import traceback
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +26,29 @@ def _clean_error_message(message: str) -> str:
     text = re.sub(node_prefix_pattern, "", text, flags=re.IGNORECASE).strip()
     text = re.sub(r"^:\s*", "", text).strip()
     return text
+
+
+error_trigger_subscribers: Dict[str, List[asyncio.Queue]] = {}
+
+async def broadcast_error_trigger_event(workflow_id: str, event: Dict[str, Any]) -> None:
+    """Broadcast Error Trigger-triggered workflow execution events to canvas subscribers."""
+    subscribers = error_trigger_subscribers.get(workflow_id, [])
+    if not subscribers:
+        return
+
+    stale_subscribers = []
+    for queue in subscribers.copy():
+        try:
+            if queue.qsize() >= 100:
+                stale_subscribers.append(queue)
+                continue
+            queue.put_nowait(event)
+        except Exception:
+            stale_subscribers.append(queue)
+
+    for queue in stale_subscribers:
+        if queue in subscribers:
+            subscribers.remove(queue)
 
 
 class ErrorHandlerService:
@@ -140,7 +164,19 @@ class ErrorHandlerService:
                 user=owner,
                 is_webhook=False,
             )
-            await executor.execute_workflow(ctx=ctx, db=db, stream=False)
+            result_stream = await executor.execute_workflow(ctx=ctx, db=db, stream=True)
+            if hasattr(result_stream, "__aiter__"):
+                async for event_chunk in result_stream:
+                    if isinstance(event_chunk, dict):
+                        ui_event = {
+                            "type": "error_trigger_execution_event",
+                            "workflow_id": error_workflow_id,
+                            "execution_id": str(ctx.execution_id) if ctx.execution_id else None,
+                            "event": event_chunk,
+                            "error_payload": error_data,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                        await broadcast_error_trigger_event(error_workflow_id, ui_event)
             return True
         except Exception as e:
             logger.error("[ErrorHandler] Failed to trigger error workflow: %s", e, exc_info=True)

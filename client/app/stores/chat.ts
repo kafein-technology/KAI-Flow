@@ -178,6 +178,31 @@ const executeWorkflowWithStreaming = async (
                   node_id: parsed.node_id
                 }
               }));
+
+              // Save failed execution to store so canvas updates correctly
+              const executionResult: WorkflowExecution = {
+                id: parsed.execution_id || Date.now().toString(),
+                workflow_id: workflow_id,
+                input_text: input_text,
+                result: {
+                  result: `ERROR: ${parsed.error || parsed.data || 'Unknown error'}`,
+                  executed_nodes: parsed.executed_nodes || [],
+                  node_outputs: parsed.node_outputs || {},
+                  session_id: parsed.session_id,
+                  status: 'failed' as const,
+                },
+                started_at: new Date().toISOString(),
+                completed_at: new Date().toISOString(),
+                status: 'failed' as const,
+              };
+
+              try {
+                const executionsModule = await import('./executions');
+                const executionsStore = executionsModule.useExecutionsStore.getState();
+                executionsStore.setCurrentExecutionForWorkflow(workflow_id, executionResult);
+              } catch (error) {
+                console.error('❌ Error setting failed execution result:', error);
+              }
             }
 
             // Handle complete event to capture execution data
