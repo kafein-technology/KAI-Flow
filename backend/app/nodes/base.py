@@ -710,6 +710,15 @@ class BaseNode(ABC):
         This method transforms the node into a function that takes and returns FlowState
         """
         def graph_node_function(state: FlowState) -> Dict[str, Any]:  # noqa: D401
+            import time
+            import traceback
+            import datetime
+            from app.core.json_utils import format_standard_node_output
+
+            start_time = time.time()
+            resolved_inputs = {}
+            node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
+
             try:
                 # Merge user configuration into state variables
                 for key, value in self.user_data.items():
@@ -717,7 +726,6 @@ class BaseNode(ABC):
                 
                 # Get node metadata for input processing
                 metadata = self.metadata
-                node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
                 
                 from app.core.templating import apply_jinja_to_inputs
                 nodes_registry = getattr(state, "nodes_registry", None)
@@ -727,6 +735,7 @@ class BaseNode(ABC):
                     # Provider nodes create objects from user inputs only
                     inputs = self._extract_user_inputs(state, metadata.inputs)
                     inputs = apply_jinja_to_inputs(inputs, state, node_id, nodes_registry)
+                    resolved_inputs = inputs
                     result = self.execute(**inputs)
                     
                 elif self.metadata.node_type == NodeType.PROCESSOR:
@@ -739,6 +748,7 @@ class BaseNode(ABC):
                     logger.debug(f"Processor {node_id} - User inputs: {list(user_inputs.keys())}")
                     logger.debug(f"Processor {node_id} - Connected inputs: {list(connected_nodes.keys())}")
                     
+                    resolved_inputs = {**user_inputs, **{k: make_json_serializable_with_langchain(v) if not isinstance(v, (str, dict, list, int, float, bool)) else v for k, v in connected_nodes.items()}}
                     result = self.execute(inputs=user_inputs, connected_nodes=connected_nodes)
                     
                 elif self.metadata.node_type == NodeType.TERMINATOR:
@@ -753,16 +763,32 @@ class BaseNode(ABC):
                         # Get the first connected input as the primary input
                         previous_node = list(connected_inputs.values())[0]
                     
+                    resolved_inputs = {**user_inputs, "previous_node": previous_node}
                     result = self.execute(previous_node=previous_node, inputs=user_inputs)
                     
                 else:
                     # Fallback for unknown node types
                     inputs = self._extract_all_inputs(state, metadata.inputs)
                     inputs = apply_jinja_to_inputs(inputs, state, node_id, nodes_registry)
+                    resolved_inputs = inputs
                     result = self.execute(**inputs)
                 
                 # Handle different result types
                 processed_result = self._process_execution_result(result, state)
+                
+                execution_time_ms = round((time.time() - start_time) * 1000, 2)
+                
+                # Format standard output
+                standard_output = format_standard_node_output(
+                    node_id=node_id,
+                    node_type=self.__class__.__name__,
+                    success=True,
+                    status_code=200,
+                    execution_time_ms=execution_time_ms,
+                    inputs=resolved_inputs,
+                    output=processed_result,
+                    node_instance=self
+                )
                 
                 # Store the result in state using unique key
                 unique_output_key = f"output_{node_id}"
@@ -776,27 +802,53 @@ class BaseNode(ABC):
                 if not hasattr(state, "node_outputs"):
                     state.node_outputs = {}
                 
-                try:
-                    serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=False)
-                    state.node_outputs[node_id] = serializable_result
-                except Exception as e:
-                    logger.warning(f"Failed to store node output in node_outputs for {node_id}: {e}")
+                state.node_outputs[node_id] = standard_output
 
                 return {
-                    unique_output_key: processed_result,
+                    unique_output_key: standard_output,
                     "executed_nodes": updated_executed_nodes,
                     "last_output": str(processed_result),
                     "node_outputs": state.node_outputs
                 }
                 
             except Exception as e:
+                execution_time_ms = round((time.time() - start_time) * 1000, 2)
+                
                 # Handle errors gracefully
                 error_msg = f"Error in {self.__class__.__name__} ({node_id}): {str(e)}"
                 logger.error(f"{error_msg}")
                 state.add_error(error_msg)
+                
+                error_details = {
+                    "node_id": node_id,
+                    "node_type": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "stack_trace": traceback.format_exc()
+                }
+                
+                # Standardize error output
+                standard_error_output = format_standard_node_output(
+                    node_id=node_id,
+                    node_type=self.__class__.__name__,
+                    success=False,
+                    status_code=500,
+                    execution_time_ms=execution_time_ms,
+                    inputs=resolved_inputs,
+                    output=None,
+                    error=error_details,
+                    node_instance=self
+                )
+                
+                if not hasattr(state, "node_outputs"):
+                    state.node_outputs = {}
+                state.node_outputs[node_id] = standard_error_output
+                
                 return {
                     "errors": state.errors,
-                    "last_output": f"ERROR: {error_msg}"
+                    "last_output": f"ERROR: {error_msg}",
+                    "node_outputs": state.node_outputs
                 }
         
         return graph_node_function

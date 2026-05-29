@@ -106,6 +106,8 @@ export default function FullscreenNodeModal({
   );
   const [nodeAliasError, setNodeAliasError] = useState<string | null>(null);
 
+  const inputDataToDisplay = executionData?.inputs;
+
   // Validate node alias for Jinja template compatibility
   // Rules: letters, numbers, and underscores only; must start with a letter; cannot be reserved keywords
   // Note: Uppercase letters are allowed but will be auto-converted to lowercase when saving
@@ -700,130 +702,24 @@ export default function FullscreenNodeModal({
                   </h2>
                 </div>
 
-                {/* Execution Data Section */}
-                {executionData?.inputs &&
-                  Object.keys(executionData.inputs).length > 0 ? (
+                {/* Standardized JSON Input View */}
+                {inputDataToDisplay &&
+                  Object.keys(inputDataToDisplay).length > 0 ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm mb-4">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span className="text-green-400 font-medium">
-                        Live Data
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                      <span className="text-blue-300 font-medium">
+                        Standardized JSON Input
                       </span>
-                      <div className="text-xs text-gray-500">
-                        • Real-time workflow data
-                      </div>
                     </div>
-
-                    <div className="space-y-4">
-                      {Object.entries(executionData.inputs).flatMap(
-                        ([key, rawValue]) => {
-                          const valuesArray = Array.isArray(rawValue)
-                            ? rawValue
-                            : [rawValue];
-                          const rawMeta = executionData.inputs_meta?.[key];
-                          const metaArray = Array.isArray(rawMeta)
-                            ? rawMeta
-                            : rawMeta
-                              ? [rawMeta]
-                              : [];
-
-                          return valuesArray.map((value, index) => {
-                            const sourceMeta = metaArray[index] || metaArray[0];
-                            const label =
-                              valuesArray.length > 1
-                                ? `${getDataLabel(key)} [${index + 1}]`
-                                : getDataLabel(key);
-
-                            return (
-                              <div
-                                key={`${key}-${index}`}
-                                className="bg-gradient-to-r from-gray-800 to-gray-800/50 rounded-xl p-4 border border-gray-700/50"
-                              >
-                                {/* Header with icon and user-friendly label */}
-                                <div className="flex items-center gap-3 mb-3">
-                                  <div className="p-2 bg-blue-600/20 text-blue-400 rounded-lg">
-                                    {getDataIcon(key, value)}
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="text-sm font-medium text-blue-300">
-                                      {label}
-                                    </div>
-                                    <div className="text-xs text-gray-400">
-                                      {getDataDescription(key, value)}
-                                    </div>
-                                    {sourceMeta && (
-                                      <div className="mt-1 text-[10px] text-gray-500">
-                                        From:{" "}
-                                        {sourceMeta.sourceNodeAlias ||
-                                          sourceMeta.sourceNodeName ||
-                                          sourceMeta.sourceNodeId}
-                                        {sourceMeta.sourceHandle && (
-                                          <>
-                                            {" "}
-                                            · handle: {sourceMeta.sourceHandle}
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded">
-                                    input
-                                  </div>
-                                </div>
-
-                                {/* Value display */}
-                                {value && typeof value === "object" && value._placeholder ? (
-                                  <div className="bg-yellow-900/20 rounded-lg p-3 border border-yellow-500/30">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                                      <div className="text-sm text-yellow-200">
-                                        {value.message || "Waiting for execution"}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : typeof value === "object" && value !== null ? (
-                                  <DataDisplayModes
-                                    data={maskSensitiveValue(key, value)}
-                                    className="mt-2"
-                                    defaultMode="schema"
-                                  />
-                                ) : (
-                                  <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
-                                    <div className="text-sm text-gray-100 break-words">
-                                      {formatValue(value, key)}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          });
-                        }
-                      )}
-                    </div>
-
-                    {/* Context Variables */}
-                    <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-600/30">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Info className="w-4 h-4 text-blue-400" />
-                        <div className="text-sm font-medium text-gray-300">
-                          Execution Info
-                        </div>
-                      </div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-400">Execution Time:</span>
-                          <span className="text-blue-400 font-mono text-xs">
-                            {new Date().toLocaleString("en-US")}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-400">Mode:</span>
-                          <span className="text-blue-400 bg-blue-400/10 px-2 py-1 rounded text-xs">
-                            Development
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+ 
+                    <DataDisplayModes
+                      data={inputDataToDisplay}
+                      className="mt-2"
+                      isInputPanel={true}
+                      inputsMeta={executionData?.inputs_meta}
+                      currentNodeName={nodeAlias}
+                    />
                   </div>
                 ) : (
                   <div className="text-center py-12">
@@ -844,7 +740,7 @@ export default function FullscreenNodeModal({
                 )}
               </div>
             </motion.div>
-
+ 
             {/* Center Column - Configuration */}
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -870,7 +766,7 @@ export default function FullscreenNodeModal({
                 </div>
               </div>
             </motion.div>
-
+ 
             {/* Right Column - Output Data */}
             <motion.div
               initial={{ x: 50, opacity: 0 }}
@@ -885,139 +781,31 @@ export default function FullscreenNodeModal({
                     Output Data
                   </h2>
                 </div>
-
-                {/* Execution Output Section */}
+ 
+                {/* Standardized JSON Output View */}
                 {executionData?.outputs ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm mb-4">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                      <span className="text-purple-400 font-medium">
-                        Generated
+                      <div className={`w-2 h-2 rounded-full animate-pulse ${
+                        executionData.outputs.success === false ? "bg-red-500" : "bg-purple-500"
+                      }`}></div>
+                      <span className={`${
+                        executionData.outputs.success === false ? "text-red-400" : "text-purple-300"
+                      } font-medium`}>
+                        {executionData.outputs.success === false ? "Execution Failed" : "Standardized JSON Output"}
                       </span>
-                      <div className="text-xs text-gray-500">
-                        • Processing completed, result ready
-                      </div>
                     </div>
-
-                    <div className="space-y-4">
-                      {typeof executionData.outputs === "object" &&
-                        executionData.outputs !== null ? (
-                        Object.entries(
-                          filterNodeData(executionData.outputs, true)
-                        ).map(([key, value]) => (
-                          <div
-                            key={key}
-                            className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-4 border border-purple-500/30"
-                          >
-                            {/* Header with icon and user-friendly label */}
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="p-2 bg-purple-600/20 text-purple-400 rounded-lg">
-                                {getDataIcon(key, value)}
-                              </div>
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-purple-300">
-                                  {getDataLabel(key)}
-                                </div>
-                                <div className="text-xs text-gray-400">
-                                  {getDataDescription(key, value)}
-                                </div>
-                              </div>
-                              <div className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded">
-                                çıkış
-                              </div>
-                            </div>
-
-                            {/* Value display */}
-                            {value && typeof value === "object" && value._placeholder ? (
-                              <div className="bg-yellow-900/20 rounded-lg p-3 border border-yellow-500/30">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                                  <div className="text-sm text-yellow-200">
-                                    {value.message || "Waiting for execution"}
-                                  </div>
-                                </div>
-                              </div>
-                            ) : typeof value === "object" && value !== null ? (
-                              <DataDisplayModes
-                                data={maskSensitiveValue(key, value)}
-                                className="mt-2"
-                                defaultMode="schema"
-                              />
-                            ) : (
-                              <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
-                                <div className="text-sm text-gray-100 break-words">
-                                  {formatValue(value, key)}
-                                </div>
-                                <button
-                                  onClick={() =>
-                                    navigator.clipboard.writeText(
-                                      String(maskSensitiveValue(key, value))
-                                    )
-                                  }
-                                  className="mt-2 text-xs text-purple-400 hover:text-purple-300 transition-colors bg-purple-600/10 px-2 py-1 rounded"
-                                >
-                                  Copy
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        // Single output value
-                        <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-4 border border-purple-500/30">
-                          {/* Header with icon and user-friendly label */}
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-purple-600/20 text-purple-400 rounded-lg">
-                              {getDataIcon("result", executionData.outputs)}
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-purple-300">
-                                {getDataLabel("result")}
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                {getDataDescription(
-                                  "result",
-                                  executionData.outputs
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded">
-                              output
-                            </div>
-                          </div>
-
-                          {/* Value display */}
-                          {typeof executionData.outputs === "object" && executionData.outputs !== null ? (
-                            <DataDisplayModes
-                              data={maskSensitiveValue("result", executionData.outputs)}
-                              className="mt-2"
-                              defaultMode="schema"
-                            />
-                          ) : (
-                            <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
-                              <div className="text-sm text-gray-100 break-words">
-                                {formatValue(executionData.outputs, "result")}
-                              </div>
-                              <button
-                                onClick={() =>
-                                  navigator.clipboard.writeText(
-                                    String(
-                                      maskSensitiveValue(
-                                        "result",
-                                        executionData.outputs
-                                      )
-                                    )
-                                  )
-                                }
-                                className="mt-2 text-xs text-purple-400 hover:text-purple-300 transition-colors bg-purple-600/10 px-2 py-1 rounded"
-                              >
-                                Copy
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+ 
+                    <DataDisplayModes
+                      data={(() => {
+                        if (!executionData?.outputs) return null;
+                        const { inputs, ...rest } = executionData.outputs;
+                        return rest;
+                      })()}
+                      className="mt-2"
+                      isInputPanel={false}
+                      currentNodeName={nodeAlias}
+                    />
                   </div>
                 ) : (
                   <div className="text-center py-12">

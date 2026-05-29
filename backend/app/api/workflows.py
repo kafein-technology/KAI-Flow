@@ -1353,3 +1353,47 @@ async def execute_timer_node_manually(
     except Exception as e:
         logger.error(f"Error during manual TimerStartNode execution: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to execute TimerStartNode: {str(e)}")
+
+
+@router.get("/error-trigger/{workflow_id}/stream")
+async def stream_error_trigger_execution(workflow_id: str):
+    """Stream error-trigger workflow execution events for the canvas UI."""
+    from app.services.error_handler_service import error_trigger_subscribers
+    
+    async def event_stream():
+        import asyncio
+        import json
+        from datetime import datetime, timezone
+        from app.core.json_utils import make_json_serializable
+        
+        queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+        error_trigger_subscribers.setdefault(workflow_id, []).append(queue)
+        
+        try:
+            yield f"data: {json.dumps({'type': 'connected', 'workflow_id': workflow_id, 'timestamp': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
+            
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    serializable_event = make_json_serializable(event)
+                    yield f"data: {json.dumps(serializable_event, ensure_ascii=False)}\n\n"
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'type': 'ping', 'timestamp': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            subscribers = error_trigger_subscribers.get(workflow_id, [])
+            if queue in subscribers:
+                subscribers.remove(queue)
+                
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )
