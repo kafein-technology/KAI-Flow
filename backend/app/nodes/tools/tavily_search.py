@@ -527,17 +527,20 @@ class TavilySearchNode(ProviderNode):
         logger.info("\nTAVILY SEARCH SETUP")
 
         try:
-            # Get API key from user configuration (database/UI)
+            # Get API key from user configuration (database/UI) or kwargs
             api_key = None
-            credential_id = self.user_data.get("credential_id")
-            api_key = self.get_credential(credential_id).get('secret').get('api_key')
+            credential_id = kwargs.get("credential_id") or self.user_data.get("credential_id")
+            if credential_id:
+                cred = self.get_credential(credential_id)
+                if cred and cred.get('secret'):
+                    api_key = cred.get('secret').get('api_key')
                         
             if not api_key:
                 api_key = os.getenv("TAVILY_API_KEY")
             
             logger.info(f"   API Key: {'Found' if api_key else 'Missing'}")
             if api_key:
-                logger.info(f"   Source: {'User Config' if self.user_data.get('tavily_api_key') else 'Environment'}")
+                logger.info(f"   Source: {'User Config' if credential_id else 'Environment'}")
             
             if not api_key:
                 raise ValueError(
@@ -545,19 +548,51 @@ class TavilySearchNode(ProviderNode):
                     "or set TAVILY_API_KEY environment variable."
                 )
 
-            # 2. Get all other parameters from user data with defaults.
-            max_results = int(self.user_data.get("max_results", 5))
-            search_depth = self.user_data.get("search_depth", "basic")
-            include_answer = bool(self.user_data.get("include_answer", True))
-            include_raw_content = bool(self.user_data.get("include_raw_content", False))
-            include_images = bool(self.user_data.get("include_images", False))
+            # 2. Get all other parameters from kwargs or user data with defaults.
+            max_results_val = kwargs.get("max_results")
+            if max_results_val is None:
+                max_results_val = self.user_data.get("max_results", 5)
+            max_results = int(max_results_val)
+            
+            search_depth = kwargs.get("search_depth") or self.user_data.get("search_depth", "basic")
+            
+            include_answer_val = kwargs.get("include_answer")
+            if include_answer_val is None:
+                include_answer_val = self.user_data.get("include_answer", True)
+            if isinstance(include_answer_val, str):
+                include_answer = include_answer_val.lower() in ("true", "1", "yes")
+            else:
+                include_answer = bool(include_answer_val)
+                
+            include_raw_content_val = kwargs.get("include_raw_content")
+            if include_raw_content_val is None:
+                include_raw_content_val = self.user_data.get("include_raw_content", False)
+            if isinstance(include_raw_content_val, str):
+                include_raw_content = include_raw_content_val.lower() in ("true", "1", "yes")
+            else:
+                include_raw_content = bool(include_raw_content_val)
+                
+            include_images_val = kwargs.get("include_images")
+            if include_images_val is None:
+                include_images_val = self.user_data.get("include_images", False)
+            if isinstance(include_images_val, str):
+                include_images = include_images_val.lower() in ("true", "1", "yes")
+            else:
+                include_images = bool(include_images_val)
 
             # 3. Safely parse domain lists.
-            include_domains_str = self.user_data.get("include_domains", "")
-            exclude_domains_str = self.user_data.get("exclude_domains", "")
+            include_domains_str = kwargs.get("include_domains") or self.user_data.get("include_domains", "")
+            exclude_domains_str = kwargs.get("exclude_domains") or self.user_data.get("exclude_domains", "")
             
-            include_domains = [d.strip() for d in include_domains_str.split(",") if d.strip()]
-            exclude_domains = [d.strip() for d in exclude_domains_str.split(",") if d.strip()]
+            if isinstance(include_domains_str, list):
+                include_domains = [str(d).strip() for d in include_domains_str if str(d).strip()]
+            else:
+                include_domains = [d.strip() for d in str(include_domains_str).split(",") if d.strip()]
+                
+            if isinstance(exclude_domains_str, list):
+                exclude_domains = [str(d).strip() for d in exclude_domains_str if str(d).strip()]
+            else:
+                exclude_domains = [d.strip() for d in str(exclude_domains_str).split(",") if d.strip()]
 
             # 4. Build search configuration
             search_config = {
