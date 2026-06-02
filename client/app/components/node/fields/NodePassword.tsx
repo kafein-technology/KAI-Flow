@@ -1,5 +1,6 @@
 import { Field } from "formik";
 import type { NodeProperty } from "../types";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodePasswordProps {
   property: NodeProperty;
@@ -21,18 +22,16 @@ export const NodePassword = ({ property, values }: NodePasswordProps) => {
 
   return (
     <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
-      <label className="text-white text-sm font-medium mb-2 block">
-        {property.displayName}
-      </label>
+      <FieldLabel
+        label={property.displayName}
+        helpText={getFieldHelpText(property)}
+      />
       <Field
         type="password"
         name={property.name}
         className="input input-bordered w-full bg-[#10182c] text-white text-sm rounded-lg px-4 py-3 border border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
         placeholder={property.placeholder}
       />
-      {property.hint && (
-        <p className="text-slate-400 text-sm mt-1">{property.hint}</p>
-      )}
     </div>
   );
 };

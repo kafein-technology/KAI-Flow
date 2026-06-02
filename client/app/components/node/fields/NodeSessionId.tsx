@@ -3,6 +3,7 @@ import { Field } from "formik";
 import type { NodeProperty } from "../types";
 import { getActiveSessionId } from "../../../services/chatService";
 import { useWorkflows } from "../../../stores/workflows";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeSessionIdProps {
     property: NodeProperty;
@@ -43,9 +44,10 @@ export const NodeSessionId = ({ property, values, setFieldValue }: NodeSessionId
                 }`}
             key={property.name}
         >
-            <label className="text-white text-sm font-medium mb-2 block">
-                {property.displayName}
-            </label>
+            <FieldLabel
+                label={property.displayName}
+                helpText={getFieldHelpText(property)}
+            />
             <div className="flex items-center gap-2">
                 <Field
                     name={property.name}
@@ -65,16 +67,6 @@ export const NodeSessionId = ({ property, values, setFieldValue }: NodeSessionId
                     </button>
                 )}
             </div>
-            {property.description && (
-                <p className="text-slate-400 text-[11px] leading-relaxed mt-1.5 px-1 opacity-80">
-                    {property.description}
-                </p>
-            )}
-            {property.hint && (
-                <p className="text-slate-400 text-[11px] leading-relaxed mt-1 px-1 italic">
-                    {property.hint}
-                </p>
-            )}
         </div>
     );
 };

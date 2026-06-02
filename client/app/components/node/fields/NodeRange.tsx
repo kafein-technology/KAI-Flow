@@ -1,5 +1,6 @@
 import { ErrorMessage, Field } from "formik";
 import type { NodeProperty } from "../types";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeRangeProps {
   property: NodeProperty;
@@ -21,15 +22,17 @@ export const NodeRange = ({ property, values }: NodeRangeProps) => {
 
   return (
     <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
-      <label className="text-white text-sm font-medium mb-2 block">
-        {property.displayName}:{" "}
-        <span className={`text-${property.color || "blue-400"} font-mono`}>
-          {values[property.name]}
-        </span>
-      </label>
-      {property.hint && (
-        <p className="text-slate-400 text-sm mt-1">{property.hint}</p>
-      )}
+      <FieldLabel
+        label={(
+          <>
+            {property.displayName}:{" "}
+            <span className={`text-${property.color || "blue-400"} font-mono`}>
+              {values[property.name]}
+            </span>
+          </>
+        )}
+        helpText={getFieldHelpText(property)}
+      />
       <Field
         name={property.name}
         type="range"
