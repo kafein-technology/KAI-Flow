@@ -1,53 +1,336 @@
 import React, { useState } from 'react';
-import { Code, Table, FileText, ChevronDown, Copy, Check } from 'lucide-react';
-
-export type DisplayMode = 'schema' | 'table' | 'json';
+import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
 
 interface DataDisplayModesProps {
   data: any;
   className?: string;
-  defaultMode?: DisplayMode;
+  isInputPanel?: boolean;
+  inputsMeta?: any;
+  currentNodeName?: string;
+  defaultMode?: string; // Kept for backward compatibility signatures
 }
 
-interface DisplayModeOption {
-  id: DisplayMode;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description: string;
+const DataTreeContext = React.createContext<{
+  isInputPanel?: boolean;
+  inputsMeta?: any;
+  currentNodeName?: string;
+} | null>(null);
+
+function RenderPrimitiveValue({ val }: { val: any }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (val === null || val === undefined) {
+    return <span className="text-gray-500 italic font-mono select-all">null</span>;
+  }
+  
+  if (typeof val === 'string') {
+    const threshold = 150;
+    const isLong = val.length > threshold;
+    
+    if (isLong && !isExpanded) {
+      const truncated = val.slice(0, threshold) + "...";
+      return (
+        <span 
+          onClick={() => setIsExpanded(true)}
+          className="text-emerald-400 font-mono break-all select-all cursor-pointer hover:underline hover:text-emerald-300"
+          title="Click to expand"
+        >
+          "{truncated}"
+        </span>
+      );
+    }
+    
+    return (
+      <span 
+        onClick={() => { if (isLong) setIsExpanded(false); }}
+        className={`text-emerald-400 font-mono break-all select-all ${isLong ? 'cursor-pointer hover:underline hover:text-emerald-300' : ''}`}
+        title={isLong ? "Click to collapse" : undefined}
+      >
+        "{val}"
+      </span>
+    );
+  }
+  
+  if (typeof val === 'number') {
+    return <span className="text-amber-400 font-mono select-all">{val}</span>;
+  }
+  
+  if (typeof val === 'boolean') {
+    return <span className="text-purple-400 font-semibold font-mono select-all">{val ? 'true' : 'false'}</span>;
+  }
+  
+  const stringVal = String(val);
+  const threshold = 150;
+  const isLong = stringVal.length > threshold;
+  
+  if (isLong && !isExpanded) {
+    const truncated = stringVal.slice(0, threshold) + "...";
+    return (
+      <span 
+        onClick={() => setIsExpanded(true)}
+        className="text-gray-300 font-mono select-all cursor-pointer hover:underline hover:text-gray-200"
+        title="Click to expand"
+      >
+        {truncated}
+      </span>
+    );
+  }
+  
+  return (
+    <span 
+      onClick={() => { if (isLong) setIsExpanded(false); }}
+      className={`text-gray-300 font-mono select-all ${isLong ? 'cursor-pointer hover:underline hover:text-gray-200' : ''}`}
+      title={isLong ? "Click to collapse" : undefined}
+    >
+      {stringVal}
+    </span>
+  );
 }
 
-const displayModes: DisplayModeOption[] = [
-  {
-    id: 'schema',
-    label: 'Schema',
-    icon: FileText,
-    description: 'Structured overview with data types',
-  },
-  {
-    id: 'table', 
-    label: 'Table',
-    icon: Table,
-    description: 'Tabular view for arrays and objects',
-  },
-  {
-    id: 'json',
-    label: 'JSON',
-    icon: Code,
-    description: 'Raw JSON with syntax highlighting',
-  },
-];
+function calculateJinjaExpression(path: string[], context: any) {
+  if (!path || path.length === 0) return '';
+
+  const normalizeForJinja = (name: string): string => {
+    let normalized = name
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    if (/^[0-9]/.test(normalized)) {
+      normalized = "n_" + normalized;
+    }
+    return normalized || "node";
+  };
+
+  const buildPathString = (base: string, parts: string[]): string => {
+    let resultPath = base;
+    for (const part of parts) {
+      const trimmedPart = String(part).trim();
+      if (/^\d+$/.test(trimmedPart)) {
+        resultPath += `[${trimmedPart}]`;
+      } else {
+        resultPath += `.${trimmedPart}`;
+      }
+    }
+    return resultPath;
+  };
+
+  if (context?.isInputPanel) {
+    const [rootKey, ...restPath] = path;
+    const metaArray = context.inputsMeta?.[rootKey];
+    if (metaArray && metaArray.length > 0) {
+      const connection = metaArray[0];
+      const sourceAlias = connection.sourceNodeAlias || connection.sourceNodeName;
+      if (sourceAlias) {
+        const normalizedAlias = normalizeForJinja(sourceAlias);
+        const jinjaPath = buildPathString(normalizedAlias, restPath);
+        return `\${{${jinjaPath}}}`;
+      }
+    }
+    return `\${{${buildPathString(rootKey, restPath)}}}`;
+  } else {
+    const currentNodeAlias = context?.currentNodeName || 'node';
+    const normalizedCurrentNode = normalizeForJinja(currentNodeAlias);
+    const [rootKey, ...restPath] = path;
+    if (rootKey === 'output') {
+      return `\${{${buildPathString(normalizedCurrentNode, restPath)}}}`;
+    } else {
+      return `\${{${buildPathString(normalizedCurrentNode, path)}}}`;
+    }
+  }
+}
+
+interface JsonTreeItemProps {
+  keyName?: string;
+  value: any;
+  isLast?: boolean;
+  depth: number;
+  path: string[];
+}
+
+function JsonTreeItem({ keyName, value, isLast = false, depth, path }: JsonTreeItemProps) {
+  const [isOpen, setIsOpen] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const context = React.useContext(DataTreeContext);
+
+  const isObject = value !== null && typeof value === 'object';
+  const isArray = Array.isArray(value);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const text = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error('Failed to copy', err);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent) => {
+    const jinjaExpr = calculateJinjaExpression(path, context);
+    e.dataTransfer.setData("text/plain", jinjaExpr);
+    e.dataTransfer.effectAllowed = "copy";
+  };
+
+  if (isObject) {
+    const keys = isArray ? value : Object.keys(value);
+    const size = isArray ? value.length : keys.length;
+
+    if (size === 0) {
+      return (
+        <div className="flex items-center py-1 pl-4 font-mono text-sm">
+          {keyName && <span className="text-sky-400 font-medium mr-1">{keyName}:</span>}
+          <span className="text-gray-500">{isArray ? '[]' : '{}'}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col font-mono text-sm">
+        {/* Header */}
+        <div className="flex items-center group py-0.5 hover:bg-gray-800/20 rounded cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+          <span className="p-0.5 mr-0.5 text-gray-500 hover:text-gray-300" onClick={(e) => e.stopPropagation()}>
+            {isOpen ? (
+              <ChevronDown className="w-3.5 h-3.5" onClick={() => setIsOpen(false)} />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5" onClick={() => setIsOpen(true)} />
+            )}
+          </span>
+          {keyName && (
+            context?.isInputPanel ? (
+              <span
+                draggable
+                onDragStart={handleDragStart}
+                onClick={(e) => e.stopPropagation()}
+                className="border border-gray-800 bg-gray-900/50 rounded px-1.5 py-0.5 text-xs text-sky-400 font-mono font-medium cursor-grab active:cursor-grabbing hover:bg-gray-800 transition-colors select-none flex items-center gap-1"
+                title="Drag to drop Jinja variable"
+              >
+                <span className="text-[10px] text-gray-500 font-mono">☰</span>
+                {keyName}
+              </span>
+            ) : (
+              <span
+                onClick={(e) => e.stopPropagation()}
+                className="border border-gray-800 bg-gray-950/40 rounded px-1.5 py-0.5 text-xs text-sky-300 font-mono font-medium select-none flex items-center gap-1"
+                title="Output key"
+              >
+                {keyName}
+              </span>
+            )
+          )}
+          {keyName && <span className="text-gray-500 mr-1.5">:</span>}
+          <span className="text-gray-400 mr-2">{isArray ? '[' : '{'}</span>
+          
+          {!isOpen && (
+            <>
+              <span className="text-gray-500 text-xs italic mr-2">
+                {isArray ? `${size} items` : `${size} keys`}
+              </span>
+              <span className="text-gray-400 mr-2">{isArray ? ']' : '}'}</span>
+            </>
+          )}
+
+          {/* Copy node button */}
+          <button
+            onClick={handleCopy}
+            className="opacity-0 group-hover:opacity-100 ml-2 p-1 text-gray-500 hover:text-gray-300 rounded transition-opacity"
+            title={isArray ? "Copy array" : "Copy object"}
+          >
+            {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+          </button>
+        </div>
+
+        {/* Children */}
+        {isOpen && (
+          <div className="border-l border-gray-800/80 ml-2 pl-4 flex flex-col">
+            {isArray
+              ? value.map((item: any, idx: number) => (
+                  <JsonTreeItem
+                    key={idx}
+                    keyName={String(idx)}
+                    value={item}
+                    isLast={idx === value.length - 1}
+                    depth={depth + 1}
+                    path={[...path, String(idx)]}
+                  />
+                ))
+              : Object.entries(value).map(([childKey, childValue], idx, arr) => (
+                  <JsonTreeItem
+                    key={childKey}
+                    keyName={childKey}
+                    value={childValue}
+                    isLast={idx === arr.length - 1}
+                    depth={depth + 1}
+                    path={[...path, childKey]}
+                  />
+                ))}
+          </div>
+        )}
+
+        {/* Footer */}
+        {isOpen && (
+          <div className="text-gray-400 py-0.5 pl-4">
+            {isArray ? ']' : '}'}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Primitive value
+  return (
+    <div className="flex items-center group py-0.5 pl-4 hover:bg-gray-800/20 rounded font-mono text-sm">
+      {keyName && (
+        context?.isInputPanel ? (
+          <span
+            draggable
+            onDragStart={handleDragStart}
+            className="border border-gray-800 bg-gray-900/50 rounded px-1.5 py-0.5 text-xs text-sky-400 font-mono font-medium cursor-grab active:cursor-grabbing hover:bg-gray-800 transition-colors select-none flex items-center gap-1 mr-1 flex-shrink-0"
+            title="Drag to drop Jinja variable"
+          >
+            <span className="text-[10px] text-gray-500 font-mono">☰</span>
+            {keyName}
+          </span>
+        ) : (
+          <span
+            className="border border-gray-800 bg-gray-950/40 rounded px-1.5 py-0.5 text-xs text-sky-300 font-mono font-medium select-none flex items-center gap-1 mr-1 flex-shrink-0"
+            title="Output key"
+          >
+            {keyName}
+          </span>
+        )
+      )}
+      {keyName && <span className="text-gray-500 mr-1.5 flex-shrink-0">:</span>}
+      <div className="flex-1 min-w-0">
+        <RenderPrimitiveValue val={value} />
+      </div>
+      
+      {/* Copy primitive button */}
+      <button
+        onClick={handleCopy}
+        className="opacity-0 group-hover:opacity-100 ml-2 p-1 text-gray-500 hover:text-gray-300 rounded transition-opacity flex-shrink-0"
+        title="Copy value"
+      >
+        {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3 h-3" />}
+      </button>
+    </div>
+  );
+}
 
 export default function DataDisplayModes({
   data,
   className = '',
-  defaultMode = 'schema',
+  isInputPanel = false,
+  inputsMeta,
+  currentNodeName,
 }: DataDisplayModesProps) {
-  const [selectedMode, setSelectedMode] = useState<DisplayMode>(defaultMode);
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = async () => {
+  const handleCopyAll = async () => {
     try {
-      const textToCopy = typeof data === 'object' 
+      const textToCopy = typeof data === 'object' && data !== null
         ? JSON.stringify(data, null, 2)
         : String(data);
       await navigator.clipboard.writeText(textToCopy);
@@ -58,278 +341,47 @@ export default function DataDisplayModes({
     }
   };
 
-  const renderSchemaView = (obj: any, depth: number = 0): React.ReactNode => {
-    if (obj === null || obj === undefined) {
-      return <span className="text-gray-500 italic">null</span>;
-    }
-
-    if (Array.isArray(obj)) {
-      return (
-        <div className={`${depth > 0 ? 'ml-4' : ''}`}>
-          <div className="text-blue-400 text-sm font-medium mb-2">
-            Array ({obj.length} items)
-          </div>
-          {obj.length > 0 && (
-            <div className="border-l-2 border-gray-600 pl-3">
-              <div className="text-gray-400 text-xs mb-2">Item structure:</div>
-              {renderSchemaView(obj[0], depth + 1)}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    if (typeof obj === 'object') {
-      const entries = Object.entries(obj);
-      return (
-        <div className={`${depth > 0 ? 'ml-4' : ''} space-y-2`}>
-          {entries.map(([key, value]) => (
-            <div key={key} className="flex items-start gap-3">
-              <div className="text-green-400 font-medium text-sm min-w-0 flex-shrink-0">
-                {key}
-              </div>
-              <div className="text-gray-400 text-xs self-center">:</div>
-              <div className="min-w-0 flex-1">
-                {typeof value === 'object' ? (
-                  renderSchemaView(value, depth + 1)
-                ) : (
-                  <div className="flex items-center gap-2">
-                    {typeof value === 'string' && value.length > 50 ? (
-                      <span className="text-gray-300 text-sm">
-                        {value.substring(0, 50)}...
-                      </span>
-                    ) : (
-                      <span className="text-gray-300 text-sm">
-                        {String(value)}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-gray-300">{String(obj)}</span>
-      </div>
-    );
-  };
-
-  const renderTableView = (obj: any): React.ReactNode => {
-    // Handle array data
-    if (Array.isArray(obj)) {
-      if (obj.length === 0) {
-        return (
-          <div className="text-gray-400 text-center py-8">
-            <Table className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>No data to display</p>
-          </div>
-        );
-      }
-
-      // Get all unique keys from all objects in array
-      const allKeys = new Set<string>();
-      obj.forEach(item => {
-        if (typeof item === 'object' && item !== null) {
-          Object.keys(item).forEach(key => allKeys.add(key));
-        }
-      });
-
-      const keys = Array.from(allKeys);
-
-      if (keys.length === 0) {
-        return (
-          <div className="text-gray-400 text-center py-8">
-            <Table className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>Array contains primitive values, not objects</p>
-          </div>
-        );
-      }
-
-      return (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-600">
-                {keys.map(key => (
-                  <th key={key} className="text-left p-3 text-green-400 font-medium">
-                    {key}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {obj.map((item, index) => (
-                <tr key={index} className="border-b border-gray-700/50 hover:bg-gray-800/30">
-                  {keys.map(key => (
-                    <td key={key} className="p-3 text-gray-300 max-w-xs">
-                      {item && typeof item === 'object' ? (
-                        typeof item[key] === 'object' ? (
-                          <span className="text-gray-500 italic">
-                            {Array.isArray(item[key]) 
-                              ? `[${item[key].length} items]`
-                              : '{object}'}
-                          </span>
-                        ) : (
-                          <span className="break-words">
-                            {String(item[key] || '—')}
-                          </span>
-                        )
-                      ) : (
-                        <span className="text-gray-500 italic">—</span>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-    }
-
-    // Handle object data as key-value table
-    if (typeof obj === 'object' && obj !== null) {
-      const entries = Object.entries(obj);
-      
-      if (entries.length === 0) {
-        return (
-          <div className="text-gray-400 text-center py-8">
-            <Table className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>No data to display</p>
-          </div>
-        );
-      }
-
-      return (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-600">
-                <th className="text-left p-3 text-green-400 font-medium w-1/3">
-                  Property
-                </th>
-                <th className="text-left p-3 text-green-400 font-medium w-1/6">
-                  Type
-                </th>
-                <th className="text-left p-3 text-green-400 font-medium">
-                  Value
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map(([key, value]) => (
-                <tr key={key} className="border-b border-gray-700/50 hover:bg-gray-800/30">
-                  <td className="p-3 text-blue-300 font-medium">
-                    {key}
-                  </td>
-                  <td className="p-3 text-purple-400 text-xs">
-                    {Array.isArray(value) ? `array[${value.length}]` : typeof value}
-                  </td>
-                  <td className="p-3 text-gray-300 max-w-xs">
-                    {typeof value === 'object' && value !== null ? (
-                      <span className="text-gray-500 italic">
-                        {Array.isArray(value) 
-                          ? `[${value.length} items]`
-                          : `{${Object.keys(value).length} properties}`}
-                      </span>
-                    ) : (
-                      <span className="break-words">
-                        {String(value)}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-    }
-
-    // Fallback for primitive values
-    return (
-      <div className="text-gray-400 text-center py-8">
-        <Table className="w-8 h-8 mx-auto mb-2 opacity-50" />
-        <p>Table view is not available for primitive values</p>
-      </div>
-    );
-  };
-
-  const renderJsonView = (obj: any): React.ReactNode => {
-    const jsonString = JSON.stringify(obj, null, 2);
-    return (
-      <pre className="text-sm text-gray-300 whitespace-pre-wrap break-words">
-        {jsonString}
-      </pre>
-    );
-  };
-
-  const renderContent = (): React.ReactNode => {
-    switch (selectedMode) {
-      case 'schema':
-        return renderSchemaView(data);
-      case 'table':
-        return renderTableView(data);
-      case 'json':
-        return renderJsonView(data);
-      default:
-        return renderJsonView(data);
-    }
-  };
+  const isEmpty = data === null || data === undefined || (typeof data === 'object' && Object.keys(data).length === 0);
 
   return (
-    <div className={`w-full ${className}`}>
-      {/* Mode Selector */}
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-700/50">
-        <div className="flex items-center gap-2">
-          {displayModes.map((mode) => {
-            const Icon = mode.icon;
-            return (
-              <button
-                key={mode.id}
-                onClick={() => setSelectedMode(mode.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedMode === mode.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white'
-                }`}
-                title={mode.description}
-              >
-                <Icon className="w-4 h-4" />
-                {mode.label}
-              </button>
-            );
-          })}
+    <DataTreeContext.Provider value={{ isInputPanel, inputsMeta, currentNodeName }}>
+      <div className={`w-full flex flex-col bg-gray-950/40 border border-gray-850 rounded-xl overflow-hidden ${className}`}>
+        {/* Header bar */}
+        <div className="flex items-center justify-between px-4 py-2 bg-gray-900/60 border-b border-gray-850">
+          <span className="text-xs font-semibold text-gray-400 tracking-wider uppercase">
+            Data Tree
+          </span>
+
+          <button
+            onClick={handleCopyAll}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-800/60 hover:bg-gray-700/60 text-gray-300 hover:text-white border border-gray-700/50 transition-all cursor-pointer"
+            title="Copy full JSON"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-green-400" />
+                <span className="text-green-400">Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy Full JSON</span>
+              </>
+            )}
+          </button>
         </div>
 
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white transition-colors"
-          title="Copy data to clipboard"
-        >
-          {copied ? (
-            <>
-              <Check className="w-4 h-4 text-green-400" />
-              <span className="text-green-400">Copied</span>
-            </>
+        {/* Main tree display area */}
+        <div className="p-4 overflow-auto max-h-[500px] bg-gray-900/10">
+          {isEmpty ? (
+            <div className="text-gray-500 italic py-4 pl-4 text-sm font-mono">
+              {"{ empty }"}
+            </div>
           ) : (
-            <>
-              <Copy className="w-4 h-4" />
-              Copy
-            </>
+            <JsonTreeItem value={data} depth={0} path={[]} />
           )}
-        </button>
+        </div>
       </div>
-
-      {/* Content Display */}
-      <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700/30 max-h-96 overflow-auto">
-        {renderContent()}
-      </div>
-    </div>
+    </DataTreeContext.Provider>
   );
 }

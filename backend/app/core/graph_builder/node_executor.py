@@ -137,6 +137,7 @@ class NodeExecutor:
         """
         try:
             logger.info(f"[PROCESSING] Executing processor node: {node_id} ({gnode.type})")
+            start_time = datetime.datetime.now()
             
             # Extract user inputs for processor
             user_inputs = self.extract_user_inputs_for_processor(gnode, state)
@@ -146,9 +147,27 @@ class NodeExecutor:
             user_inputs = apply_jinja_to_inputs(user_inputs, state, node_id, self._nodes_registry)
             logger.debug(f"Templated user inputs: {list(user_inputs.keys()) if user_inputs else 'None'}")
             
+            # Inject kafka_data if the node is a Kafka consumer trigger
+            if gnode.type in ("KafkaConsumer", "KafkaTrigger") or gnode.node_instance.__class__.__name__ == "KafkaTriggerNode":
+                kafka_data = None
+                state_variables = state.get("variables") if isinstance(state, dict) else getattr(state, "variables", None)
+                if isinstance(state_variables, dict):
+                    kafka_data = state_variables.get("kafka_data")
+                state_node_outputs = state.get("node_outputs") if isinstance(state, dict) else getattr(state, "node_outputs", None)
+                if not kafka_data and isinstance(state_node_outputs, dict):
+                    kafka_node_out = state_node_outputs.get(node_id)
+                    if isinstance(kafka_node_out, dict):
+                        kafka_data = kafka_node_out.get("kafka_data") or kafka_node_out.get("value")
+                if kafka_data:
+                    user_inputs["kafka_data"] = kafka_data
+                    logger.info(f"[KAFKA] Successfully injected kafka_data into inputs for node: {node_id}")
+
             # Extract connected node instances
             connected_nodes = self.extract_connected_node_instances(gnode, state)
             logger.debug(f"Connected nodes extracted: {list(connected_nodes.keys())}")
+            
+            # Build resolved inputs representation for standard logging
+            resolved_inputs = {**user_inputs, **{k: make_json_serializable_with_langchain(v) if not isinstance(v, (str, dict, list, int, float, bool)) else v for k, v in connected_nodes.items()}}
             
             # Call execute with proper async handling
             execute_method = gnode.node_instance.execute
@@ -161,7 +180,15 @@ class NodeExecutor:
             except Exception:
                 pass  # If we can't determine node type, use default processor pattern
             
-            if is_terminator:
+            # Check if trigger node defines a custom _execute method taking state
+            if hasattr(gnode.node_instance, "_execute") and callable(getattr(gnode.node_instance, "_execute")):
+                logger.info(f"[TRIGGER] Executing custom _execute with state for node: {node_id}")
+                execute_method_trigger = gnode.node_instance._execute
+                if inspect.iscoroutinefunction(execute_method_trigger):
+                    result = self._execute_async_trigger(execute_method_trigger, state, node_id)
+                else:
+                    result = execute_method_trigger(state)
+            elif is_terminator:
                 # TERMINATOR nodes expect (previous_node, inputs) signature
                 # Extract the primary connected input as previous_node
                 previous_node = None
@@ -210,20 +237,35 @@ class NodeExecutor:
                 last_output = str(processed_result)
             # Update the state directly
             state.last_output = last_output
-            state.executed_nodes = updated_executed_nodes                       # Filter out complex objects before storing in state
-            if gnode.type in PROCESSOR_NODE_TYPES:
-                serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=True)
-                serializable_output = last_output
-                logger.debug(f"Agent serializable output: {type(serializable_output)} - '{str(serializable_output)[:100]}...'")
+            state.executed_nodes = updated_executed_nodes
+            
+            # Calculate execution duration
+            execution_time_ms = round((datetime.datetime.now() - start_time).total_seconds() * 1000, 2)
+            
+            # Format standard output
+            from app.core.json_utils import format_standard_node_output
+            standard_output = format_standard_node_output(
+                node_id=node_id,
+                node_type=gnode.type,
+                success=True,
+                status_code=200,
+                execution_time_ms=execution_time_ms,
+                inputs=resolved_inputs,
+                output=processed_result,
+                node_instance=gnode.node_instance
+            )
+            
+            if isinstance(state, dict):
+                if 'node_outputs' not in state or not isinstance(state['node_outputs'], dict):
+                    state['node_outputs'] = {}
+                state['node_outputs'][node_id] = standard_output
             else:
-                serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=False)
-                serializable_output = serializable_result            # Store only serializable data in state for connected nodes to access
-            if not hasattr(state, 'node_outputs'):
-                state.node_outputs = {}
-            state.node_outputs[node_id] = serializable_result
+                if not hasattr(state, 'node_outputs') or not isinstance(state.node_outputs, dict):
+                    state.node_outputs = {}
+                state.node_outputs[node_id] = standard_output
             
             result_dict = {
-                f"output_{node_id}": serializable_output,
+                f"output_{node_id}": standard_output,
                 "executed_nodes": updated_executed_nodes,
                 "last_output": last_output,
                 "node_outputs": state.node_outputs
@@ -235,6 +277,40 @@ class NodeExecutor:
             return result_dict
             
         except Exception as e:
+            try:
+                execution_time_ms = round((datetime.datetime.now() - start_time).total_seconds() * 1000, 2)
+                error_details = {
+                    "node_id": node_id,
+                    "node_type": gnode.type,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "stack_trace": traceback.format_exc()
+                }
+                from app.core.json_utils import format_standard_node_output
+                local_resolved_inputs = locals().get('resolved_inputs', {})
+                standard_error_output = format_standard_node_output(
+                    node_id=node_id,
+                    node_type=gnode.type,
+                    success=False,
+                    status_code=500,
+                    execution_time_ms=execution_time_ms,
+                    inputs=local_resolved_inputs,
+                    output=None,
+                    error=error_details,
+                    node_instance=gnode.node_instance
+                )
+                if isinstance(state, dict):
+                    if 'node_outputs' not in state or not isinstance(state['node_outputs'], dict):
+                        state['node_outputs'] = {}
+                    state['node_outputs'][node_id] = standard_error_output
+                else:
+                    if not hasattr(state, 'node_outputs') or not isinstance(state.node_outputs, dict):
+                        state.node_outputs = {}
+                    state.node_outputs[node_id] = standard_error_output
+            except Exception as formatting_err:
+                logger.warning(f"Failed to record standardized error in execute_processor_node: {formatting_err}")
+
             raise NodeExecutionError(
                 node_id=node_id,
                 node_type=gnode.type,
@@ -272,9 +348,14 @@ class NodeExecutor:
                     output_key = f"output_{node_id}"
                     if output_key in result:
                         primary_raw = result[output_key]
-                        if not hasattr(state, "node_outputs"):
-                            state.node_outputs = {}
-                        state.node_outputs[node_id] = primary_raw
+                        if isinstance(state, dict):
+                            if 'node_outputs' not in state or not isinstance(state['node_outputs'], dict):
+                                state['node_outputs'] = {}
+                            state['node_outputs'][node_id] = primary_raw
+                        else:
+                            if not hasattr(state, "node_outputs") or not isinstance(state.node_outputs, dict):
+                                state.node_outputs = {}
+                            state.node_outputs[node_id] = primary_raw
                         logger.debug(
                             f"[TEMPLATE] Standard node {node_id} stored in state.node_outputs "
                             f"with type={type(primary_raw)}"
@@ -282,7 +363,7 @@ class NodeExecutor:
                         # CRITICAL: Ensure the returned result dict also has the updated node_outputs
                         # to prevent LangGraph's merge from overwriting the in-place change with an old version
                         if isinstance(result, dict):
-                            result["node_outputs"] = state.node_outputs
+                            result["node_outputs"] = state.get("node_outputs", {}) if isinstance(state, dict) else getattr(state, "node_outputs", {})
             except Exception as e:
                 logger.warning(f"[TEMPLATE] Failed to store standard node output for {node_id}: {e}")
             
@@ -572,6 +653,24 @@ class NodeExecutor:
         except Exception as e:
             logger.error(f"Failed to execute async terminator method for {node_id}: {e}")
             raise
+            
+    def _execute_async_trigger(self, execute_method, state, node_id: str) -> Any:
+        """Execute async trigger method with proper event loop handling."""
+        try:
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, execute_method(state))
+                        result = future.result()
+                else:
+                    result = asyncio.run(execute_method(state))
+            except RuntimeError:
+                result = asyncio.run(execute_method(state))
+            return result
+        except Exception as e:
+            logger.error(f"Failed to execute async trigger for {node_id}: {e}")
+            raise
     
     def _has_pool_connections(self, gnode: GraphNodeInstance) -> bool:
         """
@@ -671,8 +770,9 @@ class NodeExecutor:
                 return None
             
             # Check if we have cached output for this node
-            if hasattr(state, 'node_outputs') and source_node_id in state.node_outputs:
-                stored_result = state.node_outputs[source_node_id]
+            state_node_outputs = state.get("node_outputs") if isinstance(state, dict) else getattr(state, "node_outputs", None)
+            if isinstance(state_node_outputs, dict) and source_node_id in state_node_outputs:
+                stored_result = state_node_outputs[source_node_id]
                 
                 # Try to extract specific handle output
                 if isinstance(stored_result, dict) and source_handle in stored_result:
