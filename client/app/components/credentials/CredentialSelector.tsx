@@ -2,9 +2,13 @@ import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, ChevronDown, Plus } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
-import { getUserCredentialById } from "~/services/userCredentialService";
+import {
+  getUserCredentialById,
+  testCredentialRaw,
+} from "~/services/userCredentialService";
 import ServiceSelectionModal from "~/components/credentials/ServiceSelectionModal";
 import DynamicCredentialForm from "~/components/credentials/DynamicCredentialForm";
+import { getCredentialData } from "~/components/credentials/credentialPayload";
 import type { ServiceDefinition } from "~/types/credentials";
 import { getServiceDefinition } from "~/types/credentials";
 
@@ -112,7 +116,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
     try {
       const payload = {
         name: values.name || `${selectedService.name} Credential`,
-        data: values,
+        data: getCredentialData(values),
         service_type: selectedService.id,
       };
 
@@ -254,6 +258,13 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
                   service={selectedService}
                   onSubmit={handleCreateCredential}
                   onCancel={() => setSelectedService(null)}
+                  onTest={(values) =>
+                    testCredentialRaw(
+                      selectedService.id,
+                      getCredentialData(values)
+                    )
+                  }
+                  initialValues={{ name: `${selectedService.name} Credential` }}
                   isSubmitting={isSubmitting}
                 />
               </div>
