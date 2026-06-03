@@ -168,6 +168,7 @@ const isProviderNode = (node?: Node): boolean => {
     "DocumentLoaderNode",
     "WebScraperNode", "WebScraper",
     "StringInputNode",
+    "MarkItDownTool",
   ];
   return providerTypes.some((type) =>
     node.type?.includes(type) ||

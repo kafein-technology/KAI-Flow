@@ -870,19 +870,39 @@ class ReactAgentNode(ProcessorNode):
             return []
         
         tools_list = []
-        tools_dict=tools_to_process
+        tools_dict = tools_to_process
+        
+        # Handle non-dict formats
         if not isinstance(tools_to_process, dict):
-            tools_dict=dict((key,d[key]) for d in tools_to_process for key in d)
+            tools_dict = dict((key, d[key]) for d in tools_to_process for key in d)
 
-        for tool_input in tools_dict:
-            if isinstance(tools_dict[tool_input]['tool'], BaseTool):
-                tools_list.append(tools_dict[tool_input]['tool'])
+        for tool_key in tools_dict:
+            tool_value = tools_dict[tool_key]
+            
+            # Case 1: Value is already a BaseTool (aggregated format)
+            if isinstance(tool_value, BaseTool):
+                tools_list.append(tool_value)
+                print(f"[TOOL] Added tool directly: {tool_value.name}")
+            
+            # Case 2: Value is a dict with 'tool' key (nested format)
+            elif isinstance(tool_value, dict) and 'tool' in tool_value:
+                tool = tool_value['tool']
+                if isinstance(tool, BaseTool):
+                    tools_list.append(tool)
+                    print(f"[TOOL] Added tool from nested dict: {tool.name}")
+                else:
+                    # Try auto-conversion
+                    converted_tool = self.auto_tool_manager.converter.convert_to_tool(tool)
+                    if converted_tool:
+                        tools_list.append(converted_tool)
+                        print(f"[TOOL] Auto-converted nested tool: {converted_tool.name}")
+            
+            # Case 3: Try auto-discovery
             else:
-                # Use auto-discovery system
-                converted_tool = self.auto_tool_manager.converter.convert_to_tool(tool_input)
+                converted_tool = self.auto_tool_manager.converter.convert_to_tool(tool_value)
                 if converted_tool:
                     tools_list.append(converted_tool)
-                    print(f"[TOOL] Auto-converted {type(tool_input).__name__} to tool: {converted_tool.name}")
+                    print(f"[TOOL] Auto-converted {type(tool_value).__name__} to tool: {converted_tool.name}")
         
         return tools_list
 
