@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Maximize2, X } from "lucide-react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor, languages, IDisposable } from "monaco-editor";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 import { completionsByLanguage } from "./monaco/completions";
 import {
     getPythonDiagnostics,
@@ -360,9 +361,11 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
             key={property.name}
         >
             <div className="flex items-center justify-between mb-2">
-                <label className="text-white text-sm font-medium flex items-center gap-2">
-                    {property.displayName}
-                </label>
+                <FieldLabel
+                    label={property.displayName}
+                    helpText={getFieldHelpText(property)}
+                    className="text-white text-sm font-medium"
+                />
                 <VersionBadge />
             </div>
 
@@ -397,14 +400,6 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
                 component="div"
                 className="text-red-400 text-sm mt-1"
             />
-
-            {property.description && (
-                <p className="text-slate-400 text-xs mt-2">{property.description}</p>
-            )}
-
-            {property.hint && (
-                <p className="text-slate-400 text-sm mt-1">{property.hint}</p>
-            )}
 
             {property.maxLength && (
                 <div className="text-gray-400 text-xs mt-1">

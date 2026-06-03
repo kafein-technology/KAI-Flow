@@ -1,6 +1,7 @@
 import CredentialSelector from "../../credentials/CredentialSelector";
 import { getUserCredentialById } from "~/services/userCredentialService";
 import type { NodeProperty } from "../types";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeCredentialSelectProps {
   property: NodeProperty;
@@ -49,9 +50,10 @@ export const NodeCredentialSelect = ({ property, values, setFieldValue }: NodeCr
 
   return (
     <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
-      <label className="text-white text-sm font-medium mb-2 block">
-        {property.displayName}
-      </label>
+      <FieldLabel
+        label={property.displayName}
+        helpText={getFieldHelpText(property)}
+      />
       <CredentialSelector
         value={values[property.name] ?? values.credential_id}
         onChange={handleCredentialChange}
