@@ -123,6 +123,40 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
         monacoRef.current = monacoInstance;
         registerCompletions(monacoInstance);
 
+        // Custom drag & drop handler to prevent Monaco snippet formatting bug
+        const domNode = editorInstance.getDomNode();
+        if (domNode) {
+            const handleDragOver = (e: DragEvent) => {
+                e.preventDefault();
+            };
+            const handleDrop = (e: DragEvent) => {
+                const text = e.dataTransfer?.getData("text/plain");
+                if (text) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const target = editorInstance.getTargetAtClientPoint(e.clientX, e.clientY);
+                    if (target && target.position) {
+                        const { lineNumber, column } = target.position;
+                        editorInstance.executeEdits("drag-drop", [
+                            {
+                                range: new monacoInstance.Range(lineNumber, column, lineNumber, column),
+                                text: text,
+                                forceMoveMarkers: true,
+                            }
+                        ]);
+                        editorInstance.setPosition({ lineNumber, column: column + text.length });
+                        editorInstance.focus();
+                    }
+                }
+            };
+            domNode.addEventListener("dragover", handleDragOver);
+            domNode.addEventListener("drop", handleDrop);
+            (editorInstance as any)._dropCleanup = () => {
+                domNode.removeEventListener("dragover", handleDragOver);
+                domNode.removeEventListener("drop", handleDrop);
+            };
+        }
+
         // Ctrl+S: save & close
         editorInstance.addCommand(
             monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
@@ -214,6 +248,40 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
         registerCompletions(monacoInstance);
         editorInstance.focus();
 
+        // Custom drag & drop handler for fullscreen mode
+        const domNode = editorInstance.getDomNode();
+        if (domNode) {
+            const handleDragOver = (e: DragEvent) => {
+                e.preventDefault();
+            };
+            const handleDrop = (e: DragEvent) => {
+                const text = e.dataTransfer?.getData("text/plain");
+                if (text) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const target = editorInstance.getTargetAtClientPoint(e.clientX, e.clientY);
+                    if (target && target.position) {
+                        const { lineNumber, column } = target.position;
+                        editorInstance.executeEdits("drag-drop", [
+                            {
+                                range: new monacoInstance.Range(lineNumber, column, lineNumber, column),
+                                text: text,
+                                forceMoveMarkers: true,
+                            }
+                        ]);
+                        editorInstance.setPosition({ lineNumber, column: column + text.length });
+                        editorInstance.focus();
+                    }
+                }
+            };
+            domNode.addEventListener("dragover", handleDragOver);
+            domNode.addEventListener("drop", handleDrop);
+            (editorInstance as any)._dropCleanup = () => {
+                domNode.removeEventListener("dragover", handleDragOver);
+                domNode.removeEventListener("drop", handleDrop);
+            };
+        }
+
         // Ctrl+S: save & close fullscreen + submit form
         editorInstance.addCommand(
             monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
@@ -248,6 +316,12 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
         return () => {
             disposablesRef.current.forEach((d) => d.dispose());
             disposablesRef.current = [];
+            if (editorRef.current && (editorRef.current as any)._dropCleanup) {
+                (editorRef.current as any)._dropCleanup();
+            }
+            if (fullscreenEditorRef.current && (fullscreenEditorRef.current as any)._dropCleanup) {
+                (fullscreenEditorRef.current as any)._dropCleanup();
+            }
         };
     }, []);
 

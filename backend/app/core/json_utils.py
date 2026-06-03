@@ -38,7 +38,7 @@ Usage:
     serializable = make_json_serializable_with_langchain(agent_result, filter_complex=True)
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 from datetime import datetime, date
 from decimal import Decimal
 import uuid
@@ -102,6 +102,17 @@ def json_serializer_default(obj: Any) -> Any:
         return str(obj)
     elif isinstance(obj, Decimal):
         return float(obj)
+    # LangChain LLMs, ChatModels, Embeddings
+    class_name = obj.__class__.__name__
+    module_name = obj.__class__.__module__.lower()
+    if "langchain" in module_name:
+        is_llm_or_embed = any(kw in module_name for kw in ("language_models", "chat_models", "llms", "embeddings")) or class_name.endswith("Embeddings")
+        if is_llm_or_embed:
+            if hasattr(obj, 'model_name') and getattr(obj, 'model_name'):
+                return f"<{class_name} model={getattr(obj, 'model_name')}>"
+            if hasattr(obj, 'model') and getattr(obj, 'model'):
+                return f"<{class_name} model={getattr(obj, 'model')}>"
+            return f"<{class_name}>"
     # LangChain objects (if available)
     elif _LANGCHAIN_AVAILABLE and (_BaseTool and isinstance(obj, _BaseTool) or 
                                    _Runnable and isinstance(obj, _Runnable)):
@@ -194,6 +205,18 @@ def make_json_serializable(obj: Any, filter_langchain_complex: bool = False) -> 
     elif isinstance(obj, (list, tuple)):
         return [make_json_serializable(item, filter_langchain_complex) 
                 for item in obj]
+    # LangChain LLMs, ChatModels, Embeddings
+    class_name = obj.__class__.__name__
+    module_name = obj.__class__.__module__.lower()
+    if "langchain" in module_name:
+        is_llm_or_embed = any(kw in module_name for kw in ("language_models", "chat_models", "llms", "embeddings")) or class_name.endswith("Embeddings")
+        if is_llm_or_embed:
+            if hasattr(obj, 'model_name') and getattr(obj, 'model_name'):
+                return f"<{class_name} model={getattr(obj, 'model_name')}>"
+            if hasattr(obj, 'model') and getattr(obj, 'model'):
+                return f"<{class_name} model={getattr(obj, 'model')}>"
+            return f"<{class_name}>"
+
     # LangChain complex objects (BaseTool, Runnable, callable) - convert to string representation
     # Note: We use 'if' here instead of 'elif' to allow fallthrough to Pydantic handling for other LangChain objects like Document
     if _LANGCHAIN_AVAILABLE:
@@ -300,6 +323,152 @@ def make_json_serializable_with_langchain(obj: Any, filter_complex: bool = True)
         >>> # tools and memory are filtered out, output is preserved
     """
     return make_json_serializable(obj, filter_langchain_complex=filter_complex)
+
+
+def format_standard_node_output(
+    node_id: str,
+    node_type: str,
+    success: bool,
+    status_code: int,
+    execution_time_ms: float,
+    inputs: Any,
+    output: Any,
+    error: Optional[Dict[str, Any]] = None,
+    node_instance: Optional[Any] = None
+) -> Dict[str, Any]:
+    """
+    Format node execution result into a standardized JSON structure.
+    Also copies keys from the output payload to the top-level (if output is a dict)
+    to maintain backward compatibility with routing and direct key access.
+    
+    If node_instance is provided, metadata.outputs definitions are dynamically inspected
+    and mapped to the root of the output dictionary.
+    """
+    serializable_inputs = make_json_serializable_with_langchain(inputs, filter_complex=True)
+    serializable_output = make_json_serializable_with_langchain(output, filter_complex=False)
+    
+    # Dynamically resolve success status and status code from the output payload if present
+    dynamic_success = success
+    dynamic_status_code = status_code
+    
+    if isinstance(serializable_output, dict):
+        # Resolve dynamic success
+        if "success" in serializable_output:
+            val = serializable_output["success"]
+            if isinstance(val, bool):
+                dynamic_success = val
+            elif str(val).lower() in ("true", "1"):
+                dynamic_success = True
+            elif str(val).lower() in ("false", "0"):
+                dynamic_success = False
+                
+        # Resolve dynamic status code (supports both status_code and statusCode)
+        if "status_code" in serializable_output:
+            try:
+                dynamic_status_code = int(serializable_output["status_code"])
+            except (ValueError, TypeError):
+                pass
+        elif "statusCode" in serializable_output:
+            try:
+                dynamic_status_code = int(serializable_output["statusCode"])
+            except (ValueError, TypeError):
+                pass
+                
+    result = {
+        "success": dynamic_success,
+        "statusCode": dynamic_status_code,
+        "nodeId": node_id,
+        "nodeType": node_type,
+        "timestamp": datetime.now().isoformat(),
+        "executionTimeMs": execution_time_ms,
+        "inputs": serializable_inputs,
+        "output": serializable_output,
+        "error": error
+    }
+    
+    if isinstance(serializable_output, dict):
+        reserved_keys = set(result.keys())
+        for k, v in serializable_output.items():
+            if k not in reserved_keys:
+                result[k] = v
+                
+    # Dynamic metadata-based mapping if node_instance or its outputs metadata is available
+    mapped_dynamically = False
+    outputs_list = []
+    if node_instance is not None:
+        if hasattr(node_instance, "metadata") and node_instance.metadata is not None:
+            outputs_list = getattr(node_instance.metadata, "outputs", [])
+        elif hasattr(node_instance, "outputs") and node_instance.outputs is not None:
+            outputs_list = node_instance.outputs
+        elif isinstance(node_instance, dict):
+            outputs_list = node_instance.get("outputs") or node_instance.get("metadata", {}).get("outputs", [])
+            
+    if outputs_list:
+        output_names = []
+        connection_outputs = []
+        for out in outputs_list:
+            if isinstance(out, dict):
+                name = out.get("name")
+                is_conn = out.get("is_connection", False)
+            else:
+                name = getattr(out, "name", None)
+                is_conn = getattr(out, "is_connection", False)
+            if name:
+                output_names.append(name)
+                if is_conn:
+                    connection_outputs.append(name)
+                    
+        # 1. If output is a dict, copy matching keys from output to result
+        if isinstance(serializable_output, dict):
+            for name in output_names:
+                if name in serializable_output:
+                    result[name] = serializable_output[name]
+                    mapped_dynamically = True
+                    
+        # 2. If output is not mapped, and there is exactly one output defined in metadata
+        if not mapped_dynamically and len(output_names) == 1:
+            name = output_names[0]
+            result[name] = serializable_output
+            mapped_dynamically = True
+            
+        # 3. If output is not mapped, and there is exactly one connection output defined in metadata
+        if not mapped_dynamically and len(connection_outputs) == 1:
+            result[connection_outputs[0]] = serializable_output
+            mapped_dynamically = True
+
+    # Fallback to static mapping for legacy/backward compatibility
+    if not mapped_dynamically:
+        node_type_lower = node_type.lower()
+        if "openai" in node_type_lower or "openrouter" in node_type_lower or "llm" in node_type_lower:
+            result["llm"] = serializable_output
+        elif "embeddings" in node_type_lower or "embedder" in node_type_lower:
+            result["embedder"] = serializable_output
+        elif "reranker" in node_type_lower or "cohere" in node_type_lower:
+            result["reranker"] = serializable_output
+        elif "memory" in node_type_lower:
+            result["memory"] = serializable_output
+        elif "tavily" in node_type_lower or "search" in node_type_lower:
+            result["search_tool"] = serializable_output
+        elif "retriever" in node_type_lower:
+            result["retriever_tool"] = serializable_output
+        elif "loader" in node_type_lower or "scraper" in node_type_lower or "crawler" in node_type_lower:
+            result["documents"] = serializable_output
+        elif "webhook" in node_type_lower:
+            if isinstance(serializable_output, dict):
+                result["webhook_data"] = serializable_output.get("webhook_data")
+                result["webhook_endpoint"] = serializable_output.get("webhook_endpoint")
+                result["webhook_config"] = serializable_output.get("webhook_config")
+        elif "kafka" in node_type_lower or "consumer" in node_type_lower:
+            if isinstance(serializable_output, dict):
+                result["kafka_data"] = serializable_output.get("kafka_data")
+        elif "timer" in node_type_lower:
+            if isinstance(serializable_output, dict):
+                result["timer_data"] = serializable_output.get("timer_data")
+        elif "errortrigger" in node_type_lower:
+            if isinstance(serializable_output, dict):
+                result["error_data"] = serializable_output.get("error_data")
+
+    return result
 
 
 def safe_json_dumps(obj: Any, **kwargs) -> str:
