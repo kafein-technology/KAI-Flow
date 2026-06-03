@@ -59,7 +59,6 @@ const iconAltText: Record<string, string> = {
   CohereEmbeddings: "cohere",
   OpenAIEmbedder: "openai",
   BufferMemory: "buffer-memory",
-  ConversationMemory: "conversation-memory",
   TextDataLoader: "text-loader",
   DocumentLoader: "document-loader",
   ChunkSplitter: "chunk-splitter",

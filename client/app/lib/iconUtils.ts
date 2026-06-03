@@ -74,7 +74,6 @@ export function getNodeTypeIconPath(nodeType: string): string {
 
         // Memory
         BufferMemory: "icons/database.svg",
-        ConversationMemory: "icons/message-circle.svg",
 
         // Documents & Data
         TextDataLoader: "icons/file-text.svg",

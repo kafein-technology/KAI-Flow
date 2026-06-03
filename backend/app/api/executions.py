@@ -1,5 +1,3 @@
-"""Workflow Executions API endpoints"""
-
 import csv
 import io
 import json

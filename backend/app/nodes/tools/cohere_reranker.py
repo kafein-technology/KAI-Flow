@@ -1,23 +1,3 @@
-"""
-Cohere Reranker Provider Node
-==============================
-
-This module provides a simplified provider node that creates and configures
-Cohere reranker compressor instances for use by other nodes in the workflow.
-Unlike the full RerankerNode, this provider focuses solely on configuration
-without processing documents or providing analytics.
-
-The provider follows the KAI-Flow ProviderNode pattern, creating LangChain
-objects from user inputs that can be consumed by other nodes in the workflow.
-
-Key Features:
-- Minimal configuration surface for ease of use
-- Direct integration with LangChain CohereRerank
-- Secure API key handling with environment variable support
-- Model selection with validation
-- Configurable top_n and max_chunks_per_doc parameters
-"""
-
 from typing import Dict, Any
 try:
     from langchain_cohere import CohereRerank

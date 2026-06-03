@@ -1,21 +1,3 @@
-"""
-Compact HTTP Client Node - Streamlined HTTP Request Handler
-==========================================================
-
-A compact, efficient HTTP client node that provides essential HTTP request
-capabilities while maintaining performance and usability. Designed for
-both simple API calls and advanced HTTP operations.
-
-Features:
-- All HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
-- Multiple authentication methods (Bearer, Basic, API Key)
-- Template support with Jinja2
-- Retry logic with configurable backoff
-- SSL verification and certificate support
-- Response validation and error handling
-- Document output for downstream processing
-"""
-
 from __future__ import annotations
 
 import asyncio
