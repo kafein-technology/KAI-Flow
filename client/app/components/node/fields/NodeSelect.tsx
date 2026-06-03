@@ -2,6 +2,7 @@ import { useField } from "formik";
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import type { NodeProperty } from "../types";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeSelectProps {
   property: NodeProperty;
@@ -49,9 +50,10 @@ export const NodeSelect = ({ property, values }: NodeSelectProps) => {
 
   return (
     <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
-      <label className="text-white text-sm font-medium mb-2 block">
-        {property.displayName}
-      </label>
+      <FieldLabel
+        label={property.displayName}
+        helpText={getFieldHelpText(property)}
+      />
 
       {/* Custom Dropdown */}
       <div className="relative" ref={dropdownRef}>
@@ -92,9 +94,6 @@ export const NodeSelect = ({ property, values }: NodeSelectProps) => {
         )}
       </div>
 
-      {property.hint && (
-        <p className="text-slate-400 text-sm mt-1">{property.hint}</p>
-      )}
       {selectedOption?.hint && (
         <p className="text-slate-400 text-xs bg-slate-900/30 mt-1">{selectedOption.hint}</p>
       )}

@@ -1,6 +1,7 @@
 import { useField } from "formik";
 import type { NodeProperty } from "../types";
 import { ErrorMessage } from "formik";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeCheckboxProps {
   property: NodeProperty;
@@ -26,12 +27,11 @@ export const NodeCheckbox = ({ property, values }: NodeCheckboxProps) => {
   return (
     <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
       <div className="flex items-center justify-between">
-        <div className="flex flex-col">
-          <span className="text-sm text-slate-200">{property.displayName}</span>
-          {property.hint && (
-            <span className="text-xs text-slate-400">{property.hint}</span>
-          )}
-        </div>
+        <FieldLabel
+          label={property.displayName}
+          helpText={getFieldHelpText(property)}
+          className="text-sm text-slate-200"
+        />
         {/* Toggle Switch */}
         <button
           type="button"

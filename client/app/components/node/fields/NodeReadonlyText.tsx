@@ -3,6 +3,7 @@ import { config } from "../../../lib/config";
 import type { NodeProperty } from "../types";
 import { getActiveSessionId } from "../../../services/chatService";
 import { useWorkflows } from "../../../stores/workflows";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeReadonlyTextProps {
   property: NodeProperty;
@@ -88,9 +89,10 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
         }`}
       key={property.name}
     >
-      <label className="text-white text-sm font-medium mb-2 block">
-        {property.displayName}
-      </label>
+      <FieldLabel
+        label={property.displayName}
+        helpText={getFieldHelpText(property)}
+      />
       <div className="flex items-center gap-2">
         <input
           type="text"
@@ -107,11 +109,6 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
           Copy
         </button>
       </div>
-      {property.hint && (
-        <p className="text-slate-400 text-xs bg-slate-900/30 mt-1">
-          {property.hint}
-        </p>
-      )}
     </div>
   );
 };

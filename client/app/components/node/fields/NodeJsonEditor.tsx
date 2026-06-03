@@ -1,5 +1,6 @@
 import type { NodeProperty } from "../types";
 import JSONEditor from "../../common/JSONEditor";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeJsonEditorProps {
   property: NodeProperty;
@@ -26,14 +27,14 @@ export const NodeJsonEditor = ({
 
   return (
     <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
-      <label className="text-white text-sm font-medium mb-2 block">
-        {property.displayName}
-      </label>
+      <FieldLabel
+        label={property.displayName}
+        helpText={getFieldHelpText(property)}
+      />
       <JSONEditor
         value={values[property.name]}
         onChange={(value) => setFieldValue(property.name, value)}
         placeholder={property.placeholder}
-        description={property.hint}
       />
     </div>
   );

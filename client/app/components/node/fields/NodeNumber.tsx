@@ -1,5 +1,6 @@
 import { Field } from "formik";
 import type { NodeProperty } from "../types";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeNumberProps {
   property: NodeProperty;
@@ -21,9 +22,10 @@ export const NodeNumber = ({ property, values }: NodeNumberProps) => {
 
   return (
     <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
-      <label className="text-white text-sm font-medium mb-2 block">
-        {property.displayName}
-      </label>
+      <FieldLabel
+        label={property.displayName}
+        helpText={getFieldHelpText(property)}
+      />
       <Field
         type="number"
         defaultValue={property?.default}
@@ -32,9 +34,6 @@ export const NodeNumber = ({ property, values }: NodeNumberProps) => {
         min={property?.min}
         max={property?.max}
       />
-      {property.hint && (
-        <p className="text-slate-400 text-sm mt-1">{property.hint}</p>
-      )}
     </div>
   );
 };
