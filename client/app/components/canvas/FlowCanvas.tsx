@@ -159,7 +159,6 @@ const isProviderNode = (node?: Node): boolean => {
     "OpenAINode", "OpenAIChat", "OpenAICompatibleNode",
     "OpenAIEmbeddingsProvider", "OpenAIEmbeddings", "CohereEmbeddings",
     "BufferMemoryNode", "BufferMemory",
-    "ConversationMemoryNode", "ConversationMemory",
     "RetrieverProvider",
     "TavilySearchNode", "TavilySearch",
     "CohereRerankerNode", "CohereRerankerProvider",

@@ -14,7 +14,6 @@ from .agents.react_agent import ReactAgentNode, ToolAgentNode
 from .embeddings.openai_embeddings_provider import OpenAIEmbeddingsProvider
 
 # Memory Nodes
-from .memory.conversation_memory import ConversationMemoryNode
 from .memory.buffer_memory import BufferMemoryNode
 
 # Tool Nodes
@@ -84,7 +83,7 @@ __all__ = [
     "OpenAIEmbeddingsProvider",
     
     # Memory
-    "ConversationMemoryNode", "BufferMemoryNode",
+    "BufferMemoryNode",
     
     # Tools
     "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode",

@@ -69,16 +69,15 @@ export const TUTORIAL_WORKFLOWS: TutorialWorkflow[] = [
       },
       {
         id: 'step-3',
-        title: 'Add Conversation Memory',
+        title: 'Add Buffer Memory',
         description: 'Enable your chatbot to remember previous messages in the conversation',
         instructions: [
-          'Drag a Conversation Memory (Windowed) node below the Agent node',
-          'Click the node to configure the window size (default works for most cases)',
+          'Drag a Buffer Memory node below the Agent node',
+          'Click the node to configure its memory settings',
           'Connect its output to the Agent node\'s memory handle'
         ],
         tips: [
-          'Windowed memory keeps the last N messages, preventing token limits from being exceeded',
-          'For simple Q&A chatbots, Buffer Memory (Persistent) is an alternative that stores everything',
+          'Buffer memory keeps the message history, preventing the agent from forgetting context',
           'Memory is what makes your chatbot feel conversational instead of stateless'
         ],
         expectedOutcome: 'Memory node connected — the agent can now reference previous messages',
@@ -218,7 +217,7 @@ export const TUTORIAL_WORKFLOWS: TutorialWorkflow[] = [
         ],
         tips: [
           'A good system prompt: "Answer questions based only on the retrieved documents. If the answer isn\'t in the documents, say so."',
-          'Adding Conversation Memory (Windowed) lets users ask follow-up questions naturally',
+          'Adding Buffer Memory lets users ask follow-up questions naturally',
           'The agent automatically decides when to use the retriever tool based on the query'
         ],
         expectedOutcome: 'Complete RAG pipeline: documents → chunks → embeddings → retriever → agent',
@@ -334,7 +333,7 @@ export const TUTORIAL_WORKFLOWS: TutorialWorkflow[] = [
           'Review your Agent\'s system prompt and add instructions for handling unexpected or malformed data',
           'In the Respond to Webhook node, configure an appropriate error status code (400 or 500) for failure cases',
           'Add Custom Headers in the Advanced tab if the calling service expects specific response headers',
-          'Consider adding Conversation Memory (Windowed) if webhook events need sequential context'
+          'Consider adding Buffer Memory if webhook events need sequential context'
         ],
         tips: [
           'The Webhook Trigger automatically rejects requests with non-matching HTTP methods (405 error)',

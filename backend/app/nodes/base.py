@@ -1,57 +1,3 @@
-"""
-KAI-Flow Node Architecture Foundation
-=====================================
-
-This module defines the fundamental architecture for all nodes in the KAI-Flow platform.
-It provides a sophisticated, type-safe, and highly extensible node system that seamlessly 
-integrates with LangChain's ecosystem while adding enterprise-grade features.
-
-Core Philosophy:
-- Type Safety: Comprehensive type hints and Pydantic validation
-- Extensibility: Abstract base classes with clear inheritance patterns  
-- Composability: Seamless integration with LangChain Runnables
-- Observability: Built-in tracing, logging, and state management
-- Scalability: Designed for complex, multi-node workflow orchestration
-
-Architecture Overview:
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  ProviderNode   │    │ ProcessorNode   │    │ TerminatorNode  │
-│                 │    │                 │    │                 │
-│ • Creates LLMs  │    │ • Orchestrates  │    │ • Transforms    │
-│ • Creates Tools │    │ • Composes      │    │ • Finalizes     │
-│ • Creates Memory│    │ • Chains        │    │ • Outputs       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-        │                       │                       │
-        └───────────────────────┼───────────────────────┘
-                                │
-                    ┌─────────────────┐
-                    │    BaseNode     │
-                    │                 │
-                    │ • State Mgmt    │
-                    │ • Type System   │
-                    │ • LangGraph API │
-                    │ • Error Handle  │
-                    └─────────────────┘
-
-Node Types Explained:
-1. PROVIDER: Source nodes that create/provide LangChain objects (LLMs, Tools, Memory)
-2. PROCESSOR: Orchestration nodes that combine multiple inputs (Agents, Chains)  
-3. TERMINATOR: Output nodes that finalize/transform results (Parsers, Formatters)
-4. MEMORY: Specialized nodes for conversation/context persistence
-
-Key Features:
-- Metadata-driven configuration with Pydantic validation
-- Connection-aware input/output management
-- LangGraph state compatibility for complex workflows
-- Built-in error handling and graceful degradation
-- LangSmith tracing integration for observability
-- Type-safe input/output contracts
-
-Authors: KAI-Flow Development Team
-Version: 2.0.0
-License: Proprietary
-"""
-
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union, Callable
 import logging
@@ -143,7 +89,7 @@ class NodeType(str, Enum):
     - Context injection capabilities
     - Multi-turn conversation support
     
-    Examples: ConversationMemory, BufferMemory, VectorMemory
+    Examples: BufferMemory, VectorMemory
     Input Sources: Session context + memory configuration
     Output Type: Memory objects with conversation state
     """

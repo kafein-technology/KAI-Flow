@@ -1,10 +1,3 @@
-"""
-Workflow Export API Endpoint
-============================
-
-Provides REST API for exporting workflows as ZIP bundle.
-"""
-
 import json
 import yaml
 import uuid

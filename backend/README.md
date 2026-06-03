@@ -176,8 +176,7 @@ backend/
 │   │   │
 │   │   ├── memory/               # Memory and state nodes
 │   │   │   ├── __init__.py
-│   │   │   ├── buffer_memory.py  # Buffer memory implementation
-│   │   │   └── conversation_memory.py # Conversation memory
+│   │   │   └── buffer_memory.py  # Buffer memory implementation
 │   │   │
 │   │   ├── triggers/             # Trigger and event nodes
 │   │   │   ├── __init__.py
@@ -355,7 +354,6 @@ _metadata = {
 
 3. **Memory Nodes** (`app/nodes/memory/`)
    - Buffer Memory for conversation history
-   - Conversation Memory with advanced features
    - Persistent memory storage
 
 4. **Trigger Nodes** (`app/nodes/triggers/`)

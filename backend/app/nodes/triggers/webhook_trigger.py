@@ -1,13 +1,3 @@
-"""
-Webhook Trigger Node - Inbound REST API Integration
-─────────────────────────────────────────────────
-• Purpose: Expose REST endpoints to trigger workflows from external services
-• Integration: FastAPI router with automatic endpoint registration
-• Features: JSON payload processing, authentication, rate limiting
-• LangChain: Full Runnable integration with event streaming
-• Security: Token-based authentication and request validation
-"""
-
 from __future__ import annotations
 
 import asyncio

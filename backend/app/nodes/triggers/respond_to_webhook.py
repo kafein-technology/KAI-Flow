@@ -1,12 +1,3 @@
-"""
-Respond to Webhook Node - Webhook Response Handler
-─────────────────────────────────────────────────
-• Purpose: Send custom HTTP responses from workflow to webhook requesters
-• Integration: Works with WebhookTriggerNode to provide custom responses
-• Features: Status code, headers, body customization
-• Security: Response size limits, header validation
-"""
-
 from __future__ import annotations
 
 import json

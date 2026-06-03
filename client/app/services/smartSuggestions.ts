@@ -85,7 +85,7 @@ export const NODE_CHAINS: NodeChain[] = [
   // LLM Chain
   {
     trigger: 'OpenAIChat',
-    recommendations: ['EndNode', 'BufferMemory', 'ConversationMemory'],
+    recommendations: ['EndNode', 'BufferMemory'],
     description: 'Complete the conversation flow',
     category: 'Memory & Output'
   },
@@ -97,17 +97,11 @@ export const NODE_CHAINS: NodeChain[] = [
     description: 'Continue with memory-enhanced processing',
     category: 'Processing'
   },
-  {
-    trigger: 'ConversationMemory',
-    recommendations: ['OpenAIChat', 'Agent', 'EndNode'],
-    description: 'Continue with conversation memory',
-    category: 'Processing'
-  },
   
   // Agent Chain
   {
     trigger: 'Agent',
-    recommendations: ['EndNode', 'BufferMemory', 'ConversationMemory'],
+    recommendations: ['EndNode', 'BufferMemory'],
     description: 'Complete agent workflow',
     category: 'Memory & Output'
   },
@@ -115,7 +109,7 @@ export const NODE_CHAINS: NodeChain[] = [
   // Chain Processing
   {
     trigger: 'RetrievalQA',
-    recommendations: ['EndNode', 'BufferMemory', 'ConversationMemory'],
+    recommendations: ['EndNode', 'BufferMemory'],
     description: 'Complete QA workflow',
     category: 'Memory & Output'
   },

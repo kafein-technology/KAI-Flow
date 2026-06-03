@@ -1,18 +1,3 @@
-"""
-KAI-Flow LLM Red Team Node — Automated Adversarial Security Testing
-Version: 5.1.0 (Jinja templating now works for all property types, April 2026)
-
-Architecture (Tri-LLM Design):
-- model_callback : async function wrapping the target LLM (built from webhook params)
-- simulator_model: DeepEvalBaseLLM wrapping the canvas simulator LangChain LLM
-- evaluator_model: DeepEvalBaseLLM wrapping the canvas evaluator LangChain LLM
-
-References:
-- https://trydeepteam.com/docs/red-teaming-introduction
-- https://trydeepteam.com/docs/getting-started
-- https://www.trydeepteam.com/guides/guide-red-teaming-openai
-"""
-
 import json
 import logging
 import os

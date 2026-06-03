@@ -1,18 +1,3 @@
-"""
-KAI-Flow OpenAI Compatible Node
-===============================
-
-This module provides a universal node for connecting to any OpenAI-compatible API 
-(OpenRouter, LocalAI, vLLM, DeepSeek, Groq, etc.). It allows users to specify 
-a custom base URL and model name, enabling access to a vast ecosystem of models.
-
-KEY FEATURES:
-- Universal Base URL support
-- Flexible Model Name input
-- Automatic Header management for specific providers (e.g. OpenRouter)
-- Standard OpenAI parameter support
-"""
-
 import logging
 from typing import Dict, Any, Optional, List
 import httpx

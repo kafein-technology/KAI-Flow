@@ -61,7 +61,6 @@ Not sure where to start? Ideas:
 | Terminator | EndNode                   |
 | Terminator | WebhookTriggerNode        |
 | Terminator | TimerStartNode            |
-| Memory     | ConversationMemoryNode    |
 | Memory     | BufferMemoryNode          |
 
 #### 1. PROVIDER (Factory Pattern)
@@ -120,7 +119,7 @@ Not sure where to start? Ideas:
 - Context injection capabilities
 - Multi-turn conversation support
 
-**Examples:** ConversationMemoryNode, BufferMemoryNode
+**Examples:** BufferMemoryNode
 
 **Input Source:** Session context + conversation state
 

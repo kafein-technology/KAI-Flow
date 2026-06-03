@@ -1,10 +1,3 @@
-"""
-KAI-Flow JSON Parser Node
-=========================
-
-A resilient JSON parsing processing node designed to extract, clean, and reliably 
-parse malformed/dirty JSON outputs from LLMs and external systems.
-"""
 import json
 import yaml
 import re
