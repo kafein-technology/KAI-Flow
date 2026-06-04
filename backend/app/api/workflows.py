@@ -1,290 +1,4 @@
 
-"""
-KAI-Flow Enterprise Workflow API - Advanced Workflow Management & Execution Endpoints
-=======================================================================================
-
-This module implements the sophisticated workflow API endpoints for the KAI-Flow platform,
-providing enterprise-grade workflow management operations, comprehensive execution services,
-and advanced template management. Built for production environments with RESTful API design,
-comprehensive validation, and enterprise-grade security designed for scalable AI workflow
-automation requiring sophisticated API orchestration and management capabilities.
-
-ARCHITECTURAL OVERVIEW:
-======================
-
-The Enterprise Workflow API serves as the primary REST interface for workflow operations,
-providing comprehensive CRUD operations, advanced execution services, and intelligent
-template management with enterprise-grade security, performance optimization, and
-comprehensive audit logging for production deployment environments.
-
-┌─────────────────────────────────────────────────────────────────┐
-│              Enterprise Workflow API Architecture              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  HTTP Request → [Auth] → [Validation] → [Business Logic]      │
-│       ↓          ↓         ↓               ↓                  │
-│  [Input Sanitize] → [Permission] → [Service Call] → [DB]     │
-│       ↓          ↓         ↓               ↓                  │
-│  [Audit Log] → [Analytics] → [Response Format] → [HTTP Resp] │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-
-KEY INNOVATIONS:
-===============
-
-1. **Comprehensive Workflow Management API**:
-   - Full CRUD operations with enterprise security validation and audit logging
-   - Advanced workflow search with intelligent filtering and relevance scoring
-   - Workflow duplication with metadata preservation and permission validation
-   - Visibility management with public/private workflow sharing and access control
-
-2. **Enterprise Execution Engine Integration**:
-   - Real-time workflow execution with streaming response and performance monitoring
-   - Adhoc execution with comprehensive validation and error handling
-   - Execution tracking with detailed analytics and performance measurement
-   - Chat integration with conversation context and intelligent response management
-
-3. **Advanced Template Management System**:
-   - Template CRUD operations with categorization and intelligent organization
-   - Template creation from workflows with metadata preservation and optimization
-   - Category management with hierarchical organization and search capabilities
-   - Template discovery with advanced search and recommendation algorithms
-
-4. **Production-Grade API Design**:
-   - RESTful API patterns with comprehensive OpenAPI documentation and examples
-   - Input validation with security sanitization and injection prevention
-   - Error handling with structured responses and comprehensive logging
-   - Performance optimization with pagination, caching, and intelligent query optimization
-
-5. **Comprehensive Security Framework**:
-   - Authentication and authorization with JWT validation and role-based access control
-   - Input sanitization with XSS prevention and injection attack protection
-   - Audit logging with comprehensive request tracking and security monitoring
-   - Rate limiting with DDoS protection and intelligent traffic management
-
-TECHNICAL SPECIFICATIONS:
-========================
-
-API Performance:
-- Response Time: < 100ms for standard CRUD operations with full validation
-- Execution Latency: < 2000ms for workflow execution initiation with comprehensive setup
-- Search Operations: < 50ms for advanced workflow search with relevance scoring
-- Template Operations: < 30ms for template management with categorization and metadata
-- Streaming Response: Real-time execution results with sub-100ms chunk delivery
-
-Enterprise Features:
-- Concurrent Requests: 10,000+ simultaneous API requests with performance optimization
-- Data Validation: Comprehensive input validation with security sanitization
-- Error Handling: Structured error responses with detailed diagnostics and recovery guidance
-- Audit Logging: Complete request tracking with security correlation and compliance reporting
-- Performance Monitoring: Real-time API metrics with optimization recommendations
-
-Security and Compliance:
-- Authentication: JWT-based authentication with comprehensive token validation
-- Authorization: Role-based access control with fine-grained permission management
-- Input Validation: XSS prevention with injection attack protection and sanitization
-- Audit Trails: Immutable request logging with security event correlation
-- Rate Limiting: Intelligent traffic management with DDoS protection and fair usage
-
-INTEGRATION PATTERNS:
-====================
-
-Basic Workflow Operations:
-```python
-# RESTful workflow management with enterprise security
-import requests
-
-# Create workflow with comprehensive validation
-workflow_data = {
-    "name": "Data Processing Pipeline",
-    "description": "Enterprise data transformation workflow",
-    "flow_data": complex_workflow_definition,
-    "is_public": False
-}
-
-response = requests.post(
-    f"/{API_START}/{API_VERSION}/workflows/",
-    json=workflow_data,
-    headers={"Authorization": f"Bearer {access_token}"}
-)
-
-# Execute workflow with real-time streaming
-execution_request = {
-    "flow_data": workflow_definition,
-    "input_text": "Process financial data",
-    "session_id": "session_123"
-}
-
-execution_response = requests.post(
-    f"/{API_START/{API_VERSION}/workflows/execute",
-    json=execution_request,
-    headers={"Authorization": f"Bearer {access_token}"},
-    stream=True
-)
-
-# Process streaming execution results
-for chunk in execution_response.iter_lines():
-    if chunk:
-        result = json.loads(chunk.decode('utf-8').replace('data: ', ''))
-        print(f"Execution result: {result}")
-```
-
-Advanced Enterprise API Integration:
-```python
-# Enterprise API client with comprehensive features
-class EnterpriseWorkflowAPIClient:
-    def __init__(self, base_url: str, access_token: str):
-        self.base_url = base_url
-        self.access_token = access_token
-        self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        })
-        
-    async def create_enterprise_workflow(self, workflow_data: dict):
-        # Enhanced workflow creation with validation
-        validated_data = await self.validate_workflow_data(workflow_data)
-        
-        response = self.session.post(
-            f"{self.base_url}/workflows/",
-            json=validated_data
-        )
-        
-        if response.status_code == 201:
-            workflow = response.json()
-            # Initialize workflow analytics
-            await self.initialize_workflow_tracking(workflow["id"])
-            return workflow
-        else:
-            raise APIException(f"Workflow creation failed: {response.text}")
-    
-    async def execute_workflow_with_monitoring(self, workflow_id: str, inputs: dict):
-        # Execute workflow with comprehensive monitoring
-        execution_data = {
-            "flow_data": await self.get_workflow_definition(workflow_id),
-            "input_text": inputs.get("input", ""),
-            "session_id": f"session_{uuid.uuid4()}"
-        }
-        
-        # Start execution tracking
-        execution_tracker = ExecutionTracker(workflow_id)
-        
-        response = self.session.post(
-            f"{self.base_url}/workflows/execute",
-            json=execution_data,
-            stream=True
-        )
-        
-        # Process streaming results with monitoring
-        results = []
-        async for chunk in self.process_stream(response):
-            results.append(chunk)
-            await execution_tracker.track_progress(chunk)
-        
-        # Finalize execution tracking
-        execution_summary = await execution_tracker.finalize()
-        
-        return {
-            "results": results,
-            "execution_summary": execution_summary,
-            "performance_metrics": execution_tracker.get_metrics()
-        }
-```
-
-Template Management Integration:
-```python
-# Advanced template management with intelligent features
-class EnterpriseTemplateManager:
-    def __init__(self, api_client: EnterpriseWorkflowAPIClient):
-        self.api_client = api_client
-        
-    async def discover_templates(self, user_preferences: dict):
-        # Intelligent template discovery based on user patterns
-        
-        # Get all available templates
-        all_templates = await self.api_client.get_templates()
-        
-        # Apply intelligent filtering
-        filtered_templates = await self.filter_templates_by_preferences(
-            all_templates, user_preferences
-        )
-        
-        # Rank templates by relevance
-        ranked_templates = await self.rank_templates_by_relevance(
-            filtered_templates, user_preferences
-        )
-        
-        return {
-            "recommended_templates": ranked_templates[:10],
-            "categories": await self.api_client.get_template_categories(),
-            "personalization_score": self.calculate_personalization_score(user_preferences)
-        }
-    
-    async def create_optimized_template(self, workflow_id: str, template_data: dict):
-        # Create template with AI-powered optimization
-        
-        # Analyze workflow for optimization opportunities
-        workflow_analysis = await self.analyze_workflow_for_template(workflow_id)
-        
-        # Optimize template data based on analysis
-        optimized_data = await self.optimize_template_data(
-            template_data, workflow_analysis
-        )
-        
-        # Create template with enhanced metadata
-        template = await self.api_client.create_template(optimized_data)
-        
-        return {
-            "template": template,
-            "optimization_applied": workflow_analysis.optimizations,
-            "potential_improvements": workflow_analysis.recommendations
-        }
-```
-
-MONITORING AND OBSERVABILITY:
-============================
-
-Comprehensive API Intelligence:
-
-1. **Request and Response Analytics**:
-   - API request patterns with usage analysis and optimization recommendations
-   - Response time monitoring with performance optimization and bottleneck identification
-   - Error frequency tracking with root cause analysis and prevention strategies
-   - Success rate correlation with user satisfaction and experience optimization
-
-2. **Workflow Execution Intelligence**:
-   - Execution performance tracking with optimization insights and resource analysis
-   - Streaming response efficiency with latency optimization and user experience enhancement
-   - Resource utilization monitoring with capacity planning and scaling recommendations
-   - Error pattern analysis with intelligent debugging and resolution guidance
-
-3. **Security and Compliance Monitoring**:
-   - Authentication success rates with security threat detection and response
-   - Input validation effectiveness with attack prevention and security enhancement
-   - Access pattern analysis with anomaly detection and security alerting
-   - Compliance validation with regulatory requirement tracking and audit reporting
-
-4. **Business Intelligence Integration**:
-   - API usage correlation with business value and ROI analysis
-   - User engagement measurement with feature adoption and satisfaction tracking
-   - Template effectiveness with adoption success and improvement recommendations
-   - Platform growth analysis with scaling insights and capacity planning
-
-AUTHORS: KAI-Flow API Architecture Team
-VERSION: 2.1.0
-LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Flow Platform
-
-──────────────────────────────────────────────────────────────
-IMPLEMENTATION DETAILS:
-• Framework: FastAPI-based with comprehensive validation and enterprise security
-• Performance: Sub-100ms responses with intelligent caching and optimization
-• Security: JWT authentication with comprehensive input validation and audit logging
-• Features: CRUD operations, execution, templates, search, analytics, monitoring
-──────────────────────────────────────────────────────────────
-"""
-
 import json
 import logging
 import uuid
@@ -1353,3 +1067,47 @@ async def execute_timer_node_manually(
     except Exception as e:
         logger.error(f"Error during manual TimerStartNode execution: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to execute TimerStartNode: {str(e)}")
+
+
+@router.get("/error-trigger/{workflow_id}/stream")
+async def stream_error_trigger_execution(workflow_id: str):
+    """Stream error-trigger workflow execution events for the canvas UI."""
+    from app.services.error_handler_service import error_trigger_subscribers
+    
+    async def event_stream():
+        import asyncio
+        import json
+        from datetime import datetime, timezone
+        from app.core.json_utils import make_json_serializable
+        
+        queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+        error_trigger_subscribers.setdefault(workflow_id, []).append(queue)
+        
+        try:
+            yield f"data: {json.dumps({'type': 'connected', 'workflow_id': workflow_id, 'timestamp': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
+            
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    serializable_event = make_json_serializable(event)
+                    yield f"data: {json.dumps(serializable_event, ensure_ascii=False)}\n\n"
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'type': 'ping', 'timestamp': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            subscribers = error_trigger_subscribers.get(workflow_id, [])
+            if queue in subscribers:
+                subscribers.remove(queue)
+                
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )

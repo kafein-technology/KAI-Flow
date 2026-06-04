@@ -1,34 +1,3 @@
-"""
-KAI-Flow Graph Builder - Enterprise Workflow Orchestration & Execution Engine
-
-This module implements sophisticated workflow graph construction for the KAI-Flow platform,
-providing enterprise-grade LangGraph orchestration with advanced control flow management,
-intelligent node connectivity, and production-ready execution capabilities. Built for
-complex AI workflows requiring reliable state management and seamless node integration.
-
-ARCHITECTURAL OVERVIEW:
-
-The Graph Builder system serves as the workflow orchestration engine of KAI-Flow,
-transforming visual flow definitions into executable LangGraph pipelines with advanced
-control flow, state management, and comprehensive error handling for production environments.
-
-PHASE 3 ARCHITECTURE: Clean, Modular Components
-This version implements Phase 3 of the refactoring, extracting specialized components
-into separate modules while maintaining a clean main GraphBuilder orchestrator class.
-
-Components:
-- ConnectionMapper: Handles connection parsing and mapping
-- NodeExecutor: Manages node execution and session handling  
-- ControlFlowManager: Manages control flow logic (conditional, loop, parallel)
-- ValidationEngine: Handles workflow validation
-- Exception classes: Structured error handling
-- Type definitions: Strong typing and protocols
-
-AUTHORS: KAI-Flow Workflow Orchestration Team
-VERSION: 2.1.0
-LAST_UPDATED: 2025-09-16
-LICENSE: Proprietary - KAI-Flow Platform
-"""
 
 from __future__ import annotations
 import datetime
@@ -171,6 +140,10 @@ class GraphBuilder:
             
             # Step 5: Compile final LangGraph
             compiled_graph = self._compile_final_graph()
+            
+            # Register this builder's nodes registry globally for templating fallback
+            from app.core.templating import register_global_registry
+            register_global_registry(flow_data.get("id") if isinstance(flow_data, dict) else None, self.nodes)
             
             # Step 6: Record build metrics
             build_duration = time.time() - start_time
@@ -582,8 +555,16 @@ class GraphBuilder:
         """Enhanced node wrapper that uses NodeExecutor for execution."""
         
         def wrapper(state: FlowState) -> Dict[str, Any]:
+            import time
+            start_time = time.time()
             try:
                 logger.info(f"EXECUTING: {node_id} ({gnode.type}) with NodeExecutor")
+                
+                # Inject nodes registry into state so that nodes can resolve Jinja variables with friendly names
+                if isinstance(state, dict):
+                    state["nodes_registry"] = self.nodes
+                else:
+                    state.nodes_registry = self.nodes
                 
                 # Merge user data into node instance before execution
                 gnode.node_instance.user_data.update(gnode.user_data)
@@ -616,26 +597,77 @@ class GraphBuilder:
                 
                 logger.error(f"Node {node_id} ({gnode.type}) execution failed: {str(e)}")
                 
+                # Standardize error output
+                try:
+                    from app.core.json_utils import format_standard_node_output
+                    execution_time_ms = round((time.time() - start_time) * 1000, 2)
+                    standard_error_output = format_standard_node_output(
+                        node_id=node_id,
+                        node_type=gnode.type,
+                        success=False,
+                        status_code=500,
+                        execution_time_ms=execution_time_ms,
+                        inputs=gnode.user_data,
+                        output=None,
+                        error=error_details,
+                        node_instance=gnode.node_instance
+                    )
+                    
+                    if isinstance(state, dict):
+                        if "node_outputs" not in state or not isinstance(state["node_outputs"], dict):
+                            state["node_outputs"] = {}
+                        state["node_outputs"][node_id] = standard_error_output
+                    else:
+                        if not hasattr(state, 'node_outputs') or not isinstance(state.node_outputs, dict):
+                            state.node_outputs = {}
+                        state.node_outputs[node_id] = standard_error_output
+                except Exception as formatting_err:
+                    logger.warning(f"Failed to record standardized error in _wrap_node_enhanced: {formatting_err}")
+
                 # Update state with error
-                if hasattr(state, 'add_error'):
-                    state.add_error(f"Node {node_id} failed: {str(e)}")
+                if isinstance(state, dict):
+                    if "errors" not in state or not isinstance(state["errors"], list):
+                        state["errors"] = []
+                    state["errors"].append(f"Node {node_id} failed: {str(e)}")
+                    state["last_output"] = f"ERROR in {node_id}: {str(e)}"
                 else:
-                    if not hasattr(state, 'errors'):
-                        state.errors = []
-                    state.errors.append(f"Node {node_id} failed: {str(e)}")
+                    if hasattr(state, 'add_error'):
+                        state.add_error(f"Node {node_id} failed: {str(e)}")
+                    else:
+                        if not hasattr(state, 'errors') or not isinstance(state.errors, list):
+                            state.errors = []
+                        state.errors.append(f"Node {node_id} failed: {str(e)}")
+                    state.last_output = f"ERROR in {node_id}: {str(e)}"
                 
                 # Store detailed error information
-                if not hasattr(state, 'error_details'):
-                    state.error_details = {}
-                state.error_details[node_id] = error_details
-                
-                state.last_output = f"ERROR in {node_id}: {str(e)}"
+                if isinstance(state, dict):
+                    if "error_details" not in state or not isinstance(state["error_details"], dict):
+                        state["error_details"] = {}
+                    state["error_details"][node_id] = error_details
+                else:
+                    if not hasattr(state, 'error_details') or not isinstance(state.error_details, dict):
+                        state.error_details = {}
+                    state.error_details[node_id] = error_details
                 
                 # Raise the exception to stop execution
-                if isinstance(e, NodeExecutionError):
-                    raise  # Re-raise NodeExecutor exceptions
+                if isinstance(state, dict):
+                    node_outs = state.get("node_outputs", {}).copy()
+                    exec_nodes = state.get("executed_nodes", []).copy()
                 else:
-                    raise NodeExecutionError(node_id, gnode.type, e) from e
+                    node_outs = state.node_outputs.copy() if hasattr(state, 'node_outputs') and state.node_outputs else {}
+                    exec_nodes = state.executed_nodes.copy() if hasattr(state, 'executed_nodes') and state.executed_nodes else []
+                
+                if isinstance(e, NodeExecutionError):
+                    if not e.context:
+                        e.context = {}
+                    e.context["node_outputs"] = node_outs
+                    e.context["executed_nodes"] = exec_nodes
+                    raise
+                else:
+                    err = NodeExecutionError(node_id, gnode.type, e)
+                    err.context["node_outputs"] = node_outs
+                    err.context["executed_nodes"] = exec_nodes
+                    raise err from e
 
         wrapper.__name__ = f"node_{node_id}"
         return wrapper
@@ -715,7 +747,10 @@ class GraphBuilder:
         def route_condition(state: FlowState) -> str:
             """Route based on ConditionNode's _route output."""
             # Get the node's output from state
-            node_outputs = getattr(state, 'node_outputs', {})
+            if isinstance(state, dict):
+                node_outputs = state.get('node_outputs', {})
+            else:
+                node_outputs = getattr(state, 'node_outputs', {})
             condition_output = node_outputs.get(node_id, {})
             
             # Check for _route key in output
@@ -842,13 +877,105 @@ class GraphBuilder:
             webhook_data=webhook_data,  # Add webhook data for templating
         )
 
+        # Register this session/workflow registry globally for templating fallback
+        from app.core.templating import register_global_registry
+        register_global_registry(init_state.session_id, self.nodes)
+        if workflow_id:
+            register_global_registry(workflow_id, self.nodes)
+
         # Inject Kafka data into node_outputs if present
         kafka_data = inputs.get("kafka_data")
         listener_id = inputs.get("listener_id")
-        if inputs.get("kafka_trigger") and kafka_data and listener_id:
-            logger.info(f"Injecting Kafka trigger data for listener {listener_id}")
-            # Inject as a node output so it can be referenced via templating
-            init_state.set_node_output(listener_id, kafka_data)
+        
+        # Pre-inject trigger node outputs so they are available in node_outputs (and downstream nodes)
+        from app.nodes.base import NodeType
+        for node_id, gnode in self.nodes.items():
+            node_type_val = None
+            try:
+                node_type_val = gnode.node_instance.metadata.node_type
+            except Exception:
+                pass
+                
+            is_trigger = False
+            if gnode.type in ("StartNode", "WebhookTrigger", "KafkaConsumer", "KafkaTrigger", "TimerStartNode", "ErrorTriggerNode"):
+                is_trigger = True
+            elif node_type_val == NodeType.TERMINATOR and gnode.type not in ("EndNode", "RespondToWebhook"):
+                is_trigger = True
+                
+            if is_trigger:
+                try:
+                    # 1. Webhook Trigger Node
+                    if "webhook" in gnode.type.lower() or gnode.node_instance.__class__.__name__ == "WebhookTriggerNode":
+                        if webhook_data:
+                            payload = webhook_data.get("data", webhook_data)
+                            gnode.node_instance.user_data["webhook_payload"] = payload
+                            output_dict = gnode.node_instance._execute(init_state)
+                        else:
+                            output_dict = gnode.node_instance.execute()
+                            if isinstance(output_dict, dict) and "webhook_data" not in output_dict:
+                                output_dict["webhook_data"] = {
+                                    "payload": {},
+                                    "timestamp": datetime.now().isoformat(),
+                                    "webhook_id": getattr(gnode.node_instance, "webhook_id", "mock"),
+                                    "source": "mock",
+                                    "event_type": "webhook.received"
+                                }
+                                
+                        from app.core.json_utils import format_standard_node_output
+                        standard_output = format_standard_node_output(
+                            node_id=node_id,
+                            node_type=gnode.type,
+                            success=True,
+                            status_code=200,
+                            execution_time_ms=0.0,
+                            inputs=gnode.user_data,
+                            output=output_dict,
+                            node_instance=gnode.node_instance
+                        )
+                        init_state.set_node_output(node_id, standard_output)
+                        logger.info(f"[TRIGGER] Pre-injected standardized output for webhook: {node_id}")
+                        
+                    # 2. Kafka Trigger Node
+                    elif "kafka" in gnode.type.lower() or gnode.node_instance.__class__.__name__ == "KafkaTriggerNode":
+                        k_data = kafka_data or inputs.get("kafka_data") or {}
+                        output_dict = {
+                            "kafka_data": k_data,
+                            "output": k_data.get("value", "Kafka trigger message")
+                        }
+                        from app.core.json_utils import format_standard_node_output
+                        standard_output = format_standard_node_output(
+                            node_id=node_id,
+                            node_type=gnode.type,
+                            success=True,
+                            status_code=200,
+                            execution_time_ms=0.0,
+                            inputs=gnode.user_data,
+                            output=output_dict,
+                            node_instance=gnode.node_instance
+                        )
+                        init_state.set_node_output(node_id, standard_output)
+                        logger.info(f"[TRIGGER] Pre-injected standardized output for kafka: {node_id}")
+                        
+                    # 3. Start Node
+                    elif gnode.type == "StartNode" or gnode.node_instance.__class__.__name__ == "StartNode":
+                        output_dict = {
+                            "output": initial_input or "Workflow started"
+                        }
+                        from app.core.json_utils import format_standard_node_output
+                        standard_output = format_standard_node_output(
+                            node_id=node_id,
+                            node_type=gnode.type,
+                            success=True,
+                            status_code=200,
+                            execution_time_ms=0.0,
+                            inputs=gnode.user_data,
+                            output=output_dict,
+                            node_instance=gnode.node_instance
+                        )
+                        init_state.set_node_output(node_id, standard_output)
+                        logger.info(f"[TRIGGER] Pre-injected standardized output for start node: {node_id}")
+                except Exception as trigger_err:
+                    logger.warning(f"Failed to pre-inject trigger output for {node_id}: {trigger_err}")
 
         config: RunnableConfig = {"configurable": {"thread_id": init_state.session_id}}
 
@@ -936,7 +1063,7 @@ class GraphBuilder:
             
             logger.info(f"Final result output: {str(result_output)[:100] if result_output else '(empty)'}")
             
-            return {
+            result = {
                 "success": True,
                 "result": result_output,
                 "state": state_dict,
@@ -944,8 +1071,17 @@ class GraphBuilder:
                 "session_id": state_dict.get("session_id", init_state.session_id),
             }
             
+            # Cleanup session-scoped registry to prevent memory leak
+            from app.core.templating import unregister_global_registry
+            unregister_global_registry(init_state.session_id)
+            
+            return result
+            
         except Exception as e:
             logger.error(f"Workflow execution failed in _execute_sync: {e}", exc_info=True)
+            # Cleanup session-scoped registry even on failure
+            from app.core.templating import unregister_global_registry
+            unregister_global_registry(init_state.session_id)
             # Re-raise so workflow_executor can properly mark execution as "failed"
             raise
 
@@ -990,8 +1126,12 @@ class GraphBuilder:
                     # Try to extract meaningful output from various formats
                     output_data = {}
                     if isinstance(node_output, dict):
+                        standard_key = f"output_{node_name}"
+                        # Check if standardized output is present first
+                        if standard_key in node_output:
+                            output_data = node_output.get(standard_key)
                         # Check for common output keys
-                        if "last_output" in node_output:
+                        elif "last_output" in node_output:
                             output_data["output"] = node_output.get("last_output")
                         elif "output" in node_output:
                             output_data["output"] = node_output.get("output")
@@ -1043,13 +1183,46 @@ class GraphBuilder:
                 "session_id": init_state.session_id,
             }
             
+            # Cleanup session-scoped registry to prevent memory leak
+            from app.core.templating import unregister_global_registry
+            unregister_global_registry(init_state.session_id)
+            
         except Exception as e:
+            # Extract state data from exception context first, fallback to checkpointer
+            node_outputs = {}
+            executed_nodes = []
+            
+            # Recursively traverse exception chain to find context
+            curr_e = e
+            while curr_e:
+                if hasattr(curr_e, "context") and isinstance(curr_e.context, dict):
+                    node_outputs = curr_e.context.get("node_outputs") or {}
+                    executed_nodes = curr_e.context.get("executed_nodes") or []
+                    if node_outputs:
+                        break
+                curr_e = getattr(curr_e, "__cause__", None) or getattr(curr_e, "__context__", None)
+                
+            if not node_outputs:
+                try:
+                    final_state = await self.graph.aget_state(config)
+                    if hasattr(final_state, 'values') and final_state.values:
+                        node_outputs = final_state.values.get('node_outputs', {})
+                        executed_nodes = final_state.values.get('executed_nodes', [])
+                except Exception as state_err:
+                    logger.warning(f"Failed to get graph state on streaming error: {state_err}")
+                
             yield {
                 "type": "error", 
                 "error": str(e), 
                 "error_type": type(e).__name__, 
-                "session_id": init_state.session_id
+                "session_id": init_state.session_id,
+                "node_outputs": node_outputs,
+                "executed_nodes": executed_nodes
             }
+            
+            # Cleanup session-scoped registry even on error
+            from app.core.templating import unregister_global_registry
+            unregister_global_registry(init_state.session_id)
 
     async def execute_with_monitoring(
             self,
@@ -1073,5 +1246,4 @@ class GraphBuilder:
         except Exception as e:
             execution_duration = time.time() - execution_start
             logger.error(f"Enhanced execution failed after {execution_duration:.3f}s: {e}")
-            raise
             raise

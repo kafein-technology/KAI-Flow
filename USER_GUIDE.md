@@ -362,7 +362,6 @@ The main builder interface.
 
 ### Memory & Data
 *   **Buffer Memory**: Stores short-term conversation context.
-*   **Conversation Memory**: Manages persistent chat history.
 *   **Vector Store**: Interface for PostgreSQL/pgvector operations.
 *   **OpenAI Embeddings**: Generates vector embeddings for text.
 

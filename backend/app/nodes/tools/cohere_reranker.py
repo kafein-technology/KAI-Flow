@@ -1,23 +1,3 @@
-"""
-Cohere Reranker Provider Node
-==============================
-
-This module provides a simplified provider node that creates and configures
-Cohere reranker compressor instances for use by other nodes in the workflow.
-Unlike the full RerankerNode, this provider focuses solely on configuration
-without processing documents or providing analytics.
-
-The provider follows the KAI-Flow ProviderNode pattern, creating LangChain
-objects from user inputs that can be consumed by other nodes in the workflow.
-
-Key Features:
-- Minimal configuration surface for ease of use
-- Direct integration with LangChain CohereRerank
-- Secure API key handling with environment variable support
-- Model selection with validation
-- Configurable top_n and max_chunks_per_doc parameters
-"""
-
 from typing import Dict, Any
 try:
     from langchain_cohere import CohereRerank
@@ -201,8 +181,11 @@ class CohereRerankerNode(ProviderNode):
         # Note: max_chunks_per_doc removed as it's not supported by LangChain CohereRerank
 
         # If credential_id is present, fetch the actual API key
-        credential_id = self.user_data.get("credential_id")
-        cohere_api_key = self.get_credential(credential_id).get('secret').get('api_key')
+        credential_id = kwargs.get("credential_id") or self.user_data.get("credential_id")
+        if credential_id:
+            cred = self.get_credential(credential_id)
+            if cred and cred.get('secret'):
+                cohere_api_key = cred.get('secret').get('api_key')
         
         # Validate API key
         if not cohere_api_key:

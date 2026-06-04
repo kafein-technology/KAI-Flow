@@ -436,7 +436,7 @@ class ValidationEngine:
             # This could be enhanced with more sophisticated node capability detection
             many_to_many_supported_types = {
                 'ReactAgent', 'ToolAgentNode', 'Agent',  # Agents can handle multiple inputs
-                'BufferMemory', 'ConversationMemory',    # Memory nodes can aggregate
+                'BufferMemory',                          # Memory nodes can aggregate
                 'VectorStoreOrchestrator',               # Vector stores can handle multiple queries
                 'ChunkSplitter',                         # Splitters can process multiple documents
                 'HttpClient'                             # HTTP clients can make multiple requests

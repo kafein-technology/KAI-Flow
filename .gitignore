@@ -24,6 +24,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 lerna-debug.log*
+.agents
+.claude
+.claude/
+.docs
+.deepeval
+
 
 # IDE
 .idea/

@@ -16,6 +16,7 @@ import {
   NodeCodeEditor,
   NodeSessionId,
 } from "./fields";
+import { FieldLabel, getFieldHelpText } from "./fields/FieldLabel";
 import TabNavigation from "../common/TabNavigation";
 import { useState, useRef, useEffect } from "react";
 import { Settings, Plus, X, ChevronDown } from "lucide-react";
@@ -255,12 +256,11 @@ export default function GenericNodeForm({
                 if (property.type === "checkbox") {
                   return (
                     <div key={property.name} className="col-span-2 flex items-center justify-between bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-slate-200">{property.displayName}</span>
-                        {property.hint && (
-                          <span className="text-xs text-slate-400">({property.hint})</span>
-                        )}
-                      </div>
+                      <FieldLabel
+                        label={property.displayName}
+                        helpText={getFieldHelpText(property)}
+                        className="text-sm text-slate-200"
+                      />
                       <div className="flex items-center gap-3">
                         {/* Toggle Switch */}
                         <button
@@ -295,12 +295,11 @@ export default function GenericNodeForm({
                 if (property.type === "number") {
                   return (
                     <div key={property.name} className="col-span-2 flex items-center justify-between bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-slate-200">{property.displayName}</span>
-                        {property.hint && (
-                          <span className="text-xs text-slate-400">({property.hint})</span>
-                        )}
-                      </div>
+                      <FieldLabel
+                        label={property.displayName}
+                        helpText={getFieldHelpText(property)}
+                        className="text-sm text-slate-200"
+                      />
                       <div className="flex items-center gap-3">
                         <input
                           type="number"

@@ -1,57 +1,3 @@
-"""
-KAI-Flow Node Architecture Foundation
-=====================================
-
-This module defines the fundamental architecture for all nodes in the KAI-Flow platform.
-It provides a sophisticated, type-safe, and highly extensible node system that seamlessly 
-integrates with LangChain's ecosystem while adding enterprise-grade features.
-
-Core Philosophy:
-- Type Safety: Comprehensive type hints and Pydantic validation
-- Extensibility: Abstract base classes with clear inheritance patterns  
-- Composability: Seamless integration with LangChain Runnables
-- Observability: Built-in tracing, logging, and state management
-- Scalability: Designed for complex, multi-node workflow orchestration
-
-Architecture Overview:
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  ProviderNode   │    │ ProcessorNode   │    │ TerminatorNode  │
-│                 │    │                 │    │                 │
-│ • Creates LLMs  │    │ • Orchestrates  │    │ • Transforms    │
-│ • Creates Tools │    │ • Composes      │    │ • Finalizes     │
-│ • Creates Memory│    │ • Chains        │    │ • Outputs       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-        │                       │                       │
-        └───────────────────────┼───────────────────────┘
-                                │
-                    ┌─────────────────┐
-                    │    BaseNode     │
-                    │                 │
-                    │ • State Mgmt    │
-                    │ • Type System   │
-                    │ • LangGraph API │
-                    │ • Error Handle  │
-                    └─────────────────┘
-
-Node Types Explained:
-1. PROVIDER: Source nodes that create/provide LangChain objects (LLMs, Tools, Memory)
-2. PROCESSOR: Orchestration nodes that combine multiple inputs (Agents, Chains)  
-3. TERMINATOR: Output nodes that finalize/transform results (Parsers, Formatters)
-4. MEMORY: Specialized nodes for conversation/context persistence
-
-Key Features:
-- Metadata-driven configuration with Pydantic validation
-- Connection-aware input/output management
-- LangGraph state compatibility for complex workflows
-- Built-in error handling and graceful degradation
-- LangSmith tracing integration for observability
-- Type-safe input/output contracts
-
-Authors: KAI-Flow Development Team
-Version: 2.0.0
-License: Proprietary
-"""
-
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union, Callable
 import logging
@@ -143,7 +89,7 @@ class NodeType(str, Enum):
     - Context injection capabilities
     - Multi-turn conversation support
     
-    Examples: ConversationMemory, BufferMemory, VectorMemory
+    Examples: BufferMemory, VectorMemory
     Input Sources: Session context + memory configuration
     Output Type: Memory objects with conversation state
     """
@@ -710,6 +656,15 @@ class BaseNode(ABC):
         This method transforms the node into a function that takes and returns FlowState
         """
         def graph_node_function(state: FlowState) -> Dict[str, Any]:  # noqa: D401
+            import time
+            import traceback
+            import datetime
+            from app.core.json_utils import format_standard_node_output
+
+            start_time = time.time()
+            resolved_inputs = {}
+            node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
+
             try:
                 # Merge user configuration into state variables
                 for key, value in self.user_data.items():
@@ -717,29 +672,36 @@ class BaseNode(ABC):
                 
                 # Get node metadata for input processing
                 metadata = self.metadata
-                node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
                 
+                from app.core.templating import apply_jinja_to_inputs
+                nodes_registry = getattr(state, "nodes_registry", None)
+
                 # Prepare inputs based on node type and connections
                 if self.metadata.node_type == NodeType.PROVIDER:
                     # Provider nodes create objects from user inputs only
                     inputs = self._extract_user_inputs(state, metadata.inputs)
+                    inputs = apply_jinja_to_inputs(inputs, state, node_id, nodes_registry)
+                    resolved_inputs = inputs
                     result = self.execute(**inputs)
                     
                 elif self.metadata.node_type == NodeType.PROCESSOR:
                     # Processor nodes need both connected nodes and user inputs
                     user_inputs = self._extract_user_inputs(state, metadata.inputs)
+                    user_inputs = apply_jinja_to_inputs(user_inputs, state, node_id, nodes_registry)
                     connected_nodes = self._extract_connected_inputs(state, metadata.inputs)
                     
                     # Log connection details for debugging
                     logger.debug(f"Processor {node_id} - User inputs: {list(user_inputs.keys())}")
                     logger.debug(f"Processor {node_id} - Connected inputs: {list(connected_nodes.keys())}")
                     
+                    resolved_inputs = {**user_inputs, **{k: make_json_serializable_with_langchain(v) if not isinstance(v, (str, dict, list, int, float, bool)) else v for k, v in connected_nodes.items()}}
                     result = self.execute(inputs=user_inputs, connected_nodes=connected_nodes)
                     
                 elif self.metadata.node_type == NodeType.TERMINATOR:
                     # Terminator nodes process previous node output
                     connected_inputs = self._extract_connected_inputs(state, metadata.inputs)
                     user_inputs = self._extract_user_inputs(state, metadata.inputs)
+                    user_inputs = apply_jinja_to_inputs(user_inputs, state, node_id, nodes_registry)
                     
                     # Get the primary input from connections
                     previous_node = None
@@ -747,15 +709,32 @@ class BaseNode(ABC):
                         # Get the first connected input as the primary input
                         previous_node = list(connected_inputs.values())[0]
                     
+                    resolved_inputs = {**user_inputs, "previous_node": previous_node}
                     result = self.execute(previous_node=previous_node, inputs=user_inputs)
                     
                 else:
                     # Fallback for unknown node types
                     inputs = self._extract_all_inputs(state, metadata.inputs)
+                    inputs = apply_jinja_to_inputs(inputs, state, node_id, nodes_registry)
+                    resolved_inputs = inputs
                     result = self.execute(**inputs)
                 
                 # Handle different result types
                 processed_result = self._process_execution_result(result, state)
+                
+                execution_time_ms = round((time.time() - start_time) * 1000, 2)
+                
+                # Format standard output
+                standard_output = format_standard_node_output(
+                    node_id=node_id,
+                    node_type=self.__class__.__name__,
+                    success=True,
+                    status_code=200,
+                    execution_time_ms=execution_time_ms,
+                    inputs=resolved_inputs,
+                    output=processed_result,
+                    node_instance=self
+                )
                 
                 # Store the result in state using unique key
                 unique_output_key = f"output_{node_id}"
@@ -769,27 +748,53 @@ class BaseNode(ABC):
                 if not hasattr(state, "node_outputs"):
                     state.node_outputs = {}
                 
-                try:
-                    serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=False)
-                    state.node_outputs[node_id] = serializable_result
-                except Exception as e:
-                    logger.warning(f"Failed to store node output in node_outputs for {node_id}: {e}")
+                state.node_outputs[node_id] = standard_output
 
                 return {
-                    unique_output_key: processed_result,
+                    unique_output_key: standard_output,
                     "executed_nodes": updated_executed_nodes,
                     "last_output": str(processed_result),
                     "node_outputs": state.node_outputs
                 }
                 
             except Exception as e:
+                execution_time_ms = round((time.time() - start_time) * 1000, 2)
+                
                 # Handle errors gracefully
                 error_msg = f"Error in {self.__class__.__name__} ({node_id}): {str(e)}"
                 logger.error(f"{error_msg}")
                 state.add_error(error_msg)
+                
+                error_details = {
+                    "node_id": node_id,
+                    "node_type": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "stack_trace": traceback.format_exc()
+                }
+                
+                # Standardize error output
+                standard_error_output = format_standard_node_output(
+                    node_id=node_id,
+                    node_type=self.__class__.__name__,
+                    success=False,
+                    status_code=500,
+                    execution_time_ms=execution_time_ms,
+                    inputs=resolved_inputs,
+                    output=None,
+                    error=error_details,
+                    node_instance=self
+                )
+                
+                if not hasattr(state, "node_outputs"):
+                    state.node_outputs = {}
+                state.node_outputs[node_id] = standard_error_output
+                
                 return {
                     "errors": state.errors,
-                    "last_output": f"ERROR: {error_msg}"
+                    "last_output": f"ERROR: {error_msg}",
+                    "node_outputs": state.node_outputs
                 }
         
         return graph_node_function

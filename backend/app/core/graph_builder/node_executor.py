@@ -21,16 +21,6 @@ import datetime
 import traceback
 import re
 import json
-from jinja2 import Environment
-
-# Custom Jinja2 environment with Unicode-safe tojson filter
-# This prevents Turkish/Unicode characters from being escaped to \uXXXX format
-def _tojson_unicode(value):
-    """JSON encode preserving Unicode characters (no ASCII escaping)"""
-    return json.dumps(value, ensure_ascii=False, default=str)
-
-_jinja_env = Environment()
-_jinja_env.filters['tojson'] = _tojson_unicode
 
 from .types import (
     GraphNodeInstance,
@@ -42,6 +32,7 @@ from .types import (
 )
 from .exceptions import NodeExecutionError
 from app.core.state import FlowState
+from app.core.templating import apply_jinja_to_inputs
 from app.core.output_cache import default_connection_extractor
 from app.core.node_handlers import node_handler_registry
 from app.core.connection_pool import ConnectionPool, PooledConnection
@@ -146,18 +137,37 @@ class NodeExecutor:
         """
         try:
             logger.info(f"[PROCESSING] Executing processor node: {node_id} ({gnode.type})")
+            start_time = datetime.datetime.now()
             
             # Extract user inputs for processor
             user_inputs = self.extract_user_inputs_for_processor(gnode, state)
             logger.debug(f"User inputs extracted: {list(user_inputs.keys()) if user_inputs else 'None'}")
             
             # Apply node-output templating so processor inputs can reference upstream node outputs
-            user_inputs = self._apply_node_output_templating(gnode, user_inputs, state)
+            user_inputs = apply_jinja_to_inputs(user_inputs, state, node_id, self._nodes_registry)
             logger.debug(f"Templated user inputs: {list(user_inputs.keys()) if user_inputs else 'None'}")
             
+            # Inject kafka_data if the node is a Kafka consumer trigger
+            if gnode.type in ("KafkaConsumer", "KafkaTrigger") or gnode.node_instance.__class__.__name__ == "KafkaTriggerNode":
+                kafka_data = None
+                state_variables = state.get("variables") if isinstance(state, dict) else getattr(state, "variables", None)
+                if isinstance(state_variables, dict):
+                    kafka_data = state_variables.get("kafka_data")
+                state_node_outputs = state.get("node_outputs") if isinstance(state, dict) else getattr(state, "node_outputs", None)
+                if not kafka_data and isinstance(state_node_outputs, dict):
+                    kafka_node_out = state_node_outputs.get(node_id)
+                    if isinstance(kafka_node_out, dict):
+                        kafka_data = kafka_node_out.get("kafka_data") or kafka_node_out.get("value")
+                if kafka_data:
+                    user_inputs["kafka_data"] = kafka_data
+                    logger.info(f"[KAFKA] Successfully injected kafka_data into inputs for node: {node_id}")
+
             # Extract connected node instances
             connected_nodes = self.extract_connected_node_instances(gnode, state)
             logger.debug(f"Connected nodes extracted: {list(connected_nodes.keys())}")
+            
+            # Build resolved inputs representation for standard logging
+            resolved_inputs = {**user_inputs, **{k: make_json_serializable_with_langchain(v) if not isinstance(v, (str, dict, list, int, float, bool)) else v for k, v in connected_nodes.items()}}
             
             # Call execute with proper async handling
             execute_method = gnode.node_instance.execute
@@ -170,7 +180,15 @@ class NodeExecutor:
             except Exception:
                 pass  # If we can't determine node type, use default processor pattern
             
-            if is_terminator:
+            # Check if trigger node defines a custom _execute method taking state
+            if hasattr(gnode.node_instance, "_execute") and callable(getattr(gnode.node_instance, "_execute")):
+                logger.info(f"[TRIGGER] Executing custom _execute with state for node: {node_id}")
+                execute_method_trigger = gnode.node_instance._execute
+                if inspect.iscoroutinefunction(execute_method_trigger):
+                    result = self._execute_async_trigger(execute_method_trigger, state, node_id)
+                else:
+                    result = execute_method_trigger(state)
+            elif is_terminator:
                 # TERMINATOR nodes expect (previous_node, inputs) signature
                 # Extract the primary connected input as previous_node
                 previous_node = None
@@ -219,20 +237,35 @@ class NodeExecutor:
                 last_output = str(processed_result)
             # Update the state directly
             state.last_output = last_output
-            state.executed_nodes = updated_executed_nodes                       # Filter out complex objects before storing in state
-            if gnode.type in PROCESSOR_NODE_TYPES:
-                serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=True)
-                serializable_output = last_output
-                logger.debug(f"Agent serializable output: {type(serializable_output)} - '{str(serializable_output)[:100]}...'")
+            state.executed_nodes = updated_executed_nodes
+            
+            # Calculate execution duration
+            execution_time_ms = round((datetime.datetime.now() - start_time).total_seconds() * 1000, 2)
+            
+            # Format standard output
+            from app.core.json_utils import format_standard_node_output
+            standard_output = format_standard_node_output(
+                node_id=node_id,
+                node_type=gnode.type,
+                success=True,
+                status_code=200,
+                execution_time_ms=execution_time_ms,
+                inputs=resolved_inputs,
+                output=processed_result,
+                node_instance=gnode.node_instance
+            )
+            
+            if isinstance(state, dict):
+                if 'node_outputs' not in state or not isinstance(state['node_outputs'], dict):
+                    state['node_outputs'] = {}
+                state['node_outputs'][node_id] = standard_output
             else:
-                serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=False)
-                serializable_output = serializable_result            # Store only serializable data in state for connected nodes to access
-            if not hasattr(state, 'node_outputs'):
-                state.node_outputs = {}
-            state.node_outputs[node_id] = serializable_result
+                if not hasattr(state, 'node_outputs') or not isinstance(state.node_outputs, dict):
+                    state.node_outputs = {}
+                state.node_outputs[node_id] = standard_output
             
             result_dict = {
-                f"output_{node_id}": serializable_output,
+                f"output_{node_id}": standard_output,
                 "executed_nodes": updated_executed_nodes,
                 "last_output": last_output,
                 "node_outputs": state.node_outputs
@@ -244,6 +277,40 @@ class NodeExecutor:
             return result_dict
             
         except Exception as e:
+            try:
+                execution_time_ms = round((datetime.datetime.now() - start_time).total_seconds() * 1000, 2)
+                error_details = {
+                    "node_id": node_id,
+                    "node_type": gnode.type,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "stack_trace": traceback.format_exc()
+                }
+                from app.core.json_utils import format_standard_node_output
+                local_resolved_inputs = locals().get('resolved_inputs', {})
+                standard_error_output = format_standard_node_output(
+                    node_id=node_id,
+                    node_type=gnode.type,
+                    success=False,
+                    status_code=500,
+                    execution_time_ms=execution_time_ms,
+                    inputs=local_resolved_inputs,
+                    output=None,
+                    error=error_details,
+                    node_instance=gnode.node_instance
+                )
+                if isinstance(state, dict):
+                    if 'node_outputs' not in state or not isinstance(state['node_outputs'], dict):
+                        state['node_outputs'] = {}
+                    state['node_outputs'][node_id] = standard_error_output
+                else:
+                    if not hasattr(state, 'node_outputs') or not isinstance(state.node_outputs, dict):
+                        state.node_outputs = {}
+                    state.node_outputs[node_id] = standard_error_output
+            except Exception as formatting_err:
+                logger.warning(f"Failed to record standardized error in execute_processor_node: {formatting_err}")
+
             raise NodeExecutionError(
                 node_id=node_id,
                 node_type=gnode.type,
@@ -281,9 +348,14 @@ class NodeExecutor:
                     output_key = f"output_{node_id}"
                     if output_key in result:
                         primary_raw = result[output_key]
-                        if not hasattr(state, "node_outputs"):
-                            state.node_outputs = {}
-                        state.node_outputs[node_id] = primary_raw
+                        if isinstance(state, dict):
+                            if 'node_outputs' not in state or not isinstance(state['node_outputs'], dict):
+                                state['node_outputs'] = {}
+                            state['node_outputs'][node_id] = primary_raw
+                        else:
+                            if not hasattr(state, "node_outputs") or not isinstance(state.node_outputs, dict):
+                                state.node_outputs = {}
+                            state.node_outputs[node_id] = primary_raw
                         logger.debug(
                             f"[TEMPLATE] Standard node {node_id} stored in state.node_outputs "
                             f"with type={type(primary_raw)}"
@@ -291,7 +363,7 @@ class NodeExecutor:
                         # CRITICAL: Ensure the returned result dict also has the updated node_outputs
                         # to prevent LangGraph's merge from overwriting the in-place change with an old version
                         if isinstance(result, dict):
-                            result["node_outputs"] = state.node_outputs
+                            result["node_outputs"] = state.get("node_outputs", {}) if isinstance(state, dict) else getattr(state, "node_outputs", {})
             except Exception as e:
                 logger.warning(f"[TEMPLATE] Failed to store standard node output for {node_id}: {e}")
             
@@ -374,254 +446,9 @@ class NodeExecutor:
         logger.debug(f"Processor {gnode.id} resolved user_inputs: {user_inputs}")
         return user_inputs
     
-    def _normalize_display_name_for_template(self, name: str) -> str:
-        """
-        Normalize a node display name to a Jinja-safe identifier.
-        
-        Example:
-            "OpenAI GPT" -> "openai_gpt"
-        """
-        if not name:
-            return ""
-        
-        normalized = re.sub(r"[^0-9a-zA-Z_]+", "_", name).strip("_")
-        if not normalized:
-            return ""
-        
-        # Jinja identifiers should not start with a digit
-        if normalized[0].isdigit():
-            normalized = f"n_{normalized}"
-        
-        return normalized
-    
-    def _get_primary_output_for_node(self, node_id: str, state: FlowState) -> Any:
-        """
-        Determine the primary output value for a given node from FlowState.
-
-        Heuristic:
-        - If node_outputs[node_id] is a dict:
-          - Prefer 'output'
-          - Then 'content'
-          - If only one key, return that single value
-          - Otherwise return the entire dict
-        - Otherwise, return the stored value directly.
-        """
-        if not hasattr(state, "node_outputs"):
-            return None
-        
-        node_output = state.node_outputs.get(node_id)
-        if node_output is None:
-            return None
-        
-        if isinstance(node_output, dict):
-            if "output" in node_output:
-                return node_output["output"]
-            if "content" in node_output:
-                return node_output["content"]
-            if len(node_output) == 1:
-                return next(iter(node_output.values()))
-            return node_output
-        
-        return node_output
-    
-    def _render_template_string(self, template_str: str, context: Dict[str, Any], node_id: str) -> str:
-        """
-        Render a Jinja2 template string with the given context.
-
-        Supports both ${{var}} and {{var}} syntax for variables.
-        ${{var}} syntax avoids conflicts with { } characters commonly used in system prompts (JSON schemas, etc.).
-        {{var}} syntax is also supported for compatibility.
-        """
-        # Only process templates with {{...}} syntax (either ${{...}} or {{...}})
-        if "{{" not in template_str or "}}" not in template_str:
-            return template_str
-
-        try:
-            # Convert ${{var}} to {{var}} for Jinja2 rendering (if not already)
-            processed_template = template_str.replace("${" + "{", "{{").replace("}}", "}}")
-
-            template = _jinja_env.from_string(processed_template)
-            return template.render(**context)
-        except Exception as e:
-            logger.warning(f"Node templating failed for {node_id}: {e}")
-            return template_str
-    
-    def _apply_node_output_templating(
-        self,
-        gnode: GraphNodeInstance,
-        user_inputs: Dict[str, Any],
-        state: FlowState
-    ) -> Dict[str, Any]:
-        """
-        Apply Jinja2 templating to processor user inputs so they can reference upstream node outputs by normalized display name.
-
-        Example usage in processor node input:
-        "Use previous answer: {{openai_gpt}}"
-        where "OpenAI GPT" is the display name of the upstream node.
-        """
-        try:
-            # This method is only called from execute_processor_node, so no additional gnode.type filter needed here.
-
-            # Apply templating for all processor nodes.
-            # IMPORTANT: Do NOT exit early just because node_outputs is empty.
-            # webhook_trigger / current_input context must be built even when this
-            # node is the very first processor in the graph (nothing in node_outputs yet).
-            has_node_outputs = hasattr(state, "node_outputs") and bool(state.node_outputs)
-            has_registry = bool(getattr(self, "_nodes_registry", None))
-            
-            # Build templating context from executed nodes' primary outputs
-            context: Dict[str, Any] = {}
-
-            # SPECIAL CASE: Add current_input as 'input' for chat-like behavior
-            # This allows {{input}} to work even when running with StartNode
-            if hasattr(state, 'current_input') and state.current_input is not None:
-                context['input'] = state.current_input
-
-            # SPECIAL CASE: Add webhook data for webhook-triggered workflows
-            # This allows {{webhook_trigger.anyfield}} and {{webhook_data}} templates
-            if hasattr(state, 'webhook_data') and state.webhook_data:
-                context['webhook_data'] = state.webhook_data
-                # webhook_trigger = the actual payload data for easy access
-                webhook_payload = state.webhook_data.get('data', state.webhook_data)
-                context['webhook_trigger'] = webhook_payload
-                logger.info(f"[TEMPLATE] Added webhook_trigger to context: {list(webhook_payload.keys()) if isinstance(webhook_payload, dict) else type(webhook_payload)}")
-
-            # Only iterate node outputs when they are available
-            if has_node_outputs and has_registry:
-                for other_node_id in state.node_outputs.keys():
-                    graph_node = self._nodes_registry.get(other_node_id)
-                    if not graph_node:
-                        continue
-
-                    # Build a prioritized list of candidate names for this node:
-
-                    # 1) UI-visible name from user_data["name"] (what you see on the canvas)
-                    # 2) NodeMetadata.display_name
-                    # 3) NodeMetadata.name
-                    # 4) GraphNodeInstance.metadata["display_name"/"name"]
-                    # 5) Fallback: node_id
-                    alias_candidates: list[tuple[str, str]] = []
-
-                    # 1) UI name (highest priority, what the user edited on the frontend)
-                    ui_name = None
-                    try:
-                        user_data = getattr(graph_node, "user_data", {}) or {}
-                        if isinstance(user_data, dict):
-                            ui_name = user_data.get("name")
-                    except Exception:
-                        user_data = {}
-                        ui_name = None
-
-                    if ui_name:
-                        alias_candidates.append(("ui_name", str(ui_name)))
-
-                    # 2) Pydantic NodeMetadata from node instance
-                    node_meta_model = None
-                    try:
-                        node_meta_model = getattr(graph_node.node_instance, "metadata", None)
-                    except Exception:
-                        node_meta_model = None
-
-                    if node_meta_model is not None:
-                        display_name = getattr(node_meta_model, "display_name", None)
-                        meta_name = getattr(node_meta_model, "name", None)
-
-                        if display_name:
-                            alias_candidates.append(("display_name", str(display_name)))
-                        if meta_name and meta_name != display_name:
-                            alias_candidates.append(("meta_name", str(meta_name)))
-
-                    # 3) Fallback to GraphNodeInstance.metadata dict
-                    metadata_dict = getattr(graph_node, "metadata", {}) or {}
-                    if isinstance(metadata_dict, dict):
-                        md_display = metadata_dict.get("display_name")
-                        md_name = metadata_dict.get("name")
-
-                        if md_display:
-                            alias_candidates.append(("graph_display_name", str(md_display)))
-                        if md_name and md_name != md_display:
-                            alias_candidates.append(("graph_name", str(md_name)))
-
-                    # 4) Final fallback: raw node_id
-                    alias_candidates.append(("node_id", str(other_node_id)))
-
-                    primary_value = self._get_primary_output_for_node(other_node_id, state)
-                    if primary_value is None:
-                        continue
-
-                    # SPECIAL CASE: If this is a StartNode, also add its output as 'input'.
-                    # This allows {{input}} to work like a chat system with StartNode.
-                    try:
-                        if hasattr(graph_node, 'type') and graph_node.type == 'StartNode':
-                            if 'input' not in context:  # Don't overwrite if already set
-                                context['input'] = primary_value
-                                print(f"[TEMPLATE DEBUG] Added 'input' context from StartNode output: {primary_value}")
-                    except Exception:
-                        pass
-
-                    # Normalize and save all aliases without overwriting existing keys.
-                    # This preserves backward compatibility (type-based aliases) while
-                    # allowing clean UI-based aliases like {{openai_gpt}}.
-                    for source_type, raw_name in alias_candidates:
-                        normalized = self._normalize_display_name_for_template(raw_name)
-                        if not normalized:
-                            continue
-
-                        if normalized in context:
-                            # Do not overwrite existing mapping; just log once for visibility
-                            logger.debug(
-                                f"[TEMPLATE] Skipping duplicate alias '{normalized}' from {source_type} "
-                                f"for node {other_node_id} while building context for {gnode.id}"
-                            )
-                            continue
-
-                        context[normalized] = primary_value
-                        logger.debug(
-                            f"[TEMPLATE] Added alias '{normalized}' from {source_type} "
-                            f"for node '{other_node_id}' (raw='{raw_name}') into context for {gnode.id}"
-                        )
-
-            # Bail out only if no context at all was built (no webhook, no input, no upstream outputs)
-            if not context:
-                logger.debug(f"[TEMPLATE] No context built for node {gnode.id}; skipping templating")
-                return user_inputs
-            
-            logger.debug(
-                f"[TEMPLATE] Built templating context for node {gnode.id}: "
-                f"keys={list(context.keys())}"
-            )
-            
-            # Apply templating only to string inputs containing '{{' and '}}'
-            rendered_inputs: Dict[str, Any] = {}
-            for key, value in user_inputs.items():
-                if isinstance(value, str) and "{{" in value and "}}" in value:
-                    original = value
-                    rendered = self._render_template_string(
-                        original, context, gnode.id
-                    )
-                    print(
-                        f"[TEMPLATE DEBUG] Node {gnode.id} input '{key}' "
-                        f"before='{original}' after='{rendered}'"
-                    )
-                    if rendered != original:
-                        logger.info(
-                            f"[TEMPLATE] Node {gnode.id} input '{key}' templated from "
-                            f"'{original}' to '{rendered}'"
-                        )
-                    else:
-                        logger.info(
-                            f"[TEMPLATE] Node {gnode.id} input '{key}' contained templates "
-                            f"but rendered unchanged: '{original}'"
-                        )
-                    rendered_inputs[key] = rendered
-                else:
-                    rendered_inputs[key] = value
-            
-            return rendered_inputs
-        
-        except Exception as e:
-            logger.error(f"Failed to apply node output templating for {gnode.id}: {e}")
-            return user_inputs
+    # Note: Redundant helper methods _normalize_display_name_for_template, _get_primary_output_for_node,
+    # _render_template_string, and _apply_node_output_templating were removed.
+    # Centralized templating from app.core.templating is used instead.
     
     def extract_connected_node_instances(self, gnode: GraphNodeInstance, state: FlowState) -> Dict[str, Any]:
         """
@@ -826,6 +653,24 @@ class NodeExecutor:
         except Exception as e:
             logger.error(f"Failed to execute async terminator method for {node_id}: {e}")
             raise
+            
+    def _execute_async_trigger(self, execute_method, state, node_id: str) -> Any:
+        """Execute async trigger method with proper event loop handling."""
+        try:
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, execute_method(state))
+                        result = future.result()
+                else:
+                    result = asyncio.run(execute_method(state))
+            except RuntimeError:
+                result = asyncio.run(execute_method(state))
+            return result
+        except Exception as e:
+            logger.error(f"Failed to execute async trigger for {node_id}: {e}")
+            raise
     
     def _has_pool_connections(self, gnode: GraphNodeInstance) -> bool:
         """
@@ -925,8 +770,9 @@ class NodeExecutor:
                 return None
             
             # Check if we have cached output for this node
-            if hasattr(state, 'node_outputs') and source_node_id in state.node_outputs:
-                stored_result = state.node_outputs[source_node_id]
+            state_node_outputs = state.get("node_outputs") if isinstance(state, dict) else getattr(state, "node_outputs", None)
+            if isinstance(state_node_outputs, dict) and source_node_id in state_node_outputs:
+                stored_result = state_node_outputs[source_node_id]
                 
                 # Try to extract specific handle output
                 if isinstance(stored_result, dict) and source_handle in stored_result:

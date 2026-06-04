@@ -1,24 +1,3 @@
-"""
-KAI-Flow Agentic Red Team Node — Adversarial Security Testing for AI Agents
-Version: 1.0.0 (May 2026)
-
-Architecture (Tri-LLM Design — inherited from LLMRedTeamNode):
-- model_callback : async function wrapping the target LLM (built from webhook params)
-- simulator_model: DeepEvalBaseLLM wrapping the canvas simulator LangChain LLM
-- evaluator_model: DeepEvalBaseLLM wrapping the canvas evaluator LangChain LLM
-
-Focus: Agentic-specific vulnerabilities from DeepTeam framework
-- Goal Theft, Recursive Hijacking, Excessive Agency, Robustness
-- Indirect Instruction, Tool Orchestration Abuse, Agent Identity Abuse
-- Inter-Agent Communication, Autonomous Agent Drift, Exploit Tool Agent
-- External System Abuse, Cross Context Retrieval, Tool Metadata Poisoning
-- Debug Access, System Reconnaissance
-
-References:
-- https://www.trydeepteam.com/docs/red-teaming-agentic-vulnerabilities-goal-theft
-- https://trydeepteam.com/docs/red-teaming-introduction
-"""
-
 import json
 import logging
 import os

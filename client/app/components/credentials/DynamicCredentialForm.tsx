@@ -280,9 +280,9 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
                       const result = await onTest(values);
                       setTestState(result.success ? "success" : "error");
                       setTestMessage(result.message);
-                    } catch {
+                    } catch (error: any) {
                       setTestState("error");
-                      setTestMessage("Unexpected error. Please try again.");
+                      setTestMessage(error?.message || "Unexpected error. Please try again.");
                     }
                     setTimeout(() => {
                       setTestState("idle");

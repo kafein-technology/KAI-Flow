@@ -1,18 +1,3 @@
-"""
-KAI-Flow OpenAI Compatible Node
-===============================
-
-This module provides a universal node for connecting to any OpenAI-compatible API 
-(OpenRouter, LocalAI, vLLM, DeepSeek, Groq, etc.). It allows users to specify 
-a custom base URL and model name, enabling access to a vast ecosystem of models.
-
-KEY FEATURES:
-- Universal Base URL support
-- Flexible Model Name input
-- Automatic Header management for specific providers (e.g. OpenRouter)
-- Standard OpenAI parameter support
-"""
-
 import logging
 from typing import Dict, Any, Optional, List
 import httpx
@@ -290,34 +275,66 @@ class OpenAICompatibleNode(BaseNode):
         """Execute Node to create the ChatOpenAI instance."""
         logger.info("\nOPENAI COMPATIBLE NODE SETUP")
         
-        # Extract configuration
-        base_url = self.user_data.get("base_url", "https://openrouter.ai/api/v1")
-        model_name = self.user_data.get("model_name", "google/gemma-3n-e4b-it")
-        temperature = float(self.user_data.get("temperature", 0.7))
-        max_tokens = int(self.user_data.get("max_tokens", 4096))
+        # Get configuration from kwargs or user_data fallback
+        base_url = kwargs.get("base_url") or self.user_data.get("base_url", "https://openrouter.ai/api/v1")
+        model_name = kwargs.get("model_name") or self.user_data.get("model_name", "google/gemma-3n-e4b-it")
+        
+        temperature_val = kwargs.get("temperature")
+        if temperature_val is None:
+            temperature_val = self.user_data.get("temperature", 0.7)
+        temperature = float(temperature_val)
+        
+        max_tokens_val = kwargs.get("max_tokens")
+        if max_tokens_val is None:
+            max_tokens_val = self.user_data.get("max_tokens", 4096)
+        max_tokens = int(max_tokens_val)
 
         # Determine which optional fields the user explicitly enabled
         active_optional = set(self.user_data.get("_active_optional_fields", []))
 
-        # Optional parameters - only use if explicitly activated by the user
-        top_p = float(self.user_data["top_p"]) if "top_p" in active_optional and "top_p" in self.user_data else None
-        frequency_penalty = float(self.user_data["frequency_penalty"]) if "frequency_penalty" in active_optional and "frequency_penalty" in self.user_data else None
-        presence_penalty = float(self.user_data["presence_penalty"]) if "presence_penalty" in active_optional and "presence_penalty" in self.user_data else None
-        timeout = int(self.user_data["timeout"]) if "timeout" in active_optional and "timeout" in self.user_data else None
-        streaming = bool(self.user_data["streaming"]) if "streaming" in active_optional and "streaming" in self.user_data else False
+        # Optional parameters - check kwargs first, then only use user_data if explicitly activated by the user
+        top_p = kwargs.get("top_p")
+        if top_p is None and "top_p" in active_optional and "top_p" in self.user_data:
+            top_p = float(self.user_data["top_p"])
+            
+        frequency_penalty = kwargs.get("frequency_penalty")
+        if frequency_penalty is None and "frequency_penalty" in active_optional and "frequency_penalty" in self.user_data:
+            frequency_penalty = float(self.user_data["frequency_penalty"])
+            
+        presence_penalty = kwargs.get("presence_penalty")
+        if presence_penalty is None and "presence_penalty" in active_optional and "presence_penalty" in self.user_data:
+            presence_penalty = float(self.user_data["presence_penalty"])
+            
+        timeout = kwargs.get("timeout")
+        if timeout is None and "timeout" in active_optional and "timeout" in self.user_data:
+            timeout = int(self.user_data["timeout"])
+            
+        streaming_val = kwargs.get("streaming")
+        if streaming_val is None:
+            if "streaming" in active_optional and "streaming" in self.user_data:
+                streaming_val = self.user_data["streaming"]
+            else:
+                streaming_val = False
+        if isinstance(streaming_val, str):
+            streaming = streaming_val.lower() in ("true", "1", "yes")
+        else:
+            streaming = bool(streaming_val)
         
         # SSL verification - default to True (secure) unless explicitly disabled
-        verify_ssl = self.user_data.get("verify_ssl", True)
-        if isinstance(verify_ssl, str):
-            verify_ssl = verify_ssl.lower() not in ("false", "0", "no")
-        verify_ssl = bool(verify_ssl)
+        verify_ssl_val = kwargs.get("verify_ssl")
+        if verify_ssl_val is None:
+            verify_ssl_val = self.user_data.get("verify_ssl", True)
+        if isinstance(verify_ssl_val, str):
+            verify_ssl = verify_ssl_val.lower() not in ("false", "0", "no")
+        else:
+            verify_ssl = bool(verify_ssl_val)
         
         # OpenRouter specific params
-        site_url = self.user_data.get("site_url", "")
-        site_name = self.user_data.get("site_name", "KAI-Flow")
+        site_url = kwargs.get("site_url") or self.user_data.get("site_url", "")
+        site_name = kwargs.get("site_name") or self.user_data.get("site_name", "KAI-Flow")
         
         # Get API Key
-        credential_id = self.user_data.get("credential_id")
+        credential_id = kwargs.get("credential_id") or self.user_data.get("credential_id")
         logger.info(f"[DEBUG][COMPATIBLE] credential_id: {credential_id}")
         
         api_key_value = ""
@@ -329,10 +346,16 @@ class OpenAICompatibleNode(BaseNode):
                 logger.info(f"[DEBUG][COMPATIBLE] API key length: {len(api_key_value)}")
         
         if not api_key_value:
-             # Some local endpoints might not require a key.
-             # We provide a dummy key because langchain/openai usually expects one.
-             api_key_value = "sk-no-key-required"
-             logger.info("INFO: No API Key provided. Using placeholder key.")
+             # Try environment variables as fallback
+             import os
+             api_key_value = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_COMPATIBLE_API_KEY")
+             if api_key_value:
+                 logger.info("INFO: Using API Key from environment.")
+             else:
+                 # Some local endpoints might not require a key.
+                 # We provide a dummy key because langchain/openai usually expects one.
+                 api_key_value = "sk-no-key-required"
+                 logger.info("INFO: No API Key provided. Using placeholder key.")
         
         # Prepare Extra Headers
         extra_headers = {}
@@ -343,7 +366,7 @@ class OpenAICompatibleNode(BaseNode):
                 extra_headers["HTTP-Referer"] = site_url
             if site_name:
                 extra_headers["X-Title"] = site_name
-
+ 
         # Build LLM Configuration
         llm_config = {
             "model": model_name,
@@ -353,7 +376,7 @@ class OpenAICompatibleNode(BaseNode):
             "max_tokens": max_tokens,
             "streaming": streaming,
         }
-
+ 
         # Only include optional parameters if explicitly set by user
         if top_p is not None:
             llm_config["top_p"] = top_p
@@ -363,7 +386,7 @@ class OpenAICompatibleNode(BaseNode):
             llm_config["presence_penalty"] = presence_penalty
         if timeout is not None:
             llm_config["timeout"] = timeout
-
+ 
         if extra_headers:
             llm_config["model_kwargs"] = {"extra_headers": extra_headers}
         

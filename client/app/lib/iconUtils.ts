@@ -74,7 +74,6 @@ export function getNodeTypeIconPath(nodeType: string): string {
 
         // Memory
         BufferMemory: "icons/database.svg",
-        ConversationMemory: "icons/message-circle.svg",
 
         // Documents & Data
         TextDataLoader: "icons/file-text.svg",
@@ -84,6 +83,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
         PGVectorStore: "icons/postgresql_vectorstore.svg",
         VectorStoreOrchestrator: "icons/postgresql_vectorstore.svg",
         IntelligentVectorStore: "icons/postgresql_vectorstore.svg",
+        MarkItDownTool: "icons/markitdown.svg",
 
         // Web & APIs
         TavilySearch: "icons/tavily-nonbrand.svg",

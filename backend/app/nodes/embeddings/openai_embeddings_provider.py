@@ -1,23 +1,3 @@
-"""
-OpenAI Embeddings Provider Node
-================================
-
-This module provides a simplified provider node that creates and configures 
-OpenAIEmbeddings instances for use by other nodes in the workflow. Unlike the
-full OpenAIEmbedderNode, this provider focuses solely on configuration without
-processing documents or providing analytics.
-
-The provider follows the KAI-Flow ProviderNode pattern, creating LangChain
-objects from user inputs that can be consumed by other nodes in the workflow.
-
-Key Features:
-- Minimal configuration surface for ease of use
-- Direct integration with LangChain OpenAIEmbeddings
-- Secure API key handling with environment variable support
-- Model selection with validation
-- Timeout and retry configuration
-"""
-
 from typing import Dict, Any
 import logging
 from langchain_openai import OpenAIEmbeddings

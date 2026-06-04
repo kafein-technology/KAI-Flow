@@ -159,7 +159,6 @@ const isProviderNode = (node?: Node): boolean => {
     "OpenAINode", "OpenAIChat", "OpenAICompatibleNode",
     "OpenAIEmbeddingsProvider", "OpenAIEmbeddings", "CohereEmbeddings",
     "BufferMemoryNode", "BufferMemory",
-    "ConversationMemoryNode", "ConversationMemory",
     "RetrieverProvider",
     "TavilySearchNode", "TavilySearch",
     "CohereRerankerNode", "CohereRerankerProvider",
@@ -168,6 +167,7 @@ const isProviderNode = (node?: Node): boolean => {
     "DocumentLoaderNode",
     "WebScraperNode", "WebScraper",
     "StringInputNode",
+    "MarkItDownTool",
   ];
   return providerTypes.some((type) =>
     node.type?.includes(type) ||
@@ -367,6 +367,34 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     ? getCurrentExecutionForWorkflow(currentWorkflow.id)
     : null;
 
+  // Clear execution data when workflow structure changes (nodes or edges added/removed/reconnected)
+  const previousStructureRef = useRef<{ nodeIds: string[]; edgeConnections: string[] }>({
+    nodeIds: [],
+    edgeConnections: [],
+  });
+
+  useEffect(() => {
+    const nodeIds = nodes.map(n => n.id).sort();
+    const edgeConnections = edges.map(e => `${e.source}-${e.target}-${e.sourceHandle || ''}-${e.targetHandle || ''}`).sort();
+
+    const structureChanged =
+      previousStructureRef.current.nodeIds.length > 0 && // Only after initial load
+      (JSON.stringify(previousStructureRef.current.nodeIds) !== JSON.stringify(nodeIds) ||
+       JSON.stringify(previousStructureRef.current.edgeConnections) !== JSON.stringify(edgeConnections));
+
+    if (structureChanged && currentWorkflow?.id) {
+      console.log("Workflow structure changed. Keeping current execution data intact.");
+      // Disabled clearing to persist states until next run as requested
+      // setCurrentExecutionForWorkflow(currentWorkflow.id, null);
+      // setNodeStatus({});
+      // setEdgeStatus({});
+      // setActiveEdges([]);
+      // setActiveNodes([]);
+    }
+
+    previousStructureRef.current = { nodeIds, edgeConnections };
+  }, [nodes, edges, currentWorkflow?.id, setCurrentExecutionForWorkflow, setNodeStatus, setEdgeStatus, setActiveEdges, setActiveNodes]);
+
   // Listen for webhook execution events to update node status
   // Must be called after currentWorkflow and setCurrentExecutionForWorkflow are defined
   useWebhookExecutionListener(
@@ -382,6 +410,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   );
 
   useKafkaExecutionListener(
+    nodes,
+    setNodeStatus,
+    edges,
+    setEdgeStatus,
+    setActiveEdges,
+    setActiveNodes,
+    currentWorkflow?.id,
+    setCurrentExecutionForWorkflow
+  );
+
+  useErrorTriggerExecutionListener(
     nodes,
     setNodeStatus,
     edges,
@@ -1123,6 +1162,25 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   };
 
                   setDetailedExecutionError(errorDetails);
+
+                  // Store the failed execution result in the store so that nodes reflect the current failed state outputs
+                  const executionResult = {
+                    id: evt.execution_id || Date.now().toString(),
+                    workflow_id: currentWorkflow.id,
+                    input_text: executionData.input_text,
+                    result: {
+                      result: `ERROR: ${evt.error || "Workflow execution failed"}`,
+                      executed_nodes: evt.executed_nodes || [],
+                      node_outputs: evt.node_outputs || {},
+                      session_id: evt.session_id,
+                      status: "failed" as const,
+                    },
+                    started_at: new Date().toISOString(),
+                    completed_at: new Date().toISOString(),
+                    status: "failed" as const,
+                  };
+
+                  setCurrentExecutionForWorkflow(currentWorkflow.id, executionResult);
                 } else if (t === "complete") {
                   // Store the execution result in the store
                   const executionResult = {
@@ -1702,6 +1760,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         fullscreenModal.nodeMetadata &&
         fullscreenModal.configComponent && (
           <FullscreenNodeModal
+            key={fullscreenModal.nodeData?.id}
             isOpen={fullscreenModal.isOpen}
             onClose={handleFullscreenModalClose}
             nodeMetadata={fullscreenModal.nodeMetadata}
@@ -1715,20 +1774,16 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               nodeId: fullscreenModal.nodeData?.id || "",
               inputs: (() => {
                 const nodeId = fullscreenModal.nodeData?.id;
-                if (!nodeId || !currentExecution?.result?.node_outputs)
-                  return {};
+                if (!nodeId) return {};
 
-                // First try to get tracked inputs from execution data
-                const nodeExecutionData =
-                  currentExecution?.result?.node_outputs?.[nodeId];
-                if (
-                  nodeExecutionData?.inputs &&
-                  Object.keys(nodeExecutionData.inputs).length > 0
-                ) {
-                  return nodeExecutionData.inputs;
+                // If no execution exists or this node hasn't run in this execution, do not show inputs (returns undefined)
+                const hasRun = currentExecution?.result?.node_outputs?.[nodeId] !== undefined;
+                console.log(`[DEBUG inputs] nodeId: ${nodeId}, hasRun: ${hasRun}, node_outputs keys:`, currentExecution?.result?.node_outputs ? Object.keys(currentExecution.result.node_outputs) : []);
+                if (!currentExecution || !hasRun) {
+                  return undefined;
                 }
 
-                // Fallback to edge-based input construction for nodes without tracked inputs
+                // ALWAYS build inputs dynamically from connected edges only, to exclude local node config parameters
                 const inputEdges = edges.filter(
                   (edge) => edge.target === nodeId
                 );
@@ -1736,50 +1791,56 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   return {};
                 }
 
-                const inputs: Record<string, any[]> = {};
+                const inputs: Record<string, any> = {};
+                const edgeGroups: Record<string, Edge[]> = {};
 
                 inputEdges.forEach((edge) => {
-                  const sourceNodeOutput =
-                    currentExecution?.result?.node_outputs?.[edge.source];
                   const inputKey = edge.targetHandle || "input";
-                  const sourceNodeId = edge.source;
-                  const sourceNode = nodes.find((n) => n.id === sourceNodeId);
+                  if (!edgeGroups[inputKey]) {
+                    edgeGroups[inputKey] = [];
+                  }
+                  edgeGroups[inputKey].push(edge);
+                });
 
-                  // Extract actual output value if it's wrapped in execution data structure
-                  let value: any;
-                  if (sourceNodeOutput !== undefined) {
-                    // Check for wrapped output fields in order of priority
-                    const OUTPUT_FIELDS = ['output', 'outputs'];
-                    const isObject = sourceNodeOutput && typeof sourceNodeOutput === "object";
-                    const outputField = isObject
-                      ? OUTPUT_FIELDS.find(field => sourceNodeOutput[field] !== undefined)
-                      : null;
+                Object.entries(edgeGroups).forEach(([inputKey, groupEdges]) => {
+                  const getEdgeInputValue = (edge: Edge) => {
+                    const sourceNodeOutput =
+                      currentExecution?.result?.node_outputs?.[edge.source];
+                    const sourceNode = nodes.find((n) => n.id === edge.source);
 
-                    value = outputField ? sourceNodeOutput[outputField] : sourceNodeOutput;
-                  } else {
-                    // Try to get default value from source node config
-                    const sourceData = (sourceNode?.data as any) || {};
-
-                    // List of fallback fields to check in order of priority
-                    const FALLBACK_FIELDS = ['text_input', 'text', 'content', 'value', 'query', 'prompt'];
-                    const fallbackField = FALLBACK_FIELDS.find(field => sourceData[field] !== undefined);
-
-                    if (fallbackField) {
-                      value = sourceData[fallbackField];
+                    if (sourceNodeOutput !== undefined) {
+                      // Show standardized output from source node, but strip its own 'inputs' field
+                      // (which contains that node's upstream data and would leak irrelevant info)
+                      if (sourceNodeOutput && typeof sourceNodeOutput === "object") {
+                        const { inputs: _srcInputs, ...cleanOutput } = sourceNodeOutput;
+                        return cleanOutput;
+                      }
+                      return sourceNodeOutput;
                     } else {
-                      // Placeholder for nodes that haven't executed yet and have no default value
-                      value = {
-                        _placeholder: true,
-                        message: "No default value available",
-                        sourceNodeId: edge.source
-                      };
-                    }
-                  }
+                      // Try to get default value from source node config
+                      const sourceData = (sourceNode?.data as any) || {};
+                      const FALLBACK_FIELDS = ['text_input', 'text', 'content', 'value', 'query', 'prompt'];
+                      const fallbackField = FALLBACK_FIELDS.find(field => sourceData[field] !== undefined);
 
-                  if (!Array.isArray(inputs[inputKey])) {
-                    inputs[inputKey] = [];
+                      if (fallbackField) {
+                        return sourceData[fallbackField];
+                      } else {
+                        // Descriptive placeholder for provider/unexecuted nodes
+                        const sourceDisplayName = sourceData?.metadata?.display_name || sourceData?.displayName || sourceNode?.type || "Unknown";
+                        return {
+                          _placeholder: true,
+                          message: `${sourceDisplayName} — provider node (no serializable output)`,
+                          sourceNodeId: edge.source
+                        };
+                      }
+                    }
+                  };
+
+                  if (groupEdges.length === 1) {
+                    inputs[inputKey] = getEdgeInputValue(groupEdges[0]);
+                  } else {
+                    inputs[inputKey] = groupEdges.map(getEdgeInputValue);
                   }
-                  inputs[inputKey].push(value);
                 });
 
                 return inputs;
@@ -1788,6 +1849,12 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 const nodeId = fullscreenModal.nodeData?.id;
                 if (!nodeId || !currentExecution?.result?.node_outputs)
                   return undefined;
+
+                // If this node hasn't run in this execution, do not show inputs_meta (returns undefined)
+                const hasRun = currentExecution?.result?.node_outputs?.[nodeId] !== undefined;
+                if (!hasRun) {
+                  return undefined;
+                }
 
                 // 1) If engine already tracked inputs_meta explicitly (e.g., from chat), use it
                 const nodeExecutionData =
@@ -1853,32 +1920,12 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
                 // 1. If execution output exists, use it
                 const executionOutput = currentExecution?.result?.node_outputs?.[nodeId];
+                console.log(`[DEBUG outputs] nodeId: ${nodeId}, executionOutput exists: ${executionOutput !== undefined}`);
                 if (executionOutput) {
                   return executionOutput;
                 }
 
-                // 2. Only show fallback/placeholder if a workflow execution exists but this node hasn't run
-                if (currentExecution?.result?.node_outputs) {
-                  // Check node config data for fallback fields
-                  const nodeData = (fullscreenModal.nodeData?.data as any) || {};
-                  const OUTPUT_FALLBACK_FIELDS = ['output', 'text_input', 'text', 'content', 'value', 'result', 'response', 'query', 'prompt'];
-                  const fallbackField = OUTPUT_FALLBACK_FIELDS.find(field => nodeData[field] !== undefined);
-
-                  if (fallbackField) {
-                    return { output: nodeData[fallbackField] };
-                  }
-
-                  // No fallback fields found, return placeholder
-                  return {
-                    output: {
-                      _placeholder: true,
-                      message: "No default value available",
-                      nodeId: nodeId
-                    }
-                  };
-                }
-
-                // 3. No execution exists at all - return undefined (shows "No Output Data Yet")
+                // If this node has not run in this execution, do not show outputs (returns undefined)
                 return undefined;
               })(),
               status:
@@ -2323,15 +2370,16 @@ function useWebhookExecutionListener(
 
                   // Handle error for snackbar notification
                   if (isError) {
+                    const ev = executionEvent as any;
                     window.dispatchEvent(
                       new CustomEvent("chat-execution-error", {
                         detail: {
-                          error: executionEvent.error || `Node ${node_id} failed`,
-                          message: executionEvent.error || `Node ${node_id} failed`,
-                          type: executionEvent.error_type || "execution",
+                          error: ev.error || `Node ${node_id} failed`,
+                          message: ev.error || `Node ${node_id} failed`,
+                          type: ev.error_type || "execution",
                           nodeId: actualNode.id,
                           nodeType: actualNode.type,
-                          stackTrace: executionEvent.stack_trace,
+                          stackTrace: ev.stack_trace,
                         },
                       })
                     );
@@ -2366,18 +2414,55 @@ function useWebhookExecutionListener(
               }
 
               // Handle general execution error event
-              if (eventType === "error" || eventType === "workflow_error") {
+              if ((eventType as string) === "error" || (eventType as string) === "workflow_error") {
+                const ev = executionEvent as any;
                 window.dispatchEvent(
                   new CustomEvent("chat-execution-error", {
                     detail: {
-                      error: executionEvent.error || "Workflow execution failed",
-                      message: executionEvent.error || "Workflow execution failed",
-                      type: executionEvent.error_type || "execution",
-                      nodeId: executionEvent.node_id,
-                      stackTrace: executionEvent.stack_trace,
+                      error: ev.error || "Workflow execution failed",
+                      message: ev.error || "Workflow execution failed",
+                      type: ev.error_type || "execution",
+                      nodeId: ev.node_id,
+                      stackTrace: ev.stack_trace,
                     },
                   })
                 );
+
+                // Save failed execution to store so canvas updates correctly
+                execData.status = "failed";
+                execData.completedAt = data.timestamp || new Date().toISOString();
+                if (ev.node_outputs) {
+                  execData.nodeOutputs = {
+                    ...execData.nodeOutputs,
+                    ...ev.node_outputs,
+                  };
+                }
+                if (ev.executed_nodes) {
+                  execData.executedNodes = ev.executed_nodes;
+                }
+                if (ev.session_id) {
+                  execData.sessionId = ev.session_id;
+                }
+
+                if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                  const executionResult = {
+                    id: executionId,
+                    workflow_id: currentWorkflowId,
+                    input_text: data.webhook_payload ? JSON.stringify(data.webhook_payload) : "",
+                    result: {
+                      result: `ERROR: ${ev.error || "Workflow execution failed"}`,
+                      executed_nodes: execData.executedNodes,
+                      node_outputs: execData.nodeOutputs,
+                      session_id: execData.sessionId,
+                      status: "failed" as const,
+                    },
+                    started_at: execData.startedAt,
+                    completed_at: execData.completedAt,
+                    status: "failed" as const,
+                  };
+
+                  setCurrentExecutionForWorkflow(currentWorkflowId, executionResult);
+                }
               }
             }
           } catch (error) {
@@ -2522,18 +2607,46 @@ function useKafkaExecutionListener(
           }
 
           // Handle general execution error event
-          if (eventType === "error" || eventType === "workflow_error") {
+          if ((eventType as string) === "error" || (eventType as string) === "workflow_error") {
+            const ev = executionEvent as any;
             window.dispatchEvent(
               new CustomEvent("chat-execution-error", {
                 detail: {
-                  error: executionEvent.error || "Workflow execution failed",
-                  message: executionEvent.error || "Workflow execution failed",
-                  type: executionEvent.error_type || "execution",
-                  nodeId: executionEvent.node_id,
-                  stackTrace: executionEvent.stack_trace,
+                  error: ev.error || "Workflow execution failed",
+                  message: ev.error || "Workflow execution failed",
+                  type: ev.error_type || "execution",
+                  nodeId: ev.node_id,
+                  stackTrace: ev.stack_trace,
                 },
               })
             );
+
+            // Save failed execution to store so canvas updates correctly
+            execData.completedAt = data.timestamp || new Date().toISOString();
+            execData.nodeOutputs = {
+              ...execData.nodeOutputs,
+              ...(ev.node_outputs || {}),
+            };
+            execData.executedNodes = ev.executed_nodes || execData.executedNodes;
+            execData.sessionId = ev.session_id;
+
+            if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+              setCurrentExecutionForWorkflow(currentWorkflowId, {
+                id: executionId,
+                workflow_id: currentWorkflowId,
+                input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                result: {
+                  result: `ERROR: ${ev.error || "Workflow execution failed"}`,
+                  executed_nodes: execData.executedNodes,
+                  node_outputs: execData.nodeOutputs,
+                  session_id: ev.session_id,
+                  status: "failed" as const,
+                },
+                started_at: execData.startedAt,
+                completed_at: execData.completedAt,
+                status: "failed" as const,
+              });
+            }
           }
 
           if (eventType === "complete" || eventType === "workflow_complete") {
@@ -2577,11 +2690,224 @@ function useKafkaExecutionListener(
       eventSources.push(eventSource);
     });
 
+    // Cleanup: close all event sources when component unmounts or dependencies change
     return () => {
-      eventSources.forEach((source) => source.close());
+      eventSources.forEach((es) => {
+        try {
+          es.close();
+        } catch (error) {
+          console.warn("Error closing Kafka EventSource:", error);
+        }
+      });
       executionData.clear();
     };
   }, [nodes, edges, currentWorkflowId, setCurrentExecutionForWorkflow, setNodeStatus, setEdgeStatus, setActiveEdges, setActiveNodes]);
+}
+
+function useErrorTriggerExecutionListener(
+  nodes: Node[],
+  setNodeStatus: React.Dispatch<
+    React.SetStateAction<Record<string, NodeStatus>>
+  >,
+  edges: Edge[],
+  setEdgeStatus: React.Dispatch<
+    React.SetStateAction<Record<string, NodeStatus>>
+  >,
+  setActiveEdges: React.Dispatch<React.SetStateAction<string[]>>,
+  setActiveNodes: React.Dispatch<React.SetStateAction<string[]>>,
+  currentWorkflowId?: string,
+  setCurrentExecutionForWorkflow?: (workflowId: string, execution: any) => void
+) {
+  useEffect(() => {
+    // Find if there is an ErrorTrigger node in the workflow
+    const errorTriggerNode = nodes.find(
+      (node) => node.type === "ErrorTrigger" || node.type === "ErrorTriggerNode"
+    );
+
+    if (!errorTriggerNode || !currentWorkflowId) {
+      return; // No error trigger node or workflow ID, nothing to listen to
+    }
+
+    const baseUrl = config.API_BASE_URL;
+    const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/workflows/error-trigger/${currentWorkflowId}/stream`;
+    const eventSource = new EventSource(streamUrl);
+    const executionData = new Map<string, {
+      executionId: string;
+      nodeOutputs: Record<string, any>;
+      executedNodes: string[];
+      sessionId?: string;
+      result?: any;
+      startedAt: string;
+      completedAt?: string;
+    }>();
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "connected" || data.type === "ping") return;
+        if (data.type !== "error_trigger_execution_event" || !data.event) return;
+
+        const executionEvent = data.event;
+        const eventType = executionEvent.type || executionEvent.event;
+        const nodeId = executionEvent.node_id;
+        const executionId = data.execution_id || "unknown";
+
+        if (!executionData.has(executionId)) {
+          executionData.set(executionId, {
+            executionId,
+            nodeOutputs: {},
+            executedNodes: [],
+            startedAt: data.timestamp || new Date().toISOString(),
+          });
+        }
+
+        const execData = executionData.get(executionId)!;
+
+        if (eventType === "node_start" && nodeId) {
+          if (!execData.executedNodes.includes(nodeId)) {
+            execData.executedNodes.push(nodeId);
+          }
+
+          const actualNode = findCanvasNode(nodes, nodeId);
+          if (actualNode) {
+            const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, nodes, edges);
+            setActiveNodes([actualNode.id]);
+            setNodeStatus((prev) => ({ ...prev, [actualNode.id]: "pending" }));
+            setActiveEdges(activeFlowEdges.map((edge) => edge.id));
+            setEdgeStatus((prev) => ({
+              ...prev,
+              ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, "pending" as const])),
+            }));
+          }
+        }
+
+        if (eventType === "node_end" && nodeId) {
+          execData.nodeOutputs[nodeId] = {
+            ...(execData.nodeOutputs[nodeId] || {}),
+            output: executionEvent.output || executionEvent.result,
+            outputs: executionEvent.output || executionEvent.result,
+            status: executionEvent.error ? "failed" : "completed",
+          };
+
+          const actualNode = findCanvasNode(nodes, nodeId);
+          if (actualNode) {
+            const isError = executionEvent.error || executionEvent.status === "error";
+
+            // Handle error for snackbar notification
+            if (isError) {
+              window.dispatchEvent(
+                new CustomEvent("chat-execution-error", {
+                  detail: {
+                    error: executionEvent.error || `Node ${nodeId} failed`,
+                    message: executionEvent.error || `Node ${nodeId} failed`,
+                    type: executionEvent.error_type || "execution",
+                    nodeId: actualNode.id,
+                    nodeType: actualNode.type,
+                    stackTrace: executionEvent.stack_trace,
+                  },
+                })
+              );
+            }
+
+            const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, nodes, edges);
+            setNodeStatus((prev) => ({ ...prev, [actualNode.id]: isError ? "failed" : "success" }));
+            setEdgeStatus((prev) => ({
+              ...prev,
+              ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, isError ? "failed" as const : "success" as const])),
+            }));
+          }
+        }
+
+        // Handle general execution error event
+        if ((eventType as string) === "error" || (eventType as string) === "workflow_error") {
+          const ev = executionEvent as any;
+          window.dispatchEvent(
+            new CustomEvent("chat-execution-error", {
+              detail: {
+                error: ev.error || "Workflow execution failed",
+                message: ev.error || "Workflow execution failed",
+                type: ev.error_type || "execution",
+                nodeId: ev.node_id,
+                stackTrace: ev.stack_trace,
+              },
+            })
+          );
+
+          // Save failed execution to store so canvas updates correctly
+          execData.completedAt = data.timestamp || new Date().toISOString();
+          execData.nodeOutputs = {
+            ...execData.nodeOutputs,
+            ...(ev.node_outputs || {}),
+          };
+          execData.executedNodes = ev.executed_nodes || execData.executedNodes;
+          execData.sessionId = ev.session_id;
+
+          if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+            setCurrentExecutionForWorkflow(currentWorkflowId, {
+              id: executionId,
+              workflow_id: currentWorkflowId,
+              input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
+              result: {
+                result: `ERROR: ${ev.error || "Workflow execution failed"}`,
+                executed_nodes: execData.executedNodes,
+                node_outputs: execData.nodeOutputs,
+                session_id: ev.session_id,
+                status: "failed" as const,
+              },
+              started_at: execData.startedAt,
+              completed_at: execData.completedAt,
+              status: "failed" as const,
+            });
+          }
+        }
+
+        if (eventType === "complete" || eventType === "workflow_complete") {
+          execData.completedAt = data.timestamp || new Date().toISOString();
+          execData.result = executionEvent.result;
+          execData.nodeOutputs = {
+            ...execData.nodeOutputs,
+            ...(executionEvent.node_outputs || {}),
+          };
+          execData.executedNodes = executionEvent.executed_nodes || execData.executedNodes;
+          execData.sessionId = executionEvent.session_id;
+
+          if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+            setCurrentExecutionForWorkflow(currentWorkflowId, {
+              id: executionId,
+              workflow_id: currentWorkflowId,
+              input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
+              result: {
+                result: executionEvent.result,
+                executed_nodes: execData.executedNodes,
+                node_outputs: execData.nodeOutputs,
+                session_id: execData.sessionId,
+                status: "completed" as const,
+              },
+              started_at: execData.startedAt,
+              completed_at: execData.completedAt,
+              status: "completed" as const,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error processing error trigger execution event:", err);
+      }
+    };
+
+    return () => {
+      eventSource.close();
+      executionData.clear();
+    };
+  }, [
+    nodes,
+    edges,
+    currentWorkflowId,
+    setCurrentExecutionForWorkflow,
+    setNodeStatus,
+    setEdgeStatus,
+    setActiveEdges,
+    setActiveNodes,
+  ]);
 }
 
 interface FlowCanvasWrapperProps {
