@@ -40,7 +40,7 @@ const RecommendedNodes: React.FC<RecommendedNodesProps> = ({
       inputs: nodeMetadata.inputs,
       outputs: nodeMetadata.outputs,
       icon: nodeMetadata.icon,
-      color: nodeMetadata.color,
+      colors: nodeMetadata.colors,
     },
     info: nodeMetadata.description,
   });

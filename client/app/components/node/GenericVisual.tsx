@@ -6,6 +6,11 @@ import type { GenericData } from "./types";
 import type { NodeMetadata } from "../../types/api";
 import * as LucideIcons from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
+import {
+  getNodeColorStops,
+  getNodeGradientClasses,
+  getNodeGradientStyle,
+} from "~/lib/nodeColors";
 
 interface GenericVisualProps {
   data: GenericData;
@@ -50,14 +55,11 @@ function GenericVisual({
   triggerNow,
   onToggleKafka,
 }: GenericVisualProps) {
-  const getNodeColor = () => {
-    const colors = data.metadata?.colors;
-    if (colors && colors[0] && colors[1]) {
-      return `from-${colors[0]} to-${colors[1]}`;
-    }
-    return "";
-    // return "from-blue-500 to-indigo-600";
-  };
+  const colorStops = getNodeColorStops(data);
+  const gradientStyle = getNodeGradientStyle(colorStops);
+  const gradientClasses = gradientStyle
+    ? ""
+    : getNodeGradientClasses(colorStops);
 
   const getGlowColor = () => {
     switch (data.validationStatus) {
@@ -176,10 +178,11 @@ function GenericVisual({
           ? `shadow-2xl ${getGlowColor()}`
           : "shadow-lg shadow-black/50"
         }
-        bg-gradient-to-br ${getNodeColor()}
+        ${gradientStyle ? "" : `bg-gradient-to-br ${gradientClasses}`}
 
         border border-white/20 backdrop-blur-sm
         hover:border-white/40`}
+      style={gradientStyle}
       onDoubleClick={onDoubleClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}

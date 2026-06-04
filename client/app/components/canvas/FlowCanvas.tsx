@@ -253,6 +253,73 @@ const resolveExecutionEdges = (
   return edgesToAnimate;
 };
 
+type NodeRegistryEntry = {
+  name?: string;
+  id?: string;
+  colors?: string[];
+  icon?: unknown;
+  description?: string;
+  display_name?: string;
+  inputs?: unknown;
+  outputs?: unknown;
+};
+
+function findRegistryEntry(
+  node: Node,
+  registry: NodeRegistryEntry[]
+): NodeRegistryEntry | undefined {
+  return registry.find((n) => n.name === node.type || n.id === node.type);
+}
+
+function colorsMatch(saved?: string[], registry?: string[]): boolean {
+  if (!registry?.[0]) return true;
+  return (
+    saved?.[0] === registry[0] &&
+    (saved?.[1] ?? saved?.[0]) === (registry[1] ?? registry[0])
+  );
+}
+
+/** Merge registry metadata/colors into a canvas node (saved workflows, JSON import). */
+function enrichNodeFromRegistry(
+  node: Node,
+  registry: NodeRegistryEntry[]
+): Node {
+  if (!registry.length) return node;
+
+  const def = findRegistryEntry(node, registry);
+  if (!def) return node;
+
+  if (!node.data?.metadata) {
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        metadata: def,
+        icon: def.icon,
+        description: def.description,
+        displayName: def.display_name,
+        inputs: def.inputs,
+        outputs: def.outputs,
+      },
+    };
+  }
+
+  if (def.colors && !colorsMatch(node.data.metadata.colors, def.colors)) {
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        metadata: {
+          ...node.data.metadata,
+          colors: def.colors,
+        },
+      },
+    };
+  }
+
+  return node;
+}
+
 function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -563,28 +630,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
       const combinedNodes = [...(availableNodes || []), ...(customNodes || [])];
 
-      // Inject missing metadata for nodes from availableNodes registry
-      const enrichedNodes = (rawNodes || []).map((node) => {
-        if (!node.data?.metadata && combinedNodes?.length > 0) {
-          const nodeDef = combinedNodes.find((n) => n.name === node.type || (n as any).id === node.type);
-          if (nodeDef) {
-            const def = nodeDef as any;
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                metadata: def,
-                icon: def.icon,
-                description: def.description,
-                displayName: def.display_name,
-                inputs: def.inputs,
-                outputs: def.outputs
-              }
-            };
-          }
-        }
-        return node;
-      });
+      const enrichedNodes = (rawNodes || []).map((node) =>
+        enrichNodeFromRegistry(node, combinedNodes)
+      );
 
       setNodes(enrichedNodes);
 
@@ -604,7 +652,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
     // Reset import flag after every useEffect run (self-healing)
     isImportingRef.current = false;
-  }, [currentWorkflow, availableNodes]);
+  }, [currentWorkflow, availableNodes, customNodes]);
 
   useEffect(() => {
     if (currentWorkflow) {
