@@ -490,13 +490,20 @@ async def handle_webhook_request(
 
                 if not workflow:
                     logger.error(f"Workflow not found for webhook: {webhook_id}")
-                    # Return default response if workflow not found
-                    return WebhookResponse(
-                        success=False,
-                        message=f"Workflow not found for webhook: {webhook_id}",
-                        webhook_id=webhook_id,
-                        received_at=received_at.isoformat(),
-                        correlation_id=correlation_id
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Workflow not found for webhook: {webhook_id}"
+                    )
+
+                # Check if workflow is active (is_public toggle)
+                if not workflow.is_public:
+                    logger.warning(
+                        f"Workflow {workflow.id} is deactivated (is_public=False), "
+                        f"rejecting webhook trigger: {webhook_id}"
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Workflow is currently deactivated"
                     )
 
                 # Create session ID

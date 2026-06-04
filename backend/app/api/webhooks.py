@@ -511,6 +511,13 @@ async def trigger_webhook(
                 # Fetch the workflow data
                 workflow = await workflow_service.get_by_id(db=db, workflow_id=endpoint.workflow_id)
                 
+                # Check if workflow is active (is_public toggle)
+                if workflow and not workflow.is_public:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Workflow is currently deactivated"
+                    )
+                
                 if workflow and workflow.flow_data and workflow.flow_data.get('nodes'):
                     # Execute workflow via internal API
                     execution_payload = {

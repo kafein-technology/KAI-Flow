@@ -212,10 +212,9 @@ class RespondToWebhookNode(TerminatorNode):
         """
         logger.info(f"Configuring RespondToWebhook node")
         
-        # Extract inputs from kwargs (inputs dict contains all node properties)
         inputs = kwargs.get("inputs", {})
-        connected_nodes = kwargs.get("connected_nodes", {})
-        previous_node_output = connected_nodes if connected_nodes else None
+        previous_node = kwargs.get("previous_node")
+        previous_node_output = previous_node if previous_node else None
         # Store user configuration (inputs dict'ini direkt user_data'ya kaydet)
         self.user_data.update(inputs)
         
@@ -227,8 +226,7 @@ class RespondToWebhookNode(TerminatorNode):
         
         # Determine response_body based on response_config
         if response_config == "all_incoming_items":
-            data = connected_nodes if connected_nodes else {}
-            # Convert Document objects to dicts first, then make JSON serializable
+            data = previous_node_output if previous_node_output else {}
             data = _convert_documents_to_dict(data)
             data = make_json_serializable(data)
             # Ensure JSON format: if string, wrap it; if already dict/list, use as is
@@ -247,10 +245,9 @@ class RespondToWebhookNode(TerminatorNode):
                 # Convert Document objects to dicts first, then make JSON serializable
                 response_body = _convert_documents_to_dict(previous_node_output)
                 response_body = make_json_serializable(response_body)
-            elif not response_body and connected_nodes:
-                logger.info(f"Using connected_nodes as response body: {connected_nodes}")
-                # Convert Document objects to dicts first, then make JSON serializable
-                response_body = _convert_documents_to_dict(connected_nodes)
+            elif not response_body and previous_node_output:
+                logger.info(f"Using previous_node output as response body: {previous_node_output}")
+                response_body = _convert_documents_to_dict(previous_node_output)
                 response_body = make_json_serializable(response_body)
         
         # Parse response_body if it's a JSON string and content_type is application/json
@@ -325,4 +322,3 @@ class RespondToWebhookNode(TerminatorNode):
 __all__ = [
     "RespondToWebhookNode",
 ]
-
