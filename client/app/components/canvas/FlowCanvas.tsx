@@ -2115,8 +2115,12 @@ function useWebhookExecutionListener(
       completedAt?: string;
     }>();
 
-    // Get base URL with fallback
-    const baseUrl = config.API_BASE_URL;
+    // Get base URL with fallback to prevent 'undefined/api/...' URLs
+    let baseUrl = config.API_BASE_URL;
+    if (!baseUrl && typeof window !== 'undefined') {
+      baseUrl = window.location.origin;
+      console.log(`config.API_BASE_URL is empty, using window.location.origin as fallback: ${baseUrl}`);
+    }
 
     // Connect to webhook stream for each webhook node
     webhookNodes.forEach((node) => {
@@ -2138,8 +2142,10 @@ function useWebhookExecutionListener(
         return;
       }
 
+      const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/webhook-test/${webhookId}/stream`;
+      console.log(`Connecting to Webhook EventSource at: ${streamUrl}`);
+
       try {
-        const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/webhook-test/${webhookId}/stream`;
         const eventSource = new EventSource(streamUrl);
 
         eventSource.onerror = (error) => {
@@ -2148,7 +2154,7 @@ function useWebhookExecutionListener(
           if (retryCount < MAX_RETRIES) {
             const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
             console.warn(
-              `⚠️ Webhook stream error for ${webhookId}, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+              `Webhook stream error for ${webhookId} at URL: ${streamUrl} (readyState: ${eventSource.readyState}). Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
             );
 
             retryCounts.set(webhookId, retryCount + 1);
@@ -2161,7 +2167,7 @@ function useWebhookExecutionListener(
             }, delay);
           } else {
             console.error(
-              `❌ Webhook stream error for ${webhookId}: Max retries reached. Connection failed.`,
+              `Webhook stream error for ${webhookId} at URL: ${streamUrl}. Max retries reached. ReadyState: ${eventSource.readyState}. Connection failed.`,
               error
             );
             retryCounts.delete(webhookId);
@@ -2184,7 +2190,7 @@ function useWebhookExecutionListener(
             }
 
             if (data.type === "error") {
-              console.error(`❌ Webhook stream error:`, data.error);
+              console.error(`Webhook stream error:`, data.error);
               return;
             }
 
@@ -2194,7 +2200,7 @@ function useWebhookExecutionListener(
               // Event deduplication
               const eventId = `${data.execution_id || 'unknown'}-${data.event.type}-${data.event.node_id || 'unknown'}-${data.timestamp || Date.now()}`;
               if (processedEventIds.has(eventId)) {
-                console.warn("⚠️ Duplicate webhook event ignored:", eventId);
+                console.warn("Duplicate webhook event ignored:", eventId);
                 return;
               }
 
@@ -2466,7 +2472,7 @@ function useWebhookExecutionListener(
               }
             }
           } catch (error) {
-            console.error("❌ Error parsing webhook stream event:", error, {
+            console.error("Error parsing webhook stream event:", error, {
               eventData: event.data?.substring(0, 200), // Log first 200 chars
             });
           }
@@ -2523,13 +2529,50 @@ function useKafkaExecutionListener(
       startedAt: string;
       completedAt?: string;
     }>();
+    const retryCounts = new Map<string, number>();
+    const MAX_RETRIES = 5;
+    const INITIAL_RETRY_DELAY = 1000;
+
+    // Get base URL with fallback to prevent 'undefined/api/...' URLs
+    let baseUrl = config.API_BASE_URL;
+    if (!baseUrl && typeof window !== 'undefined') {
+      baseUrl = window.location.origin;
+      console.log(`config.API_BASE_URL is empty for Kafka, using window.location.origin as fallback: ${baseUrl}`);
+    }
 
     kafkaNodes.forEach((node) => {
       const listenerId = node.id;
-      const streamUrl = `${config.API_BASE_URL}/${config.API_START}/${config.API_VERSION_ONLY}/kafka/listeners/${listenerId}/stream`;
-      const eventSource = new EventSource(streamUrl);
+      const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/kafka/listeners/${listenerId}/stream`;
+      console.log(`Connecting to Kafka EventSource at: ${streamUrl}`);
 
-      eventSource.onmessage = (event) => {
+      try {
+        const eventSource = new EventSource(streamUrl);
+
+        eventSource.onerror = (error) => {
+          const retryCount = retryCounts.get(listenerId) || 0;
+
+          if (retryCount < MAX_RETRIES) {
+            const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
+            console.warn(
+              `Kafka stream error for ${listenerId} at URL: ${streamUrl} (readyState: ${eventSource.readyState}). Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+            );
+
+            retryCounts.set(listenerId, retryCount + 1);
+
+            // Close and reconnect after delay
+            setTimeout(() => {
+              eventSource.close();
+            }, delay);
+          } else {
+            console.error(
+              `Kafka stream error for ${listenerId} at URL: ${streamUrl}. Max retries reached. ReadyState: ${eventSource.readyState}. Connection failed.`,
+              error
+            );
+            retryCounts.delete(listenerId);
+          }
+        };
+
+        eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === "connected" || data.type === "ping") return;
@@ -2687,7 +2730,10 @@ function useKafkaExecutionListener(
         }
       };
 
-      eventSources.push(eventSource);
+        eventSources.push(eventSource);
+      } catch (error) {
+        console.error(`Failed to create EventSource for Kafka listener ${listenerId}:`, error);
+      }
     });
 
     // Cleanup: close all event sources when component unmounts or dependencies change
@@ -2700,6 +2746,7 @@ function useKafkaExecutionListener(
         }
       });
       executionData.clear();
+      retryCounts.clear();
     };
   }, [nodes, edges, currentWorkflowId, setCurrentExecutionForWorkflow, setNodeStatus, setEdgeStatus, setActiveEdges, setActiveNodes]);
 }
@@ -2728,9 +2775,51 @@ function useErrorTriggerExecutionListener(
       return; // No error trigger node or workflow ID, nothing to listen to
     }
 
-    const baseUrl = config.API_BASE_URL;
+    const retryCounts = new Map<string, number>();
+    const MAX_RETRIES = 5;
+    const INITIAL_RETRY_DELAY = 1000;
+
+    // Get base URL with fallback to prevent 'undefined/api/...' URLs
+    let baseUrl = config.API_BASE_URL;
+    if (!baseUrl && typeof window !== 'undefined') {
+      baseUrl = window.location.origin;
+      console.log(`config.API_BASE_URL is empty for ErrorTrigger, using window.location.origin as fallback: ${baseUrl}`);
+    }
+
     const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/workflows/error-trigger/${currentWorkflowId}/stream`;
-    const eventSource = new EventSource(streamUrl);
+    console.log(`Connecting to ErrorTrigger EventSource at: ${streamUrl}`);
+
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource(streamUrl);
+
+      eventSource.onerror = (error) => {
+        const retryCount = retryCounts.get(currentWorkflowId) || 0;
+
+        if (retryCount < MAX_RETRIES) {
+          const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
+          console.warn(
+            `ErrorTrigger stream error for workflow ${currentWorkflowId} at URL: ${streamUrl} (readyState: ${eventSource?.readyState}). Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+          );
+
+          retryCounts.set(currentWorkflowId, retryCount + 1);
+
+          // Close and reconnect after delay
+          setTimeout(() => {
+            if (eventSource) eventSource.close();
+          }, delay);
+        } else {
+          console.error(
+            `ErrorTrigger stream error for workflow ${currentWorkflowId} at URL: ${streamUrl}. Max retries reached. ReadyState: ${eventSource?.readyState}. Connection failed.`,
+            error
+          );
+          retryCounts.delete(currentWorkflowId);
+        }
+      };
+    } catch (error) {
+      console.error(`Failed to create EventSource for ErrorTrigger workflow ${currentWorkflowId}:`, error);
+    }
+
     const executionData = new Map<string, {
       executionId: string;
       nodeOutputs: Record<string, any>;
@@ -2741,7 +2830,8 @@ function useErrorTriggerExecutionListener(
       completedAt?: string;
     }>();
 
-    eventSource.onmessage = (event) => {
+    if (eventSource) {
+      eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "connected" || data.type === "ping") return;
@@ -2892,11 +2982,19 @@ function useErrorTriggerExecutionListener(
       } catch (err) {
         console.error("Error processing error trigger execution event:", err);
       }
-    };
+      };
+    }
 
     return () => {
-      eventSource.close();
+      if (eventSource) {
+        try {
+          eventSource.close();
+        } catch (error) {
+          console.warn("Error closing ErrorTrigger EventSource:", error);
+        }
+      }
       executionData.clear();
+      retryCounts.clear();
     };
   }, [
     nodes,
