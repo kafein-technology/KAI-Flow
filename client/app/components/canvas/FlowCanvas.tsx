@@ -130,6 +130,16 @@ const findCanvasNode = (nodes: Node[], nodeId?: string): Node | undefined => {
   });
 };
 
+const normalizeNodeOutputs = (nodeOutputs: Record<string, any>, currentNodes: Node[]): Record<string, any> => {
+  const normalized: Record<string, any> = {};
+  Object.entries(nodeOutputs).forEach(([nodeId, data]) => {
+    const actualNode = findCanvasNode(currentNodes, nodeId);
+    const targetId = actualNode ? actualNode.id : nodeId;
+    normalized[targetId] = data;
+  });
+  return normalized;
+};
+
 const getEventEdgeIds = (eventData: any): string[] => {
   const raw =
     eventData?.active_edge_ids ??
@@ -2105,6 +2115,24 @@ function useWebhookExecutionListener(
       .join(",");
   }, [nodes]);
 
+  const prevDeps = useRef({ webhookKey, workflowId, currentWorkflowId });
+  useEffect(() => {
+    const changes: Record<string, { prev: any; current: any }> = {};
+    if (prevDeps.current.webhookKey !== webhookKey) {
+      changes.webhookKey = { prev: prevDeps.current.webhookKey, current: webhookKey };
+    }
+    if (prevDeps.current.workflowId !== workflowId) {
+      changes.workflowId = { prev: prevDeps.current.workflowId, current: workflowId };
+    }
+    if (prevDeps.current.currentWorkflowId !== currentWorkflowId) {
+      changes.currentWorkflowId = { prev: prevDeps.current.currentWorkflowId, current: currentWorkflowId };
+    }
+    if (Object.keys(changes).length > 0) {
+      console.log("[WebhookListener] Dependencies changed:", changes);
+    }
+    prevDeps.current = { webhookKey, workflowId, currentWorkflowId };
+  }, [webhookKey, workflowId, currentWorkflowId]);
+
   useEffect(() => {
     const nodes = nodesRef.current || [];
     const edges = edgesRef.current || [];
@@ -2112,6 +2140,8 @@ function useWebhookExecutionListener(
     const webhookNodes = nodes.filter(
       (node) => node.type === "WebhookTrigger" || node.type?.includes("WebhookTrigger")
     );
+
+    console.log("[WebhookListener] Hook useEffect triggered. webhookNodes found:", webhookNodes.map((n) => n.id));
 
     if (webhookNodes.length === 0) {
       return; // No webhook nodes, nothing to listen to
@@ -2144,7 +2174,7 @@ function useWebhookExecutionListener(
     let baseUrl = config.API_BASE_URL;
     if (!baseUrl && typeof window !== 'undefined') {
       baseUrl = window.location.origin;
-      console.log(`config.API_BASE_URL is empty, using window.location.origin as fallback: ${baseUrl}`);
+      console.log(`[WebhookListener] config.API_BASE_URL is empty, using window.location.origin as fallback: ${baseUrl}`);
     }
 
     // Connect to webhook stream for each webhook node
@@ -2163,12 +2193,12 @@ function useWebhookExecutionListener(
       }
 
       if (!webhookId) {
-        console.warn(`No webhook_id found for node ${node.id}`);
+        console.warn(`[WebhookListener] No webhook_id found for node ${node.id}`);
         return;
       }
 
       const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/webhook-test/${webhookId}/stream`;
-      console.log(`Connecting to Webhook EventSource at: ${streamUrl}`);
+      console.log(`[WebhookListener] Connecting to Webhook EventSource at: ${streamUrl}`);
 
       try {
         const eventSource = new EventSource(streamUrl);
@@ -2179,7 +2209,7 @@ function useWebhookExecutionListener(
           if (retryCount < MAX_RETRIES) {
             const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
             console.warn(
-              `Webhook stream error for ${webhookId} at URL: ${streamUrl} (readyState: ${eventSource.readyState}). Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+              `[WebhookListener] Webhook stream error for ${webhookId} at URL: ${streamUrl} (readyState: ${eventSource.readyState}). Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
             );
 
             retryCounts.set(webhookId, retryCount + 1);
@@ -2187,12 +2217,10 @@ function useWebhookExecutionListener(
             // Close and reconnect after delay
             setTimeout(() => {
               eventSource.close();
-              // Reconnect will be handled by EventSource automatically
-              // But we can also manually reconnect if needed
             }, delay);
           } else {
             console.error(
-              `Webhook stream error for ${webhookId} at URL: ${streamUrl}. Max retries reached. ReadyState: ${eventSource.readyState}. Connection failed.`,
+              `[WebhookListener] Webhook stream error for ${webhookId} at URL: ${streamUrl}. Max retries reached. ReadyState: ${eventSource.readyState}. Connection failed.`,
               error
             );
             retryCounts.delete(webhookId);
@@ -2203,21 +2231,23 @@ function useWebhookExecutionListener(
           try {
             const currentNodes = nodesRef.current || [];
             const currentEdges = edgesRef.current || [];
+            console.log("[WebhookListener] Received raw message:", event.data);
             const data = JSON.parse(event.data) as WebhookStreamEvent;
 
             // Handle connection and ping events
             if (data.type === "connected") {
+              console.log("[WebhookListener] Connected event received");
               retryCounts.delete(webhookId); // Reset retry count on successful connection
               return;
             }
 
             if (data.type === "ping") {
-              // Keep-alive ping, no action needed
+              console.log("[WebhookListener] Ping received");
               return;
             }
 
             if (data.type === "error") {
-              console.error(`Webhook stream error:`, data.error);
+              console.error(`[WebhookListener] Webhook stream error event:`, data.error);
               return;
             }
 
@@ -2227,7 +2257,7 @@ function useWebhookExecutionListener(
               // Event deduplication
               const eventId = `${data.execution_id || 'unknown'}-${data.event.type}-${data.event.node_id || 'unknown'}-${data.timestamp || Date.now()}`;
               if (processedEventIds.has(eventId)) {
-                console.warn("Duplicate webhook event ignored:", eventId);
+                console.warn("[WebhookListener] Duplicate webhook event ignored:", eventId);
                 return;
               }
 
@@ -2243,6 +2273,9 @@ function useWebhookExecutionListener(
               const executionEvent = data.event;
               const eventType = executionEvent.type || executionEvent.event;
               const node_id = executionEvent.node_id;
+              const executionId = data.execution_id || 'unknown';
+
+              console.log("[WebhookListener] Processing event:", { type: eventType, node_id, executionId });
 
               // Throttled logging to avoid console spam
               const now = Date.now();
@@ -2275,8 +2308,8 @@ function useWebhookExecutionListener(
               };
 
               // Track execution data from events
-              const executionId = data.execution_id || 'unknown';
               if (!webhookExecutionData.has(executionId)) {
+                console.log("[WebhookListener] New execution started. Clearing active canvas states. executionId:", executionId);
                 // Clear previous run statuses on new execution
                 setNodeStatus({});
                 setEdgeStatus({});
@@ -2296,14 +2329,17 @@ function useWebhookExecutionListener(
 
               // Collect node execution data from events
               if (eventType === "node_start" && node_id) {
+                const actualNode = findCanvasNode(currentNodes, node_id);
+                const targetId = actualNode ? actualNode.id : node_id;
+
                 // Track node start
-                if (!execData.executedNodes.includes(node_id)) {
-                  execData.executedNodes.push(node_id);
+                if (!execData.executedNodes.includes(targetId)) {
+                  execData.executedNodes.push(targetId);
                 }
 
                 // Initialize node output entry
-                if (!execData.nodeOutputs[node_id]) {
-                  execData.nodeOutputs[node_id] = {
+                if (!execData.nodeOutputs[targetId]) {
+                  execData.nodeOutputs[targetId] = {
                     inputs: executionEvent.inputs || {},
                     inputs_meta: executionEvent.inputs_meta || {},
                   };
@@ -2311,16 +2347,19 @@ function useWebhookExecutionListener(
               }
 
               if (eventType === "node_end" && node_id) {
+                const actualNode = findCanvasNode(currentNodes, node_id);
+                const targetId = actualNode ? actualNode.id : node_id;
+
                 // Update node output
-                if (execData.nodeOutputs[node_id]) {
-                  execData.nodeOutputs[node_id] = {
-                    ...execData.nodeOutputs[node_id],
+                if (execData.nodeOutputs[targetId]) {
+                  execData.nodeOutputs[targetId] = {
+                    ...execData.nodeOutputs[targetId],
                     output: executionEvent.output || executionEvent.result,
                     outputs: executionEvent.output || executionEvent.result,
                     status: executionEvent.error ? "failed" : "completed",
                   };
                 } else {
-                  execData.nodeOutputs[node_id] = {
+                  execData.nodeOutputs[targetId] = {
                     inputs: {},
                     output: executionEvent.output || executionEvent.result,
                     outputs: executionEvent.output || executionEvent.result,
@@ -2331,6 +2370,7 @@ function useWebhookExecutionListener(
 
               // Handle complete event - save execution to store
               if (eventType === "complete" || eventType === "workflow_complete") {
+                console.log("[WebhookListener] Complete event received. Saving execution to store.");
                 execData.status = "completed";
                 execData.completedAt = data.timestamp || new Date().toISOString();
 
@@ -2339,14 +2379,18 @@ function useWebhookExecutionListener(
                   execData.result = executionEvent.result;
                 }
                 if (executionEvent.node_outputs) {
-                  // Merge with collected node outputs
+                  // Merge with collected node outputs after normalization
+                  const normalizedOutputs = normalizeNodeOutputs(executionEvent.node_outputs, currentNodes);
                   execData.nodeOutputs = {
                     ...execData.nodeOutputs,
-                    ...executionEvent.node_outputs,
+                    ...normalizedOutputs,
                   };
                 }
                 if (executionEvent.executed_nodes) {
-                  execData.executedNodes = executionEvent.executed_nodes;
+                  execData.executedNodes = executionEvent.executed_nodes.map((id: string) => {
+                    const actualNode = findCanvasNode(currentNodes, id);
+                    return actualNode ? actualNode.id : id;
+                  });
                 }
                 if (executionEvent.session_id) {
                   execData.sessionId = executionEvent.session_id;
@@ -2377,9 +2421,11 @@ function useWebhookExecutionListener(
               // Handle node_start events
               if (eventType === "node_start" && node_id) {
                 const actualNode = findCanvasNode(currentNodes, node_id);
+                console.log("[WebhookListener] node_start details:", { node_id, actualNodeId: actualNode?.id });
 
                 if (actualNode) {
                   throttledUpdate(() => {
+                    console.log("[WebhookListener] Activating node_start in UI for:", actualNode.id);
                     setActiveNodes([actualNode.id]);
                     setNodeStatus((prev) => ({
                       ...prev,
@@ -2387,6 +2433,7 @@ function useWebhookExecutionListener(
                     }));
 
                     const incomingEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
+                    console.log("[WebhookListener] Incoming edges to animate for node_start:", incomingEdges.map(e => e.id));
                     if (incomingEdges.length > 0) {
                       setActiveEdges(incomingEdges.map((edge) => edge.id));
                       setEdgeStatus((prev) => ({
@@ -2403,6 +2450,7 @@ function useWebhookExecutionListener(
               // Handle node_end events
               if (eventType === "node_end" && node_id) {
                 const actualNode = findCanvasNode(currentNodes, node_id);
+                console.log("[WebhookListener] node_end details:", { node_id, actualNodeId: actualNode?.id });
 
                 if (actualNode) {
                   const isError = executionEvent.error || executionEvent.status === "error";
@@ -2425,12 +2473,14 @@ function useWebhookExecutionListener(
                   }
 
                   throttledUpdate(() => {
+                    console.log("[WebhookListener] Activating node_end in UI for:", actualNode.id, "status:", isError ? "failed" : "success");
                     setNodeStatus((prev) => ({
                       ...prev,
                       [actualNode.id]: isError ? "failed" : "success",
                     }));
 
                     const incomingEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
+                    console.log("[WebhookListener] Incoming edges resolved for node_end:", incomingEdges.map(e => e.id));
                     if (incomingEdges.length > 0) {
                       const edgeStatus: NodeStatus = isError ? "failed" : "success";
                       setEdgeStatus((prev) => ({
@@ -2446,6 +2496,7 @@ function useWebhookExecutionListener(
 
               // Handle workflow complete events
               if (eventType === "complete" || eventType === "workflow_complete") {
+                console.log("[WebhookListener] complete / workflow_complete UI reset.");
                 throttledUpdate(() => {
                   setActiveEdges([]);
                   setActiveNodes([]);
@@ -2455,6 +2506,7 @@ function useWebhookExecutionListener(
               // Handle general execution error event
               if ((eventType as string) === "error" || (eventType as string) === "workflow_error") {
                 const ev = executionEvent as any;
+                console.error("[WebhookListener] workflow_error details:", ev);
                 window.dispatchEvent(
                   new CustomEvent("chat-execution-error", {
                     detail: {
@@ -2471,13 +2523,17 @@ function useWebhookExecutionListener(
                 execData.status = "failed";
                 execData.completedAt = data.timestamp || new Date().toISOString();
                 if (ev.node_outputs) {
+                  const normalizedOutputs = normalizeNodeOutputs(ev.node_outputs, currentNodes);
                   execData.nodeOutputs = {
                     ...execData.nodeOutputs,
-                    ...ev.node_outputs,
+                    ...normalizedOutputs,
                   };
                 }
                 if (ev.executed_nodes) {
-                  execData.executedNodes = ev.executed_nodes;
+                  execData.executedNodes = ev.executed_nodes.map((id: string) => {
+                    const actualNode = findCanvasNode(currentNodes, id);
+                    return actualNode ? actualNode.id : id;
+                  });
                 }
                 if (ev.session_id) {
                   execData.sessionId = ev.session_id;
@@ -2505,7 +2561,7 @@ function useWebhookExecutionListener(
               }
             }
           } catch (error) {
-            console.error("Error parsing webhook stream event:", error, {
+            console.error("[WebhookListener] Error parsing webhook stream event:", error, {
               eventData: event.data?.substring(0, 200), // Log first 200 chars
             });
           }
@@ -2513,17 +2569,18 @@ function useWebhookExecutionListener(
 
         eventSources.push(eventSource);
       } catch (error) {
-        console.error(`Failed to create EventSource for webhook ${webhookId}:`, error);
+        console.error(`[WebhookListener] Failed to create EventSource for webhook ${webhookId}:`, error);
       }
     });
 
     // Cleanup: close all event sources when component unmounts or nodes change
     return () => {
+      console.log("[WebhookListener] Cleaning up. Closing EventSource count:", eventSources.length);
       eventSources.forEach((es) => {
         try {
           es.close();
         } catch (error) {
-          console.warn("Error closing EventSource:", error);
+          console.warn("[WebhookListener] Error closing EventSource:", error);
         }
       });
       // Clear memory
@@ -2564,12 +2621,29 @@ function useKafkaExecutionListener(
       .join(",");
   }, [nodes]);
 
+  const prevDeps = useRef({ kafkaNodeKey, currentWorkflowId });
+  useEffect(() => {
+    const changes: Record<string, { prev: any; current: any }> = {};
+    if (prevDeps.current.kafkaNodeKey !== kafkaNodeKey) {
+      changes.kafkaNodeKey = { prev: prevDeps.current.kafkaNodeKey, current: kafkaNodeKey };
+    }
+    if (prevDeps.current.currentWorkflowId !== currentWorkflowId) {
+      changes.currentWorkflowId = { prev: prevDeps.current.currentWorkflowId, current: currentWorkflowId };
+    }
+    if (Object.keys(changes).length > 0) {
+      console.log("[KafkaListener] Dependencies changed:", changes);
+    }
+    prevDeps.current = { kafkaNodeKey, currentWorkflowId };
+  }, [kafkaNodeKey, currentWorkflowId]);
+
   useEffect(() => {
     const nodes = nodesRef.current || [];
     const edges = edgesRef.current || [];
     const kafkaNodes = nodes.filter(
       (node) => node.type === "KafkaConsumer" || node.type === "KafkaTrigger"
     );
+
+    console.log("[KafkaListener] Hook useEffect triggered. kafkaNodes found:", kafkaNodes.map((n) => n.id));
 
     if (kafkaNodes.length === 0) return;
 
@@ -2591,13 +2665,13 @@ function useKafkaExecutionListener(
     let baseUrl = config.API_BASE_URL;
     if (!baseUrl && typeof window !== 'undefined') {
       baseUrl = window.location.origin;
-      console.log(`config.API_BASE_URL is empty for Kafka, using window.location.origin as fallback: ${baseUrl}`);
+      console.log(`[KafkaListener] config.API_BASE_URL is empty for Kafka, using window.location.origin as fallback: ${baseUrl}`);
     }
 
     kafkaNodes.forEach((node) => {
       const listenerId = node.id;
       const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/kafka/listeners/${listenerId}/stream`;
-      console.log(`Connecting to Kafka EventSource at: ${streamUrl}`);
+      console.log(`[KafkaListener] Connecting to Kafka EventSource at: ${streamUrl}`);
 
       try {
         const eventSource = new EventSource(streamUrl);
@@ -2608,7 +2682,7 @@ function useKafkaExecutionListener(
           if (retryCount < MAX_RETRIES) {
             const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
             console.warn(
-              `Kafka stream error for ${listenerId} at URL: ${streamUrl} (readyState: ${eventSource.readyState}). Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+              `[KafkaListener] Kafka stream error for ${listenerId} at URL: ${streamUrl} (readyState: ${eventSource.readyState}). Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
             );
 
             retryCounts.set(listenerId, retryCount + 1);
@@ -2619,7 +2693,7 @@ function useKafkaExecutionListener(
             }, delay);
           } else {
             console.error(
-              `Kafka stream error for ${listenerId} at URL: ${streamUrl}. Max retries reached. ReadyState: ${eventSource.readyState}. Connection failed.`,
+              `[KafkaListener] Kafka stream error for ${listenerId} at URL: ${streamUrl}. Max retries reached. ReadyState: ${eventSource.readyState}. Connection failed.`,
               error
             );
             retryCounts.delete(listenerId);
@@ -2630,8 +2704,12 @@ function useKafkaExecutionListener(
           try {
             const currentNodes = nodesRef.current || [];
             const currentEdges = edgesRef.current || [];
+            console.log("[KafkaListener] Received raw message:", event.data);
             const data = JSON.parse(event.data);
-            if (data.type === "connected" || data.type === "ping") return;
+            if (data.type === "connected" || data.type === "ping") {
+              console.log("[KafkaListener] Connected or ping event received:", data.type);
+              return;
+            }
             if (data.type !== "kafka_execution_event" || !data.event) return;
 
             const executionEvent = data.event;
@@ -2639,7 +2717,10 @@ function useKafkaExecutionListener(
             const nodeId = executionEvent.node_id;
             const executionId = data.execution_id || "unknown";
 
+            console.log("[KafkaListener] Processing event:", { type: eventType, nodeId, executionId });
+
             if (!executionData.has(executionId)) {
+              console.log("[KafkaListener] New execution started. Clearing active canvas states. executionId:", executionId);
               // Clear previous run statuses on new execution
               setNodeStatus({});
               setEdgeStatus({});
@@ -2657,13 +2738,17 @@ function useKafkaExecutionListener(
             const execData = executionData.get(executionId)!;
 
             if (eventType === "node_start" && nodeId) {
-              if (!execData.executedNodes.includes(nodeId)) {
-                execData.executedNodes.push(nodeId);
+              const actualNode = findCanvasNode(currentNodes, nodeId);
+              const targetId = actualNode ? actualNode.id : nodeId;
+
+              if (!execData.executedNodes.includes(targetId)) {
+                execData.executedNodes.push(targetId);
               }
 
-              const actualNode = findCanvasNode(currentNodes, nodeId);
+              console.log("[KafkaListener] node_start details:", { nodeId, actualNodeId: actualNode?.id });
               if (actualNode) {
                 const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
+                console.log("[KafkaListener] Activating node_start in UI for:", actualNode.id, "active edges:", activeFlowEdges.map(e => e.id));
                 setActiveNodes([actualNode.id]);
                 setNodeStatus((prev) => ({ ...prev, [actualNode.id]: "pending" }));
                 setActiveEdges(activeFlowEdges.map((edge) => edge.id));
@@ -2675,16 +2760,20 @@ function useKafkaExecutionListener(
             }
 
             if (eventType === "node_end" && nodeId) {
-              execData.nodeOutputs[nodeId] = {
-                ...(execData.nodeOutputs[nodeId] || {}),
+              const actualNode = findCanvasNode(currentNodes, nodeId);
+              const targetId = actualNode ? actualNode.id : nodeId;
+
+              execData.nodeOutputs[targetId] = {
+                ...(execData.nodeOutputs[targetId] || {}),
                 output: executionEvent.output || executionEvent.result,
                 outputs: executionEvent.output || executionEvent.result,
                 status: executionEvent.error ? "failed" : "completed",
               };
 
-              const actualNode = findCanvasNode(currentNodes, nodeId);
+              console.log("[KafkaListener] node_end details:", { nodeId, actualNodeId: actualNode?.id });
               if (actualNode) {
                 const isError = executionEvent.error || executionEvent.status === "error";
+                console.log("[KafkaListener] Activating node_end in UI for:", actualNode.id, "status:", isError ? "failed" : "success");
 
                 // Handle error for snackbar notification
                 if (isError) {
@@ -2703,6 +2792,7 @@ function useKafkaExecutionListener(
                 }
 
                 const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
+                console.log("[KafkaListener] Incoming edges resolved for node_end:", activeFlowEdges.map(e => e.id));
                 setNodeStatus((prev) => ({ ...prev, [actualNode.id]: isError ? "failed" : "success" }));
                 setEdgeStatus((prev) => ({
                   ...prev,
@@ -2714,6 +2804,7 @@ function useKafkaExecutionListener(
             // Handle general execution error event
             if ((eventType as string) === "error" || (eventType as string) === "workflow_error") {
               const ev = executionEvent as any;
+              console.error("[KafkaListener] workflow_error details:", ev);
               window.dispatchEvent(
                 new CustomEvent("chat-execution-error", {
                   detail: {
@@ -2728,11 +2819,19 @@ function useKafkaExecutionListener(
 
               // Save failed execution to store so canvas updates correctly
               execData.completedAt = data.timestamp || new Date().toISOString();
-              execData.nodeOutputs = {
-                ...execData.nodeOutputs,
-                ...(ev.node_outputs || {}),
-              };
-              execData.executedNodes = ev.executed_nodes || execData.executedNodes;
+              if (ev.node_outputs) {
+                const normalizedOutputs = normalizeNodeOutputs(ev.node_outputs, currentNodes);
+                execData.nodeOutputs = {
+                  ...execData.nodeOutputs,
+                  ...normalizedOutputs,
+                };
+              }
+              if (ev.executed_nodes) {
+                execData.executedNodes = ev.executed_nodes.map((id: string) => {
+                  const actualNode = findCanvasNode(currentNodes, id);
+                  return actualNode ? actualNode.id : id;
+                });
+              }
               execData.sessionId = ev.session_id;
 
               if (currentWorkflowId && setCurrentExecutionForWorkflow) {
@@ -2755,13 +2854,22 @@ function useKafkaExecutionListener(
             }
 
             if (eventType === "complete" || eventType === "workflow_complete") {
+              console.log("[KafkaListener] complete / workflow_complete event received. Saving execution to store.");
               execData.completedAt = data.timestamp || new Date().toISOString();
               execData.result = executionEvent.result;
-              execData.nodeOutputs = {
-                ...execData.nodeOutputs,
-                ...(executionEvent.node_outputs || {}),
-              };
-              execData.executedNodes = executionEvent.executed_nodes || execData.executedNodes;
+              if (executionEvent.node_outputs) {
+                const normalizedOutputs = normalizeNodeOutputs(executionEvent.node_outputs, currentNodes);
+                execData.nodeOutputs = {
+                  ...execData.nodeOutputs,
+                  ...normalizedOutputs,
+                };
+              }
+              if (executionEvent.executed_nodes) {
+                execData.executedNodes = executionEvent.executed_nodes.map((id: string) => {
+                  const actualNode = findCanvasNode(currentNodes, id);
+                  return actualNode ? actualNode.id : id;
+                });
+              }
               execData.sessionId = executionEvent.session_id;
 
               if (currentWorkflowId && setCurrentExecutionForWorkflow) {
@@ -2782,29 +2890,32 @@ function useKafkaExecutionListener(
                 });
               }
 
+              console.log("[KafkaListener] Resetting active edges and nodes in 1500ms");
               setTimeout(() => {
+                console.log("[KafkaListener] Resetting active edges and nodes now.");
                 setActiveEdges([]);
                 setActiveNodes([]);
               }, 1500);
             }
           } catch (error) {
-            console.error("Error parsing Kafka execution event:", error);
+            console.error("[KafkaListener] Error parsing Kafka execution event:", error);
           }
         };
 
         eventSources.push(eventSource);
       } catch (error) {
-        console.error(`Failed to create EventSource for Kafka listener ${listenerId}:`, error);
+        console.error(`[KafkaListener] Failed to create EventSource for Kafka listener ${listenerId}:`, error);
       }
     });
 
     // Cleanup: close all event sources when component unmounts or dependencies change
     return () => {
+      console.log("[KafkaListener] Cleaning up. Closing EventSource count:", eventSources.length);
       eventSources.forEach((es) => {
         try {
           es.close();
         } catch (error) {
-          console.warn("Error closing Kafka EventSource:", error);
+          console.warn("[KafkaListener] Error closing Kafka EventSource:", error);
         }
       });
       executionData.clear();
@@ -2943,11 +3054,13 @@ function useErrorTriggerExecutionListener(
         const execData = executionData.get(executionId)!;
 
         if (eventType === "node_start" && nodeId) {
-          if (!execData.executedNodes.includes(nodeId)) {
-            execData.executedNodes.push(nodeId);
+          const actualNode = findCanvasNode(currentNodes, nodeId);
+          const targetId = actualNode ? actualNode.id : nodeId;
+
+          if (!execData.executedNodes.includes(targetId)) {
+            execData.executedNodes.push(targetId);
           }
 
-          const actualNode = findCanvasNode(currentNodes, nodeId);
           if (actualNode) {
             const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
             setActiveNodes([actualNode.id]);
@@ -2961,14 +3074,16 @@ function useErrorTriggerExecutionListener(
         }
 
         if (eventType === "node_end" && nodeId) {
-          execData.nodeOutputs[nodeId] = {
-            ...(execData.nodeOutputs[nodeId] || {}),
+          const actualNode = findCanvasNode(currentNodes, nodeId);
+          const targetId = actualNode ? actualNode.id : nodeId;
+
+          execData.nodeOutputs[targetId] = {
+            ...(execData.nodeOutputs[targetId] || {}),
             output: executionEvent.output || executionEvent.result,
             outputs: executionEvent.output || executionEvent.result,
             status: executionEvent.error ? "failed" : "completed",
           };
 
-          const actualNode = findCanvasNode(currentNodes, nodeId);
           if (actualNode) {
             const isError = executionEvent.error || executionEvent.status === "error";
 
@@ -3014,11 +3129,19 @@ function useErrorTriggerExecutionListener(
 
           // Save failed execution to store so canvas updates correctly
           execData.completedAt = data.timestamp || new Date().toISOString();
-          execData.nodeOutputs = {
-            ...execData.nodeOutputs,
-            ...(ev.node_outputs || {}),
-          };
-          execData.executedNodes = ev.executed_nodes || execData.executedNodes;
+          if (ev.node_outputs) {
+            const normalizedOutputs = normalizeNodeOutputs(ev.node_outputs, currentNodes);
+            execData.nodeOutputs = {
+              ...execData.nodeOutputs,
+              ...normalizedOutputs,
+            };
+          }
+          if (ev.executed_nodes) {
+            execData.executedNodes = ev.executed_nodes.map((id: string) => {
+              const actualNode = findCanvasNode(currentNodes, id);
+              return actualNode ? actualNode.id : id;
+            });
+          }
           execData.sessionId = ev.session_id;
 
           if (currentWorkflowId && setCurrentExecutionForWorkflow) {
@@ -3043,11 +3166,19 @@ function useErrorTriggerExecutionListener(
         if (eventType === "complete" || eventType === "workflow_complete") {
           execData.completedAt = data.timestamp || new Date().toISOString();
           execData.result = executionEvent.result;
-          execData.nodeOutputs = {
-            ...execData.nodeOutputs,
-            ...(executionEvent.node_outputs || {}),
-          };
-          execData.executedNodes = executionEvent.executed_nodes || execData.executedNodes;
+          if (executionEvent.node_outputs) {
+            const normalizedOutputs = normalizeNodeOutputs(executionEvent.node_outputs, currentNodes);
+            execData.nodeOutputs = {
+              ...execData.nodeOutputs,
+              ...normalizedOutputs,
+            };
+          }
+          if (executionEvent.executed_nodes) {
+            execData.executedNodes = executionEvent.executed_nodes.map((id: string) => {
+              const actualNode = findCanvasNode(currentNodes, id);
+              return actualNode ? actualNode.id : id;
+            });
+          }
           execData.sessionId = executionEvent.session_id;
 
           if (currentWorkflowId && setCurrentExecutionForWorkflow) {
