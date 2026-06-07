@@ -222,7 +222,7 @@ function GenericVisual({
       )}
 
       {/* WebScraper Node's Scrape button */}
-      {data.name === "WebScraper" && (isHovered || isScraping) && (
+      {(data.name === "WebScraper" || data.metadata?.name === "WebScraper") && (isHovered || isScraping) && (
         <button
           className={`absolute -bottom-3 -right-3 w-8 h-8 
                 ${isScraping
@@ -247,7 +247,7 @@ function GenericVisual({
       )}
 
       {/* HTTPRequest Node's Copy cURL button */}
-      {data.name === "HttpRequest" &&
+      {(data.name === "HttpRequest" || data.metadata?.name === "HttpRequest") &&
         isHovered &&
         generateCurlCommand &&
         onCopyToClipboard && (
@@ -268,7 +268,7 @@ function GenericVisual({
         )}
 
       {/* WebhookTrigger Node's Start Listening button */}
-      {data.name === "WebhookTrigger" && isHovered && (
+      {(data.name === "WebhookTrigger" || data.metadata?.name === "WebhookTrigger") && isHovered && (
         <button
           className={`absolute -bottom-3 -right-3 w-8 h-8 
                 ${isListening
@@ -293,7 +293,7 @@ function GenericVisual({
       )}
 
       {/* TimerStartNode Node's Start Timer button */}
-      {data.name === "TimerStart" &&
+      {(data.name === "TimerStart" || data.metadata?.name === "TimerStart") &&
         isHovered &&
         startTimer &&
         stopTimer &&
