@@ -6,6 +6,70 @@ import type { GenericData } from "./types";
 import type { NodeMetadata } from "../../types/api";
 import * as LucideIcons from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
+import type { CSSProperties } from "react";
+import colors from "tailwindcss/colors";
+
+// Helper functions for node colors
+function resolveNodeColorToken(token: string): string | null {
+  if (!token?.trim()) return null;
+
+  const normalized = token.replace(/^(from|to)-/, "").trim();
+
+  // If it's already a valid hex color, CSS function, or CSS variable
+  if (
+    normalized.startsWith("#") ||
+    normalized.startsWith("var(") ||
+    /^(rgb|hsl|oklch|lab|color|linear-gradient)\(/i.test(normalized)
+  ) {
+    return normalized;
+  }
+
+  // If it's a raw hex code (e.g. "a855f7" or "fff")
+  if (/^[0-9a-fA-F]{3,8}$/.test(normalized)) {
+    return `#${normalized}`;
+  }
+
+  // If it's a Tailwind CSS scale token (e.g. "blue-500" or "slate-600")
+  // Resolve dynamically using the tailwindcss/colors JS object
+  const match = normalized.match(/^([a-z]+)-([0-9]{2,3})$/i);
+  if (match) {
+    const [, colorName, shade] = match;
+    const palette = (colors as any)[colorName];
+    if (palette) {
+      if (typeof palette === "string") return palette;
+      const hex = palette[shade];
+      if (hex) return hex;
+    }
+  }
+
+  // Fallback as named CSS color (e.g. "olive", "red")
+  return normalized;
+}
+
+function getNodeGradientStyle(
+  colorStops?: string[]
+): CSSProperties | undefined {
+  const stops = (colorStops && colorStops.length > 0) ? colorStops : ["blue-500", "indigo-600"];
+
+  const from = resolveNodeColorToken(stops[0]);
+  const to = resolveNodeColorToken(stops[1] ?? stops[0]);
+  if (!from || !to) {
+    return {
+      backgroundImage: `linear-gradient(to bottom right, var(--color-blue-500), var(--color-indigo-600))`,
+    };
+  }
+
+  return {
+    backgroundImage: `linear-gradient(to bottom right, ${from}, ${to})`,
+  };
+}
+
+function getNodeColorStops(data: {
+  metadata?: { colors?: string[] };
+  colors?: string[];
+}): string[] | undefined {
+  return data.metadata?.colors ?? data.colors;
+}
 
 interface GenericVisualProps {
   data: GenericData;
@@ -50,14 +114,8 @@ function GenericVisual({
   triggerNow,
   onToggleKafka,
 }: GenericVisualProps) {
-  const getNodeColor = () => {
-    const colors = data.metadata?.colors;
-    if (colors && colors[0] && colors[1]) {
-      return `from-${colors[0]} to-${colors[1]}`;
-    }
-    return "";
-    // return "from-blue-500 to-indigo-600";
-  };
+  const colorStops = getNodeColorStops(data);
+  const gradientStyle = getNodeGradientStyle(colorStops);
 
   const getGlowColor = () => {
     switch (data.validationStatus) {
@@ -176,10 +234,9 @@ function GenericVisual({
           ? `shadow-2xl ${getGlowColor()}`
           : "shadow-lg shadow-black/50"
         }
-        bg-gradient-to-br ${getNodeColor()}
-
         border border-white/20 backdrop-blur-sm
         hover:border-white/40`}
+      style={gradientStyle}
       onDoubleClick={onDoubleClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
