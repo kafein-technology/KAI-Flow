@@ -548,12 +548,13 @@ class ValidationEngine:
         """
         try:
             # Check for required StartNode and EndNode
-            # WebhookTrigger, KafkaConsumer, KafkaTrigger, and ErrorTrigger nodes can also serve as entry points
+            # WebhookTrigger, KafkaConsumer, KafkaTrigger, ErrorTrigger, and TimerStart nodes can also serve as entry points
             start_nodes = [n for n in nodes if n.get("type") == START_NODE_TYPE]
             webhook_trigger_nodes = [n for n in nodes if n.get("type") == "WebhookTrigger"]
             kafka_trigger_nodes = [n for n in nodes if n.get("type") in ("KafkaConsumer", "KafkaTrigger")]
             error_trigger_nodes = [n for n in nodes if n.get("type") in ("ErrorTrigger", "ErrorTriggerNode")]
-            entry_nodes = start_nodes + webhook_trigger_nodes + kafka_trigger_nodes + error_trigger_nodes
+            timer_trigger_nodes = [n for n in nodes if n.get("type") in ("TimerStart", "TimerStartNode")]
+            entry_nodes = start_nodes + webhook_trigger_nodes + kafka_trigger_nodes + error_trigger_nodes + timer_trigger_nodes
             
             # Check for terminal nodes (EndNode OR RespondToWebhook)
             # These are valid workflow exit points
@@ -562,7 +563,7 @@ class ValidationEngine:
             respond_to_webhook_nodes = [n for n in nodes if n.get("type") == "RespondToWebhook"]
             
             if not entry_nodes:
-                result.add_error("Workflow must contain at least one StartNode, WebhookTrigger, KafkaTrigger, or ErrorTrigger node")
+                result.add_error("Workflow must contain at least one StartNode, WebhookTrigger, KafkaTrigger, TimerStart, or ErrorTrigger node")
             
             # Only warn if NO terminal nodes exist (neither EndNode nor RespondToWebhook)
             if not terminal_nodes:

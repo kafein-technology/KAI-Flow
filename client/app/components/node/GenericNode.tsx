@@ -189,14 +189,16 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
 
   // Timer status güncelleme
   useEffect(() => {
-    if (data?.timer_id) {
+    const timerId = data?.timer_id || id;
+    if (timerId) {
       fetchTimerStatus();
     }
-  }, [data?.timer_id]);
+  }, [data?.timer_id, id]);
 
   const fetchTimerStatus = async () => {
+    const timerId = data?.timer_id || id;
     try {
-      const response = await fetch(`/${config.API_START}/timers/${data.timer_id}/status`);
+      const response = await fetch(`${config.API_BASE_URL}/${config.API_START}/timers/${timerId}/status`);
       if (response.ok) {
         const status = await response.json();
         setTimerStatus(status);
@@ -208,8 +210,9 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
   };
 
   const startTimer = async () => {
+    const timerId = data?.timer_id || id;
     try {
-      const response = await fetch(`/${config.API_START}/timers/${data.timer_id}/start`, {
+      const response = await fetch(`${config.API_BASE_URL}/${config.API_START}/timers/${timerId}/start`, {
         method: "POST",
       });
 
@@ -223,8 +226,9 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
   };
 
   const stopTimer = async () => {
+    const timerId = data?.timer_id || id;
     try {
-      const response = await fetch(`/${config.API_START}/timers/${data.timer_id}/stop`, {
+      const response = await fetch(`${config.API_BASE_URL}/${config.API_START}/timers/${timerId}/stop`, {
         method: "POST",
       });
 
@@ -238,8 +242,9 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
   };
 
   const triggerNow = async () => {
+    const timerId = data?.timer_id || id;
     try {
-      const response = await fetch(`/${config.API_START}/timers/${data.timer_id}/trigger`, {
+      const response = await fetch(`${config.API_BASE_URL}/${config.API_START}/timers/${timerId}/trigger`, {
         method: "POST",
       });
 
@@ -261,12 +266,8 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
 
     try {
       // Backend'e listening başlatma isteği gönder
-      const backendUrl =
-        process.env.NODE_ENV === "development"
-          ? "http://localhost:8000"
-          : window.location.origin;
       const response = await fetch(
-        `${backendUrl}/${config.API_START}/${config.API_VERSION_ONLY}/webhooks/${webhookId}/start-listening`,
+        `${config.API_BASE_URL}/${config.API_START}/${config.API_VERSION_ONLY}/webhooks/${webhookId}/start-listening`,
         {
           method: "POST",
         }
@@ -292,12 +293,8 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
 
     try {
       const webhookId = data?.webhook_id || id;
-      const backendUrl =
-        process.env.NODE_ENV === "development"
-          ? "http://localhost:8000"
-          : window.location.origin;
       // Backend'e listening durdurma isteği gönder
-      await fetch(`${backendUrl}/${config.API_START}/${config.API_VERSION_ONLY}/webhooks/${webhookId}/stop-listening`, {
+      await fetch(`${config.API_BASE_URL}/${config.API_START}/${config.API_VERSION_ONLY}/webhooks/${webhookId}/stop-listening`, {
         method: "POST",
       });
     } catch (err) {
@@ -382,7 +379,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
     setProgress(null);
 
     try {
-      const response = await fetch(`/${config.API_START}/web-scraper/${id}/scrape`, {
+      const response = await fetch(`${config.API_BASE_URL}/${config.API_START}/web-scraper/${id}/scrape`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

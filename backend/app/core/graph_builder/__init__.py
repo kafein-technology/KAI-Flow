@@ -215,17 +215,19 @@ class GraphBuilder:
         webhook_trigger_nodes = [n for n in nodes if n.get("type") == "WebhookTrigger"]
         kafka_trigger_nodes = [n for n in nodes if n.get("type") in ("KafkaConsumer", "KafkaTrigger")]
         error_trigger_nodes = [n for n in nodes if n.get("type") in ("ErrorTrigger", "ErrorTriggerNode")]
-        entry_nodes = start_nodes + webhook_trigger_nodes + kafka_trigger_nodes + error_trigger_nodes
+        timer_trigger_nodes = [n for n in nodes if n.get("type") in ("TimerStart", "TimerStartNode")]
+        entry_nodes = start_nodes + webhook_trigger_nodes + kafka_trigger_nodes + error_trigger_nodes + timer_trigger_nodes
         end_nodes = [n for n in nodes if n.get("type") == "EndNode"]
         start_node_ids = {n["id"] for n in start_nodes}
         webhook_trigger_node_ids = {n["id"] for n in webhook_trigger_nodes}
         kafka_trigger_node_ids = {n["id"] for n in kafka_trigger_nodes}
         error_trigger_node_ids = {n["id"] for n in error_trigger_nodes}
-        entry_node_ids = start_node_ids | webhook_trigger_node_ids | kafka_trigger_node_ids | error_trigger_node_ids
+        timer_trigger_node_ids = {n["id"] for n in timer_trigger_nodes}
+        entry_node_ids = start_node_ids | webhook_trigger_node_ids | kafka_trigger_node_ids | error_trigger_node_ids | timer_trigger_node_ids
         end_node_ids = {n["id"] for n in end_nodes}
 
         if not entry_nodes:
-            raise ValueError("Workflow must contain at least one StartNode, WebhookTrigger, KafkaTrigger, or ErrorTrigger node.")
+            raise ValueError("Workflow must contain at least one StartNode, WebhookTrigger, KafkaTrigger, TimerStart, or ErrorTrigger node.")
 
         return {
             "nodes": nodes,
@@ -234,12 +236,14 @@ class GraphBuilder:
             "webhook_trigger_nodes": webhook_trigger_nodes,
             "kafka_trigger_nodes": kafka_trigger_nodes,
             "error_trigger_nodes": error_trigger_nodes,
+            "timer_trigger_nodes": timer_trigger_nodes,
             "entry_nodes": entry_nodes,
             "end_nodes": end_nodes,
             "start_node_ids": start_node_ids,
             "webhook_trigger_node_ids": webhook_trigger_node_ids,
             "kafka_trigger_node_ids": kafka_trigger_node_ids,
             "error_trigger_node_ids": error_trigger_node_ids,
+            "timer_trigger_node_ids": timer_trigger_node_ids,
             "entry_node_ids": entry_node_ids,
             "end_node_ids": end_node_ids
         }
@@ -293,9 +297,10 @@ class GraphBuilder:
         webhook_trigger_node_ids = workflow_data.get("webhook_trigger_node_ids", set())
         kafka_trigger_node_ids = workflow_data.get("kafka_trigger_node_ids", set())
         error_trigger_node_ids = workflow_data.get("error_trigger_node_ids", set())
+        timer_trigger_node_ids = workflow_data.get("timer_trigger_node_ids", set())
         entry_node_ids = workflow_data.get(
             "entry_node_ids",
-            start_node_ids | webhook_trigger_node_ids | kafka_trigger_node_ids | error_trigger_node_ids,
+            start_node_ids | webhook_trigger_node_ids | kafka_trigger_node_ids | error_trigger_node_ids | timer_trigger_node_ids,
         )
         end_node_ids = workflow_data["end_node_ids"]
 
@@ -366,6 +371,17 @@ class GraphBuilder:
         elif webhook_trigger_node_ids:
             webhook_start_nodes = webhook_trigger_node_ids
         
+        # Identify explicit start connections from TimerStart nodes
+        timer_trigger_targets = {e["target"] for e in edges if e.get("source") in timer_trigger_node_ids}
+
+        # If TimerStart nodes have outgoing edges, use those targets as start nodes
+        # Otherwise, use the TimerStart nodes themselves as start nodes
+        timer_start_nodes = set()
+        if timer_trigger_targets:
+            timer_start_nodes = timer_trigger_targets
+        elif timer_trigger_node_ids:
+            timer_start_nodes = timer_trigger_node_ids
+
         # Same logic for KafkaConsumer/KafkaTrigger nodes
         kafka_start_nodes = set()
         if kafka_trigger_targets:
@@ -378,7 +394,7 @@ class GraphBuilder:
         
         # Combine all start targets
         self.explicit_start_nodes = (
-            start_node_targets | webhook_start_nodes | kafka_start_nodes | error_start_nodes
+            start_node_targets | webhook_start_nodes | kafka_start_nodes | error_start_nodes | timer_start_nodes
         )
 
         # Debug logging
@@ -387,10 +403,12 @@ class GraphBuilder:
         edges_from_webhook_triggers = [e for e in edges if e.get("source") in webhook_trigger_node_ids]
         edges_from_kafka_triggers = [e for e in edges if e.get("source") in kafka_trigger_node_ids]
         edges_from_error_triggers = [e for e in edges if e.get("source") in error_trigger_node_ids]
+        edges_from_timer_triggers = [e for e in edges if e.get("source") in timer_trigger_node_ids]
         logger.debug(f"Found {len(edges_from_start_nodes)} edges FROM StartNodes")
         logger.debug(f"Found {len(edges_from_webhook_triggers)} edges FROM WebhookTrigger nodes")
         logger.debug(f"Found {len(edges_from_kafka_triggers)} edges FROM KafkaTrigger nodes")
         logger.debug(f"Found {len(edges_from_error_triggers)} edges FROM ErrorTrigger nodes")
+        logger.debug(f"Found {len(edges_from_timer_triggers)} edges FROM TimerStart nodes")
         logger.debug(f"Explicit start nodes: {self.explicit_start_nodes}")
 
         # SAFE filtering AFTER all additions
@@ -897,7 +915,7 @@ class GraphBuilder:
                 pass
                 
             is_trigger = False
-            if gnode.type in ("StartNode", "WebhookTrigger", "KafkaConsumer", "KafkaTrigger", "TimerStartNode", "ErrorTriggerNode"):
+            if gnode.type in ("StartNode", "WebhookTrigger", "KafkaConsumer", "KafkaTrigger", "TimerStartNode", "TimerStart", "ErrorTriggerNode"):
                 is_trigger = True
             elif node_type_val == NodeType.TERMINATOR and gnode.type not in ("EndNode", "RespondToWebhook"):
                 is_trigger = True
@@ -974,6 +992,33 @@ class GraphBuilder:
                         )
                         init_state.set_node_output(node_id, standard_output)
                         logger.info(f"[TRIGGER] Pre-injected standardized output for start node: {node_id}")
+                        
+                    # 4. Timer Start Node
+                    elif gnode.type in ("TimerStart", "TimerStartNode") or gnode.node_instance.__class__.__name__ == "TimerStartNode":
+                        from datetime import datetime, timezone
+                        output_dict = {
+                            "timer_data": {
+                                "timer_id": getattr(gnode.node_instance, "timer_id", "mock"),
+                                "triggered_at": datetime.now(timezone.utc).isoformat(),
+                                "schedule_type": gnode.node_instance.user_data.get("schedule_type", "interval"),
+                                "trigger_data": gnode.node_instance.user_data.get("trigger_data", {}),
+                                "enabled": gnode.node_instance.user_data.get("enabled", True),
+                            },
+                            "output": "Timer triggered"
+                        }
+                        from app.core.json_utils import format_standard_node_output
+                        standard_output = format_standard_node_output(
+                            node_id=node_id,
+                            node_type=gnode.type,
+                            success=True,
+                            status_code=200,
+                            execution_time_ms=0.0,
+                            inputs=gnode.user_data,
+                            output=output_dict,
+                            node_instance=gnode.node_instance
+                        )
+                        init_state.set_node_output(node_id, standard_output)
+                        logger.info(f"[TRIGGER] Pre-injected standardized output for timer: {node_id}")
                 except Exception as trigger_err:
                     logger.warning(f"Failed to pre-inject trigger output for {node_id}: {trigger_err}")
 

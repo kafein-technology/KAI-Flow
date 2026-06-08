@@ -43,9 +43,73 @@ class TimerStartNode(TerminatorNode):
     - Error handling and recovery
     """
 
+    @property
+    def timer_id(self) -> str:
+        return self._timer_id
+
+    @timer_id.setter
+    def timer_id(self, value: str):
+        self._timer_id = value
+
+    @property
+    def node_id(self) -> Optional[str]:
+        return self._node_id
+
+    @node_id.setter
+    def node_id(self, value: Optional[str]):
+        self._node_id = value
+        self._align_timer_id()
+
+    @property
+    def user_data(self) -> Dict[str, Any]:
+        return self._user_data
+
+    @user_data.setter
+    def user_data(self, value: Dict[str, Any]):
+        self._user_data = value
+        self._align_timer_id()
+
+    def _align_timer_id(self):
+        """Align timer_id with either data.timer_id or node_id."""
+        target_id = None
+        if hasattr(self, "_user_data") and isinstance(self._user_data, dict):
+            target_id = self._user_data.get("timer_id")
+        if not target_id:
+            target_id = getattr(self, "_node_id", None)
+            
+        if target_id and target_id != self._timer_id:
+            old_timer_id = self._timer_id
+            logger.info(f"[TimerStartNode] Aligning timer node: renaming {old_timer_id} to {target_id}")
+            if old_timer_id in active_timers:
+                old_info = active_timers.pop(old_timer_id)
+                active_timers[target_id] = old_info
+            else:
+                active_timers[target_id] = {
+                    "node_instance": self,
+                    "status": "initialized",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "execution_count": 0,
+                    "last_execution": None,
+                    "next_execution": None
+                }
+            self._timer_id = target_id
+
     def __init__(self):
+        self._timer_id = f"timer_{uuid.uuid4().hex[:8]}"
+        self._node_id = None
+        self._user_data = {}
+        
+        # Register timer in global registry
+        active_timers[self._timer_id] = {
+            "node_instance": self,
+            "status": "initialized",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "execution_count": 0,
+            "last_execution": None,
+            "next_execution": None
+        }
+        
         super().__init__()
-        self.timer_id = f"timer_{uuid.uuid4().hex[:8]}"
         self.workflow_id: Optional[str] = None
         self.user_id: Optional[str] = None
         self._timer_task: Optional[asyncio.Task] = None
@@ -276,17 +340,18 @@ class TimerStartNode(TerminatorNode):
             ],
         }
         
-        # Register timer in global registry
-        active_timers[self.timer_id] = {
-            "node_instance": self,
-            "status": "initialized",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "execution_count": 0,
-            "last_execution": None,
-            "next_execution": None
-        }
-        
         logger.info(f"Timer trigger created: {self.timer_id}")
+
+    def _get_trigger_data(self) -> Dict[str, Any]:
+        """Safely get trigger data as a dict, parsing JSON string if necessary."""
+        data = self.user_data.get("trigger_data", {})
+        if isinstance(data, str):
+            import json
+            try:
+                return json.loads(data)
+            except Exception:
+                return {}
+        return data if isinstance(data, dict) else {}
 
     def _execute(self, state: FlowState) -> Dict[str, Any]:
         """
@@ -301,7 +366,7 @@ class TimerStartNode(TerminatorNode):
         # Get timer configuration
         schedule_type = self.user_data.get("schedule_type", "interval")
         interval_seconds = self.user_data.get("interval_seconds", 3600)
-        trigger_data = self.user_data.get("trigger_data", {})
+        trigger_data = self._get_trigger_data()
         enabled = self.user_data.get("enabled", True)
         auto_trigger = self.user_data.get("auto_trigger_workflow", True)
         max_executions = self.user_data.get("max_executions", 0)
@@ -502,10 +567,11 @@ class TimerStartNode(TerminatorNode):
             self._is_active = False
             active_timers[self.timer_id]["status"] = "stopped"
     
-    async def _trigger_workflow_execution(self) -> None:
+    async def _trigger_workflow_execution(self, execution_id: Optional[str] = None) -> str:
         """Trigger automatic workflow execution."""
         try:
-            execution_id = str(uuid.uuid4())
+            if not execution_id:
+                execution_id = str(uuid.uuid4())
             
             # Update execution stats
             active_timers[self.timer_id]["execution_count"] += 1
@@ -521,9 +587,11 @@ class TimerStartNode(TerminatorNode):
             else:
                 logger.warning(f"Timer {self.timer_id} missing workflow context, skipping execution")
             
+            return execution_id
         except Exception as e:
             logger.error(f"Timer {self.timer_id} workflow execution failed: {e}")
             active_timers[self.timer_id]["status"] = "error"
+            raise
     
     async def _execute_workflow_via_engine(self, execution_id: str) -> bool:
         """Execute workflow using the workflow engine."""
@@ -538,33 +606,122 @@ class TimerStartNode(TerminatorNode):
                 return False
             
             try:
-                # Get workflow engine
-                engine = get_engine()
+                from app.models.workflow import Workflow
+                from app.models.execution import WorkflowExecution
+                from sqlalchemy.future import select
+                from app.core.database import get_db_session_context
+                from app.services.workflow_executor import get_workflow_executor
+                import uuid as uuid_module
                 
-                # Prepare execution inputs with timer data
-                execution_inputs = {
-                    "timer_trigger": True,
-                    "timer_id": self.timer_id,
-                    "execution_id": execution_id,
-                    "triggered_at": datetime.now(timezone.utc).isoformat(),
-                    **self.user_data.get("trigger_data", {})
-                }
-                
-                # Execute workflow with timeout
-                timeout = self.user_data.get("timeout_seconds", 300)
-                result = await asyncio.wait_for(
-                    engine.execute(
+                async with get_db_session_context() as db:
+                    # Fetch workflow from database
+                    workflow_uuid = uuid_module.UUID(self.workflow_id)
+                    workflow_query = select(Workflow).filter(Workflow.id == workflow_uuid)
+                    workflow_result = await db.execute(workflow_query)
+                    workflow = workflow_result.scalar_one_or_none()
+                    
+                    if not workflow:
+                        logger.error(f"Workflow {self.workflow_id} not found in database for timer {self.timer_id}")
+                        return False
+                    
+                    # Get workflow executor service
+                    executor = get_workflow_executor()
+                    
+                    # Fetch owner user
+                    user_uuid = uuid_module.UUID(self.user_id) if self.user_id else workflow.user_id
+                    from app.models.user import User
+                    user_query = select(User).filter(User.id == user_uuid)
+                    user_result = await db.execute(user_query)
+                    user = user_result.scalar_one_or_none()
+                    
+                    if not user:
+                        logger.error(f"User {user_uuid} not found in database for timer {self.timer_id}")
+                        return False
+                    
+                    # Prepare execution inputs with timer data
+                    execution_inputs = {
+                        "timer_trigger": True,
+                        "timer_id": self.timer_id,
+                        "execution_id": execution_id,
+                        "triggered_at": datetime.now(timezone.utc).isoformat(),
+                        **self._get_trigger_data()
+                    }
+                    
+                    # Manually pre-create the execution record in database using the correct execution_id
+                    db_execution = WorkflowExecution(
+                        id=uuid_module.UUID(execution_id),
+                        workflow_id=workflow.id,
+                        user_id=user.id,
+                        status="pending",
                         inputs=execution_inputs,
-                        user_context={
-                            "user_id": self.user_id,
-                            "workflow_id": self.workflow_id,
-                            "execution_id": execution_id,
-                            "trigger_type": "timer",
-                            "timer_id": self.timer_id
-                        }
-                    ),
-                    timeout=timeout
-                )
+                        started_at=datetime.now(timezone.utc),
+                        created_at=datetime.now(timezone.utc),
+                    )
+                    db.add(db_execution)
+                    await db.commit()
+                    await db.refresh(db_execution)
+                    
+                    # Session ID for workflow execution
+                    session_id = f"timer_{self.timer_id}_{execution_id[:8]}"
+                    
+                    # Prepare execution context
+                    ctx = await executor.prepare_execution_context(
+                        db=db,
+                        workflow=workflow,
+                        execution_inputs=execution_inputs,
+                        user=user,
+                        session_id=session_id,
+                        is_webhook=True, # Timer executions are system-triggered, treated similarly to webhook runs
+                        owner_id=user.id
+                    )
+                    # Manually set execution ID on context
+                    ctx.execution_id = db_execution.id
+                    
+                    # Execute workflow with timeout
+                    timeout = self.user_data.get("timeout_seconds", 300)
+                    
+                    # Run execute_workflow using executor with stream=True so we get real-time execution events.
+                    result_stream = await executor.execute_workflow(
+                        ctx=ctx,
+                        db=db,
+                        stream=True
+                    )
+                    
+                    async def consume_and_broadcast():
+                        if hasattr(result_stream, "__aiter__"):
+                            from app.api.timers import timer_subscribers
+                            from app.core.json_utils import make_json_serializable
+                            
+                            async for event_chunk in result_stream:
+                                if isinstance(event_chunk, dict):
+                                    # Make chunk JSON-serializable
+                                    serializable_chunk = make_json_serializable(event_chunk)
+                                    
+                                    # Broadcast event to UI via timer subscribers
+                                    ui_event = {
+                                        "type": "timer_execution_event",
+                                        "timer_id": self.timer_id,
+                                        "workflow_id": self.workflow_id,
+                                        "execution_id": execution_id,
+                                        "event": serializable_chunk,
+                                        "timestamp": datetime.now(timezone.utc).isoformat()
+                                    }
+                                    serializable_ui_event = make_json_serializable(ui_event)
+                                    
+                                    subscribers = timer_subscribers.get(self.timer_id, [])
+                                    for queue in subscribers:
+                                        try:
+                                            queue.put_nowait(serializable_ui_event)
+                                        except:
+                                            pass
+                        else:
+                            logger.warning(f"execute_workflow did not return an async generator for timer {self.timer_id}")
+
+                    # Run the consumption task with timeout protection
+                    await asyncio.wait_for(
+                        consume_and_broadcast(),
+                        timeout=timeout
+                    )
                 
                 logger.info(f"Timer {self.timer_id} workflow execution completed: {execution_id}")
                 return True
@@ -577,7 +734,7 @@ class TimerStartNode(TerminatorNode):
             logger.error(f"Timer {self.timer_id} workflow execution timed out: {execution_id}")
             return False
         except Exception as e:
-            logger.error(f"Timer {self.timer_id} workflow execution error: {e}")
+            logger.error(f"Timer {self.timer_id} workflow execution error: {e}", exc_info=True)
             return False
     
     async def _retry_workflow_execution(self, original_execution_id: str) -> None:
@@ -627,7 +784,7 @@ class TimerStartNode(TerminatorNode):
         """Manually trigger workflow execution immediately."""
         try:
             execution_id = str(uuid.uuid4())
-            await self._trigger_workflow_execution()
+            await self._trigger_workflow_execution(execution_id=execution_id)
             return {"success": True, "message": f"Timer {self.timer_id} triggered manually", "execution_id": execution_id}
         except Exception as e:
             return {"success": False, "message": f"Failed to trigger timer {self.timer_id}: {e}"}
