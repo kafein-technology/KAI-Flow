@@ -450,6 +450,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setCurrentExecutionForWorkflow
   );
 
+  useTimerExecutionListener(
+    nodes,
+    setNodeStatus,
+    edges,
+    setEdgeStatus,
+    setActiveEdges,
+    setActiveNodes,
+    currentWorkflow?.id,
+    setCurrentExecutionForWorkflow
+  );
+
   const [workflowName, setWorkflowName] = useState(
     currentWorkflow?.name || "isimsiz dosya"
   );
@@ -3473,6 +3484,361 @@ function useErrorTriggerExecutionListener(
     setActiveEdges,
     setActiveNodes,
   ]);
+}
+
+// Timer execution event listener for real-time UI updates
+function useTimerExecutionListener(
+  nodes: Node[],
+  setNodeStatus: React.Dispatch<
+    React.SetStateAction<Record<string, NodeStatus>>
+  >,
+  edges: Edge[],
+  setEdgeStatus: React.Dispatch<
+    React.SetStateAction<Record<string, NodeStatus>>
+  >,
+  setActiveEdges: React.Dispatch<React.SetStateAction<string[]>>,
+  setActiveNodes: React.Dispatch<React.SetStateAction<string[]>>,
+  currentWorkflowId?: string,
+  setCurrentExecutionForWorkflow?: (workflowId: string, execution: any) => void
+) {
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
+
+  const timerKey = useMemo(() => {
+    return nodes
+      .map((n) =>
+        n.type === "TimerStart" || n.type?.includes("TimerStart")
+          ? String(n.data?.timer_id || n.id)
+          : null
+      )
+      .filter(Boolean)
+      .sort()
+      .join(",");
+  }, [nodes]);
+
+  useEffect(() => {
+    const currentNodes = nodesRef.current || [];
+    const timerNodes = currentNodes.filter(
+      (node) => node.type === "TimerStart" || node.type?.includes("TimerStart")
+    );
+
+    if (timerNodes.length === 0 || !currentWorkflowId) {
+      return;
+    }
+
+    const eventSources: EventSource[] = [];
+    const processedEventIds = new Set<string>();
+
+    let baseUrl = config.API_BASE_URL;
+    if (!baseUrl && typeof window !== "undefined") {
+      baseUrl = window.location.origin;
+    }
+
+    const executionData = new Map<string, {
+      executionId: string;
+      nodeOutputs: Record<string, any>;
+      executedNodes: string[];
+      sessionId?: string;
+      result?: any;
+      startedAt: string;
+      completedAt?: string;
+    }>();
+
+    // Fallback completion timer
+    let fallbackTimeout: NodeJS.Timeout | null = null;
+    const clearFallbackTimeout = () => {
+      if (fallbackTimeout) {
+        clearTimeout(fallbackTimeout);
+        fallbackTimeout = null;
+      }
+    };
+
+    timerNodes.forEach((node) => {
+      const timerId = node.data?.timer_id || node.id;
+      if (!timerId) return;
+
+      const streamUrl = `${baseUrl}/${config.API_START}/timers/${timerId}/stream`;
+      console.log(`[TimerListener] Connecting to Timer EventSource at: ${streamUrl}`);
+
+      try {
+        const eventSource = new EventSource(streamUrl);
+
+        eventSource.onerror = (error) => {
+          console.warn(`[TimerListener] Timer stream error for ${timerId}, closing EventSource`);
+          eventSource.close();
+        };
+
+        eventSource.onmessage = async (event) => {
+          try {
+            const currentNodesList = nodesRef.current || [];
+            const currentEdgesList = edgesRef.current || [];
+            const data = JSON.parse(event.data);
+
+            if (data.type === "connected" || data.type === "ping") {
+              return;
+            }
+
+            if (data.type === "timer_execution_event" && data.event) {
+              const eventId = `${data.execution_id || "unknown"}-${data.event.type}-${data.event.node_id || "unknown"}-${data.timestamp || Date.now()}`;
+              if (processedEventIds.has(eventId)) {
+                return;
+              }
+              processedEventIds.add(eventId);
+
+              const executionEvent = data.event;
+              const eventType = executionEvent.type || executionEvent.event;
+              const node_id = executionEvent.node_id;
+              const executionId = data.execution_id || "unknown";
+
+              if (!executionData.has(executionId)) {
+                console.log("[TimerListener] New execution started. Clearing active canvas states. executionId:", executionId);
+                clearFallbackTimeout();
+
+                setNodeStatus({});
+                setEdgeStatus({});
+                setActiveEdges([]);
+                setActiveNodes([]);
+
+                executionData.set(executionId, {
+                  executionId,
+                  nodeOutputs: {},
+                  executedNodes: [],
+                  startedAt: data.timestamp || new Date().toISOString(),
+                });
+
+                if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                  setCurrentExecutionForWorkflow(currentWorkflowId, {
+                    id: executionId,
+                    workflow_id: currentWorkflowId,
+                    input_text: data.trigger_data ? JSON.stringify(data.trigger_data) : "",
+                    result: {
+                      result: "",
+                      executed_nodes: [],
+                      node_outputs: {},
+                      status: "running" as const,
+                    },
+                    started_at: data.timestamp || new Date().toISOString(),
+                    status: "running" as const,
+                  });
+                }
+              }
+
+              const execData = executionData.get(executionId)!;
+
+              console.log("[TimerListener] Processing event:", { type: eventType, node_id });
+
+              if (eventType === "node_start") {
+                if (node_id) {
+                  const actualNode = findCanvasNode(currentNodesList, node_id);
+                  const targetId = actualNode ? actualNode.id : node_id;
+
+                  if (!execData.executedNodes.includes(targetId)) {
+                    execData.executedNodes.push(targetId);
+                  }
+
+                  setActiveNodes([targetId]);
+                  setNodeStatus((s) => ({ ...s, [targetId]: "pending" }));
+
+                  const edgesToAnimate = actualNode
+                    ? resolveExecutionEdges(executionEvent, actualNode, currentNodesList, currentEdgesList as Edge[])
+                    : [];
+
+                  if (edgesToAnimate.length > 0) {
+                    setActiveEdges(edgesToAnimate.map((e) => e.id));
+                    setEdgeStatus((s) => ({
+                      ...s,
+                      ...Object.fromEntries(
+                        edgesToAnimate.map((e) => [e.id, "pending" as const])
+                      ),
+                    }));
+                  }
+                }
+              } else if (eventType === "node_end") {
+                if (node_id) {
+                  const actualNode = findCanvasNode(currentNodesList, node_id);
+                  const targetId = actualNode ? actualNode.id : node_id;
+
+                  execData.nodeOutputs[targetId] = {
+                    ...(execData.nodeOutputs[targetId] || {}),
+                    output: executionEvent.output || executionEvent.result,
+                    outputs: executionEvent.output || executionEvent.result,
+                    status: executionEvent.error ? "failed" : "completed",
+                  };
+
+                  const isError = executionEvent.error || executionEvent.status === "error";
+
+                  if (actualNode) {
+                    setNodeStatus((s) => ({ ...s, [actualNode.id]: isError ? "failed" : "success" }));
+                    setEdgeStatus((s) => {
+                      const updated = { ...s };
+                      Object.keys(updated).forEach((edgeId) => {
+                        const edge = (currentEdgesList as Edge[]).find((e) => e.id === edgeId);
+                        if (edge && edge.target === actualNode.id && updated[edgeId] === "pending") {
+                          updated[edgeId] = isError ? "failed" : "success";
+                        }
+                      });
+                      return updated;
+                    });
+                  }
+
+                  // Incrementally update execution in store
+                  if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                    setCurrentExecutionForWorkflow(currentWorkflowId, {
+                      id: executionId,
+                      workflow_id: currentWorkflowId,
+                      input_text: data.trigger_data ? JSON.stringify(data.trigger_data) : "",
+                      result: {
+                        result: execData.result || "",
+                        executed_nodes: execData.executedNodes,
+                        node_outputs: execData.nodeOutputs,
+                        session_id: execData.sessionId,
+                        status: isError ? "failed" as const : "running" as const,
+                      },
+                      started_at: execData.startedAt,
+                      status: isError ? "failed" as const : "running" as const,
+                    });
+                  }
+
+                  if (!isError && actualNode && isFinalWorkflowNode(actualNode.id, currentNodesList, currentEdgesList as Edge[])) {
+                    console.log("[TimerListener] Final node reached:", actualNode.id, ". Setting 2000ms fallback complete timer.");
+                    clearFallbackTimeout();
+                    fallbackTimeout = setTimeout(() => {
+                      console.warn("[TimerListener] Fallback: complete event not received. Resetting active states.");
+                      setActiveEdges([]);
+                      setActiveNodes([]);
+
+                      if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                        setCurrentExecutionForWorkflow(currentWorkflowId, {
+                          id: executionId,
+                          workflow_id: currentWorkflowId,
+                          input_text: data.trigger_data ? JSON.stringify(data.trigger_data) : "",
+                          result: {
+                            result: execData.result || "Completed via fallback",
+                            executed_nodes: execData.executedNodes,
+                            node_outputs: execData.nodeOutputs,
+                            session_id: execData.sessionId,
+                            status: "completed" as const,
+                          },
+                          started_at: execData.startedAt,
+                          completed_at: new Date().toISOString(),
+                          status: "completed" as const,
+                        });
+                      }
+                    }, 2000);
+                  }
+                }
+              } else if (eventType === "error" || eventType === "workflow_error") {
+                clearFallbackTimeout();
+                execData.completedAt = data.timestamp || new Date().toISOString();
+                const ev = executionEvent as any;
+                if (ev.node_outputs) {
+                  const normalizedOutputs = normalizeNodeOutputs(ev.node_outputs, currentNodesList);
+                  execData.nodeOutputs = {
+                    ...execData.nodeOutputs,
+                    ...normalizedOutputs,
+                  };
+                }
+                if (ev.executed_nodes) {
+                  execData.executedNodes = ev.executed_nodes.map((id: string) => {
+                    const actualNode = findCanvasNode(currentNodesList, id);
+                    return actualNode ? actualNode.id : id;
+                  });
+                }
+                execData.sessionId = ev.session_id;
+
+                if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                  setCurrentExecutionForWorkflow(currentWorkflowId, {
+                    id: executionId,
+                    workflow_id: currentWorkflowId,
+                    input_text: data.trigger_data ? JSON.stringify(data.trigger_data) : "",
+                    result: {
+                      result: `ERROR: ${ev.error || "Workflow execution failed"}`,
+                      executed_nodes: execData.executedNodes,
+                      node_outputs: execData.nodeOutputs,
+                      session_id: ev.session_id,
+                      status: "failed" as const,
+                    },
+                    started_at: execData.startedAt,
+                    completed_at: execData.completedAt,
+                    status: "failed" as const,
+                  });
+                }
+              } else if (eventType === "complete" || eventType === "workflow_complete") {
+                clearFallbackTimeout();
+                execData.completedAt = data.timestamp || new Date().toISOString();
+                execData.result = executionEvent.result;
+                if (executionEvent.node_outputs) {
+                  const normalizedOutputs = normalizeNodeOutputs(executionEvent.node_outputs, currentNodesList);
+                  execData.nodeOutputs = {
+                    ...execData.nodeOutputs,
+                    ...normalizedOutputs,
+                  };
+                }
+                if (executionEvent.executed_nodes) {
+                  execData.executedNodes = executionEvent.executed_nodes.map((id: string) => {
+                    const actualNode = findCanvasNode(currentNodesList, id);
+                    return actualNode ? actualNode.id : id;
+                  });
+                }
+                execData.sessionId = executionEvent.session_id;
+
+                if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                  setCurrentExecutionForWorkflow(currentWorkflowId, {
+                    id: executionId,
+                    workflow_id: currentWorkflowId,
+                    input_text: data.trigger_data ? JSON.stringify(data.trigger_data) : "",
+                    result: {
+                      result: executionEvent.result,
+                      executed_nodes: execData.executedNodes,
+                      node_outputs: execData.nodeOutputs,
+                      session_id: executionEvent.session_id,
+                      status: "completed" as const,
+                    },
+                    started_at: execData.startedAt,
+                    completed_at: execData.completedAt,
+                    status: "completed" as const,
+                  });
+                }
+
+                setTimeout(() => {
+                  setActiveEdges([]);
+                  setActiveNodes([]);
+                }, 2000);
+              }
+            }
+          } catch (err) {
+            console.error("[TimerListener] Error parsing timer stream event:", err);
+          }
+        };
+
+        eventSources.push(eventSource);
+      } catch (error) {
+        console.error(`[TimerListener] Failed to create EventSource for timer ${timerId}:`, error);
+      }
+    });
+
+    return () => {
+      console.log("[TimerListener] Cleaning up. Closing EventSource count:", eventSources.length);
+      clearFallbackTimeout();
+      eventSources.forEach((es) => {
+        try {
+          es.close();
+        } catch (error) {
+          console.warn("[TimerListener] Error closing EventSource:", error);
+        }
+      });
+      processedEventIds.clear();
+      executionData.clear();
+    };
+  }, [timerKey, currentWorkflowId, setNodeStatus, setEdgeStatus, setActiveEdges, setActiveNodes, setCurrentExecutionForWorkflow]);
 }
 
 interface FlowCanvasWrapperProps {

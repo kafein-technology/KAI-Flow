@@ -966,7 +966,7 @@ async def execute_timer_node_manually(
         target_node = None
         
         for node in nodes:
-            if node.get("id") == node_id and node.get("type") == "TimerStartNode":
+            if node.get("id") == node_id and node.get("type") in ("TimerStartNode", "TimerStart"):
                 target_node = node
                 break
         

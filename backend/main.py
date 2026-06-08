@@ -111,6 +111,7 @@ from app.api.documents import router as documents_router
 from app.api.scheduled_jobs import router as scheduled_jobs_router
 from app.api.vectors import router as vectors_router
 from app.api.test_endpoint import router as test_router
+from app.api.timers import router as timers_router
 
 
 from app.api.external_workflows import router as external_workflows_router
@@ -280,6 +281,10 @@ app.include_router(node_registry_router, prefix=f"/{API_START}/{API_VERSION}/nod
 app.include_router(documents_router, prefix=f"/{API_START}/{API_VERSION}/documents", tags=["Documents"])
 app.include_router(scheduled_jobs_router, prefix=f"/{API_START}/{API_VERSION}/jobs/scheduled", tags=["Scheduled Jobs"])
 app.include_router(vectors_router, prefix=f"/{API_START}/{API_VERSION}/vectors", tags=["Vector Storage"])
+
+# Include Timers router (both versioned and unversioned to match frontend API calls)
+app.include_router(timers_router, prefix=f"/{API_START}/timers", tags=["Timers"])
+app.include_router(timers_router, prefix=f"/{API_START}/{API_VERSION}/timers", tags=["Timers"])
 
 # Include test router
 app.include_router(test_router)
