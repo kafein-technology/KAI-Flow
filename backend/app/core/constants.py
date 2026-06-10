@@ -104,9 +104,21 @@ IMPLEMENTATION DETAILS:
 import os
 import logging
 from pathlib import Path
+from typing import Optional
+
+from app.core.env_encryption import EnvEncryption, decrypt_database_url
+
+# Initialize environment variable decryptor
+_env_decryptor = EnvEncryption()
+
+def _decrypt_env_val(key: str, default: Optional[str] = None) -> Optional[str]:
+    val = os.getenv(key)
+    if val is None:
+        return default
+    return _env_decryptor.decrypt(val, key)
 
 # Core Application Settings
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
+SECRET_KEY = _decrypt_env_val("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
 PORT = int(os.getenv("BACKEND_PORT","23056"))
 ROOT_PATH = os.getenv("ROOT_PATH")
@@ -117,9 +129,10 @@ SSL_KEYFILE = os.getenv("SSL_KEYFILE")
 SSL_CERTFILE = os.getenv("SSL_CERTFILE")
 
 # Database Settings
-DATABASE_URL = os.getenv("DATABASE_URL")
-POSTGRES_USERNAME = os.getenv("POSTGRES_USERNAME")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+DATABASE_URL = decrypt_database_url(os.getenv("DATABASE_URL"), _env_decryptor.decrypt)
+ASYNC_DATABASE_URL = decrypt_database_url(os.getenv("ASYNC_DATABASE_URL"), _env_decryptor.decrypt)
+POSTGRES_USERNAME = _decrypt_env_val("POSTGRES_USERNAME")
+POSTGRES_PASSWORD = _decrypt_env_val("POSTGRES_PASSWORD")
 DISABLE_DATABASE = os.getenv("DISABLE_DATABASE", "false").lower() == "true"
 
 # Database Pool Settings - Clean integer/boolean types
@@ -130,7 +143,7 @@ DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))
 DB_POOL_PRE_PING = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
 
 # Credential encryption key - MUST be set via environment variable
-CREDENTIAL_MASTER_KEY = os.getenv("CREDENTIAL_MASTER_KEY")
+CREDENTIAL_MASTER_KEY = _decrypt_env_val("CREDENTIAL_MASTER_KEY")
 if not CREDENTIAL_MASTER_KEY:
     raise RuntimeError("CREDENTIAL_MASTER_KEY environment variable is required. Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
 # Logging
@@ -142,7 +155,7 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
 # LangSmith Settings
 LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "true")
 LANGCHAIN_ENDPOINT = os.getenv("LANGCHAIN_ENDPOINT")
-LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
+LANGCHAIN_API_KEY = _decrypt_env_val("LANGCHAIN_API_KEY")
 LANGCHAIN_PROJECT = os.getenv("LANGCHAIN_PROJECT")
 # Workflow Tracing
 ENABLE_WORKFLOW_TRACING = "true"
@@ -175,4 +188,4 @@ KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID")
 KEYCLOAK_VERIFY_SSL = os.getenv("KEYCLOAK_VERIFY_SSL", "true").lower() == "true"
 
 # Master API Key for bypassing authorization on execution endpoints
-MASTER_API_KEY = os.getenv("MASTER_API_KEY")
+MASTER_API_KEY = _decrypt_env_val("MASTER_API_KEY")
