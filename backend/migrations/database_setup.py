@@ -17,6 +17,11 @@ sys.path.insert(0, backend_dir)
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
+from app.core.env_encryption import EnvEncryption, decrypt_database_url
+
+# Initialize environment variable decryptor
+env_decryptor = EnvEncryption()
+
 # Logging configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 numeric_level = getattr(logging, LOG_LEVEL, logging.INFO)
@@ -31,9 +36,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Environment variables
-DATABASE_URL = os.getenv("DATABASE_URL")
-POSTGRES_USERNAME = os.getenv("POSTGRES_USERNAME")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+DATABASE_URL = decrypt_database_url(os.getenv("DATABASE_URL"), env_decryptor.decrypt)
+POSTGRES_USERNAME = env_decryptor.decrypt(os.getenv("POSTGRES_USERNAME"), "POSTGRES_USERNAME")
+POSTGRES_PASSWORD = env_decryptor.decrypt(os.getenv("POSTGRES_PASSWORD"), "POSTGRES_PASSWORD")
 CREATE_DATABASE = os.getenv("CREATE_DATABASE", "true").lower() in ("true", "1", "t")
 
 
