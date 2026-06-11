@@ -514,9 +514,9 @@ class ReactAgentNode(ProcessorNode):
                 f"Make sure to connect an OpenAI Chat node to the 'llm' input of this Agent."
             )
 
-        if not isinstance(llm, BaseLanguageModel):
+        if not isinstance(llm, (BaseLanguageModel, Runnable)):
             raise ValueError(
-                f"Connected LLM must be a BaseLanguageModel instance, got {type(llm)}. "
+                f"Connected LLM must be a BaseLanguageModel or Runnable instance, got {type(llm)}. "
                 f"Ensure the OpenAI Chat node is properly configured and connected."
             )
 
