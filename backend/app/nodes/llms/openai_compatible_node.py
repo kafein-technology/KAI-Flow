@@ -39,16 +39,16 @@ class OpenAICompatibleNode(BaseNode):
                 NodeInput(
                     name="base_url",
                     type="str",
-                    description="API Base URL (e.g. https://api.groq.com/openai/v1)",
-                    default="https://openrouter.ai/api/v1",
-                    required=True,
+                    description="API Base URL (overrides credential Base URL if specified)",
+                    default="",
+                    required=False,
                 ),
                 NodeInput(
                     name="model_name",
                     type="str",
-                    description="Model identifier (e.g. llama3-70b-8192)",
-                    default="google/gemma-3n-e4b-it",
-                    required=True,
+                    description="Model identifier (overrides credential Model Name if specified)",
+                    default="",
+                    required=False,
                 ),
                 NodeInput(
                     name="temperature",
@@ -156,26 +156,6 @@ class OpenAICompatibleNode(BaseNode):
                     serviceType="openai_compatible",
                 ),
                 NodeProperty(
-                    name="base_url",
-                    displayName="Base URL",
-                    tabName="basic",
-                    type=NodePropertyType.TEXT,
-                    default="https://openrouter.ai/api/v1",
-                    placeholder="https://api.openai.com/v1",
-                    description="The API endpoint URL",
-                    required=True
-                ),
-                NodeProperty(
-                    name="model_name",
-                    displayName="Model Name",
-                    tabName="basic",
-                    type=NodePropertyType.TEXT,
-                    default="google/gemma-3n-e4b-it",
-                    placeholder="e.g. meta-llama/llama-3-70b-instruct",
-                    description="Enter the exact model ID from the provider",
-                    required=True
-                ),
-                NodeProperty(
                     name="temperature",
                     displayName="Temperature",
                     tabName="basic",
@@ -275,9 +255,40 @@ class OpenAICompatibleNode(BaseNode):
         """Execute Node to create the ChatOpenAI instance."""
         logger.info("\nOPENAI COMPATIBLE NODE SETUP")
         
-        # Get configuration from kwargs or user_data fallback
-        base_url = kwargs.get("base_url") or self.user_data.get("base_url", "https://openrouter.ai/api/v1")
-        model_name = kwargs.get("model_name") or self.user_data.get("model_name", "google/gemma-3n-e4b-it")
+        # Get API Key and config from credential
+        credential_id = kwargs.get("credential_id") or self.user_data.get("credential_id")
+        logger.info(f"[DEBUG][COMPATIBLE] credential_id: {credential_id}")
+        
+        api_key_value = ""
+        cred_base_url = None
+        cred_model_name = None
+        cred_verify_ssl = None
+        
+        if credential_id:
+            cred = self.get_credential(credential_id)
+            logger.info(f"[DEBUG][COMPATIBLE] cred found: {cred is not None}")
+            if cred and cred.get('secret'):
+                secret = cred.get('secret')
+                api_key_value = str(secret.get('api_key', '')).strip()
+                cred_base_url = secret.get('base_url')
+                cred_model_name = secret.get('model_name')
+                
+                # Check skip_ssl_verify in the credential
+                skip_ssl = secret.get('skip_ssl_verify', False)
+                if isinstance(skip_ssl, str):
+                    skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
+                cred_verify_ssl = not bool(skip_ssl)
+                logger.info(f"[DEBUG][COMPATIBLE] API key length: {len(api_key_value)}")
+
+        # Resolve base URL with priority: kwargs -> credential -> self.user_data
+        base_url = kwargs.get("base_url") or cred_base_url or self.user_data.get("base_url")
+        if not base_url:
+            raise ValueError("Base URL is required for OpenAI Compatible Node. Please configure it in the selected credential.")
+            
+        # Resolve model name with priority: kwargs -> credential -> self.user_data
+        model_name = kwargs.get("model_name") or cred_model_name or self.user_data.get("model_name")
+        if not model_name:
+            raise ValueError("Model Name is required for OpenAI Compatible Node. Please configure it in the selected credential.")
         
         temperature_val = kwargs.get("temperature")
         if temperature_val is None:
@@ -323,7 +334,11 @@ class OpenAICompatibleNode(BaseNode):
         # SSL verification - default to True (secure) unless explicitly disabled
         verify_ssl_val = kwargs.get("verify_ssl")
         if verify_ssl_val is None:
-            verify_ssl_val = self.user_data.get("verify_ssl", True)
+            verify_ssl_val = self.user_data.get("verify_ssl")
+        if verify_ssl_val is None and cred_verify_ssl is not None:
+            verify_ssl_val = cred_verify_ssl
+        if verify_ssl_val is None:
+            verify_ssl_val = True
         if isinstance(verify_ssl_val, str):
             verify_ssl = verify_ssl_val.lower() not in ("false", "0", "no")
         else:
@@ -332,18 +347,6 @@ class OpenAICompatibleNode(BaseNode):
         # OpenRouter specific params
         site_url = kwargs.get("site_url") or self.user_data.get("site_url", "")
         site_name = kwargs.get("site_name") or self.user_data.get("site_name", "KAI-Flow")
-        
-        # Get API Key
-        credential_id = kwargs.get("credential_id") or self.user_data.get("credential_id")
-        logger.info(f"[DEBUG][COMPATIBLE] credential_id: {credential_id}")
-        
-        api_key_value = ""
-        if credential_id:
-            cred = self.get_credential(credential_id)
-            logger.info(f"[DEBUG][COMPATIBLE] cred found: {cred is not None}")
-            if cred and cred.get('secret'):
-                api_key_value = str(cred.get('secret').get('api_key')).strip()
-                logger.info(f"[DEBUG][COMPATIBLE] API key length: {len(api_key_value)}")
         
         if not api_key_value:
              # Try environment variables as fallback
