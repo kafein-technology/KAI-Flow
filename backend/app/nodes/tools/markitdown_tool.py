@@ -258,7 +258,9 @@ class MarkItDownToolNode(ProviderNode):
         base_url = (self.user_data.get("llm_base_url") or "").strip()
         if not base_url:
             base_url = (secret.get("base_url") or "").strip()
-        model = (self.user_data.get("llm_model") or "gpt-4o").strip()
+        model = (self.user_data.get("llm_model") or "").strip()
+        if not model:
+            model = (secret.get("model_name") or "gpt-4o").strip()
         
         try:
             from openai import OpenAI
