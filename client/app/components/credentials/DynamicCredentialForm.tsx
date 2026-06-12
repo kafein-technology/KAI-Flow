@@ -3,6 +3,7 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Check, Loader2, X as XIcon, Zap } from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
 import type { ServiceDefinition, ServiceField } from "~/types/credentials";
+import CredentialPasswordField from "./CredentialPasswordField";
 
 interface DynamicCredentialFormProps {
   service: ServiceDefinition;
@@ -143,7 +144,11 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
 
       case "password":
         return (
-          <Field type="password" {...commonProps} autoComplete="new-password" />
+          <CredentialPasswordField
+            name={field.name}
+            placeholder={field.placeholder}
+            className={commonProps.className}
+          />
         );
 
       case "checkbox":
