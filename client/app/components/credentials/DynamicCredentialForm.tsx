@@ -16,6 +16,55 @@ interface DynamicCredentialFormProps {
 
 type TestState = "idle" | "loading" | "success" | "error";
 
+const trimCredentialValues = (values: Record<string, any>) =>
+  Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      typeof value === "string" ? value.trim() : value,
+    ])
+  );
+
+const formatCredentialTestError = (
+  message: string,
+  serviceId: string,
+  values: Record<string, any>
+) => {
+  const lower = message.toLowerCase();
+  const baseUrl = String(values.base_url || "").toLowerCase();
+  const isOpenRouter =
+    serviceId === "openai_compatible" && baseUrl.includes("openrouter");
+
+  if (
+    isOpenRouter &&
+    ["402", "insufficient", "quota", "credit", "billing", "payment"].some(
+      (token) => lower.includes(token)
+    )
+  ) {
+    return `${message} OpenRouter keys are not free — add credits at https://openrouter.ai/credits.`;
+  }
+
+  if (
+    ["401", "unauthorized", "invalid_api_key", "invalid api key", "authentication"].some(
+      (token) => lower.includes(token)
+    )
+  ) {
+    return isOpenRouter
+      ? `${message} Check your OpenRouter API key at https://openrouter.ai/keys — it may have changed or been revoked.`
+      : `${message} Verify the API key is correct and has not changed.`;
+  }
+
+  if (
+    lower.includes("model") &&
+    ["not found", "does not exist", "invalid", "unknown"].some((token) =>
+      lower.includes(token)
+    )
+  ) {
+    return `${message} Check that the Model Name is correct for your provider.`;
+  }
+
+  return message;
+};
+
 const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
   service,
   onSubmit,
@@ -31,8 +80,12 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
     field: ServiceField,
     value: any
   ): string | undefined => {
-    if (field.required && !value) {
-      return `${field.label} is required`;
+    if (field.required) {
+      const normalized =
+        typeof value === "string" ? value.trim() : value;
+      if (!normalized) {
+        return `${field.label} is required`;
+      }
     }
 
     if (value && field.validation) {
@@ -199,12 +252,28 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
         <p className="text-gray-600 text-sm max-w-md mx-auto">
           {service.description}
         </p>
+        {service.id === "openai_compatible" && (
+          <p className="text-amber-700 text-xs max-w-md mx-auto mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            OpenRouter and similar providers require a paid or credited API key.
+            Use show/hide on the API key field to verify it, then run Test
+            Connection before saving. Add credits at{" "}
+            <a
+              href="https://openrouter.ai/credits"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-medium"
+            >
+              openrouter.ai/credits
+            </a>
+            .
+          </p>
+        )}
       </div>
 
       <Formik
         initialValues={formValues}
         validate={validateForm}
-        onSubmit={onSubmit}
+        onSubmit={(values) => onSubmit(trimCredentialValues(values))}
         enableReinitialize
       >
         {({ values, errors, touched, handleChange, handleBlur }) => (
@@ -281,18 +350,33 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
                   onClick={async () => {
                     setTestState("loading");
                     setTestMessage("");
+                    const trimmedValues = trimCredentialValues(values);
                     try {
-                      const result = await onTest(values);
+                      const result = await onTest(trimmedValues);
                       setTestState(result.success ? "success" : "error");
-                      setTestMessage(result.message);
+                      setTestMessage(
+                        result.success
+                          ? result.message
+                          : formatCredentialTestError(
+                              result.message,
+                              service.id,
+                              trimmedValues
+                            )
+                      );
                     } catch (error: any) {
                       setTestState("error");
-                      setTestMessage(error?.message || "Unexpected error. Please try again.");
+                      setTestMessage(
+                        formatCredentialTestError(
+                          error?.message || "Unexpected error. Please try again.",
+                          service.id,
+                          trimmedValues
+                        )
+                      );
                     }
                     setTimeout(() => {
                       setTestState("idle");
                       setTestMessage("");
-                    }, 4000);
+                    }, 8000);
                   }}
                   className={`flex items-center gap-1.5 px-5 py-2.5 rounded-lg border transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
                     ${testState === "success"

@@ -16,10 +16,6 @@ const CredentialPasswordField: React.FC<CredentialPasswordFieldProps> = ({
   const [field] = useField(name);
   const [visible, setVisible] = useState(false);
 
-  const handleCopy = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-  };
-
   return (
     <div className="relative">
       <input
@@ -28,7 +24,6 @@ const CredentialPasswordField: React.FC<CredentialPasswordFieldProps> = ({
         placeholder={placeholder}
         autoComplete="new-password"
         className={`${className} pr-12`}
-        onCopy={handleCopy}
       />
       <button
         type="button"
