@@ -10,6 +10,8 @@ import {
   MessageSquare,
   ShieldAlert,
   StopCircle,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
@@ -37,6 +39,11 @@ interface NavbarProps {
   updateWorkflowStatus?: (id: string, is_active: boolean) => Promise<void>;
   updateWorkflowVisibility?: (id: string, is_public: boolean) => Promise<void>;
   onImportStart?: () => void;
+  onWorkflowImported?: (nodes: any[], edges: any[]) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
   executionLoading?: boolean;
   activeExecutionId?: string | null;
   currentExecution?: any;
@@ -59,6 +66,11 @@ const Navbar: React.FC<NavbarProps> = ({
   onAutoSaveSettings,
   updateWorkflowVisibility,
   onImportStart,
+  onWorkflowImported,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
   executionLoading,
   activeExecutionId,
   currentExecution,
@@ -183,6 +195,7 @@ const Navbar: React.FC<NavbarProps> = ({
 
           setNodes(enrichedNodes);
           setEdges(json.flow_data?.edges || []);
+          onWorkflowImported?.(enrichedNodes, json.flow_data?.edges || []);
           if (json.name) {
             setWorkflowName(json.name);
           }
@@ -283,6 +296,7 @@ const Navbar: React.FC<NavbarProps> = ({
               onChange={(e) => setWorkflowName(e.target.value)}
               onBlur={handleBlur}
               placeholder="Dosya Adı"
+              data-native-undo="true"
               className="text-lg font-medium text-white/90 bg-transparent px-4 py-1.5 rounded-md border border-transparent hover:border-white/20 focus:border-white/30 hover:bg-white/5 focus:bg-white/10 focus:outline-none transition-all duration-300 text-center w-full max-w-[400px] focus:max-w-[800px]"
             />
           </div>
@@ -340,35 +354,74 @@ const Navbar: React.FC<NavbarProps> = ({
               />
             )}
 
-            {autoSaveStatus && (
-              <div className="flex items-center gap-2">
-                {autoSaveStatus === "saving" && (
-                  <div className="flex items-center gap-1 text-green-400">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-xs">Saving...</span>
-                  </div>
-                )}
-                {autoSaveStatus === "saved" && (
-                  <div className="flex items-center gap-1 text-green-400">
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    <span className="text-xs">Saved</span>
-                  </div>
-                )}
-                {autoSaveStatus === "error" && (
-                  <div className="flex items-center gap-1 text-red-400">
-                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                    <span className="text-xs">Error</span>
-                  </div>
-                )}
-                {lastAutoSave && autoSaveStatus === "idle" && (
-                  <div className="flex items-center gap-1 text-gray-400 text-xs">
-                    Last saved: {lastAutoSave.toLocaleTimeString()}
-                  </div>
-                )}
-              </div>
-            )}
-
             <div className="flex items-center gap-2">
+              {autoSaveStatus && (
+                <div
+                  className="min-w-[5.5rem] flex items-center justify-end shrink-0"
+                  aria-live="polite"
+                >
+                  {autoSaveStatus === "saving" && (
+                    <div className="flex items-center gap-1 text-green-400">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <span className="text-xs whitespace-nowrap">Saving...</span>
+                    </div>
+                  )}
+                  {autoSaveStatus === "saved" && (
+                    <div className="flex items-center gap-1 text-green-400">
+                      <div className="w-2 h-2 bg-green-400 rounded-full" />
+                      <span className="text-xs whitespace-nowrap">Saved</span>
+                    </div>
+                  )}
+                  {autoSaveStatus === "error" && (
+                    <div className="flex items-center gap-1 text-red-400">
+                      <div className="w-2 h-2 bg-red-400 rounded-full" />
+                      <span className="text-xs whitespace-nowrap">Error</span>
+                    </div>
+                  )}
+                  {lastAutoSave && autoSaveStatus === "idle" && (
+                    <div
+                      className="flex items-center gap-1 text-gray-400 text-xs truncate max-w-[8rem]"
+                      title={`Last saved: ${lastAutoSave.toLocaleTimeString()}`}
+                    >
+                      <span className="truncate">
+                        Last saved: {lastAutoSave.toLocaleTimeString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                className={`p-0 border-0 bg-transparent rounded-4xl transition duration-500 ${
+                  canUndo ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed"
+                }`}
+                onClick={canUndo ? onUndo : undefined}
+                disabled={!canUndo}
+                aria-label="Undo (Ctrl+Z)"
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo2
+                  className={`w-10 h-10 p-2 ${
+                    canUndo ? "text-white" : "text-white/30"
+                  }`}
+                />
+              </button>
+              <button
+                type="button"
+                className={`p-0 border-0 bg-transparent rounded-4xl transition duration-500 ${
+                  canRedo ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed"
+                }`}
+                onClick={canRedo ? onRedo : undefined}
+                disabled={!canRedo}
+                aria-label="Redo (Ctrl+Y)"
+                title="Redo (Ctrl+Y)"
+              >
+                <Redo2
+                  className={`w-10 h-10 p-2 ${
+                    canRedo ? "text-white" : "text-white/30"
+                  }`}
+                />
+              </button>
               {isLoading ? (
                 <Loader className="animate-spin text-white w-10 h-10 p-2 rounded-4xl" />
               ) : (

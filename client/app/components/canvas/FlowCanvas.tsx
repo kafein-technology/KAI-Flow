@@ -57,6 +57,7 @@ import GenericNode from "../node";
 // Import config components
 import { config } from "../../lib/config";
 import { GenericNodeForm } from "../node";
+import { useWorkflowHistory, isEditableKeyboardTarget } from "../../lib/useWorkflowHistory";
 
 interface FlowCanvasProps {
   workflowId?: string;
@@ -307,6 +308,12 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const { undo, redo, canUndo, canRedo, resetHistory } = useWorkflowHistory(
+    nodes,
+    edges,
+    setNodes,
+    setEdges
+  );
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const hasInitializedEmptyCanvas = useRef(false);
   const isImportingRef = useRef(false);
@@ -682,21 +689,21 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       // Sadece start node'u ekle
       const startNodeMeta = availableNodes.find((n) => n.name === "StartNode");
       if (startNodeMeta) {
-        setNodes([
-          {
-            id: "StartNode__" + crypto.randomUUID(),
-            type: "StartNode",
-            position: { x: 100, y: 100 },
-            data: {
-              name: "Start",
-              metadata: startNodeMeta,
-            },
+        const startNode = {
+          id: "StartNode__" + crypto.randomUUID(),
+          type: "StartNode",
+          position: { x: 100, y: 100 },
+          data: {
+            name: "Start",
+            metadata: startNodeMeta,
           },
-        ]);
+        };
+        setNodes([startNode]);
         hasInitializedEmptyCanvas.current = true;
+        resetHistory([startNode], []);
       }
     }
-  }, [availableNodes, currentWorkflow, nodes.length, setNodes]);
+  }, [availableNodes, currentWorkflow, nodes.length, setNodes, resetHistory]);
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -749,16 +756,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
         );
         setEdges(validEdges);
+        resetHistory(enrichedNodes, validEdges);
       } else {
-        setEdges(edges || []);
+        const loadedEdges = edges || [];
+        setEdges(loadedEdges);
+        resetHistory(enrichedNodes, loadedEdges);
       }
     } else if (!isImportingRef.current) {
       setNodes([]);
       setEdges([]);
+      resetHistory([], []);
     }
     // Reset import flag after every useEffect run (self-healing)
     isImportingRef.current = false;
-  }, [currentWorkflow, availableNodes, customNodes]);
+  }, [currentWorkflow, availableNodes, customNodes, resetHistory]);
 
   useEffect(() => {
     if (currentWorkflow) {
@@ -827,6 +838,25 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       );
     };
   }, [enqueueSnackbar]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "z" && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+      } else if (event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo]);
 
   // Clean up edges when nodes are deleted
   useEffect(() => {
@@ -1795,6 +1825,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         updateWorkflowStatus={updateWorkflowStatus}
         updateWorkflowVisibility={updateWorkflowVisibility}
         onImportStart={() => { isImportingRef.current = true; }}
+        onWorkflowImported={(importedNodes, importedEdges) => {
+          resetHistory(importedNodes, importedEdges);
+        }}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
         executionLoading={executionLoading}
         activeExecutionId={activeExecutionId}
         currentExecution={currentExecution}
