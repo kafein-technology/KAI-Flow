@@ -146,25 +146,26 @@ async def import_from_config(config_path: str, dry_run: bool = False):
 
                 # Check if credential values are filled
                 has_values = any(v for v in secret.values() if v)
-                if not has_values:
-                    log(f"  SKIP: Empty credential: {name} (fill secrets first)")
-                    skipped_credentials += 1
-                    continue
 
                 if existing_cred:
                     uuid_mapping[old_cred_id] = str(existing_cred.id)
                     if dry_run:
-                        log(f"  Would UPDATE: {name}")
+                        log(f"  Would UPDATE (or skip secret update): {name}")
                         continue
                     
-                    try:
-                        encrypted_bytes = encrypt_data(secret)
-                        encrypted_secret = base64.b64encode(encrypted_bytes).decode('utf-8')
-                        existing_cred.encrypted_secret = encrypted_secret
-                        updated_credentials += 1
-                        log(f"  Updated: {name}")
-                    except Exception as e:
-                        log(f"  ERROR updating {name}: {e}")
+                    # Update secret ONLY if new secrets are provided in YAML
+                    if has_values:
+                        try:
+                            encrypted_bytes = encrypt_data(secret)
+                            encrypted_secret = base64.b64encode(encrypted_bytes).decode('utf-8')
+                            existing_cred.encrypted_secret = encrypted_secret
+                            updated_credentials += 1
+                            log(f"  Updated: {name}")
+                        except Exception as e:
+                            log(f"  ERROR updating {name}: {e}")
+                            skipped_credentials += 1
+                    else:
+                        log(f"  Skipped secret update (YAML is empty) but kept mapping for: {name}")
                         skipped_credentials += 1
                 else:
                     if dry_run:
@@ -175,7 +176,7 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                     new_cred_id = uuid.uuid4()
                     uuid_mapping[old_cred_id] = str(new_cred_id)
 
-                    # Create credential with NEW UUID
+                    # Create credential with NEW UUID (even if secrets are empty, allowing user to fill them in UI)
                     try:
                         encrypted_bytes = encrypt_data(secret)
                         encrypted_secret = base64.b64encode(encrypted_bytes).decode('utf-8')
@@ -191,7 +192,7 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                         await db.flush()
 
                         created_credentials += 1
-                        log(f"  Created: {name}")
+                        log(f"  Created (empty/filled): {name}")
 
                     except Exception as e:
                         log(f"  ERROR creating {name}: {e}")
