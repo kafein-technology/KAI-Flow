@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Maximize2, X } from "lucide-react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor, languages, IDisposable } from "monaco-editor";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 import { completionsByLanguage } from "./monaco/completions";
 import {
     getPythonDiagnostics,
@@ -123,6 +124,40 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
         monacoRef.current = monacoInstance;
         registerCompletions(monacoInstance);
 
+        // Custom drag & drop handler to prevent Monaco snippet formatting bug
+        const domNode = editorInstance.getDomNode();
+        if (domNode) {
+            const handleDragOver = (e: DragEvent) => {
+                e.preventDefault();
+            };
+            const handleDrop = (e: DragEvent) => {
+                const text = e.dataTransfer?.getData("text/plain");
+                if (text) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const target = editorInstance.getTargetAtClientPoint(e.clientX, e.clientY);
+                    if (target && target.position) {
+                        const { lineNumber, column } = target.position;
+                        editorInstance.executeEdits("drag-drop", [
+                            {
+                                range: new monacoInstance.Range(lineNumber, column, lineNumber, column),
+                                text: text,
+                                forceMoveMarkers: true,
+                            }
+                        ]);
+                        editorInstance.setPosition({ lineNumber, column: column + text.length });
+                        editorInstance.focus();
+                    }
+                }
+            };
+            domNode.addEventListener("dragover", handleDragOver);
+            domNode.addEventListener("drop", handleDrop);
+            (editorInstance as any)._dropCleanup = () => {
+                domNode.removeEventListener("dragover", handleDragOver);
+                domNode.removeEventListener("drop", handleDrop);
+            };
+        }
+
         // Ctrl+S: save & close
         editorInstance.addCommand(
             monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
@@ -214,6 +249,40 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
         registerCompletions(monacoInstance);
         editorInstance.focus();
 
+        // Custom drag & drop handler for fullscreen mode
+        const domNode = editorInstance.getDomNode();
+        if (domNode) {
+            const handleDragOver = (e: DragEvent) => {
+                e.preventDefault();
+            };
+            const handleDrop = (e: DragEvent) => {
+                const text = e.dataTransfer?.getData("text/plain");
+                if (text) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const target = editorInstance.getTargetAtClientPoint(e.clientX, e.clientY);
+                    if (target && target.position) {
+                        const { lineNumber, column } = target.position;
+                        editorInstance.executeEdits("drag-drop", [
+                            {
+                                range: new monacoInstance.Range(lineNumber, column, lineNumber, column),
+                                text: text,
+                                forceMoveMarkers: true,
+                            }
+                        ]);
+                        editorInstance.setPosition({ lineNumber, column: column + text.length });
+                        editorInstance.focus();
+                    }
+                }
+            };
+            domNode.addEventListener("dragover", handleDragOver);
+            domNode.addEventListener("drop", handleDrop);
+            (editorInstance as any)._dropCleanup = () => {
+                domNode.removeEventListener("dragover", handleDragOver);
+                domNode.removeEventListener("drop", handleDrop);
+            };
+        }
+
         // Ctrl+S: save & close fullscreen + submit form
         editorInstance.addCommand(
             monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
@@ -248,6 +317,12 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
         return () => {
             disposablesRef.current.forEach((d) => d.dispose());
             disposablesRef.current = [];
+            if (editorRef.current && (editorRef.current as any)._dropCleanup) {
+                (editorRef.current as any)._dropCleanup();
+            }
+            if (fullscreenEditorRef.current && (fullscreenEditorRef.current as any)._dropCleanup) {
+                (fullscreenEditorRef.current as any)._dropCleanup();
+            }
         };
     }, []);
 
@@ -286,9 +361,11 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
             key={property.name}
         >
             <div className="flex items-center justify-between mb-2">
-                <label className="text-white text-sm font-medium flex items-center gap-2">
-                    {property.displayName}
-                </label>
+                <FieldLabel
+                    label={property.displayName}
+                    helpText={getFieldHelpText(property)}
+                    className="text-white text-sm font-medium"
+                />
                 <VersionBadge />
             </div>
 
@@ -323,14 +400,6 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
                 component="div"
                 className="text-red-400 text-sm mt-1"
             />
-
-            {property.description && (
-                <p className="text-slate-400 text-xs mt-2">{property.description}</p>
-            )}
-
-            {property.hint && (
-                <p className="text-slate-400 text-sm mt-1">{property.hint}</p>
-            )}
 
             {property.maxLength && (
                 <div className="text-gray-400 text-xs mt-1">

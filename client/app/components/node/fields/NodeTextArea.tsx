@@ -1,5 +1,6 @@
 import { Field, ErrorMessage } from "formik";
 import type { NodeProperty } from "../types";
+import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeTextAreaProps {
   property: NodeProperty;
@@ -21,9 +22,10 @@ export const NodeTextArea = ({ property, values }: NodeTextAreaProps) => {
 
   return (
     <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
-      <label className="text-white text-sm font-medium mb-2 block flex items-center gap-2">
-        {property.displayName}
-      </label>
+      <FieldLabel
+        label={property.displayName}
+        helpText={getFieldHelpText(property)}
+      />
       <Field
         as="textarea"
         name={property.name}
@@ -38,9 +40,6 @@ export const NodeTextArea = ({ property, values }: NodeTextAreaProps) => {
         component="div"
         className="text-red-400 text-sm mt-1"
       />
-      {property.hint && (
-        <p className="text-slate-400 text-sm mt-1">{property.hint}</p>
-      )}
       {property.maxLength && (
         <div className="text-gray-400 text-xs mt-1">
           Characters: {property.value?.length.toLocaleString() || 0} /{" "}

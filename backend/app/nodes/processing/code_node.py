@@ -1,58 +1,3 @@
-"""
-KAI-Flow Code Execution Node - Multi-Language Code Processing Engine
-======================================================================
-
-This module implements a sophisticated multi-language code execution node for the KAI-Flow platform,
-providing secure, sandboxed code execution capabilities for Python and JavaScript.
-Built for dynamic data processing, transformation, and custom logic implementation within workflows.
-
-ARCHITECTURAL OVERVIEW:
-======================
-
-The Code node serves as a flexible multi-language code execution engine, allowing users to write
-custom Python or JavaScript code to process inputs, transform data, and generate outputs dynamically.
-
-┌─────────────────────────────────────────────────────────────────┐
-│                  Code Execution Architecture                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Input Data → [Language Selector] → [Code Editor]              │
-│       ↓               ↓                    ↓                    │
-│  [Validation] → [Runtime Selection] → [Sandbox Environment]    │
-│       ↓               ↓                    ↓                    │
-│  [Code Execution] → [Error Handling] → [Output Processing]     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-
-KEY FEATURES:
-============
-
-1. **Multi-Language Support**:
-   - Python 3.x execution with secure sandbox
-   - JavaScript (Node.js) execution environment
-   - Language-specific helper functions and modules
-
-2. **Secure Sandbox Execution**:
-   - Isolated execution environment for each language
-   - Resource limits and timeout protection
-   - Safe module imports with whitelist
-   - Memory and CPU usage constraints
-
-3. **Batch Processing Support**:
-   - Support for processing datasets efficiently
-   - Optimized for large data processing
-
-4. **Rich Context Access**:
-   - Access to input data and workflow variables
-   - Helper functions for common operations
-   - JSON manipulation utilities
-   - Date/time handling functions
-
-AUTHORS: KAI-Flow Development Team
-VERSION: 2.0.0
-LICENSE: Proprietary - KAI-Flow Platform
-"""
-
 import ast
 import json
 import logging
@@ -78,7 +23,6 @@ from ..base import (
 
 logger = logging.getLogger(__name__)
 
-# Safe built-in functions and modules for Python sandbox
 SAFE_PYTHON_BUILTINS = {
     "abs", "all", "any", "ascii", "bin", "bool", "bytes", "chr", "dict", "dir", "divmod", "enumerate", "filter", "float",
     "format", "frozenset", "hex", "int", "isinstance", "issubclass", "iter", "len", "list", "map", "max", "min", "next",
@@ -86,6 +30,28 @@ SAFE_PYTHON_BUILTINS = {
     "type", "zip", # Additional safe functions (note: broadens sandbox surface, kept for backward compatibility)
     "hasattr", "getattr", "setattr", "delattr", "hash", "id", "callable", "classmethod", "staticmethod", "property",
     "locals", "globals", "vars",
+
+    # Exceptions
+    "BaseException", "Exception", "ArithmeticError", "BufferError", "LookupError",
+    "AssertionError", "AttributeError", "EOFError", "FloatingPointError",
+    "GeneratorExit", "ImportError", "ModuleNotFoundError", "IndexError",
+    "KeyError", "KeyboardInterrupt", "MemoryError", "NameError", "NotImplementedError",
+    "OSError", "OverflowError", "RecursionError", "ReferenceError", "RuntimeError",
+    "StopIteration", "StopAsyncIteration", "SyntaxError", "IndentationError", "TabError",
+    "SystemError", "SystemExit", "TypeError", "UnboundLocalError", "UnicodeError",
+    "UnicodeEncodeError", "UnicodeDecodeError", "UnicodeTranslateError", "ValueError",
+    "ZeroDivisionError", "EnvironmentError", "IOError",
+
+    # OS Error subclasses
+    "BlockingIOError", "ChildProcessError", "ConnectionError", "BrokenPipeError",
+    "ConnectionAbortedError", "ConnectionRefusedError", "ConnectionResetError",
+    "FileExistsError", "FileNotFoundError", "InterruptedError", "IsADirectoryError",
+    "NotADirectoryError", "PermissionError", "ProcessLookupError", "TimeoutError",
+
+    # Warnings
+    "Warning", "UserWarning", "DeprecationWarning", "PendingDeprecationWarning",
+    "SyntaxWarning", "RuntimeWarning", "FutureWarning", "ImportWarning",
+    "UnicodeWarning", "BytesWarning", "ResourceWarning", "EncodingWarning",
 }
 
 SAFE_PYTHON_MODULES = {

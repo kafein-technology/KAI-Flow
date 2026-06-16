@@ -1,10 +1,3 @@
-"""
-HTTP Client API Endpoints
-========================
-
-This module provides API endpoints for testing HTTP Client nodes from the UI.
-"""
-
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, Optional

@@ -274,8 +274,6 @@ class PackageAnalyzer:
             # === MEMORY NODES ===
             "BufferMemory": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
             "BufferMemoryNode": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
-            "ConversationMemory": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
-            "ConversationMemoryNode": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
             
             # === EMBEDDINGS PROVIDERS ===
             "OpenAIEmbeddingsProvider": ["langchain-openai>=0.0.5", "openai>=1.0.0"],

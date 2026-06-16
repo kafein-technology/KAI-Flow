@@ -1,48 +1,3 @@
-"""
-KAI-Flow Condition Node - Conditional Workflow Routing Engine
-================================================================
-
-This module implements a Condition Node for the KAI-Flow platform,
-providing conditional routing capabilities for workflow execution.
-Similar to n8n and Flowise condition nodes, this node evaluates
-string conditions and routes the workflow to True or False outputs.
-
-ARCHITECTURAL OVERVIEW:
-======================
-
-The Condition Node serves as a conditional branching point in workflows,
-allowing users to define conditions that determine the execution path.
-
-┌─────────────────────────────────────────────────────────────────┐
-│                  Condition Node Architecture                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Input Data → [Source Selection] → [Value Extraction]          │
-│       ↓               ↓                    ↓                    │
-│  [Operation Select] → [Condition Evaluation] → [Routing]       │
-│       ↓               ↓                    ↓                    │
-│  [True Output] ←────────────────────→ [False Output]           │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-
-SUPPORTED OPERATIONS:
-====================
-
-1. **Contains**: Check if value1 contains value2
-2. **Ends With**: Check if value1 ends with value2
-3. **Equal**: Check if value1 equals value2
-4. **Not Contains**: Check if value1 does not contain value2
-5. **Not Equal**: Check if value1 does not equal value2
-6. **Regex**: Check if value1 matches regex pattern in value2
-7. **Starts With**: Check if value1 starts with value2
-8. **Is Empty**: Check if value1 is empty or None
-9. **Not Empty**: Check if value1 is not empty
-
-AUTHORS: KAI-Flow Development Team
-VERSION: 1.0.0
-LICENSE: Proprietary - KAI-Flow Platform
-"""
-
 import re
 import logging
 from typing import Dict, Any, Optional
@@ -304,6 +259,10 @@ class ConditionNode(ProcessorNode):
         """
         if input_data is None:
             return None
+            
+        # Peel off the standardized wrapper if present
+        if isinstance(input_data, dict) and "success" in input_data and "output" in input_data and "nodeId" in input_data:
+            input_data = input_data["output"]
         
         # Handle LangChain Document objects directly
         if hasattr(input_data, 'page_content'):

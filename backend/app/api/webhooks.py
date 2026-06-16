@@ -1,94 +1,3 @@
-"""
-KAI-Flow Webhook API
-======================
-
-This module provides comprehensive webhook management API endpoints including
-webhook creation, configuration, event logging, and dynamic trigger endpoints.
-
-ARCHITECTURAL OVERVIEW:
-======================
-
-The Webhook API provides enterprise-grade webhook management with comprehensive
-endpoint configuration, event tracking, and dynamic trigger capabilities.
-
-┌─────────────────────────────────────────────────────────────────┐
-│              Webhook API Architecture                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  HTTP Request → [Auth] → [Validation] → [Service] → [DB]     │
-│       ↓          ↓         ↓              ↓         ↓        │
-│  [Token Check] → [Rate Limit] → [Business Logic] → [Response]│
-│       ↓          ↓         ↓              ↓         ↓        │
-│  [Event Log] → [Analytics] → [Monitoring] → [HTTP Response]  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-
-KEY FEATURES:
-=============
-
-1. **Webhook Management APIs**:
-   - CRUD operations for webhook endpoints
-   - Configuration management and validation
-   - Event logging and analytics
-   - Performance monitoring and health checks
-
-2. **Dynamic Webhook Trigger Endpoints**:
-   - Real-time webhook triggering
-   - Token-based authentication
-   - Rate limiting and security
-   - Event tracking and logging
-
-3. **Enterprise Security**:
-   - Token validation and authentication
-   - IP filtering and access control
-   - Rate limiting with configurable thresholds
-   - CORS support and security headers
-
-4. **Advanced Analytics**:
-   - Real-time performance metrics
-   - Error tracking and analysis
-   - Usage statistics and trends
-   - Health monitoring and alerts
-
-TECHNICAL SPECIFICATIONS:
-========================
-
-API Performance:
-- Endpoint Creation: < 50ms with validation
-- Event Logging: < 10ms with async processing
-- Trigger Response: < 100ms with authentication
-- Analytics Queries: < 30ms with optimization
-
-Security Features:
-- Token Validation: < 2ms with hash comparison
-- Rate Limiting: < 3ms with Redis caching
-- IP Filtering: < 1ms with CIDR matching
-- Authentication: < 5ms with JWT validation
-
-Monitoring Capabilities:
-- Real-time Metrics: < 100ms for dashboard updates
-- Error Tracking: < 5ms for error logging
-- Performance Analysis: < 50ms for trend calculation
-- Health Monitoring: < 10ms for status checks
-
-INTEGRATION PATTERNS:
-====================
-
-Basic Usage:
-```bash
-# Create webhook endpoint
-curl -X POST /{API_START}/{API_VERSION}/webhook \
-  -H "Authorization: Bearer {token}" \
-  -d '{"workflow_id": "uuid", "node_id": "node_123", "config": {...}}'
-
-# Trigger webhook
-curl -X POST /{API_START}/webhooks/{webhook_id} \
-  -H "Authorization: Bearer {webhook_token}" \
-  -d '{"data": "example"}'
-```
-
-"""
-
 from app.core.constants import API_START, API_VERSION
 import uuid
 from datetime import datetime, timedelta
@@ -601,6 +510,13 @@ async def trigger_webhook(
                 
                 # Fetch the workflow data
                 workflow = await workflow_service.get_by_id(db=db, workflow_id=endpoint.workflow_id)
+                
+                # Check if workflow is active (is_public toggle)
+                if workflow and not workflow.is_public:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Workflow is currently deactivated"
+                    )
                 
                 if workflow and workflow.flow_data and workflow.flow_data.get('nodes'):
                     # Execute workflow via internal API

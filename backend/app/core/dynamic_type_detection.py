@@ -211,7 +211,6 @@ class DynamicTypeDetector:
             
             # Memory nodes
             'BufferMemory': NodeType.MEMORY,
-            'ConversationMemory': NodeType.MEMORY,
             'Memory': NodeType.MEMORY,
             
             # Provider nodes

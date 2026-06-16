@@ -1,24 +1,3 @@
-"""
-KAI-Flow Agentic Red Team Node — Adversarial Security Testing for AI Agents
-Version: 1.0.0 (May 2026)
-
-Architecture (Tri-LLM Design — inherited from LLMRedTeamNode):
-- model_callback : async function wrapping the target LLM (built from webhook params)
-- simulator_model: DeepEvalBaseLLM wrapping the canvas simulator LangChain LLM
-- evaluator_model: DeepEvalBaseLLM wrapping the canvas evaluator LangChain LLM
-
-Focus: Agentic-specific vulnerabilities from DeepTeam framework
-- Goal Theft, Recursive Hijacking, Excessive Agency, Robustness
-- Indirect Instruction, Tool Orchestration Abuse, Agent Identity Abuse
-- Inter-Agent Communication, Autonomous Agent Drift, Exploit Tool Agent
-- External System Abuse, Cross Context Retrieval, Tool Metadata Poisoning
-- Debug Access, System Reconnaissance
-
-References:
-- https://www.trydeepteam.com/docs/red-teaming-agentic-vulnerabilities-goal-theft
-- https://trydeepteam.com/docs/red-teaming-introduction
-"""
-
 import json
 import logging
 import os
@@ -304,6 +283,25 @@ class AgenticRedTeamNode(ProcessorNode):
                 displayOptions={"show": {"enable_owasp_asi": True}},
                 required=False,
             ),
+            NodeProperty(
+                name="verify_ssl", displayName="SSL Certificate Verification",
+                type=NodePropertyType.CHECKBOX, default=True,
+                hint="Enable SSL certificate verification. Disable this only when connecting to servers with self-signed certificates.",
+                tabName="advanced", required=False,
+            ),
+            NodeProperty(
+                name="strip_reasoning", displayName="Strip Reasoning/Thinking Tags",
+                type=NodePropertyType.CHECKBOX, default=False,
+                hint="Automatically remove <think>...</think> or <thought>...</thought> tags and their contents from the target model's output.",
+                tabName="advanced", required=False,
+            ),
+            NodeProperty(
+                name="extra_body_params", displayName="Extra Body Parameters (JSON)",
+                type=NodePropertyType.TEXT_AREA, default="",
+                placeholder='{"thinking_mode": false}',
+                hint="Additional parameters to inject directly into the request body of target model (e.g. for Groq thinking configuration).",
+                tabName="advanced", required=False,
+            ),
         ]
 
     # ----------------------------------------------------------------
@@ -325,10 +323,36 @@ class AgenticRedTeamNode(ProcessorNode):
             "target_base_url", "target_model_name", "target_api_key",
             "target_purpose", "target_system_prompt", "vulnerabilities",
             "vulnerability_types", "attacks", "attacks_per_vuln_type",
-            "max_concurrent", "enable_owasp_asi", "owasp_asi_categories",
+            "max_concurrent", "enable_owasp_asi", "owasp_asi_categories", "verify_ssl",
+            "strip_reasoning", "extra_body_params",
         ]:
             if key not in inputs and isinstance(self.user_data, dict) and key in self.user_data:
                 inputs[key] = self.user_data[key]
+
+        # SSL verification
+        verify_ssl_val = inputs.get("verify_ssl", True)
+        if isinstance(verify_ssl_val, str):
+            verify_ssl = verify_ssl_val.lower() not in ("false", "0", "no")
+        else:
+            verify_ssl = bool(verify_ssl_val)
+
+        # Strip Reasoning/Thinking Tags
+        strip_reasoning_val = inputs.get("strip_reasoning")
+        if strip_reasoning_val is None:
+            strip_reasoning_val = False
+        if isinstance(strip_reasoning_val, str):
+            strip_reasoning = strip_reasoning_val.lower() in ("true", "1", "yes", "on")
+        else:
+            strip_reasoning = bool(strip_reasoning_val)
+
+        # Extra Body Parameters (JSON)
+        extra_body_json = inputs.get("extra_body_params") or ""
+        extra_body_data = {}
+        if extra_body_json:
+            try:
+                extra_body_data = json.loads(extra_body_json)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse extra_body_params JSON: {e}")
 
         # ── Validate & extract target params ──
         target_base_url      = inputs.get("target_base_url", "").strip()
@@ -362,7 +386,16 @@ class AgenticRedTeamNode(ProcessorNode):
         logger.info(f"AgenticRedTeam: target={target_model_name} @ {target_base_url}")
 
         # ── Build raw OpenAI client for target ──
-        target_client = OpenAI(base_url=target_base_url, api_key=target_api_key)
+        import httpx
+        client_kwargs = {
+            "base_url": target_base_url,
+            "api_key": target_api_key,
+        }
+        if not verify_ssl:
+            logger.warning("SSL certificate verification is DISABLED for the target client. Use only for trusted internal endpoints.")
+            client_kwargs["http_client"] = httpx.Client(verify=False)
+
+        target_client = OpenAI(**client_kwargs)
 
         # ── model_callback — async function (official docs pattern) ──
         async def model_callback(input: str, turns=None) -> RTTurn:
@@ -381,12 +414,23 @@ class AgenticRedTeamNode(ProcessorNode):
             messages.append({"role": "user", "content": input})
 
             try:
-                resp = target_client.chat.completions.create(
-                    model=target_model_name,
-                    messages=messages,
-                    temperature=0.0,
-                )
+                create_kwargs = {
+                    "model": target_model_name,
+                    "messages": messages,
+                    "temperature": 0.0,
+                }
+                if extra_body_data:
+                    create_kwargs["extra_body"] = extra_body_data
+
+                resp = target_client.chat.completions.create(**create_kwargs)
                 content = resp.choices[0].message.content or "[ERROR] No content returned."
+                
+                # Apply reasoning strip if enabled
+                if strip_reasoning and isinstance(content, str):
+                    import re
+                    content = re.sub(r"<think>[\s\S]*?</think>", "", content)
+                    content = re.sub(r"<thought>[\s\S]*?</thought>", "", content)
+                    content = content.strip()
             except Exception as e:
                 logger.warning(f"AgenticRedTeam: target_callback error — {type(e).__name__}: {e}")
                 content = f"[ERROR] {e}"
@@ -405,16 +449,84 @@ class AgenticRedTeamNode(ProcessorNode):
                 def load_model(self):
                     return self.model
 
-                def generate(self, prompt: str) -> str:
-                    resp = self.model.invoke(prompt)
-                    return resp.content if hasattr(resp, "content") else str(resp)
+                def generate(self, prompt: str, schema: Any = None, *args, **kwargs) -> Any:
+                    if schema is not None:
+                        try:
+                            structured_model = self.model.with_structured_output(schema)
+                            return structured_model.invoke(prompt)
+                        except Exception as e:
+                            logger.warning(
+                                f"AgenticRedTeam: Failed to get structured output from {name_hint} model via langchain: {e}. "
+                                "Falling back to raw string generation and manual parsing."
+                            )
+                            resp = self.model.invoke(prompt)
+                            content = resp.content if hasattr(resp, "content") else str(resp)
+                            return _Wrapper.parse_json_to_schema(content, schema)
+                    else:
+                        resp = self.model.invoke(prompt)
+                        return resp.content if hasattr(resp, "content") else str(resp)
 
-                async def a_generate(self, prompt: str) -> str:
-                    resp = await self.model.ainvoke(prompt)
-                    return resp.content if hasattr(resp, "content") else str(resp)
+                async def a_generate(self, prompt: str, schema: Any = None, *args, **kwargs) -> Any:
+                    if schema is not None:
+                        try:
+                            structured_model = self.model.with_structured_output(schema)
+                            return await structured_model.ainvoke(prompt)
+                        except Exception as e:
+                            logger.warning(
+                                f"AgenticRedTeam: Failed to get structured output from {name_hint} model via langchain: {e}. "
+                                "Falling back to raw string generation and manual parsing."
+                            )
+                            resp = await self.model.ainvoke(prompt)
+                            content = resp.content if hasattr(resp, "content") else str(resp)
+                            return _Wrapper.parse_json_to_schema(content, schema)
+                    else:
+                        resp = await self.model.ainvoke(prompt)
+                        return resp.content if hasattr(resp, "content") else str(resp)
 
                 def get_model_name(self) -> str:
                     return getattr(self.model, "model_name", name_hint)
+
+                @staticmethod
+                def parse_json_to_schema(text: str, schema: Any) -> Any:
+                    import re
+                    text_str = text.strip()
+                    try:
+                        if hasattr(schema, "model_validate_json"):
+                            return schema.model_validate_json(text_str)
+                        else:
+                            return schema.parse_raw(text_str)
+                    except Exception:
+                        pass
+
+                    # Regex 1: Markdown kod bloklarının (```json ... ```) içerisindeki JSON kısmını yakalama
+                    json_block_match = re.search(r"```json\s*(.*?)\s*```", text_str, re.DOTALL)
+                    if json_block_match:
+                        try:
+                            clean_content = json_block_match.group(1).strip()
+                            if hasattr(schema, "model_validate_json"):
+                                return schema.model_validate_json(clean_content)
+                            else:
+                                return schema.parse_raw(clean_content)
+                        except Exception:
+                            pass
+
+                    # Regex 2: Metin içinde süslü parantezler { ... } arasına sıkışmış olan JSON'ı yakalama
+                    braces_match = re.search(r"(\{.*\})", text_str, re.DOTALL)
+                    if braces_match:
+                        try:
+                            clean_content = braces_match.group(1).strip()
+                            if hasattr(schema, "model_validate_json"):
+                                return schema.model_validate_json(clean_content)
+                            else:
+                                return schema.parse_raw(clean_content)
+                        except Exception:
+                            pass
+
+                    # Son çare
+                    if hasattr(schema, "model_validate_json"):
+                        return schema.model_validate_json(text_str)
+                    else:
+                        return schema.parse_raw(text_str)
 
             return _Wrapper()
 

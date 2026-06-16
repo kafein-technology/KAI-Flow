@@ -546,12 +546,45 @@ class WorkflowExecutor:
                         logger.error(f"Workflow streaming execution crashed: {e}", exc_info=True)
                         try:
                             err_text = str(e) or f"Streaming crash: {type(e).__name__}"
+                            
+                            # Extract state data from exception context first, fallback to checkpointer
+                            node_outputs = {}
+                            executed_nodes = []
+                            
+                            curr_e = e
+                            while curr_e:
+                                if hasattr(curr_e, "context") and isinstance(curr_e.context, dict):
+                                    node_outputs = curr_e.context.get("node_outputs") or {}
+                                    executed_nodes = curr_e.context.get("executed_nodes") or []
+                                    if node_outputs:
+                                        break
+                                curr_e = getattr(curr_e, "__cause__", None) or getattr(curr_e, "__context__", None)
+                                
+                            if not node_outputs:
+                                try:
+                                    if build_result and len(build_result) > 1:
+                                        compiled_graph = build_result[1]
+                                        config = {"configurable": {"thread_id": ctx.session_id}}
+                                        final_state = await compiled_graph.aget_state(config)
+                                        if hasattr(final_state, 'values') and final_state.values:
+                                            node_outputs = final_state.values.get('node_outputs', {})
+                                            executed_nodes = final_state.values.get('executed_nodes', [])
+                                except Exception as state_err:
+                                    logger.warning(f"Failed to get graph state on streaming crash: {state_err}")
+                                
+                            outputs = {
+                                "error": err_text,
+                                "status": "failed",
+                                "node_outputs": make_json_serializable(node_outputs),
+                                "executed_nodes": executed_nodes
+                            }
+                            
                             await self.update_execution_status(
                                 db,
                                 execution_id,
                                 status="failed",
                                 error_message=err_text,
-                                outputs={"error": err_text, "status": "failed"},
+                                outputs=outputs,
                                 completed_at=datetime.now(timezone.utc),
                             )
                             await self._trigger_error_workflow_if_configured(db, ctx, execution_id, e)
@@ -629,12 +662,44 @@ class WorkflowExecutor:
                 if not error_msg:
                     error_msg = f"Execution failed with error: {type(e).__name__}"
                 
+                # Extract state data from exception context first, fallback to checkpointer
+                node_outputs = {}
+                executed_nodes = []
+                
+                curr_e = e
+                while curr_e:
+                    if hasattr(curr_e, "context") and isinstance(curr_e.context, dict):
+                        node_outputs = curr_e.context.get("node_outputs") or {}
+                        executed_nodes = curr_e.context.get("executed_nodes") or []
+                        if node_outputs:
+                            break
+                    curr_e = getattr(curr_e, "__cause__", None) or getattr(curr_e, "__context__", None)
+                    
+                if not node_outputs:
+                    try:
+                        if build_result and len(build_result) > 1:
+                            compiled_graph = build_result[1]
+                            config = {"configurable": {"thread_id": ctx.session_id}}
+                            final_state = await compiled_graph.aget_state(config)
+                            if hasattr(final_state, 'values') and final_state.values:
+                                node_outputs = final_state.values.get('node_outputs', {})
+                                executed_nodes = final_state.values.get('executed_nodes', [])
+                    except Exception as state_err:
+                        logger.warning(f"Failed to get graph state on workflow execution fail: {state_err}")
+                    
+                outputs = {
+                    "error": error_msg,
+                    "status": "failed",
+                    "node_outputs": make_json_serializable(node_outputs),
+                    "executed_nodes": executed_nodes
+                }
+                
                 await self.update_execution_status(
                     db,
                     execution_id,
                     status="failed",
                     error_message=error_msg,
-                    outputs={"error": error_msg, "status": "failed"},
+                    outputs=outputs,
                     completed_at=datetime.now(timezone.utc),
                 )
                 await self._trigger_error_workflow_if_configured(db, ctx, execution_id, e)

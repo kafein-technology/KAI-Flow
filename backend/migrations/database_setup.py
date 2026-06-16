@@ -1,54 +1,4 @@
 #!/usr/bin/env python3
-"""
-KAI-Flow Database Setup Script - Enhanced Column Synchronization
-=================================================================
-
-This script creates and updates the database for the KAI-Flow platform.
-It checks existing tables, creates missing ones, and manages column
-differences (adding missing columns / removing extra columns).
-
-Supported Tables:
-- Core user and organization tables
-- Workflow and template tables
-- Node and configuration tables
-- Document and chunk tables
-- Webhook and event tables
-- Vector storage tables (vector_collections, vector_documents)
-
-Features:
-- Automatic column synchronization
-- Model-Database column comparison
-- Missing column addition
-- Extra column removal (optional)
-- Type mismatch detection
-
-Usage:
-    python database_setup.py [OPTIONS]
-
-Basic Parameters:
-    --force                 : Drops and recreates existing tables
-    --check-only           : Only checks existing tables and columns
-    --drop-all             : Drops all tables and recreates them
-
-Column Management Parameters:
-    --no-sync-columns      : Disables column synchronization
-    --no-add-columns       : Disables adding missing columns
-    --remove-extra-columns : Removes extra columns (WARNING: Data loss!)
-
-Examples:
-    # Check only
-    python database_setup.py --check-only
-
-    # Add missing columns (default)
-    python database_setup.py
-
-    # Also remove extra columns
-    python database_setup.py --remove-extra-columns
-
-    # Skip column operations
-    python database_setup.py --no-sync-columns
-"""
-
 import asyncio
 import sys
 import os
@@ -67,6 +17,11 @@ sys.path.insert(0, backend_dir)
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
+from app.core.env_encryption import EnvEncryption, decrypt_database_url
+
+# Initialize environment variable decryptor
+env_decryptor = EnvEncryption()
+
 # Logging configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 numeric_level = getattr(logging, LOG_LEVEL, logging.INFO)
@@ -81,9 +36,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Environment variables
-DATABASE_URL = os.getenv("DATABASE_URL")
-POSTGRES_USERNAME = os.getenv("POSTGRES_USERNAME")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+DATABASE_URL = decrypt_database_url(os.getenv("DATABASE_URL"), env_decryptor.decrypt)
+POSTGRES_USERNAME = env_decryptor.decrypt(os.getenv("POSTGRES_USERNAME"), "POSTGRES_USERNAME")
+POSTGRES_PASSWORD = env_decryptor.decrypt(os.getenv("POSTGRES_PASSWORD"), "POSTGRES_PASSWORD")
 CREATE_DATABASE = os.getenv("CREATE_DATABASE", "true").lower() in ("true", "1", "t")
 
 

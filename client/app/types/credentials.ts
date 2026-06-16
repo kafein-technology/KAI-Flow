@@ -74,6 +74,14 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         description: 'The endpoint URL for the compatible service'
       },
       {
+        name: 'model_name',
+        label: 'Model Name',
+        type: 'text',
+        required: true,
+        placeholder: 'google/gemma-3n-e4b-it',
+        description: 'The model name/identifier (e.g. llama3-70b-8192)'
+      },
+      {
         name: 'api_key',
         label: 'API Key',
         type: 'password',

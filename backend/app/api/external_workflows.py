@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-"""External workflow API endpoints for managing Docker-exported workflows."""
-
 import logging
 import uuid
 import httpx

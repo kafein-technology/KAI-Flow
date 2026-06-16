@@ -1,42 +1,3 @@
-"""
-KAI-Flow Retriever Provider - Agent-Ready Vector Search Tool Creator
-=====================================================================
-
-This module implements a RetrieverProvider node that creates retriever tools
-for agents from existing vector databases. It connects to PostgreSQL+pgvector
-databases and creates LangChain Tools that agents can use for document search.
-
-Key Features:
-- Connects to existing vector databases (no document storage)
-- Creates retriever tools for agent integration
-- Supports multiple LangChain search algorithms and strategies
-- Advanced metadata filtering and search optimization
-- Performance monitoring and configuration validation
-
-LangChain Search Algorithms Supported:
-=====================================
-
-1. **similarity**: Default cosine similarity search
-   - Fast, works well for most text embeddings
-   - Returns k most similar documents
-
-2. **similarity_score_threshold**: Similarity with minimum score
-   - Only returns documents above threshold score
-   - Good for quality filtering
-
-3. **mmr**: Maximum Marginal Relevance
-   - Balances relevance and diversity
-   - Reduces redundant results
-
-4. **similarity_with_score**: Returns documents with scores
-   - Provides similarity scores for ranking
-   - Useful for confidence analysis
-
-Authors: KAI-Flow Development Team
-Version: 1.0.0
-Last Updated: 2025-01-13
-"""
-
 from typing import Dict, Any, List, Optional
 import json
 import logging
@@ -580,14 +541,11 @@ class RetrieverProvider(ProviderNode):
 
             except Exception as e:
                 error_msg = str(e)
+                logger.warning(f"Search failed for collection {collection_name}: {error_msg}")
                 return f"""[SEARCH] SEARCH RESULTS - {collection_name}
     Query: A technical issue occurred while searching for '{query}'.
     
     # WARNING: ERROR DETAILS:
-<<<<<<< HEAD
-=======
-    logger.warning("ERROR DETAILS:")
->>>>>>> 1d60ab3d09dee3c7342b3417ca162d19832e7f31
     {error_msg}
     
     SEARCH SUMMARY:
