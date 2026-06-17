@@ -25,6 +25,8 @@ export const deleteWorkflow = async (id: string | number) => {
   return axios.delete(`${API_BASE_URL}/${id}`);
 };
 
+import { broadcastExecutionStarted } from './executionService';
+
 export const executeWorkflow = async (
   flow_data: any,
   input_text: string,
@@ -32,11 +34,13 @@ export const executeWorkflow = async (
   session_id?: string,
   workflow_id?: string
 ) => {
-  return apiClient.post(API_ENDPOINTS.WORKFLOWS.EXECUTE, {
+  const response = await apiClient.post(API_ENDPOINTS.WORKFLOWS.EXECUTE, {
     flow_data,
     input_text,
     chatflow_id,
     session_id,
     workflow_id,
   });
+  broadcastExecutionStarted();
+  return response;
 }; 
