@@ -180,7 +180,7 @@ export interface WorkflowExecution {
   result: WorkflowExecutionResult;
   started_at: string;
   completed_at?: string;
-  status: 'completed' | 'failed' | 'running';
+  status: 'completed' | 'failed' | 'running' | 'pending' | 'cancelled';
   runtime?: string;
 }
 

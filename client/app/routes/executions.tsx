@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Download,
   Loader2,
+  StopCircle,
 } from "lucide-react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import AuthGuard from "~/components/AuthGuard";
@@ -26,7 +27,7 @@ import { exportExecutionsCSV } from "~/services/executionService";
 interface Execution {
   id: string;
   workflow_id: string;
-  status: "pending" | "running" | "completed" | "failed";
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
   input_text?: string;
   output_text?: string;
   started_at: string;
@@ -122,7 +123,7 @@ function ExecutionsPage() {
     new Set()
   );
 
-  const { executions, loading, error, fetchAllExecutions, deleteExecution } =
+  const { executions, loading, error, fetchAllExecutions, deleteExecution, cancelExecution } =
     useExecutionsStore();
   const { workflows, fetchWorkflows } = useWorkflows();
 
@@ -133,8 +134,51 @@ function ExecutionsPage() {
 
   useEffect(() => {
     fetchWorkflows();
-    fetchAllExecutions(); // Tüm executions'ları getir
+    fetchAllExecutions(); // Fetch all executions
   }, [fetchWorkflows, fetchAllExecutions]);
+
+  // Smart Polling (automatic refresh with smart intervals)
+  useEffect(() => {
+    // Check if there is any active execution (running or pending) in the list
+    const hasActiveExecution = executions.some(
+      (ex) => ex.status === "running" || ex.status === "pending"
+    );
+
+    // Update every 2 seconds if there is an active execution, otherwise every 3 seconds
+    const intervalTime = hasActiveExecution ? 2000 : 3000;
+
+    const timer = setInterval(() => {
+      fetchAllExecutions(true); // silent = true: silently refresh without displaying loading indicators in the UI
+    }, intervalTime);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [executions, fetchAllExecutions]);
+
+  // Listen for executions started from other tabs or widgets dynamically
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return;
+
+    const channel = new BroadcastChannel("kai-flow-executions");
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "EXECUTION_STARTED") {
+        fetchAllExecutions(true);
+      }
+    };
+    channel.addEventListener("message", handleMessage);
+
+    const handleLocalMessage = () => {
+      fetchAllExecutions(true);
+    };
+    window.addEventListener("kai-flow-execution-started", handleLocalMessage);
+
+    return () => {
+      channel.removeEventListener("message", handleMessage);
+      channel.close();
+      window.removeEventListener("kai-flow-execution-started", handleLocalMessage);
+    };
+  }, [fetchAllExecutions]);
 
   // Filter executions
   const filteredExecutions = useMemo(() => {
@@ -222,6 +266,8 @@ function ExecutionsPage() {
         return "bg-blue-100 text-blue-800 border-blue-200";
       case "pending":
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "cancelled":
+        return "bg-orange-100 text-orange-800 border-orange-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -597,7 +643,7 @@ function ExecutionsPage() {
                         <col style={{ width: columnWidths.duration }} />
                         <col style={{ width: columnWidths.input }} />
                         <col style={{ width: columnWidths.output }} />
-                        <col style={{ width: 80 }} />
+                        <col style={{ width: 110 }} />
                       </colgroup>
                       <thead className="bg-gray-50">
                         <tr>
@@ -642,7 +688,7 @@ function ExecutionsPage() {
                               />
                             </th>
                           ))}
-                          <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                           </th>
                         </tr>
@@ -691,6 +737,9 @@ function ExecutionsPage() {
                                 {execution.status === "running" && (
                                   <Clock className="w-3 h-3 mr-1 animate-spin" />
                                 )}
+                                {execution.status === "cancelled" && (
+                                  <X className="w-3 h-3 mr-1" />
+                                )}
                                 {execution.status.charAt(0).toUpperCase() +
                                   execution.status.slice(1)}
                               </span>
@@ -720,14 +769,29 @@ function ExecutionsPage() {
                             >
                               {formatDataForDisplay(getOutputData(execution))}
                             </td>
-                            <td className="px-3 py-4 text-right">
-                              <button
-                                onClick={() => handleDeleteClick(execution.id)}
-                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-                                title="Delete execution"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                            <td className="px-3 py-4 text-center">
+                              <div className="flex justify-center items-center gap-2.5">
+                                {(execution.status === "running" || execution.status === "pending") && (
+                                  <button
+                                    onClick={async () => {
+                                      if (confirm("Are you sure you want to cancel this execution?")) {
+                                        await cancelExecution(execution.id);
+                                      }
+                                    }}
+                                    className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-all duration-200"
+                                    title="Cancel execution"
+                                  >
+                                    <StopCircle className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteClick(execution.id)}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                  title="Delete execution"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

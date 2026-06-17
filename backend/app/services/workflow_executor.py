@@ -31,6 +31,7 @@ from app.schemas.auth import UserSignUpData
 from app.services.user_service import UserService
 from app.services.execution_service import ExecutionService
 from app.core.json_utils import make_json_serializable
+from app.core.active_tasks import active_tasks_manager
 
 logger = logging.getLogger(__name__)
 
@@ -403,6 +404,11 @@ class WorkflowExecutor:
             execution_id = execution.id
             ctx.execution_id = execution_id
         
+        # Register the build/initial task
+        build_task = asyncio.current_task()
+        if build_task and execution_id:
+            await active_tasks_manager.register(execution_id, build_task)
+        
         # Update status to running
         try:
             await self.update_execution_status(
@@ -473,9 +479,14 @@ class WorkflowExecutor:
                     execution_failed = False
                     error_msg = None
                     
+                    stream_task = asyncio.current_task()
+                    if stream_task and execution_id:
+                        await active_tasks_manager.register(execution_id, stream_task)
+                    
                     try:
                         async for chunk in result:
                             if isinstance(chunk, dict):
+                                chunk["execution_id"] = str(execution_id)
                                 # Track errors yielded as chunks
                                 if chunk.get("type") == "error":
                                     execution_failed = True
@@ -528,6 +539,9 @@ class WorkflowExecutor:
                                 )
                         except Exception as update_error:
                             logger.error(f"Failed to update final execution status ({final_status}): {update_error}")
+                        
+                        if execution_id:
+                            await active_tasks_manager.unregister(execution_id)
                             
                     except asyncio.CancelledError:
                         logger.warning(f"Workflow execution stream cancelled: {execution_id}")
@@ -535,12 +549,14 @@ class WorkflowExecutor:
                             await self.update_execution_status(
                                 db,
                                 execution_id,
-                                status="failed",
-                                error_message="Execution stream cancelled",
+                                status="cancelled",
+                                error_message="Execution cancelled manually",
                                 completed_at=datetime.now(timezone.utc),
                             )
                         except Exception as update_error:
                             logger.error(f"Failed to update execution status on stream cancel: {update_error}")
+                        if execution_id:
+                            await active_tasks_manager.unregister(execution_id)
                         raise
                     except Exception as e:
                         logger.error(f"Workflow streaming execution crashed: {e}", exc_info=True)
@@ -590,8 +606,12 @@ class WorkflowExecutor:
                             await self._trigger_error_workflow_if_configured(db, ctx, execution_id, e)
                         except Exception as update_error:
                             logger.error(f"Failed to update execution status to failed (crash): {update_error}")
+                        if execution_id:
+                            await active_tasks_manager.unregister(execution_id)
                         raise
-
+ 
+                if execution_id:
+                    await active_tasks_manager.unregister(execution_id)
                 return _tracked_stream()
 
             # Non-streaming: update when we have the full result
@@ -650,7 +670,9 @@ class WorkflowExecutor:
                     )
             except Exception as e:
                 logger.error(f"Failed to update execution status: {e}")
-
+            finally:
+                if execution_id:
+                    await active_tasks_manager.unregister(execution_id)
             return result
             
         except Exception as e:
@@ -706,6 +728,23 @@ class WorkflowExecutor:
             except Exception as update_error:
                 logger.error(f"Failed to update execution status to failed: {update_error}")
             
+            if execution_id:
+                await active_tasks_manager.unregister(execution_id)
+            raise
+        except asyncio.CancelledError:
+            logger.warning(f"Workflow execution cancelled: {execution_id}")
+            try:
+                await self.update_execution_status(
+                    db,
+                    execution_id,
+                    status="cancelled",
+                    error_message="Execution cancelled manually",
+                    completed_at=datetime.now(timezone.utc),
+                )
+            except Exception as update_error:
+                logger.error(f"Failed to update execution status to cancelled: {update_error}")
+            if execution_id:
+                await active_tasks_manager.unregister(execution_id)
             raise
 
 

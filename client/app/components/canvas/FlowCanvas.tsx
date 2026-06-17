@@ -51,7 +51,7 @@ import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
 import FullscreenNodeModal from "../common/FullscreenNodeModal";
 import { TutorialButton } from "../tutorial";
-import { executeWorkflowStream } from "~/services/executionService";
+import { executeWorkflowStream, getExecution } from "~/services/executionService";
 import GenericNode from "../node";
 
 // Import config components
@@ -289,6 +289,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [edgeStatus, setEdgeStatus] = useState<
     Record<string, "success" | "failed" | "pending">
   >({});
+  const [activeExecutionId, setActiveExecutionId] = useState<string | null>(null);
 
   // Create node config components and base node types directly from nodes
   const nodeConfigComponents = useMemo(
@@ -376,6 +377,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     executeWorkflow,
     getCurrentExecutionForWorkflow,
     setCurrentExecutionForWorkflow,
+    cancelExecution,
     loading: executionLoading,
     error: executionError,
     clearError: clearExecutionError,
@@ -385,6 +387,80 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const currentExecution = currentWorkflow?.id
     ? getCurrentExecutionForWorkflow(currentWorkflow.id)
     : null;
+
+  // Active stream reader ref to allow cancellation
+  const activeReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+
+  const handleCancelExecution = useCallback(
+    async (executionId: string) => {
+      // 1. Abort the active stream reader if there is one
+      if (activeReaderRef.current) {
+        try {
+          await activeReaderRef.current.cancel();
+          activeReaderRef.current = null;
+        } catch (err) {
+          console.error("Error cancelling stream reader:", err);
+        }
+      }
+
+      // Reset active nodes and edges states immediately
+      setActiveEdges([]);
+      setActiveNodes([]);
+
+      // 2. Call the store's cancelExecution
+      try {
+        await cancelExecution(executionId);
+      } catch (err: any) {
+        console.warn("Backend cancellation failed, handling locally:", err);
+      } finally {
+        // Always mark the execution as cancelled/completed locally so the UI updates
+        const currentExec = currentWorkflow?.id ? getCurrentExecutionForWorkflow(currentWorkflow.id) : null;
+        if (currentWorkflow?.id && currentExec && currentExec.id === executionId) {
+          setCurrentExecutionForWorkflow(currentWorkflow.id, {
+            ...currentExec,
+            status: "cancelled",
+            completed_at: new Date().toISOString(),
+          } as any);
+        }
+      }
+    },
+    [cancelExecution, currentWorkflow?.id, getCurrentExecutionForWorkflow, setCurrentExecutionForWorkflow]
+  );
+
+  // Poll for the active execution status when it is running/pending
+  useEffect(() => {
+    if (!currentWorkflow?.id || !currentExecution?.id) return;
+
+    const isExecutionActive = currentExecution.status === "running" || currentExecution.status === "pending";
+    if (!isExecutionActive) return;
+
+    console.log(`[FlowCanvas] Active execution found (${currentExecution.id}, status: ${currentExecution.status}). Starting polling...`);
+
+    const intervalId = setInterval(async () => {
+      try {
+        // Fetch current status from database
+        const execution = await getExecution(currentExecution.id);
+        
+        if (execution && (execution.status === "cancelled" || execution.status === "failed" || execution.status === "completed")) {
+          console.log(`[FlowCanvas] Polled execution ${execution.id} status changed to: ${execution.status}`);
+          
+          // Update store
+          setCurrentExecutionForWorkflow(currentWorkflow.id, execution);
+          
+          // Clear active node and edge highlights
+          setActiveEdges([]);
+          setActiveNodes([]);
+        }
+      } catch (err) {
+        console.error("[FlowCanvas] Error polling active execution status:", err);
+      }
+    }, 2000);
+
+    return () => {
+      console.log(`[FlowCanvas] Cleaning up polling for execution ${currentExecution.id}`);
+      clearInterval(intervalId);
+    };
+  }, [currentWorkflow?.id, currentExecution?.id, currentExecution?.status, setCurrentExecutionForWorkflow, setActiveEdges, setActiveNodes]);
 
   // Clear execution data when workflow structure changes (nodes or edges added/removed/reconnected)
   const previousStructureRef = useRef<{ nodeIds: string[]; edgeConnections: string[] }>({
@@ -1078,6 +1154,18 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         // Reset previous statuses
         setNodeStatus({});
         setEdgeStatus({});
+        
+        let lastExecutionId: string | null = null;
+
+        // Set execution status to pending in store to show Cancel button immediately
+        const tempExecutionId = uuidv4();
+        setCurrentExecutionForWorkflow(currentWorkflow.id, {
+          id: tempExecutionId,
+          workflow_id: currentWorkflow.id,
+          status: "pending",
+          started_at: new Date().toISOString(),
+        } as any);
+
         // Show loading message
         enqueueSnackbar("Executing workflow...", { variant: "info" });
 
@@ -1115,6 +1203,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           });
 
           const reader = stream.getReader();
+          activeReaderRef.current = reader;
           const decoder = new TextDecoder("utf-8");
           let buffer = "";
 
@@ -1131,6 +1220,21 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               if (!jsonStr) continue;
               try {
                 const evt = JSON.parse(jsonStr);
+                if (evt.execution_id) {
+                   lastExecutionId = evt.execution_id;
+                   if (!activeExecutionId) {
+                     setActiveExecutionId(evt.execution_id);
+                   }
+                   const currentExec = getCurrentExecutionForWorkflow(currentWorkflow.id);
+                   if (!currentExec || currentExec.id !== evt.execution_id || currentExec.status !== "running") {
+                     setCurrentExecutionForWorkflow(currentWorkflow.id, {
+                       id: evt.execution_id,
+                       workflow_id: currentWorkflow.id,
+                       status: "running",
+                       started_at: new Date().toISOString(),
+                     } as any);
+                   }
+                 }
                 const t = evt.type as string | undefined;
                 if (t === "node_start") {
                   const nid = String(evt.node_id || "");
@@ -1270,6 +1374,27 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               try {
                 reader.releaseLock();
               } catch { }
+              
+              const execIdToFetch = lastExecutionId;
+              setActiveExecutionId(null);
+              activeReaderRef.current = null;
+
+              if (execIdToFetch && currentWorkflow?.id) {
+                (async () => {
+                  try {
+                    const finalExecution = await getExecution(execIdToFetch);
+                    if (finalExecution) {
+                      setCurrentExecutionForWorkflow(currentWorkflow.id, finalExecution);
+                      if (finalExecution.status === "cancelled" || finalExecution.status === "failed") {
+                        setActiveEdges([]);
+                        setActiveNodes([]);
+                      }
+                    }
+                  } catch (err) {
+                    console.error("Failed to fetch final execution status:", err);
+                  }
+                })();
+              }
             }
           })();
         } catch (_) {
@@ -1635,6 +1760,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         updateWorkflowStatus={updateWorkflowStatus}
         updateWorkflowVisibility={updateWorkflowVisibility}
         onImportStart={() => { isImportingRef.current = true; }}
+        executionLoading={executionLoading}
+        activeExecutionId={activeExecutionId}
+        currentExecution={currentExecution}
+        onCancelExecution={handleCancelExecution}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
         {/* Sidebar Toggle Button */}
@@ -1749,13 +1878,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             workflow_id={currentWorkflow?.id}
           />
 
-          {/* Execution Status Indicator */}
-          {executionLoading && (
-            <div className="fixed top-20 right-5 z-50 px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg flex items-center gap-2 animate-pulse">
-              <Loader className="w-4 h-4 animate-spin" />
-              <span className="text-sm font-medium">Executing workflow...</span>
-            </div>
-          )}
+
 
           {/* Execution Error Display */}
           {executionError && (
