@@ -140,6 +140,37 @@ const normalizeNodeOutputs = (nodeOutputs: Record<string, any>, currentNodes: No
   return normalized;
 };
 
+const normalizeExecutionForCanvas = (execution: any, currentNodes: Node[]): any => {
+  if (!execution) return execution;
+
+  const resultPayload = execution.result || execution.outputs;
+  if (!resultPayload || typeof resultPayload !== "object") return execution;
+
+  const nodeOutputs = resultPayload.node_outputs
+    ? normalizeNodeOutputs(resultPayload.node_outputs, currentNodes)
+    : resultPayload.nodeOutputs
+      ? normalizeNodeOutputs(resultPayload.nodeOutputs, currentNodes)
+      : undefined;
+
+  return {
+    ...execution,
+    input_text:
+      execution.input_text ??
+      (typeof execution.inputs?.input === "string" ? execution.inputs.input : ""),
+    result: {
+      result: resultPayload.result ?? resultPayload.output ?? execution.result?.result ?? "",
+      executed_nodes:
+        resultPayload.executed_nodes ??
+        resultPayload.executedNodes ??
+        execution.result?.executed_nodes ??
+        [],
+      node_outputs: nodeOutputs ?? execution.result?.node_outputs ?? {},
+      session_id: resultPayload.session_id ?? execution.result?.session_id,
+      status: resultPayload.status ?? execution.status,
+    },
+  };
+};
+
 const isFinalWorkflowNode = (nodeId: string, currentNodes: Node[], currentEdges: Edge[]): boolean => {
   const outgoing = currentEdges.filter((e) => e.source === nodeId);
   if (outgoing.length === 0) return true;
@@ -384,9 +415,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   } = useExecutionsStore();
 
   // Get current execution for the current workflow
-  const currentExecution = currentWorkflow?.id
+  const rawExecution = currentWorkflow?.id
     ? getCurrentExecutionForWorkflow(currentWorkflow.id)
     : null;
+
+  const currentExecution = useMemo(() => {
+    return normalizeExecutionForCanvas(rawExecution, nodes);
+  }, [rawExecution, nodes]);
 
   // Active stream reader ref to allow cancellation
   const activeReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
@@ -445,7 +480,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           console.log(`[FlowCanvas] Polled execution ${execution.id} status changed to: ${execution.status}`);
           
           // Update store
-          setCurrentExecutionForWorkflow(currentWorkflow.id, execution);
+          setCurrentExecutionForWorkflow(currentWorkflow.id, normalizeExecutionForCanvas(execution, nodes));
           
           // Clear active node and edge highlights
           setActiveEdges([]);
@@ -460,7 +495,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       console.log(`[FlowCanvas] Cleaning up polling for execution ${currentExecution.id}`);
       clearInterval(intervalId);
     };
-  }, [currentWorkflow?.id, currentExecution?.id, currentExecution?.status, setCurrentExecutionForWorkflow, setActiveEdges, setActiveNodes]);
+  }, [currentWorkflow?.id, currentExecution?.id, currentExecution?.status, nodes, setCurrentExecutionForWorkflow, setActiveEdges, setActiveNodes]);
 
   // Clear execution data when workflow structure changes (nodes or edges added/removed/reconnected)
   const previousStructureRef = useRef<{ nodeIds: string[]; edgeConnections: string[] }>({
@@ -1384,7 +1419,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   try {
                     const finalExecution = await getExecution(execIdToFetch);
                     if (finalExecution) {
-                      setCurrentExecutionForWorkflow(currentWorkflow.id, finalExecution);
+                      setCurrentExecutionForWorkflow(currentWorkflow.id, normalizeExecutionForCanvas(finalExecution, nodes));
                       if (finalExecution.status === "cancelled" || finalExecution.status === "failed") {
                         setActiveEdges([]);
                         setActiveNodes([]);

@@ -507,6 +507,10 @@ class WorkflowExecutor:
                                         if "output" in chunk_result and isinstance(chunk_result.get("output"), str):
                                             llm_output += chunk_result.get("output", "")
                                         final_outputs.update(chunk_result)
+
+                                    for key in ("node_outputs", "executed_nodes", "session_id", "errors"):
+                                        if key in chunk:
+                                            final_outputs[key] = chunk.get(key)
                             yield chunk
 
                         # Determine final status
