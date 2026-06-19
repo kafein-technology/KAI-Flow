@@ -184,7 +184,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
           <Field
             as="select"
             name={field.name}
-            className="select w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 cursor-pointer"
+            className="w-full min-h-[2.75rem] border border-gray-300 rounded-lg bg-white px-4 py-2.5 text-sm leading-normal text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 cursor-pointer"
           >
             <option value="">Select {field.label}</option>
             {field.options?.map((option) => (
@@ -252,22 +252,6 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
         <p className="text-gray-600 text-sm max-w-md mx-auto">
           {service.description}
         </p>
-        {service.id === "openai_compatible" && (
-          <p className="text-amber-700 text-xs max-w-md mx-auto mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            OpenRouter and similar providers require a paid or credited API key.
-            Use show/hide on the API key field to verify it, then run Test
-            Connection before saving. Add credits at{" "}
-            <a
-              href="https://openrouter.ai/credits"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline font-medium"
-            >
-              openrouter.ai/credits
-            </a>
-            .
-          </p>
-        )}
       </div>
 
       <Formik
