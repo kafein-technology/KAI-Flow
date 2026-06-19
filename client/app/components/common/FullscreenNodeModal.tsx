@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   X,
   Settings,
@@ -61,11 +61,14 @@ interface FullscreenNodeModalProps {
   nodeMetadata: NodeMetadata;
   configData: any;
   onSave: (values: any) => void;
+  onConfigChange?: (values: any) => void;
+  historyRevision?: number;
   onExecute?: () => void; // New execute function
   ConfigComponent: React.ComponentType<{
     configData: any;
     onSave: (values: any) => void;
     onCancel: () => void;
+    onChange?: (values: any) => void;
   }>;
   executionData?: {
     nodeId: string;
@@ -96,15 +99,56 @@ export default function FullscreenNodeModal({
   nodeMetadata,
   configData,
   onSave,
+  onConfigChange,
+  historyRevision = 0,
   onExecute,
   ConfigComponent,
   executionData,
 }: FullscreenNodeModalProps) {
   const [configValues, setConfigValues] = useState(configData);
-  const [nodeAlias, setNodeAlias] = useState(
+  const [formKey, setFormKey] = useState(0);
+  const configChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const configChangeRevisionRef = useRef(0);
+  const prevHistoryRevisionRef = useRef(historyRevision);
+  const nodeAliasRef = useRef(
     configData?.name || nodeMetadata.display_name || nodeMetadata.name
   );
+  const [nodeAlias, setNodeAlias] = useState(nodeAliasRef.current);
   const [nodeAliasError, setNodeAliasError] = useState<string | null>(null);
+
+  const cancelPendingConfigChange = useCallback(() => {
+    configChangeRevisionRef.current += 1;
+    if (configChangeTimerRef.current) {
+      clearTimeout(configChangeTimerRef.current);
+      configChangeTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleConfigChange = useCallback(
+    (values: Record<string, unknown>) => {
+      if (!onConfigChange) return;
+
+      if (configChangeTimerRef.current) {
+        clearTimeout(configChangeTimerRef.current);
+      }
+
+      const scheduledRevision = configChangeRevisionRef.current;
+
+      configChangeTimerRef.current = setTimeout(() => {
+        configChangeTimerRef.current = null;
+        if (scheduledRevision !== configChangeRevisionRef.current) return;
+        onConfigChange(values);
+      }, 400);
+    },
+    [onConfigChange]
+  );
+
+  const handleFormChange = useCallback(
+    (values: Record<string, unknown>) => {
+      scheduleConfigChange({ ...values, name: nodeAliasRef.current });
+    },
+    [scheduleConfigChange]
+  );
 
   const inputDataToDisplay = executionData?.inputs;
 
@@ -140,8 +184,10 @@ export default function FullscreenNodeModal({
 
   const handleNodeAliasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    nodeAliasRef.current = value;
     setNodeAlias(value);
     setNodeAliasError(validateNodeAlias(value));
+    scheduleConfigChange({ name: value });
   };
 
   // Helper function to filter out metadata and system fields from node data
@@ -551,10 +597,27 @@ export default function FullscreenNodeModal({
 
   useEffect(() => {
     setConfigValues(configData);
-    setNodeAlias(
-      configData?.name || nodeMetadata.display_name || nodeMetadata.name
-    );
-  }, [configData, nodeMetadata.display_name, nodeMetadata.name]);
+    const alias =
+      configData?.name || nodeMetadata.display_name || nodeMetadata.name;
+    nodeAliasRef.current = alias;
+    setNodeAlias(alias);
+    setNodeAliasError(null);
+    // Sync workflow state into the form only after undo/redo — not on live edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyRevision]);
+
+  useEffect(() => {
+    if (prevHistoryRevisionRef.current === historyRevision) return;
+    prevHistoryRevisionRef.current = historyRevision;
+    cancelPendingConfigChange();
+    setFormKey((key) => key + 1);
+  }, [historyRevision, cancelPendingConfigChange]);
+
+  useEffect(() => {
+    return () => {
+      cancelPendingConfigChange();
+    };
+  }, [cancelPendingConfigChange]);
 
   const handleSave = (values: any) => {
     try {
@@ -614,6 +677,7 @@ export default function FullscreenNodeModal({
         className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
         onKeyDown={handleKeyDown}
         tabIndex={-1}
+        data-workflow-history
       >
         <div className="w-full h-full flex flex-col bg-gray-900">
           {/* Header */}
@@ -758,9 +822,11 @@ export default function FullscreenNodeModal({
                 <div className="flex-1 p-3 overflow-y-auto">
                   <div className="max-w-full">
                     <ConfigComponent
+                      key={formKey}
                       configData={configValues}
                       onSave={handleSave}
                       onCancel={onClose}
+                      onChange={handleFormChange}
                     />
                   </div>
                 </div>

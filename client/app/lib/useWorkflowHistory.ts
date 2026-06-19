@@ -150,9 +150,17 @@ export function useWorkflowHistory(
   return { undo, redo, canUndo, canRedo, resetHistory };
 }
 
+/** Node config modal / workflow canvas — workflow undo/redo should apply here. */
+export const isWorkflowHistoryScope = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.closest("[data-workflow-history]") !== null;
+};
+
 /** True when focus is in a text-editing surface — workflow undo must not steal Ctrl+Z/Ctrl+Y. */
 export const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
+
+  if (isWorkflowHistoryScope(target)) return false;
 
   if (target.closest(".monaco-editor")) return true;
 

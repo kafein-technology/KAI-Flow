@@ -28,6 +28,34 @@ interface GenericNodeFormProps {
   onCancel: () => void;
   configData?: any;
   onSave?: (values: any) => void;
+  onChange?: (values: GenericData) => void;
+}
+
+function FormValuesObserver({
+  values,
+  onChange,
+}: {
+  values: GenericData;
+  onChange?: (values: GenericData) => void;
+}) {
+  const isFirstRender = useRef(true);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const valuesKeyRef = useRef<string>("");
+
+  useEffect(() => {
+    const nextKey = JSON.stringify(values);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      valuesKeyRef.current = nextKey;
+      return;
+    }
+    if (valuesKeyRef.current === nextKey) return;
+    valuesKeyRef.current = nextKey;
+    onChangeRef.current?.(values);
+  }, [values]);
+
+  return null;
 }
 
 export default function GenericNodeForm({
@@ -37,6 +65,7 @@ export default function GenericNodeForm({
   onCancel,
   configData,
   onSave,
+  onChange,
 }: GenericNodeFormProps) {
   const properties = configData?.metadata?.properties || [];
 
@@ -181,7 +210,9 @@ export default function GenericNodeForm({
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
-          <Form className="grid grid-cols-2 gap-3 w-full p-6">
+          <>
+            <FormValuesObserver values={values} onChange={onChange} />
+            <Form className="grid grid-cols-2 gap-3 w-full p-6">
             {getVisibleProperties(activeTab).map((property: NodeProperty) => {
               // Check display options
               if (property.displayOptions?.show) {
@@ -389,6 +420,7 @@ export default function GenericNodeForm({
               </div>
             )}
           </Form>
+          </>
         )}
       </Formik>
     </div>

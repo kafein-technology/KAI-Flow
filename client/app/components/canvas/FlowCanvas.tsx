@@ -314,6 +314,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setNodes,
     setEdges
   );
+  const [historyRevision, setHistoryRevision] = useState(0);
+
+  const handleUndo = useCallback(() => {
+    setHistoryRevision((revision) => revision + 1);
+    undo();
+  }, [undo]);
+
+  const handleRedo = useCallback(() => {
+    setHistoryRevision((revision) => revision + 1);
+    redo();
+  }, [redo]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const hasInitializedEmptyCanvas = useRef(false);
   const isImportingRef = useRef(false);
@@ -422,6 +433,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   }>({
     isOpen: false,
   });
+  const fullscreenModalRef = useRef(fullscreenModal);
+  fullscreenModalRef.current = fullscreenModal;
 
   const {
     currentWorkflow,
@@ -893,19 +906,23 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
       if (event.key.toLowerCase() === "z" && !event.shiftKey) {
         event.preventDefault();
-        undo();
+        handleUndo();
       } else if (
         event.key.toLowerCase() === "y" ||
         (event.key.toLowerCase() === "z" && event.shiftKey)
       ) {
         event.preventDefault();
-        redo();
+        handleRedo();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undo, redo]);
+  }, [handleUndo, handleRedo]);
+
+  const activeModalNode = fullscreenModal.nodeData
+    ? nodes.find((node) => node.id === fullscreenModal.nodeData.id) ?? fullscreenModal.nodeData
+    : null;
 
   // Clean up edges when nodes are deleted
   useEffect(() => {
@@ -1845,6 +1862,27 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     [fullscreenModal.nodeData, setNodes]
   );
 
+  const handleNodeConfigChange = useCallback(
+    (values: Record<string, unknown>) => {
+      const nodeId = fullscreenModalRef.current.nodeData?.id;
+      if (!nodeId) return;
+
+      setNodes((nodes) =>
+        nodes.map((node) => {
+          if (node.id !== nodeId) return node;
+
+          const nextData = { ...node.data, ...values };
+          if (JSON.stringify(node.data) === JSON.stringify(nextData)) {
+            return node;
+          }
+
+          return { ...node, data: nextData };
+        })
+      );
+    },
+    [setNodes]
+  );
+
   // Handle fullscreen modal close
   const handleFullscreenModalClose = useCallback(() => {
     setFullscreenModal({ isOpen: false });
@@ -1885,8 +1923,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         onWorkflowImported={(importedNodes, importedEdges) => {
           resetHistory(importedNodes, importedEdges);
         }}
-        onUndo={undo}
-        onRedo={redo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
         canUndo={canUndo}
         canRedo={canRedo}
         executionLoading={executionLoading}
@@ -2059,8 +2097,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             isOpen={fullscreenModal.isOpen}
             onClose={handleFullscreenModalClose}
             nodeMetadata={fullscreenModal.nodeMetadata}
-            configData={fullscreenModal.nodeData?.data || {}}
+            configData={activeModalNode?.data || {}}
             onSave={handleFullscreenModalSave}
+            onConfigChange={handleNodeConfigChange}
+            historyRevision={historyRevision}
             onExecute={() =>
               handleStartNodeExecution(fullscreenModal.nodeData?.id || "")
             }
