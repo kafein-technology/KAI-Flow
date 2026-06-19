@@ -270,6 +270,10 @@ const Navbar: React.FC<NavbarProps> = ({
     deleteDialogRef.current?.close();
   };
 
+  const showAutoSaveStatus =
+    autoSaveStatus &&
+    (autoSaveStatus !== "idle" || lastAutoSave != null);
+
   return (
     <>
       <header className="w-full h-16 bg-[#18181B] text-foreground fixed top-0 left-0 z-20">
@@ -300,7 +304,7 @@ const Navbar: React.FC<NavbarProps> = ({
             />
           </div>
 
-          <div className="flex items-center space-x-4 gap-2 relative">
+          <div className="flex items-center gap-2 relative">
             {(executionLoading || activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending"))) && (
               <div className="flex items-center gap-2 text-gray-400">
                 <Loader className="w-3.5 h-3.5 animate-spin" />
@@ -330,6 +334,7 @@ const Navbar: React.FC<NavbarProps> = ({
 
             {currentWorkflow && updateWorkflowVisibility && (
               <ToggleSwitch
+                theme="dark"
                 isActive={currentWorkflow.is_public ?? false}
                 disabled={isPublicTogglePending}
                 onToggle={async (isPublic) => {
@@ -349,100 +354,97 @@ const Navbar: React.FC<NavbarProps> = ({
                 }}
                 size="sm"
                 label="Activity"
-                description={currentWorkflow.is_public ? "Active" : "Inactive"}
+                description={currentWorkflow.is_public ? "Active" : undefined}
               />
             )}
 
-            <div className="flex items-center gap-2">
-              {autoSaveStatus && (
-                <div
-                  className="min-w-[5.5rem] flex items-center justify-end shrink-0"
-                  aria-live="polite"
-                >
-                  {autoSaveStatus === "saving" && (
-                    <div className="flex items-center gap-1 text-green-400">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      <span className="text-xs whitespace-nowrap">Saving...</span>
-                    </div>
-                  )}
-                  {autoSaveStatus === "saved" && (
-                    <div className="flex items-center gap-1 text-green-400">
-                      <div className="w-2 h-2 bg-green-400 rounded-full" />
-                      <span className="text-xs whitespace-nowrap">Saved</span>
-                    </div>
-                  )}
-                  {autoSaveStatus === "error" && (
-                    <div className="flex items-center gap-1 text-red-400">
-                      <div className="w-2 h-2 bg-red-400 rounded-full" />
-                      <span className="text-xs whitespace-nowrap">Error</span>
-                    </div>
-                  )}
-                  {lastAutoSave && autoSaveStatus === "idle" && (
-                    <div
-                      className="flex items-center gap-1 text-gray-400 text-xs truncate max-w-[8rem]"
-                      title={`Last saved: ${lastAutoSave.toLocaleTimeString()}`}
-                    >
-                      <span className="truncate">
-                        Last saved: {lastAutoSave.toLocaleTimeString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-              <button
-                type="button"
-                className={`p-0 border-0 bg-transparent rounded-4xl transition duration-500 ${
-                  canUndo ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed"
-                }`}
-                onClick={canUndo ? onUndo : undefined}
-                disabled={!canUndo}
-                aria-label="Undo (Ctrl+Z)"
-                title="Undo (Ctrl+Z)"
+            {showAutoSaveStatus && (
+              <div
+                className="min-w-[10.5rem] flex items-center justify-end shrink-0"
+                aria-live="polite"
               >
-                <Undo2
-                  className={`w-10 h-10 p-2 ${
-                    canUndo ? "text-white" : "text-white/30"
-                  }`}
-                />
-              </button>
-              <button
-                type="button"
-                className={`p-0 border-0 bg-transparent rounded-4xl transition duration-500 ${
-                  canRedo ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed"
+                {autoSaveStatus === "saving" && (
+                  <div className="flex items-center gap-1 text-green-400">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    <span className="text-xs whitespace-nowrap">Saving...</span>
+                  </div>
+                )}
+                {autoSaveStatus === "saved" && (
+                  <div className="flex items-center gap-1 text-green-400">
+                    <div className="w-2 h-2 bg-green-400 rounded-full" />
+                    <span className="text-xs whitespace-nowrap">Saved</span>
+                  </div>
+                )}
+                {autoSaveStatus === "error" && (
+                  <div className="flex items-center gap-1 text-red-400">
+                    <div className="w-2 h-2 bg-red-400 rounded-full" />
+                    <span className="text-xs whitespace-nowrap">Error</span>
+                  </div>
+                )}
+                {lastAutoSave && autoSaveStatus === "idle" && (
+                  <div
+                    className="flex items-center gap-1 text-gray-400 text-xs whitespace-nowrap"
+                    title={`Last saved: ${lastAutoSave.toLocaleTimeString()}`}
+                  >
+                    Last saved: {lastAutoSave.toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button
+              type="button"
+              className={`p-0 border-0 bg-transparent rounded-4xl transition duration-500 ${
+                canUndo ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed"
+              }`}
+              onClick={canUndo ? onUndo : undefined}
+              disabled={!canUndo}
+              aria-label="Undo (Ctrl+Z)"
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo2
+                className={`w-10 h-10 p-2 ${
+                  canUndo ? "text-white" : "text-white/30"
                 }`}
-                onClick={canRedo ? onRedo : undefined}
-                disabled={!canRedo}
-                aria-label="Redo (Ctrl+Y)"
-                title="Redo (Ctrl+Y)"
-              >
-                <Redo2
-                  className={`w-10 h-10 p-2 ${
-                    canRedo ? "text-white" : "text-white/30"
-                  }`}
-                />
-              </button>
-              {isLoading ? (
-                <Loader className="animate-spin text-white w-10 h-10 p-2 rounded-4xl" />
-              ) : (
-                <Save
-                  className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
-                  onClick={onSave}
-                />
-              )}
-              {onAutoSaveSettings && (
-                <Clock
-                  className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
-                  onClick={onAutoSaveSettings}
-                />
-              )}
-              <div className="relative">
+              />
+            </button>
+            <button
+              type="button"
+              className={`p-0 border-0 bg-transparent rounded-4xl transition duration-500 ${
+                canRedo ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed"
+              }`}
+              onClick={canRedo ? onRedo : undefined}
+              disabled={!canRedo}
+              aria-label="Redo (Ctrl+Y)"
+              title="Redo (Ctrl+Y)"
+            >
+              <Redo2
+                className={`w-10 h-10 p-2 ${
+                  canRedo ? "text-white" : "text-white/30"
+                }`}
+              />
+            </button>
+            {isLoading ? (
+              <Loader className="animate-spin text-white w-10 h-10 p-2 rounded-4xl" />
+            ) : (
+              <Save
+                className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                onClick={onSave}
+              />
+            )}
+            {onAutoSaveSettings && (
+              <Clock
+                className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                onClick={onAutoSaveSettings}
+              />
+            )}
+              <div className="relative" ref={dropdownRef}>
                 <Settings
                   className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 />
                 {isDropdownOpen && (
                   <div
-                    ref={dropdownRef}
                     className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2"
                   >
                     <button
@@ -495,7 +497,6 @@ const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 )}
               </div>
-            </div>
           </div>
         </nav>
       </header>
