@@ -362,6 +362,40 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [autoSaveStatus, setAutoSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
+  const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  const markSaveSuccess = useCallback((savedAt: Date = new Date()) => {
+    setLastAutoSave(savedAt);
+    setAutoSaveStatus("saved");
+    if (saveStatusTimeoutRef.current) {
+      clearTimeout(saveStatusTimeoutRef.current);
+    }
+    saveStatusTimeoutRef.current = setTimeout(() => {
+      setAutoSaveStatus("idle");
+      saveStatusTimeoutRef.current = null;
+    }, 3000);
+  }, []);
+
+  const markSaveError = useCallback(() => {
+    setAutoSaveStatus("error");
+    if (saveStatusTimeoutRef.current) {
+      clearTimeout(saveStatusTimeoutRef.current);
+    }
+    saveStatusTimeoutRef.current = setTimeout(() => {
+      setAutoSaveStatus("idle");
+      saveStatusTimeoutRef.current = null;
+    }, 5000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (saveStatusTimeoutRef.current) {
+        clearTimeout(saveStatusTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Unsaved changes modal ref
   const unsavedChangesModalRef = useRef<HTMLDialogElement>(null);
@@ -672,13 +706,16 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   }, [currentWorkflow?.name]);
 
   useEffect(() => {
-    if (currentWorkflow?.updated_at) {
-      setLastAutoSave(new Date(currentWorkflow.updated_at));
-    } else {
+    if (!currentWorkflow) {
       setLastAutoSave(null);
+      setAutoSaveStatus("idle");
+      return;
+    }
+    if (currentWorkflow.updated_at) {
+      setLastAutoSave(new Date(currentWorkflow.updated_at));
     }
     setAutoSaveStatus("idle");
-  }, [currentWorkflow?.id, currentWorkflow?.updated_at]);
+  }, [currentWorkflow?.id]);
 
   // Clear chats and execution data when workflow changes to prevent accumulation
   useEffect(() => {
@@ -1014,6 +1051,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       return;
     }
 
+    setAutoSaveStatus("saving");
+
     if (!currentWorkflow) {
       try {
         const newWorkflow = await createWorkflow({
@@ -1028,7 +1067,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
         setCurrentWorkflow(newWorkflow);
         setHasUnsavedChanges(false);
-        setLastAutoSave(new Date());
+        markSaveSuccess(
+          newWorkflow.updated_at
+            ? new Date(newWorkflow.updated_at)
+            : new Date()
+        );
         enqueueSnackbar(`Workflow "${workflowName}" created and saved!`, {
           variant: "success",
         });
@@ -1036,26 +1079,30 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         console.error("Failed to create workflow:", error);
         const errorMessage = error?.response?.data?.detail || error?.message || "Failed to create workflow";
         enqueueSnackbar(errorMessage, { variant: "error" });
+        markSaveError();
       }
       return;
     }
 
     try {
-      await updateWorkflow(currentWorkflow.id, {
+      const updatedWorkflow = await updateWorkflow(currentWorkflow.id, {
         name: workflowName,
         description: currentWorkflow.description,
         flow_data: flowData,
       });
 
-      // Only set unsaved changes to false after successful update
       setHasUnsavedChanges(false);
-      setLastAutoSave(new Date());
+      markSaveSuccess(
+        updatedWorkflow?.updated_at
+          ? new Date(updatedWorkflow.updated_at)
+          : new Date()
+      );
       enqueueSnackbar("Workflow saved successfully!", { variant: "success" });
     } catch (error: any) {
       console.error("Failed to save workflow:", error);
       const errorMessage = error?.response?.data?.detail || error?.message || "Failed to save workflow";
       enqueueSnackbar(errorMessage, { variant: "error" });
-      // Don't set hasUnsavedChanges to false on error
+      markSaveError();
     }
   }, [
     currentWorkflow,
@@ -1067,6 +1114,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setCurrentWorkflow,
     setHasUnsavedChanges,
     workflowName,
+    markSaveSuccess,
+    markSaveError,
   ]);
 
   // Context Menu Handlers
@@ -1152,41 +1201,33 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         settings: currentWorkflow.flow_data?.settings,
       };
 
-      await updateWorkflow(currentWorkflow.id, {
+      const updatedWorkflow = await updateWorkflow(currentWorkflow.id, {
         name: workflowName,
         description: currentWorkflow.description,
         flow_data: flowData,
       });
 
       setHasUnsavedChanges(false);
-      setLastAutoSave(new Date());
-      setAutoSaveStatus("saved");
+      markSaveSuccess(
+        updatedWorkflow?.updated_at
+          ? new Date(updatedWorkflow.updated_at)
+          : new Date()
+      );
 
-      // Show subtle notification
       enqueueSnackbar("Auto-saved", {
         variant: "success",
         autoHideDuration: 2000,
         anchorOrigin: { vertical: "bottom", horizontal: "right" },
       });
-
-      // Reset status after 3 seconds
-      setTimeout(() => {
-        setAutoSaveStatus("idle");
-      }, 3000);
     } catch (error) {
       console.error("Auto-save failed:", error);
-      setAutoSaveStatus("error");
+      markSaveError();
 
       enqueueSnackbar("Auto-save failed", {
         variant: "error",
         autoHideDuration: 3000,
         anchorOrigin: { vertical: "bottom", horizontal: "right" },
       });
-
-      // Reset error status after 5 seconds
-      setTimeout(() => {
-        setAutoSaveStatus("idle");
-      }, 5000);
     }
   }, [
     autoSaveEnabled,
@@ -1198,6 +1239,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     workflowName,
     setHasUnsavedChanges,
     enqueueSnackbar,
+    markSaveSuccess,
+    markSaveError,
   ]);
 
   // Auto-save timer effect

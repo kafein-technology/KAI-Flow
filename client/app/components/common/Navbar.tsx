@@ -274,6 +274,31 @@ const Navbar: React.FC<NavbarProps> = ({
     autoSaveStatus &&
     (autoSaveStatus !== "idle" || lastAutoSave != null);
 
+  const formatSavedTime = (date: Date) =>
+    date.toLocaleTimeString("tr-TR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+  const saveStatusLabel =
+    autoSaveStatus === "saving"
+      ? "Saving..."
+      : autoSaveStatus === "saved"
+        ? "Saved"
+        : autoSaveStatus === "error"
+          ? "Error"
+          : lastAutoSave
+            ? `Last saved: ${formatSavedTime(lastAutoSave)}`
+            : null;
+
+  const showExecutionStatus =
+    executionLoading ||
+    !!activeExecutionId ||
+    (currentExecution &&
+      (currentExecution.status === "running" ||
+        currentExecution.status === "pending"));
+
   return (
     <>
       <header className="w-full h-16 bg-[#18181B] text-foreground fixed top-0 left-0 z-20">
@@ -305,32 +330,112 @@ const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           <div className="flex items-center gap-2 relative">
-            {(executionLoading || activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending"))) && (
-              <div className="flex items-center gap-2 text-gray-400">
-                <Loader className="w-3.5 h-3.5 animate-spin" />
-                <span className="text-xs font-medium">Executing...</span>
-                {(activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending") ? currentExecution.id : null)) && onCancelExecution && (
-                  <button
-                    onClick={async () => {
-                      const runId = activeExecutionId || (currentExecution ? currentExecution.id : null);
-                      if (runId && confirm("Are you sure you want to cancel this execution?")) {
-                        try {
-                          await onCancelExecution(runId);
-                          enqueueSnackbar("Workflow execution cancel requested.", { variant: "info" });
-                        } catch (err) {
-                          console.error("Failed to cancel execution:", err);
-                          enqueueSnackbar("Failed to cancel execution.", { variant: "error" });
-                        }
-                      }
-                    }}
-                    className="ml-1 px-2 py-0.5 text-[11px] text-red-500 hover:text-red-400 border border-red-500/30 hover:border-red-500/50 rounded transition-colors cursor-pointer"
-                    title="Cancel Execution"
-                  >
-                    Cancel
-                  </button>
+            <div
+              className={`grid transition-[grid-template-columns] duration-200 ease-out ${
+                showExecutionStatus ? "grid-cols-[1fr]" : "grid-cols-[0fr]"
+              }`}
+            >
+              <div className="overflow-hidden min-w-0">
+                {showExecutionStatus && (
+                  <div className="flex items-center gap-2 text-gray-400 shrink-0 whitespace-nowrap">
+                    <Loader className="w-3.5 h-3.5 animate-spin" />
+                    <span className="text-xs font-medium">Executing...</span>
+                    {(activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending") ? currentExecution.id : null)) && onCancelExecution && (
+                      <button
+                        onClick={async () => {
+                          const runId = activeExecutionId || (currentExecution ? currentExecution.id : null);
+                          if (runId && confirm("Are you sure you want to cancel this execution?")) {
+                            try {
+                              await onCancelExecution(runId);
+                              enqueueSnackbar("Workflow execution cancel requested.", { variant: "info" });
+                            } catch (err) {
+                              console.error("Failed to cancel execution:", err);
+                              enqueueSnackbar("Failed to cancel execution.", { variant: "error" });
+                            }
+                          }
+                        }}
+                        className="px-2 py-0.5 text-[11px] text-red-500 hover:text-red-400 border border-red-500/30 hover:border-red-500/50 rounded transition-colors cursor-pointer"
+                        title="Cancel Execution"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
+            </div>
+
+            <div
+              className={`grid transition-[grid-template-columns] duration-200 ease-out ${
+                showAutoSaveStatus ? "grid-cols-[1fr]" : "grid-cols-[0fr]"
+              }`}
+              aria-live="polite"
+            >
+              <div className="overflow-hidden min-w-0">
+                {saveStatusLabel && (
+                  <div
+                    className={`flex items-center gap-1 text-xs whitespace-nowrap tabular-nums transition-opacity duration-200 ${
+                      autoSaveStatus === "error"
+                        ? "text-red-400"
+                        : autoSaveStatus === "idle"
+                          ? "text-white/60"
+                          : "text-green-400"
+                    }`}
+                    title={
+                      lastAutoSave && autoSaveStatus === "idle"
+                        ? `Last saved: ${formatSavedTime(lastAutoSave)}`
+                        : undefined
+                    }
+                  >
+                    {autoSaveStatus !== "idle" && (
+                      <div
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          autoSaveStatus === "error"
+                            ? "bg-red-400"
+                            : "bg-green-400"
+                        } ${autoSaveStatus === "saving" ? "animate-pulse" : ""}`}
+                      />
+                    )}
+                    <span>{saveStatusLabel}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center shrink-0">
+              <button
+                type="button"
+                className={`p-0 border-0 bg-transparent rounded-4xl transition duration-500 ${
+                  canUndo ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed"
+                }`}
+                onClick={canUndo ? onUndo : undefined}
+                disabled={!canUndo}
+                aria-label="Undo (Ctrl+Z)"
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo2
+                  className={`w-10 h-10 p-2 ${
+                    canUndo ? "text-white" : "text-white/30"
+                  }`}
+                />
+              </button>
+              <button
+                type="button"
+                className={`p-0 border-0 bg-transparent rounded-4xl transition duration-500 ${
+                  canRedo ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed"
+                }`}
+                onClick={canRedo ? onRedo : undefined}
+                disabled={!canRedo}
+                aria-label="Redo (Ctrl+Y)"
+                title="Redo (Ctrl+Y)"
+              >
+                <Redo2
+                  className={`w-10 h-10 p-2 ${
+                    canRedo ? "text-white" : "text-white/30"
+                  }`}
+                />
+              </button>
+            </div>
 
             {currentWorkflow && updateWorkflowVisibility && (
               <ToggleSwitch
@@ -358,145 +463,81 @@ const Navbar: React.FC<NavbarProps> = ({
               />
             )}
 
-            {showAutoSaveStatus && (
-              <div
-                className="min-w-[10.5rem] flex items-center justify-end shrink-0"
-                aria-live="polite"
-              >
-                {autoSaveStatus === "saving" && (
-                  <div className="flex items-center gap-1 text-green-400">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                    <span className="text-xs whitespace-nowrap">Saving...</span>
-                  </div>
-                )}
-                {autoSaveStatus === "saved" && (
-                  <div className="flex items-center gap-1 text-green-400">
-                    <div className="w-2 h-2 bg-green-400 rounded-full" />
-                    <span className="text-xs whitespace-nowrap">Saved</span>
-                  </div>
-                )}
-                {autoSaveStatus === "error" && (
-                  <div className="flex items-center gap-1 text-red-400">
-                    <div className="w-2 h-2 bg-red-400 rounded-full" />
-                    <span className="text-xs whitespace-nowrap">Error</span>
-                  </div>
-                )}
-                {lastAutoSave && autoSaveStatus === "idle" && (
-                  <div
-                    className="flex items-center gap-1 text-white/60 text-xs whitespace-nowrap"
-                    title={`Last saved: ${lastAutoSave.toLocaleTimeString()}`}
-                  >
-                    Last saved: {lastAutoSave.toLocaleTimeString()}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <button
-              type="button"
-              className={`p-0 border-0 bg-transparent rounded-4xl transition duration-500 ${
-                canUndo ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed"
-              }`}
-              onClick={canUndo ? onUndo : undefined}
-              disabled={!canUndo}
-              aria-label="Undo (Ctrl+Z)"
-              title="Undo (Ctrl+Z)"
-            >
-              <Undo2
-                className={`w-10 h-10 p-2 ${
-                  canUndo ? "text-white" : "text-white/30"
-                }`}
-              />
-            </button>
-            <button
-              type="button"
-              className={`p-0 border-0 bg-transparent rounded-4xl transition duration-500 ${
-                canRedo ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed"
-              }`}
-              onClick={canRedo ? onRedo : undefined}
-              disabled={!canRedo}
-              aria-label="Redo (Ctrl+Y)"
-              title="Redo (Ctrl+Y)"
-            >
-              <Redo2
-                className={`w-10 h-10 p-2 ${
-                  canRedo ? "text-white" : "text-white/30"
-                }`}
-              />
-            </button>
             {isLoading ? (
-              <Loader className="animate-spin text-white w-10 h-10 p-2 rounded-4xl" />
+              <Loader className="animate-spin text-white w-10 h-10 p-2 rounded-4xl shrink-0" />
             ) : (
               <Save
-                className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 shrink-0"
                 onClick={onSave}
               />
             )}
+
             {onAutoSaveSettings && (
               <Clock
-                className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500 shrink-0"
                 onClick={onAutoSaveSettings}
               />
             )}
-              <div className="relative" ref={dropdownRef}>
-                <Settings
-                  className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                />
-                {isDropdownOpen && (
-                  <div
-                    className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2"
+
+            <div className="relative shrink-0" ref={dropdownRef}>
+              <Settings
+                className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              />
+              {isDropdownOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2"
+                >
+                  <button
+                    className="w-full font-medium text-black text-left px-3 py-2 hover:bg-blue-50 rounded flex gap-3 items-center transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
                   >
-                    <button
-                      className="w-full font-medium text-black text-left px-3 py-2 hover:bg-blue-50 rounded flex gap-3 items-center transition-colors"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <FileUp className="w-5 h-5 text-blue-600" />
-                      Load Workflow
-                    </button>
-                    <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleLoad} />
-                    
-                    <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center" onClick={handleExport}>
-                      <Download className="w-5 h-5" />
-                      Export JSON
-                    </button>
+                    <FileUp className="w-5 h-5 text-blue-600" />
+                    Load Workflow
+                  </button>
+                  <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleLoad} />
+                  
+                  <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center" onClick={handleExport}>
+                    <Download className="w-5 h-5" />
+                    Export JSON
+                  </button>
 
-                    <button
-                      className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center"
-                      onClick={() => {
-                        setIsDropdownOpen(false);
-                        setTimeout(() => widgetExportDialogRef.current?.showModal(), 100);
-                      }}
-                    >
-                      <MessageSquare className="w-5 h-5" />
-                      Export Widget
-                    </button>
+                  <button
+                    className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setTimeout(() => widgetExportDialogRef.current?.showModal(), 100);
+                    }}
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    Export Widget
+                  </button>
 
-                    <button
-                      className="w-full text-left px-3 py-2 text-black hover:bg-red-50 hover:text-red-600 rounded flex gap-3 items-center transition-colors"
-                      onClick={() => {
-                        setIsDropdownOpen(false);
-                        setIsErrorModalOpen(true);
-                        setTimeout(() => errorWorkflowDialogRef.current?.showModal(), 100);
-                      }}
-                    >
-                      <ShieldAlert className="w-5 h-5" />
-                      Error Handler
-                    </button>
+                  <button
+                    className="w-full text-left px-3 py-2 text-black hover:bg-red-50 hover:text-red-600 rounded flex gap-3 items-center transition-colors"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setIsErrorModalOpen(true);
+                      setTimeout(() => errorWorkflowDialogRef.current?.showModal(), 100);
+                    }}
+                  >
+                    <ShieldAlert className="w-5 h-5" />
+                    Error Handler
+                  </button>
 
-                    <button
-                      className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded flex gap-3 items-center transition-colors"
-                      onClick={() => {
-                        setIsDropdownOpen(false);
-                        setTimeout(() => deleteDialogRef.current?.showModal(), 100);
-                      }}
-                    >
-                      <Trash className="w-5 h-5" />
-                      Delete Workflow
-                    </button>
-                  </div>
-                )}
-              </div>
+                  <button
+                    className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded flex gap-3 items-center transition-colors"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setTimeout(() => deleteDialogRef.current?.showModal(), 100);
+                    }}
+                  >
+                    <Trash className="w-5 h-5" />
+                    Delete Workflow
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </nav>
       </header>
