@@ -322,7 +322,8 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
                 f"/{API_START}/{API_VERSION}/webhook/",
                 f"/{API_START}/{API_VERSION}/webhook-test/",
                 f"/{API_START}/{API_VERSION}/nodes/",
-                f"/{API_START}/{API_VERSION}/workflows/"
+                f"/{API_START}/{API_VERSION}/workflows/",
+                f"/{API_START}/{API_VERSION}/ai-builder/"
             ]
             
             should_detect = True

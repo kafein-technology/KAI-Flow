@@ -1,0 +1,99 @@
+{
+  "name": "kafka_dlp_pipeline",
+  "description": "Listen to Kafka, analyze each message with an OpenAI-compatible agent, and publish the result to another Kafka topic.",
+  "workflow": {
+    "nodes": [
+      {
+        "id": "KafkaConsumer_1",
+        "type": "KafkaConsumer",
+        "data": {
+          "name": "kafka_consumer"
+        }
+      },
+      {
+        "id": "CodeNode_1",
+        "type": "CodeNode",
+        "data": {
+          "name": "code_node",
+          "code": "data = ${{kafka_consumer}}\\nprint(data)"
+        }
+      },
+      {
+        "id": "OpenAICompatible_1",
+        "type": "OpenAICompatibleNode",
+        "data": {
+          "name": "openai_compatible"
+        }
+      },
+      {
+        "id": "BufferMemory_1",
+        "type": "BufferMemory",
+        "data": {
+          "name": "buffer_memory"
+        }
+      },
+      {
+        "id": "Agent_1",
+        "type": "Agent",
+        "data": {
+          "name": "agent",
+          "system_prompt": "Analyze the Kafka message for data loss prevention risk and return a compact JSON decision.",
+          "user_prompt_template": "${{code_node}}"
+        }
+      },
+      {
+        "id": "KafkaProducer_1",
+        "type": "KafkaProducer",
+        "data": {
+          "name": "kafka_producer",
+          "message": "${{agent}}"
+        }
+      },
+      {
+        "id": "End_1",
+        "type": "EndNode",
+        "data": {
+          "name": "End"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "KafkaConsumer_1",
+        "target": "CodeNode_1",
+        "sourceHandle": "kafka_data",
+        "targetHandle": "input"
+      },
+      {
+        "source": "CodeNode_1",
+        "target": "Agent_1",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "source": "OpenAICompatible_1",
+        "target": "Agent_1",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
+      },
+      {
+        "source": "BufferMemory_1",
+        "target": "Agent_1",
+        "sourceHandle": "memory",
+        "targetHandle": "memory"
+      },
+      {
+        "source": "Agent_1",
+        "target": "KafkaProducer_1",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "source": "KafkaProducer_1",
+        "target": "End_1",
+        "sourceHandle": "output",
+        "targetHandle": "target"
+      }
+    ]
+  }
+}

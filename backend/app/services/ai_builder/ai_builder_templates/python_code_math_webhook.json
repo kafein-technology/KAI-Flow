@@ -1,0 +1,86 @@
+{
+  "name": "python_code_math_webhook",
+  "description": "Calculate the sum of two variables passed from a webhook using Python code, then pass the result to an Agent.",
+  "workflow": {
+    "nodes": [
+      {
+        "id": "Trigger_1",
+        "type": "WebhookTrigger",
+        "data": {
+          "name": "webhook_trigger"
+        }
+      },
+      {
+        "id": "Code_1",
+        "type": "CodeNode",
+        "data": {
+          "name": "code_node_1",
+          "code": "data = ${{webhook_trigger}}\\npayload = data.get('payload', data) if isinstance(data, dict) else data\\nnums = [int(x.strip()) for x in str(payload).split(',')]\\nprint(sum(nums))"
+        }
+      },
+      {
+        "id": "LLM_1",
+        "type": "OpenAIChat",
+        "data": {
+          "name": "openai"
+        }
+      },
+      {
+        "id": "Mem_1",
+        "type": "BufferMemory",
+        "data": {
+          "name": "memory"
+        }
+      },
+      {
+        "id": "Agent_1",
+        "type": "Agent",
+        "data": {
+          "name": "agent_1",
+          "system_prompt": "You tell the user the calculated sum.",
+          "user_prompt_template": "${{code_node_1}}"
+        }
+      },
+      {
+        "id": "Response_1",
+        "type": "RespondToWebhook",
+        "data": {
+          "name": "respond",
+          "response_body": "${{agent_1}}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "Trigger_1",
+        "target": "Code_1",
+        "sourceHandle": "webhook_data",
+        "targetHandle": "input"
+      },
+      {
+        "source": "Code_1",
+        "target": "Agent_1",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "source": "LLM_1",
+        "target": "Agent_1",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
+      },
+      {
+        "source": "Mem_1",
+        "target": "Agent_1",
+        "sourceHandle": "memory",
+        "targetHandle": "memory"
+      },
+      {
+        "source": "Agent_1",
+        "target": "Response_1",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      }
+    ]
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "name": "conditional_routing_webhook",
+  "description": "Build a workflow that starts with a webhook. It uses an agent with internet search to check if an email contains the word 'urgent'. If urgent, respond to webhook A, else respond to webhook B.",
+  "workflow": {
+    "nodes": [
+      {
+        "id": "Trigger_1",
+        "type": "WebhookTrigger",
+        "data": {
+          "name": "webhook_trigger"
+        }
+      },
+      {
+        "id": "SearchTool_1",
+        "type": "TavilySearch",
+        "data": {
+          "name": "search_tool"
+        }
+      },
+      {
+        "id": "LLM_1",
+        "type": "OpenAIChat",
+        "data": {
+          "name": "llm"
+        }
+      },
+      {
+        "id": "Mem_1",
+        "type": "BufferMemory",
+        "data": {
+          "name": "memory"
+        }
+      },
+      {
+        "id": "Agent_1",
+        "type": "Agent",
+        "data": {
+          "name": "agent",
+          "system_prompt": "You are an email analyzer.",
+          "user_prompt_template": "${{webhook_trigger}}"
+        }
+      },
+      {
+        "id": "Condition_1",
+        "type": "ConditionNode",
+        "data": {
+          "name": "condition_node",
+          "operation": "contains",
+          "value2": "urgent"
+        }
+      },
+      {
+        "id": "RescueWebhook",
+        "type": "RespondToWebhook",
+        "data": {
+          "name": "urgent_hook",
+          "response_body": "This is urgent! ${{agent}}"
+        }
+      },
+      {
+        "id": "IgnoreWebhook",
+        "type": "RespondToWebhook",
+        "data": {
+          "name": "ignore_hook",
+          "response_body": "Not urgent."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "Trigger_1",
+        "target": "Agent_1",
+        "sourceHandle": "webhook_data",
+        "targetHandle": "input"
+      },
+      {
+        "source": "SearchTool_1",
+        "target": "Agent_1",
+        "sourceHandle": "search_tool",
+        "targetHandle": "tools"
+      },
+      {
+        "source": "LLM_1",
+        "target": "Agent_1",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
+      },
+      {
+        "source": "Mem_1",
+        "target": "Agent_1",
+        "sourceHandle": "memory",
+        "targetHandle": "memory"
+      },
+      {
+        "source": "Agent_1",
+        "target": "Condition_1",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "source": "Condition_1",
+        "target": "RescueWebhook",
+        "sourceHandle": "true_output",
+        "targetHandle": "input"
+      },
+      {
+        "source": "Condition_1",
+        "target": "IgnoreWebhook",
+        "sourceHandle": "false_output",
+        "targetHandle": "input"
+      }
+    ]
+  }
+}

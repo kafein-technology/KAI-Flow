@@ -1,0 +1,113 @@
+{
+  "name": "multi_agent_research",
+  "description": "Create a multi-agent workflow where an initial research agent parses a webhook, and passes the context to a summary agent that returns the result.",
+  "workflow": {
+    "nodes": [
+      {
+        "id": "Trigger_1",
+        "type": "WebhookTrigger",
+        "data": {
+          "name": "webhook_trigger"
+        }
+      },
+      {
+        "id": "LLM_1",
+        "type": "OpenAIChat",
+        "data": {
+          "name": "openai_gpt"
+        }
+      },
+      {
+        "id": "Mem_1",
+        "type": "BufferMemory",
+        "data": {
+          "name": "buffer_memory"
+        }
+      },
+      {
+        "id": "ResearchAgent",
+        "type": "Agent",
+        "data": {
+          "name": "agent",
+          "system_prompt": "You are a researcher extracting details.",
+          "user_prompt_template": "${{webhook_trigger}}"
+        }
+      },
+      {
+        "id": "LLM_2",
+        "type": "OpenAIChat",
+        "data": {
+          "name": "openai_gpt_1"
+        }
+      },
+      {
+        "id": "Mem_2",
+        "type": "BufferMemory",
+        "data": {
+          "name": "buffer_memory_1"
+        }
+      },
+      {
+        "id": "SummaryAgent",
+        "type": "Agent",
+        "data": {
+          "name": "agent_1",
+          "system_prompt": "You are a summarizer taking the researcher's output.",
+          "user_prompt_template": "${{agent}}"
+        }
+      },
+      {
+        "id": "ResponseHook",
+        "type": "RespondToWebhook",
+        "data": {
+          "name": "respond_to_webhook",
+          "response_body": "${{agent_1}}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "Trigger_1",
+        "target": "ResearchAgent",
+        "sourceHandle": "webhook_data",
+        "targetHandle": "input"
+      },
+      {
+        "source": "LLM_1",
+        "target": "ResearchAgent",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
+      },
+      {
+        "source": "Mem_1",
+        "target": "ResearchAgent",
+        "sourceHandle": "memory",
+        "targetHandle": "memory"
+      },
+      {
+        "source": "ResearchAgent",
+        "target": "SummaryAgent",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "source": "LLM_2",
+        "target": "SummaryAgent",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
+      },
+      {
+        "source": "Mem_2",
+        "target": "SummaryAgent",
+        "sourceHandle": "memory",
+        "targetHandle": "memory"
+      },
+      {
+        "source": "SummaryAgent",
+        "target": "ResponseHook",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      }
+    ]
+  }
+}

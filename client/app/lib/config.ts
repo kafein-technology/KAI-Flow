@@ -142,6 +142,9 @@ export const API_ENDPOINTS = {
     WORKFLOW_INIT: (id: string) => `/export/workflow/${id}/init`,
     WORKFLOW_COMPLETE: (id: string) => `/export/workflow/${id}/complete`,
   },
+  AI_BUILDER: {
+    GENERATE: '/ai-builder/generate',
+  },
   HEALTH: '/health',
   INFO: '/info',
 } as const;

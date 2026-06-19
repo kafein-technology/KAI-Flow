@@ -101,6 +101,7 @@ from app.api.auth import router as auth_router
 from app.api.api_key import router as api_key_router
 from app.api.chat import router as chat_router
 from app.api.variables import router as variables_router
+from app.api.ai_builder import router as ai_builder_router
 from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
 from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
@@ -275,6 +276,7 @@ app.include_router(api_key_router, prefix=f"/{API_START}/{API_VERSION}/api-keys"
 app.include_router(executions_router, prefix=f"/{API_START}/{API_VERSION}/executions", tags=["Executions"])
 app.include_router(credentials_router, prefix=f"/{API_START}/{API_VERSION}/credentials", tags=["Credentials"])
 app.include_router(chat_router, prefix=f"/{API_START}/{API_VERSION}/chat", tags=["Chat"])
+app.include_router(ai_builder_router, prefix=f"/{API_START}/{API_VERSION}/ai-builder", tags=["AI Builder"])
 app.include_router(variables_router, prefix=f"/{API_START}/{API_VERSION}/variables", tags=["Variables"])
 app.include_router(node_configurations_router, prefix=f"/{API_START}/{API_VERSION}/node-configurations", tags=["Node Configurations"])
 app.include_router(node_registry_router, prefix=f"/{API_START}/{API_VERSION}/nodes/registry", tags=["Node Registry"])

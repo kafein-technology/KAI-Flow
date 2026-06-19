@@ -334,6 +334,18 @@ class DocumentLoaderNode(ProcessorNode):
                     required=False,
                 ),
                 NodeProperty(
+                    name="oauth2_refresh_token",
+                    displayName="Refresh Token",
+                    type=NodePropertyType.PASSWORD,
+                    placeholder="Your Google OAuth2 Refresh Token",
+                    displayOptions={
+                        "show": {
+                            "google_drive_auth_type": "oauth2"
+                        }
+                    },
+                    required=False,
+                ),
+                NodeProperty(
                     name="supported_formats_title",
                     displayName="Supported Formats",
                     type=NodePropertyType.TITLE,

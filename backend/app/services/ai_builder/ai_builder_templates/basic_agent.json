@@ -1,0 +1,72 @@
+{
+  "name": "basic_agent",
+  "description": "Create a basic AI agent that has memory and uses OpenAI.",
+  "workflow": {
+    "nodes": [
+      {
+        "id": "Start_1",
+        "type": "StartNode",
+        "data": {
+          "name": "Start"
+        }
+      },
+      {
+        "id": "OpenAIChat_1",
+        "type": "OpenAIChat",
+        "data": {
+          "name": "openai_gpt",
+          "model_name": "gpt-4o"
+        }
+      },
+      {
+        "id": "BufferMemory_1",
+        "type": "BufferMemory",
+        "data": {
+          "name": "buffer_memory"
+        }
+      },
+      {
+        "id": "Agent_1",
+        "type": "Agent",
+        "data": {
+          "name": "agent_1",
+          "agent_type": "react",
+          "system_prompt": "You are a helpful assistant."
+        }
+      },
+      {
+        "id": "End_1",
+        "type": "EndNode",
+        "data": {
+          "name": "End"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "Start_1",
+        "target": "Agent_1",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "source": "OpenAIChat_1",
+        "target": "Agent_1",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
+      },
+      {
+        "source": "BufferMemory_1",
+        "target": "Agent_1",
+        "sourceHandle": "memory",
+        "targetHandle": "memory"
+      },
+      {
+        "source": "Agent_1",
+        "target": "End_1",
+        "sourceHandle": "output",
+        "targetHandle": "target"
+      }
+    ]
+  }
+}

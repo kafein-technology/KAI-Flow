@@ -455,45 +455,18 @@ class ProcessorNodeHandler(NodeExecutionHandler):
 class TerminatorNodeHandler(NodeExecutionHandler):
     """
     Handler for Terminator node types.
-    
-    Terminator nodes usually finalize workflows or format outputs.
-    They behave similarly to Processor nodes when being extracted as a connection.
+    Terminator nodes typically don't produce outputs for other nodes, so this acts as a safe fallback.
     """
-    
     def __init__(self):
-        """Initialize terminator node handler."""
         super().__init__()
-    
-    def extract_connected_instance(self,
-                                 connection_info: Dict[str, str],
-                                 source_node_instance: Any,
-                                 gnode_instance: Any,
-                                 state: FlowState) -> Any:
-        """Extract terminator node output."""
+
+    def extract_connected_instance(self, connection_info: Dict[str, str], source_node_instance: Any, gnode_instance: Any, state: FlowState) -> Any:
         node_id = connection_info["source_node_id"]
-        input_name = connection_info.get("target_handle", "output")
-        
         self._log_execution(node_id, "terminator", "extracting")
+        logger.warning(f"[WARNING] Attempted to extract output from Terminator node {node_id}, which is not expected to produce output connections.")
         
-        # 1. Try to get cached output first
-        if hasattr(state, 'node_outputs') and node_id in state.node_outputs:
-            stored_result = state.node_outputs[node_id]
-            if isinstance(stored_result, dict) and input_name in stored_result:
-                return stored_result[input_name]
-            return stored_result
-        
-        # 2. If no cache, try to execute it as a simple processor
-        try:
-            # Inject user_id
-            self._inject_user_context(source_node_instance, state, node_id)
-            
-            # Simple execution for terminator (passing current state as inputs, templated dynamically)
-            templated_inputs = apply_jinja_to_inputs(state.variables, state, node_id, self.nodes_registry)
-            result = source_node_instance.execute(templated_inputs, {})
-            return result
-        except Exception as e:
-            logger.warning(f"[TERMINATOR] Re-execution failed for {node_id}: {e}")
-            return None
+        # We return None or empty dict depending on expected outputs, but None is safest.
+        return None
 
 
 class NodeHandlerRegistry:

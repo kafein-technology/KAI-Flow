@@ -1,0 +1,82 @@
+{
+  "name": "simple_rag_pipeline",
+  "description": "Create a simple RAG document ingestion pipeline.",
+  "workflow": {
+    "nodes": [
+      {
+        "id": "Start_1",
+        "type": "StartNode",
+        "data": {
+          "name": "Start"
+        }
+      },
+      {
+        "id": "WebScraper_1",
+        "type": "WebScraper",
+        "data": {
+          "name": "scraper"
+        }
+      },
+      {
+        "id": "ChunkSplitter_1",
+        "type": "ChunkSplitter",
+        "data": {
+          "name": "chunker"
+        }
+      },
+      {
+        "id": "Embeddings_1",
+        "type": "OpenAIEmbeddingsProvider",
+        "data": {
+          "name": "openai_embeds"
+        }
+      },
+      {
+        "id": "VectorStore_1",
+        "type": "VectorStoreOrchestrator",
+        "data": {
+          "name": "vector_db"
+        }
+      },
+      {
+        "id": "End_1",
+        "type": "EndNode",
+        "data": {
+          "name": "End"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "Start_1",
+        "target": "WebScraper_1",
+        "sourceHandle": "output",
+        "targetHandle": "input_urls"
+      },
+      {
+        "source": "WebScraper_1",
+        "target": "ChunkSplitter_1",
+        "sourceHandle": "documents",
+        "targetHandle": "documents"
+      },
+      {
+        "source": "ChunkSplitter_1",
+        "target": "VectorStore_1",
+        "sourceHandle": "chunks",
+        "targetHandle": "documents"
+      },
+      {
+        "source": "Embeddings_1",
+        "target": "VectorStore_1",
+        "sourceHandle": "embedder",
+        "targetHandle": "embedder"
+      },
+      {
+        "source": "VectorStore_1",
+        "target": "End_1",
+        "sourceHandle": "result",
+        "targetHandle": "target"
+      }
+    ]
+  }
+}

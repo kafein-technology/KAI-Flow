@@ -1712,6 +1712,78 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
   };
 
+  const handleFlowGenerated = useCallback(
+    (flowData: WorkflowData) => {
+      const allMetadata = [...(availableNodes || []), ...(customNodes || [])];
+      const enrichedNodes: Node[] = [];
+
+      for (const [index, node] of (flowData.nodes || []).entries()) {
+        const nodeType = node.type || "GenericNode";
+        const metadata = allMetadata.find(
+          (m) => m.name === nodeType || (m as any).id === nodeType
+        ) as any;
+        const data = node.data || {};
+
+        enrichedNodes.push({
+          ...node,
+          id: node.id || `${nodeType}__${uuidv4()}`,
+          type: nodeType,
+          position: node.position || {
+            x: 100 + (index % 4) * 280,
+            y: 120 + Math.floor(index / 4) * 180,
+          },
+          data: {
+            ...data,
+            name:
+              data.name ||
+              (nodeType === "StartNode"
+                ? "Start"
+                : nodeType === "EndNode"
+                  ? "End"
+                  : generateUniqueNodeName(
+                    metadata?.display_name || nodeType,
+                    nodeType,
+                    enrichedNodes
+                  )),
+            metadata,
+            icon: metadata?.icon,
+            description: metadata?.description,
+            displayName: metadata?.display_name,
+            inputs: metadata?.inputs,
+            outputs: metadata?.outputs,
+          },
+        } as Node);
+      }
+
+      const nodeIds = new Set(enrichedNodes.map((node) => node.id));
+      const enrichedEdges = (flowData.edges || [])
+        .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+        .map((edge, index) => ({
+          ...edge,
+          id:
+            edge.id ||
+            `${edge.source}-${edge.sourceHandle || "out"}-${edge.target}-${edge.targetHandle || "in"}-${index}`,
+          type: edge.type || "custom",
+        })) as Edge[];
+
+      setNodes(enrichedNodes);
+      setEdges(enrichedEdges);
+      setNodeStatus({});
+      setEdgeStatus({});
+      setHasUnsavedChanges(true);
+      enqueueSnackbar("AI Builder workflow canvas'a uygulandi", { variant: "success" });
+    },
+    [
+      availableNodes,
+      customNodes,
+      enqueueSnackbar,
+      generateUniqueNodeName,
+      setEdges,
+      setHasUnsavedChanges,
+      setNodes,
+    ]
+  );
+
   // Handle node click for fullscreen modal
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -1902,6 +1974,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               edges: edges as WorkflowEdge[],
             }}
             chatThinking={chatThinking}
+            onFlowGenerated={handleFlowGenerated}
+            currentNodes={nodes}
+            currentEdges={edges}
           />
 
           {/* Chat History Sidebar */}

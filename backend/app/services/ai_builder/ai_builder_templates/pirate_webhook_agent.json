@@ -1,0 +1,72 @@
+{
+  "name": "pirate_webhook_agent",
+  "description": "Create a customer support webhook that acts like a pirate and returns the result to the user.",
+  "workflow": {
+    "nodes": [
+      {
+        "id": "Node_Trigger_99",
+        "type": "WebhookTrigger",
+        "data": {
+          "name": "webhook_trigger"
+        }
+      },
+      {
+        "id": "Node_LLM_88",
+        "type": "OpenAIChat",
+        "data": {
+          "name": "openai_gpt"
+        }
+      },
+      {
+        "id": "Node_Memory_77",
+        "type": "BufferMemory",
+        "data": {
+          "name": "buffer_memory"
+        }
+      },
+      {
+        "id": "Node_Agent_66",
+        "type": "Agent",
+        "data": {
+          "name": "agent",
+          "system_prompt": "You are a pirate serving as customer support.",
+          "user_prompt_template": "${{webhook_trigger}}"
+        }
+      },
+      {
+        "id": "Node_Response_55",
+        "type": "RespondToWebhook",
+        "data": {
+          "name": "respond_to_webhook",
+          "response_body": "${{agent}}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "Node_Trigger_99",
+        "target": "Node_Agent_66",
+        "sourceHandle": "webhook_data",
+        "targetHandle": "input"
+      },
+      {
+        "source": "Node_LLM_88",
+        "target": "Node_Agent_66",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
+      },
+      {
+        "source": "Node_Memory_77",
+        "target": "Node_Agent_66",
+        "sourceHandle": "memory",
+        "targetHandle": "memory"
+      },
+      {
+        "source": "Node_Agent_66",
+        "target": "Node_Response_55",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      }
+    ]
+  }
+}
