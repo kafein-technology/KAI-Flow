@@ -347,14 +347,13 @@ const Navbar: React.FC<NavbarProps> = ({
                   onClick={onAutoSaveSettings}
                 />
               )}
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <Settings
                   className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 />
                 {isDropdownOpen && (
                   <div
-                    ref={dropdownRef}
                     className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2"
                   >
                     <button
