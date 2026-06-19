@@ -671,6 +671,15 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
   }, [currentWorkflow?.name]);
 
+  useEffect(() => {
+    if (currentWorkflow?.updated_at) {
+      setLastAutoSave(new Date(currentWorkflow.updated_at));
+    } else {
+      setLastAutoSave(null);
+    }
+    setAutoSaveStatus("idle");
+  }, [currentWorkflow?.id, currentWorkflow?.updated_at]);
+
   // Clear chats and execution data when workflow changes to prevent accumulation
   useEffect(() => {
     if (currentWorkflow?.id) {
@@ -1019,6 +1028,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
         setCurrentWorkflow(newWorkflow);
         setHasUnsavedChanges(false);
+        setLastAutoSave(new Date());
         enqueueSnackbar(`Workflow "${workflowName}" created and saved!`, {
           variant: "success",
         });
@@ -1039,6 +1049,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
       // Only set unsaved changes to false after successful update
       setHasUnsavedChanges(false);
+      setLastAutoSave(new Date());
       enqueueSnackbar("Workflow saved successfully!", { variant: "success" });
     } catch (error: any) {
       console.error("Failed to save workflow:", error);

@@ -383,7 +383,7 @@ const Navbar: React.FC<NavbarProps> = ({
                 )}
                 {lastAutoSave && autoSaveStatus === "idle" && (
                   <div
-                    className="flex items-center gap-1 text-gray-400 text-xs whitespace-nowrap"
+                    className="flex items-center gap-1 text-white/60 text-xs whitespace-nowrap"
                     title={`Last saved: ${lastAutoSave.toLocaleTimeString()}`}
                   >
                     Last saved: {lastAutoSave.toLocaleTimeString()}
