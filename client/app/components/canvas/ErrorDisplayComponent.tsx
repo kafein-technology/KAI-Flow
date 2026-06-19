@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 interface ErrorDetails {
-  message: string;
+  message: any;
   type?: string;
   nodeId?: string;
   nodeType?: string;
@@ -138,6 +138,25 @@ export default function ErrorDisplayComponent({
     suggestions = getErrorSuggestions(type, nodeType),
   } = errorDetails;
 
+  let displayMessage = "";
+  if (typeof message === "string") {
+    displayMessage = message;
+  } else if (Array.isArray(message)) {
+    displayMessage = message
+      .map((m: any) => {
+        if (typeof m === "string") return m;
+        if (typeof m === "object" && m !== null) {
+          return m.msg || JSON.stringify(m);
+        }
+        return String(m);
+      })
+      .join(", ");
+  } else if (typeof message === "object" && message !== null) {
+    displayMessage = (message as any).msg || (message as any).message || JSON.stringify(message);
+  } else {
+    displayMessage = String(message);
+  }
+
   const errorColor = getErrorColor(type);
   const errorIcon = getErrorIcon(type);
 
@@ -190,7 +209,7 @@ export default function ErrorDisplayComponent({
 
         {/* Error Message */}
         <div className="p-4">
-          <p className="text-sm font-medium mb-3">{message}</p>
+          <p className="text-sm font-medium mb-3">{displayMessage}</p>
 
           {/* Timestamp */}
           <p className="text-xs opacity-60 mb-3">

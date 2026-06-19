@@ -2,8 +2,23 @@ import { apiClient } from '../lib/api-client';
 import { API_ENDPOINTS } from '../lib/config';
 import type { WorkflowExecution } from '../types/api';
 
+export const broadcastExecutionStarted = () => {
+  if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+    try {
+      const channel = new BroadcastChannel('kai-flow-executions');
+      channel.postMessage({ type: 'EXECUTION_STARTED' });
+      channel.close();
+      window.dispatchEvent(new CustomEvent('kai-flow-execution-started'));
+    } catch (err) {
+      console.error('Failed to broadcast execution started:', err);
+    }
+  }
+};
+
 export const createExecution = async (workflow_id: string, inputs: Record<string, any>) => {
-  return apiClient.post<WorkflowExecution>(API_ENDPOINTS.EXECUTIONS.CREATE, { workflow_id, inputs });
+  const response = await apiClient.post<WorkflowExecution>(API_ENDPOINTS.EXECUTIONS.CREATE, { workflow_id, inputs });
+  broadcastExecutionStarted();
+  return response;
 };
 
 export const getExecution = async (execution_id: string) => {
@@ -23,14 +38,20 @@ export const executeWorkflow = async (workflow_id: string, executionData: {
   execution_type?: string;
   trigger_source?: string;
 }) => {
-  return apiClient.post<WorkflowExecution>(API_ENDPOINTS.WORKFLOWS.EXECUTE, {
+  const response = await apiClient.post<WorkflowExecution>(API_ENDPOINTS.WORKFLOWS.EXECUTE, {
     workflow_id,
     ...executionData
   });
+  broadcastExecutionStarted();
+  return response;
 };
 
 export const deleteExecution = async (execution_id: string) => {
   return apiClient.delete(`/executions/${execution_id}`);
+};
+
+export const cancelExecution = async (execution_id: string) => {
+  return apiClient.post<WorkflowExecution>(`/executions/${execution_id}/cancel`);
 }; 
 
 export const exportExecutionsCSV = async (params: {
@@ -77,6 +98,7 @@ export const executeWorkflowStream = async (executionData: {
   trigger_source?: string;
   workflow_id?: string;
 }): Promise<ReadableStream> => {
+  broadcastExecutionStarted();
   const base = apiClient.getBaseURL();
   const url = `${base}${API_ENDPOINTS.WORKFLOWS.EXECUTE}`;
   const token = apiClient.getAccessToken();

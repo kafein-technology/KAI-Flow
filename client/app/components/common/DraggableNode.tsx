@@ -86,6 +86,7 @@ const iconAltText: Record<string, string> = {
   LLMRedTeam: "llm-red-team-scanner",
   AgenticRedTeam: "agentic-red-team-scanner",
   CustomRedTeam: "custom-red-team-scanner",
+  CryptographyNode: "cryptography",
 };
 
 /**

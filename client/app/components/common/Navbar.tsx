@@ -9,6 +9,7 @@ import {
   Clock,
   MessageSquare,
   ShieldAlert,
+  StopCircle,
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
@@ -36,6 +37,10 @@ interface NavbarProps {
   updateWorkflowStatus?: (id: string, is_active: boolean) => Promise<void>;
   updateWorkflowVisibility?: (id: string, is_public: boolean) => Promise<void>;
   onImportStart?: () => void;
+  executionLoading?: boolean;
+  activeExecutionId?: string | null;
+  currentExecution?: any;
+  onCancelExecution?: (executionId: string) => Promise<void>;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -54,6 +59,10 @@ const Navbar: React.FC<NavbarProps> = ({
   onAutoSaveSettings,
   updateWorkflowVisibility,
   onImportStart,
+  executionLoading,
+  activeExecutionId,
+  currentExecution,
+  onCancelExecution,
 }) => {
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
@@ -279,6 +288,33 @@ const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           <div className="flex items-center space-x-4 gap-2 relative">
+            {(executionLoading || activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending"))) && (
+              <div className="flex items-center gap-2 text-gray-400">
+                <Loader className="w-3.5 h-3.5 animate-spin" />
+                <span className="text-xs font-medium">Executing...</span>
+                {(activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending") ? currentExecution.id : null)) && onCancelExecution && (
+                  <button
+                    onClick={async () => {
+                      const runId = activeExecutionId || (currentExecution ? currentExecution.id : null);
+                      if (runId && confirm("Are you sure you want to cancel this execution?")) {
+                        try {
+                          await onCancelExecution(runId);
+                          enqueueSnackbar("Workflow execution cancel requested.", { variant: "info" });
+                        } catch (err) {
+                          console.error("Failed to cancel execution:", err);
+                          enqueueSnackbar("Failed to cancel execution.", { variant: "error" });
+                        }
+                      }
+                    }}
+                    className="ml-1 px-2 py-0.5 text-[11px] text-red-500 hover:text-red-400 border border-red-500/30 hover:border-red-500/50 rounded transition-colors cursor-pointer"
+                    title="Cancel Execution"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            )}
+
             {currentWorkflow && updateWorkflowVisibility && (
               <ToggleSwitch
                 isActive={currentWorkflow.is_public ?? false}
