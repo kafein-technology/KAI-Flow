@@ -150,12 +150,20 @@ export function useWorkflowHistory(
   return { undo, redo, canUndo, canRedo, resetHistory };
 }
 
-/** Returns true only for fields that should keep native text undo (e.g. workflow name). */
+/** True when focus is in a text-editing surface — workflow undo must not steal Ctrl+Z/Ctrl+Y. */
 export const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
+
+  if (target.closest(".monaco-editor")) return true;
+
   const tag = target.tagName;
-  const isEditable =
-    tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
-  if (!isEditable) return false;
-  return target.closest('[data-native-undo="true"]') !== null;
+  if (tag === "INPUT") {
+    const type = (target as HTMLInputElement).type;
+    if (type === "checkbox" || type === "radio" || type === "button" || type === "submit" || type === "file") {
+      return false;
+    }
+    return true;
+  }
+
+  return tag === "TEXTAREA" || target.isContentEditable;
 };

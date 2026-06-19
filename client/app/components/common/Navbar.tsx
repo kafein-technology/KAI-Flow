@@ -296,7 +296,6 @@ const Navbar: React.FC<NavbarProps> = ({
               onChange={(e) => setWorkflowName(e.target.value)}
               onBlur={handleBlur}
               placeholder="Dosya Adı"
-              data-native-undo="true"
               className="text-lg font-medium text-white/90 bg-transparent px-4 py-1.5 rounded-md border border-transparent hover:border-white/20 focus:border-white/30 hover:bg-white/5 focus:bg-white/10 focus:outline-none transition-all duration-300 text-center w-full max-w-[400px] focus:max-w-[800px]"
             />
           </div>

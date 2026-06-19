@@ -848,7 +848,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       if (event.key.toLowerCase() === "z" && !event.shiftKey) {
         event.preventDefault();
         undo();
-      } else if (event.key.toLowerCase() === "y") {
+      } else if (
+        event.key.toLowerCase() === "y" ||
+        (event.key.toLowerCase() === "z" && event.shiftKey)
+      ) {
         event.preventDefault();
         redo();
       }
