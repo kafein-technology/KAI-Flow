@@ -3,6 +3,7 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Check, Loader2, X as XIcon, Zap } from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
 import type { ServiceDefinition, ServiceField } from "~/types/credentials";
+import CredentialPasswordField from "./CredentialPasswordField";
 
 interface DynamicCredentialFormProps {
   service: ServiceDefinition;
@@ -26,6 +27,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
   const [iconFailed, setIconFailed] = useState(false);
   const [testState, setTestState] = useState<TestState>("idle");
   const [testMessage, setTestMessage] = useState("");
+
   const validateField = (
     field: ServiceField,
     value: any
@@ -92,7 +94,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
   };
 
   const formValues = useMemo(() => {
-    const values: Record<string, any> = {
+    const values = {
       ...initialValues,
     };
 
@@ -130,7 +132,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
           <Field
             as="select"
             name={field.name}
-            className="select w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 cursor-pointer"
+            className="select select-bordered w-full bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 cursor-pointer"
           >
             <option value="">Select {field.label}</option>
             {field.options?.map((option) => (
@@ -143,7 +145,11 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
 
       case "password":
         return (
-          <Field type="password" {...commonProps} autoComplete="new-password" />
+          <CredentialPasswordField
+            name={field.name}
+            placeholder={field.placeholder}
+            className={commonProps.className}
+          />
         );
 
       case "checkbox":
