@@ -162,28 +162,6 @@ function WorkflowsLayout() {
   const [page, setPage] = useState(1);
   const [showExportModal, setShowExportModal] = useState(false);
 
-  // Sayfalama hesaplamaları
-  const totalItems = workflows.length; // Use workflows from the store for total count
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const startIdx = (page - 1) * itemsPerPage;
-  const endIdx = Math.min(startIdx + itemsPerPage, totalItems);
-  const pagedWorkflows = workflows.slice(startIdx, itemsPerPage); // Use workflows from the store for paged data
-
-  useEffect(() => {
-    // Sayfa değişince, eğer mevcut sayfa yeni toplam sayfa sayısından büyükse, son sayfaya çek
-    if (page > totalPages) setPage(totalPages);
-  }, [totalPages, page]);
-
-  useEffect(() => {
-    fetchWorkflows();
-  }, [fetchWorkflows]);
-  // 
-  //   useEffect(() => {
-  //     if (activeTab === "external-workflows") {
-  //       fetchExternalWorkflows();
-  //     }
-  //   }, [activeTab]);
-
   const filteredWorkflows = workflows.filter((workflow) => {
     const matchesSearch =
       workflow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -196,6 +174,30 @@ function WorkflowsLayout() {
 
     return matchesSearch && matchesStatus;
   });
+
+  const totalItems = filteredWorkflows.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const startIdx = (page - 1) * itemsPerPage;
+  const endIdx = Math.min(startIdx + itemsPerPage, totalItems);
+  const pagedWorkflows = filteredWorkflows.slice(startIdx, endIdx);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
+
+  useEffect(() => {
+    fetchWorkflows();
+  }, [fetchWorkflows]);
+  // 
+  //   useEffect(() => {
+  //     if (activeTab === "external-workflows") {
+  //       fetchExternalWorkflows();
+  //     }
+  //   }, [activeTab]);
 
   const handleDelete = async (workflow: Workflow) => {
     setWorkflowToDelete(workflow);
@@ -673,9 +675,7 @@ function WorkflowsLayout() {
                   <EmptyState />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredWorkflows
-                      .slice(startIdx, endIdx)
-                      .map((workflow) => (
+                    {pagedWorkflows.map((workflow) => (
                         <div
                           key={workflow.id}
                           className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group relative overflow-hidden"
