@@ -6,7 +6,7 @@ import logging
 from uuid import UUID
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, or_
 from app.models.chat import ChatMessage
 from app.schemas.chat import ChatMessageCreate, ChatMessageUpdate
 from app.core.encryption import encrypt_data, decrypt_data
@@ -23,14 +23,7 @@ class ChatService:
         self._last_workflow_id = None
     
     async def _execute_workflow(self, user_input: str, chatflow_id: UUID, workflow_id: UUID = None) -> str:
-        """
-        Execute the actual workflow with user input and return LLM response.
-        
-        Args:
-            user_input: The user's input message
-            chatflow_id: The chat flow ID for session management
-            workflow_id: Optional workflow ID to execute a specific workflow from database
-        """
+
         try:
             logger.info("Starting workflow execution", extra={
                 "user_input_length": len(user_input),
@@ -154,9 +147,7 @@ class ChatService:
             return f"I encountered an error while processing your request: {str(e)}"
     
     async def _get_workflow_by_id(self, workflow_id: UUID) -> Optional[Dict[str, Any]]:
-        """
-        Get workflow configuration from database by ID.
-        """
+
         try:
             from app.models.workflow import Workflow
             
@@ -178,10 +169,7 @@ class ChatService:
             return None
     
     async def _get_default_workflow(self) -> Optional[Dict[str, Any]]:
-        """
-        Get a default workflow configuration.
-        In a real implementation, this would fetch from database or configuration.
-        """
+
         try:
             # For now, return a simple test workflow
             # In production, you'd query the database for available workflows
@@ -227,9 +215,7 @@ class ChatService:
             return None
     
     def _encrypt_content(self, content: str) -> str:
-        """
-        Encrypt chat message content and return as base64 string for database storage.
-        """
+
         try:
             encrypted_bytes = encrypt_data(content)
             return base64.b64encode(encrypted_bytes).decode('utf-8')
@@ -237,9 +223,7 @@ class ChatService:
             raise ValueError(f"Failed to encrypt content: {e}")
     
     def _decrypt_content(self, encrypted_content: str) -> str:
-        """
-        Decrypt a base64 encoded encrypted content from database.
-        """
+
         try:
             encrypted_bytes = base64.b64decode(encrypted_content.encode('utf-8'))
             decrypted_data = decrypt_data(encrypted_bytes)
@@ -254,9 +238,7 @@ class ChatService:
             return encrypted_content
     
     def _prepare_message_response(self, message: ChatMessage) -> ChatMessage:
-        """
-        Decrypt the message content for API response.
-        """
+
         if message and message.content:
             message.content = self._decrypt_content(message.content)
         return message
@@ -269,8 +251,8 @@ class ChatService:
             chatflow_id=chat_message.chatflow_id,
             content=encrypted_content,
             source_documents=chat_message.source_documents,
-            user_id=chat_message.user_id,  # user_id ekle
-            workflow_id=chat_message.workflow_id,  # workflow_id ekle
+            user_id=chat_message.user_id,
+            workflow_id=chat_message.workflow_id,
         )
         self.db.add(db_chat_message)
         await self.db.commit()
@@ -280,9 +262,7 @@ class ChatService:
         return self._prepare_message_response(db_chat_message)
 
     async def get_all_chats_grouped(self) -> dict[UUID, list[ChatMessage]]:
-        """
-        Retrieves all chat messages from the database and groups them by chatflow_id.
-        """
+
         stmt = select(ChatMessage).order_by(ChatMessage.chatflow_id, ChatMessage.created_at)
         result = await self.db.execute(stmt)
         all_messages = result.scalars().all()
@@ -296,9 +276,7 @@ class ChatService:
         return grouped_chats
 
     async def get_all_chats_grouped_by_user(self, user_id: UUID) -> dict[UUID, list[ChatMessage]]:
-        """
-        Retrieves all chat messages for a specific user from the database and groups them by chatflow_id.
-        """
+
         stmt = select(ChatMessage).filter(ChatMessage.user_id == user_id).order_by(ChatMessage.chatflow_id, ChatMessage.created_at)
         result = await self.db.execute(stmt)
         all_messages = result.scalars().all()
@@ -311,13 +289,20 @@ class ChatService:
             
         return grouped_chats
 
-    async def get_workflow_chats_grouped_by_user(self, workflow_id: UUID, user_id: UUID) -> dict[UUID, list[ChatMessage]]:
-        """
-        Retrieves all chat messages for a specific workflow and user, grouped by their chatflow_id.
-        """
+    async def get_workflow_chats_grouped_by_user(self, workflow_id: UUID, user_id: UUID, is_builder: bool = False) -> dict[UUID, list[ChatMessage]]:
+
+        if is_builder:
+            filter_cond = ChatMessage.source_documents == "ai_builder"
+        else:
+            filter_cond = or_(
+                ChatMessage.source_documents != "ai_builder",
+                ChatMessage.source_documents.is_(None)
+            )
+
         stmt = select(ChatMessage).filter(
             ChatMessage.workflow_id == workflow_id,
-            ChatMessage.user_id == user_id
+            ChatMessage.user_id == user_id,
+            filter_cond
         ).order_by(ChatMessage.chatflow_id, ChatMessage.created_at)
         
         result = await self.db.execute(stmt)
@@ -432,9 +417,7 @@ class ChatService:
         return True
 
     async def delete_chatflow(self, chatflow_id: UUID, user_id: UUID = None) -> bool:
-        """
-        Deletes all messages for a specific chatflow_id.
-        """
+
         try:
             # Delete all messages for the chatflow_id
             delete_stmt = delete(ChatMessage).where(

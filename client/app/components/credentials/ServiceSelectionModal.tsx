@@ -11,11 +11,13 @@ import type { ServiceDefinition } from "~/types/credentials";
 interface ServiceSelectionModalProps {
   onSelectService: (service: ServiceDefinition) => void;
   onClose: () => void;
+  allowedServiceTypes?: string[];
 }
 
 const ServiceSelectionModal: React.FC<ServiceSelectionModalProps> = ({
   onSelectService,
   onClose,
+  allowedServiceTypes,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -24,6 +26,9 @@ const ServiceSelectionModal: React.FC<ServiceSelectionModalProps> = ({
   const categories = Object.keys(servicesByCategory);
 
   const filteredServices = SERVICE_DEFINITIONS.filter((service) => {
+    if (allowedServiceTypes && !allowedServiceTypes.includes(service.id)) {
+      return false;
+    }
     const matchesSearch =
       service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       service.description.toLowerCase().includes(searchQuery.toLowerCase());

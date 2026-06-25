@@ -71,8 +71,8 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
                 language === "python"
                     ? getVersionSpecificCompletions(pythonVersion)
                     : language === "javascript"
-                      ? getJavaScriptVersionSpecificCompletions(javascriptVersion)
-                      : [];
+                        ? getJavaScriptVersionSpecificCompletions(javascriptVersion)
+                        : [];
 
             const disposable = monacoInstance.languages.registerCompletionItemProvider(language, {
                 provideCompletionItems: (model, position) => {

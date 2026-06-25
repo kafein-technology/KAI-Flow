@@ -85,6 +85,7 @@ export interface WorkflowCreateRequest {
   flow_data: WorkflowData;
   is_public?: boolean;
   error_workflow?: string | null;
+  chatflow_id?: string;
 }
 
 export interface WorkflowUpdateRequest {
