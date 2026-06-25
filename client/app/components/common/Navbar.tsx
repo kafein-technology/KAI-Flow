@@ -73,7 +73,7 @@ const Navbar: React.FC<NavbarProps> = ({
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const widgetExportDialogRef = useRef<HTMLDialogElement>(null);
   const errorWorkflowDialogRef = useRef<HTMLDialogElement>(null);
-  
+
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [errorWorkflowId, setErrorWorkflowId] = useState<string | undefined>(
     () =>
@@ -85,8 +85,8 @@ const Navbar: React.FC<NavbarProps> = ({
   useEffect(() => {
     setErrorWorkflowId(
       currentWorkflow?.error_workflow ||
-        currentWorkflow?.flow_data?.settings?.error_workflow_id ||
-        undefined
+      currentWorkflow?.flow_data?.settings?.error_workflow_id ||
+      undefined
     );
   }, [currentWorkflow]);
 
@@ -166,7 +166,7 @@ const Navbar: React.FC<NavbarProps> = ({
           });
 
           if (onImportStart) onImportStart();
-          
+
           if (currentWorkflow && setCurrentWorkflow) {
             setCurrentWorkflow({
               ...currentWorkflow,
@@ -400,7 +400,7 @@ const Navbar: React.FC<NavbarProps> = ({
                       Load Workflow
                     </button>
                     <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleLoad} />
-                    
+
                     <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center" onClick={handleExport}>
                       <Download className="w-5 h-5" />
                       Export JSON

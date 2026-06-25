@@ -33,6 +33,7 @@ interface ChatBubbleProps {
   isEditing?: boolean;
   onSaveEdit?: (messageId: string, newContent: string) => void;
   onCancelEdit?: () => void;
+  isBuilder?: boolean;
 }
 
 const ChatBubble: React.FC<ChatBubbleProps> = ({
@@ -48,6 +49,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   isEditing,
   onSaveEdit,
   onCancelEdit,
+  isBuilder,
 }) => {
   const { user } = useAuth();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -125,7 +127,9 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         className={`max-w-[calc(100%-3rem)] sm:max-w-[85%] px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg text-sm
         ${
           isUser
-            ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-md border border-blue-400"
+            ? isBuilder
+              ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-br-md border border-purple-400"
+              : "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-md border border-blue-400"
             : "bg-white text-gray-800 rounded-bl-md border border-gray-200"
         }
         relative transition-all duration-200 hover:shadow-xl group`}
@@ -285,7 +289,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                         </div>
                       ) : (
                         <code
-                          className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-sm font-mono border border-blue-200 font-medium"
+                          className={`${isBuilder ? "bg-purple-950/30 text-purple-400 border-purple-500/20" : "bg-blue-50 text-blue-700 border-blue-200"} px-2 py-1 rounded-md text-sm font-mono border font-medium`}
                           {...props}
                         >
                           {children}
@@ -517,7 +521,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover shadow-lg border-2 border-white"
             />
           ) : (
-            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white text-xs sm:text-sm">
+            <div className={`w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br ${isBuilder ? "from-purple-500 to-purple-600" : "from-blue-500 to-blue-600"} rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white text-xs sm:text-sm`}>
               {user?.full_name?.[0]?.toUpperCase() ||
                 userInitial?.toUpperCase() ||
                 "U"}

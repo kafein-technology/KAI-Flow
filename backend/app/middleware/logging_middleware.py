@@ -1,12 +1,3 @@
-"""
-Comprehensive logging middleware for FastAPI applications.
-
-This module provides multiple middleware classes for different aspects of logging:
-- DetailedLoggingMiddleware: Complete request/response logging with timing
-- DatabaseQueryLoggingMiddleware: Database usage tracking per request
-- SecurityLoggingMiddleware: Security event monitoring and suspicious activity detection
-"""
-
 import time
 import uuid
 import json
@@ -28,16 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 class DetailedLoggingMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware for detailed API request/response logging.
-    
-    Logs:
-    - Request method, path, headers, query parameters
-    - Response status, headers, timing
-    - Request/response body (configurable)
-    - Client IP address and user agent
-    - Request ID for correlation
-    """
     
     def __init__(
         self, 
@@ -170,7 +151,6 @@ class DetailedLoggingMiddleware(BaseHTTPMiddleware):
             raise
     
     def _extract_client_ip(self, request: Request) -> str:
-        """Extract client IP address, considering proxy headers."""
         # Check X-Forwarded-For header (proxy)
         forwarded_for = request.headers.get("x-forwarded-for")
         if forwarded_for:
@@ -189,7 +169,6 @@ class DetailedLoggingMiddleware(BaseHTTPMiddleware):
         return "unknown"
     
     def _sanitize_headers(self, headers: Dict[str, str]) -> Dict[str, str]:
-        """Sanitize headers by removing sensitive information."""
         sensitive_headers = {
             "authorization", "cookie", "x-api-key", "x-auth-token",
             "x-csrf-token", "x-access-token", "x-refresh-token"
@@ -206,11 +185,6 @@ class DetailedLoggingMiddleware(BaseHTTPMiddleware):
 
 
 class DatabaseQueryLoggingMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware for tracking database usage per request.
-    
-    Logs database statistics and query counts for each API request.
-    """
     
     def __init__(self, app: ASGIApp):
         super().__init__(app)
@@ -250,17 +224,6 @@ class DatabaseQueryLoggingMiddleware(BaseHTTPMiddleware):
 
 
 class SecurityLoggingMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware for security event monitoring and suspicious activity detection.
-    
-    Monitors for:
-    - SQL injection attempts
-    - XSS attempts
-    - Path traversal attempts
-    - Suspicious user agents
-    - Rate limiting violations
-    - Authentication failures
-    """
     
     def __init__(
         self, 
@@ -322,7 +285,8 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
                 f"/{API_START}/{API_VERSION}/webhook/",
                 f"/{API_START}/{API_VERSION}/webhook-test/",
                 f"/{API_START}/{API_VERSION}/nodes/",
-                f"/{API_START}/{API_VERSION}/workflows/"
+                f"/{API_START}/{API_VERSION}/workflows/",
+                f"/{API_START}/{API_VERSION}/ai-builder/"
             ]
             
             should_detect = True
@@ -365,7 +329,6 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         user_agent: str, 
         request_id: str
     ):
-        """Detect and log suspicious activity patterns."""
         suspicious_events = []
         
         # Check user agent
@@ -444,7 +407,6 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
             )
     
     def _log_security_headers(self, request: Request, request_id: str):
-        """Log security-relevant headers."""
         security_headers = {
             "x-forwarded-for", "x-real-ip", "x-forwarded-proto",
             "authorization", "cookie", "x-api-key", "x-csrf-token",
@@ -464,7 +426,6 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
             })
     
     def _extract_client_ip(self, request: Request) -> str:
-        """Extract client IP address, considering proxy headers."""
         # Check X-Forwarded-For header (proxy)
         forwarded_for = request.headers.get("x-forwarded-for")
         if forwarded_for:

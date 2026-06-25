@@ -17,6 +17,7 @@ interface CredentialSelectorProps {
   onChange: (credentialId: string) => void;
   onCredentialLoad?: (credential: any) => void;
   serviceType?: string; // Optional: filter credentials by service type
+  allowedServiceTypes?: string[]; // Optional: filter credentials by multiple service types
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -29,6 +30,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
   onChange,
   onCredentialLoad,
   serviceType,
+  allowedServiceTypes,
   placeholder = "Select API Key",
   disabled = false,
   className = "",
@@ -70,7 +72,9 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
   }, [fetchCredentials]);
 
   // Filter credentials by service type if specified
-  const filteredCredentials = serviceType
+  const filteredCredentials = allowedServiceTypes
+    ? userCredentials.filter((cred) => allowedServiceTypes.includes(cred.service_type))
+    : serviceType
     ? userCredentials.filter((cred) => {
         if (cred.service_type === serviceType) return true;
         if (includeGenericFallback && cred.service_type === "generic_api") {
@@ -317,6 +321,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
         createPortal(
           <div className="z-[9999]">
             <ServiceSelectionModal
+              allowedServiceTypes={allowedServiceTypes}
               onSelectService={handleServiceSelect}
               onClose={() => setShowServiceSelection(false)}
             />

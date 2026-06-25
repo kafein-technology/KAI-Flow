@@ -112,8 +112,8 @@ export const API_ENDPOINTS = {
     GET_CUSTOM: (id: string) => `/nodes/custom/${id}`,
   },
   CHAT: {
-    LIST: '/chat', // Tüm chatleri getir
-    CREATE: '/chat', // Yeni chat başlat
+    LIST: '/chat', // Get all chats
+    CREATE: '/chat', // Start new chat
     GET: (chatflow_id: string) => `/chat/${chatflow_id}`,
     INTERACT: (chatflow_id: string) => `/chat/${chatflow_id}/interact`,
     UPDATE: (chat_message_id: string) => `/chat/${chat_message_id}`,
@@ -141,6 +141,9 @@ export const API_ENDPOINTS = {
     WORKFLOWS: '/export/workflows',
     WORKFLOW_INIT: (id: string) => `/export/workflow/${id}/init`,
     WORKFLOW_COMPLETE: (id: string) => `/export/workflow/${id}/complete`,
+  },
+  AI_BUILDER: {
+    GENERATE: '/ai-builder/generate',
   },
   HEALTH: '/health',
   INFO: '/info',

@@ -8,22 +8,29 @@ import { executeWorkflowStream } from '../services/executionService';
 interface ChatStore {
   chats: Record<string, ChatMessage[]>;
   activeChatflowId: string | null;
+  builderChats: Record<string, ChatMessage[]>;
+  activeBuilderChatflowId: string | null;
   loading: boolean;
-  thinking: boolean; // Yeni thinking state'i
+  thinking: boolean; // New thinking state
   error: string | null;
   fetchAllChats: () => Promise<void>;
-  fetchWorkflowChats: (workflow_id: string) => Promise<void>;
+  fetchWorkflowChats: (workflow_id: string, isBuilder?: boolean) => Promise<void>;
+  fetchWorkflowBuilderChats: (workflow_id: string) => Promise<void>;
   startNewChat: (content: string, workflow_id: string) => Promise<void>;
   fetchChatMessages: (chatflow_id: string) => Promise<void>;
+  fetchBuilderChatMessages: (chatflow_id: string) => Promise<void>;
   interactWithChat: (chatflow_id: string, content: string, workflow_id: string) => Promise<void>;
   setActiveChatflowId: (chatflow_id: string | null) => void;
+  setActiveBuilderChatflowId: (chatflow_id: string | null) => void;
   setLoading: (loading: boolean) => void;
-  setThinking: (thinking: boolean) => void; // Yeni setter
+  setThinking: (thinking: boolean) => void; // New setter
   setError: (error: string | null) => void;
   addMessage: (chatflow_id: string, message: ChatMessage) => void;
+  addBuilderMessage: (chatflow_id: string, message: ChatMessage) => void;
   updateMessage: (chatflow_id: string, message: ChatMessage) => void;
   removeMessage: (chatflow_id: string, message_id: string) => void;
   clearMessages: (chatflow_id: string) => Promise<void>;
+  clearBuilderMessages: (chatflow_id: string) => Promise<void>;
   clearAllChats: () => void;
   loadChatHistory: () => Promise<void>;
   // LLM entegrasyonu:
@@ -307,6 +314,8 @@ const executeWorkflowWithStreaming = async (
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
   activeChatflowId: null,
+  builderChats: {},
+  activeBuilderChatflowId: null,
   loading: false,
   thinking: false, // Initialize thinking state
   error: null,
@@ -321,21 +330,34 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         loading: false,
       }));
     } catch (e: any) {
-      set({ error: e.message || 'Chat geçmişi yüklenemedi', loading: false });
+      set({ error: e.message || 'Failed to load chat history', loading: false });
     }
   },
 
-  fetchWorkflowChats: async (workflow_id: string) => {
+  fetchWorkflowChats: async (workflow_id: string, isBuilder?: boolean) => {
     set({ loading: true, error: null });
     try {
-      const workflowChats = await chatService.getWorkflowChats(workflow_id);
+      const workflowChats = await chatService.getWorkflowChats(workflow_id, isBuilder);
       // Replace chats state entirely with workflow-specific chats instead of merging
       set((state) => ({
         chats: workflowChats,
         loading: false,
       }));
     } catch (e: any) {
-      set({ error: e.message || 'Workflow chat geçmişi yüklenemedi', loading: false });
+      set({ error: e.message || 'Failed to load workflow chat history', loading: false });
+    }
+  },
+
+  fetchWorkflowBuilderChats: async (workflow_id: string) => {
+    set({ loading: true, error: null });
+    try {
+      const workflowChats = await chatService.getWorkflowChats(workflow_id, true);
+      set((state) => ({
+        builderChats: workflowChats,
+        loading: false,
+      }));
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to load workflow builder chat history', loading: false });
     }
   },
 
@@ -349,7 +371,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         loading: false,
       }));
     } catch (e: any) {
-      set({ error: e.message || 'Chat geçmişi yüklenemedi', loading: false });
+      set({ error: e.message || 'Failed to load chat history', loading: false });
     }
   },
 
@@ -366,7 +388,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }));
       }
     } catch (e: any) {
-      set({ error: e.message || 'Yeni chat başlatılamadı', loading: false });
+      set({ error: e.message || 'Failed to start a new chat', loading: false });
     }
   },
 
@@ -383,7 +405,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         };
       });
     } catch (e: any) {
-      set({ error: e.message || 'Mesajlar alınamadı', loading: false });
+      set({ error: e.message || 'Failed to retrieve messages', loading: false });
+    }
+  },
+
+  fetchBuilderChatMessages: async (chatflow_id) => {
+    set({ loading: true, error: null });
+    try {
+      const messages = await chatService.getChatMessages(chatflow_id);
+      set((state) => ({
+        builderChats: { ...state.builderChats, [chatflow_id]: messages },
+        loading: false,
+      }));
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to fetch builder messages', loading: false });
     }
   },
 
@@ -396,11 +431,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         loading: false,
       }));
     } catch (e: any) {
-      set({ error: e.message || 'Mesaj gönderilemedi', loading: false });
+      set({ error: e.message || 'Failed to send message', loading: false });
     }
   },
 
   setActiveChatflowId: (chatflow_id) => set({ activeChatflowId: chatflow_id }),
+  setActiveBuilderChatflowId: (chatflow_id) => set({ activeBuilderChatflowId: chatflow_id }),
   setLoading: (loading) => set({ loading }),
   setThinking: (thinking) => set({ thinking }), // Add setThinking
   setError: (error) => set({ error }),
@@ -418,6 +454,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return {
         chats: {
           ...state.chats,
+          [chatflow_id]: [...existingMessages, message],
+        },
+      };
+    }),
+
+  addBuilderMessage: (chatflow_id, message) =>
+    set((state) => {
+      const existingMessages = state.builderChats[chatflow_id] || [];
+      const existingIds = new Set(existingMessages.map(m => m.id));
+
+      if (existingIds.has(message.id)) {
+        return state;
+      }
+
+      return {
+        builderChats: {
+          ...state.builderChats,
           [chatflow_id]: [...existingMessages, message],
         },
       };
@@ -443,10 +496,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   clearMessages: async (chatflow_id: string) => {
     try {
-      // Backend'e silme isteği gönder
+      // Send delete request to backend
       await chatService.deleteChatflow(chatflow_id);
 
-      // Local state'den de sil
+      // Also delete from local state
       set((state) => {
         const newChats = { ...state.chats };
         delete newChats[chatflow_id];
@@ -456,17 +509,37 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         };
       });
     } catch (error) {
-      console.error('Chat silinirken hata oluştu:', error);
-      // Hata durumunda local state'den silme işlemini geri al
+      console.error('Error occurred while deleting chat:', error);
+      // In case of error, revert local delete
+      throw error;
+    }
+  },
+
+  clearBuilderMessages: async (chatflow_id: string) => {
+    try {
+      // Send delete request to backend
+      await chatService.deleteChatflow(chatflow_id);
+
+      // Also delete from local state
+      set((state) => {
+        const newBuilderChats = { ...state.builderChats };
+        delete newBuilderChats[chatflow_id];
+        return {
+          builderChats: newBuilderChats,
+          activeBuilderChatflowId: state.activeBuilderChatflowId === chatflow_id ? null : state.activeBuilderChatflowId,
+        };
+      });
+    } catch (error) {
+      console.error('Error occurred while deleting builder chat:', error);
       throw error;
     }
   },
 
   clearAllChats: () => set({ chats: {} }),
 
-  // LLM entegrasyonu:
+  // LLM integration:
   startLLMChat: async (flow_data, input_text, workflow_id) => {
-    set({ loading: true, thinking: true, error: null }); // thinking'i true yap
+    set({ loading: true, thinking: true, error: null }); // Set thinking to true
 
     // Use existing activeChatflowId or generate new one
     let chatflow_id = get().activeChatflowId;
@@ -491,14 +564,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // Fetch only new messages (agent responses) instead of all messages
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
-      set({ error: e.message || 'LLM ile konuşma başlatılamadı' });
+      set({ error: e.message || 'Failed to start LLM conversation' });
     } finally {
-      set({ loading: false, thinking: false }); // thinking'i false yap
+      set({ loading: false, thinking: false }); // Set thinking to false
     }
   },
 
   sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
-    set({ loading: true, thinking: true, error: null }); // thinking'i true yap
+    set({ loading: true, thinking: true, error: null }); // Set thinking to true
 
     // Always add new user message immediately for UI responsiveness
     const userMessage: ChatMessage = {
@@ -516,24 +589,24 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // Note: Streaming execution saves messages to backend, so fetch to get the assistant response
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
-      set({ error: e.message || 'Mesaj gönderilemedi' });
+      set({ error: e.message || 'Failed to send message' });
     } finally {
-      set({ loading: false, thinking: false }); // thinking'i false yap
+      set({ loading: false, thinking: false }); // Set thinking to false
     }
   },
 
   // New function specifically for handling edited messages
   sendEditedMessage: async (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => {
-    set({ loading: true, thinking: true, error: null }); // thinking'i true yap
+    set({ loading: true, thinking: true, error: null }); // Set thinking to true
 
     try {
       await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
       // Fetch only new messages (agent responses) instead of all messages
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
-      set({ error: e.message || 'Düzenlenen mesaj gönderilemedi' });
+      set({ error: e.message || 'Failed to send edited message' });
     } finally {
-      set({ loading: false, thinking: false }); // thinking'i false yap
+      set({ loading: false, thinking: false }); // Set thinking to false
     }
   },
 })); 

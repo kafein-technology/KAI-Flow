@@ -38,7 +38,6 @@ type NodeStatus = "success" | "failed" | "pending";
 
 import { Loader } from "lucide-react";
 import ChatComponent from "./ChatComponent";
-import ChatHistorySidebar from "./ChatHistorySidebar";
 import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
@@ -475,13 +474,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       try {
         // Fetch current status from database
         const execution = await getExecution(currentExecution.id);
-        
+
         if (execution && (execution.status === "cancelled" || execution.status === "failed" || execution.status === "completed")) {
           console.log(`[FlowCanvas] Polled execution ${execution.id} status changed to: ${execution.status}`);
-          
+
           // Update store
           setCurrentExecutionForWorkflow(currentWorkflow.id, normalizeExecutionForCanvas(execution, nodes));
-          
+
           // Clear active node and edge highlights
           setActiveEdges([]);
           setActiveNodes([]);
@@ -510,7 +509,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     const structureChanged =
       previousStructureRef.current.nodeIds.length > 0 && // Only after initial load
       (JSON.stringify(previousStructureRef.current.nodeIds) !== JSON.stringify(nodeIds) ||
-       JSON.stringify(previousStructureRef.current.edgeConnections) !== JSON.stringify(edgeConnections));
+        JSON.stringify(previousStructureRef.current.edgeConnections) !== JSON.stringify(edgeConnections));
 
     if (structureChanged && currentWorkflow?.id) {
       console.log("Workflow structure changed. Keeping current execution data intact.");
@@ -589,12 +588,12 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     fetchChatMessages,
     fetchWorkflowChats,
     clearAllChats,
+    activeBuilderChatflowId,
   } = useChatStore();
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
 
   // Enhanced error handling state
   const [detailedExecutionError, setDetailedExecutionError] = useState<{
@@ -978,6 +977,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           name: workflowName,
           description: "",
           flow_data: flowData,
+          chatflow_id: activeBuilderChatflowId || undefined,
         });
 
         if (!newWorkflow || !newWorkflow.id) {
@@ -1189,7 +1189,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         // Reset previous statuses
         setNodeStatus({});
         setEdgeStatus({});
-        
+
         let lastExecutionId: string | null = null;
 
         // Set execution status to pending in store to show Cancel button immediately
@@ -1256,20 +1256,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               try {
                 const evt = JSON.parse(jsonStr);
                 if (evt.execution_id) {
-                   lastExecutionId = evt.execution_id;
-                   if (!activeExecutionId) {
-                     setActiveExecutionId(evt.execution_id);
-                   }
-                   const currentExec = getCurrentExecutionForWorkflow(currentWorkflow.id);
-                   if (!currentExec || currentExec.id !== evt.execution_id || currentExec.status !== "running") {
-                     setCurrentExecutionForWorkflow(currentWorkflow.id, {
-                       id: evt.execution_id,
-                       workflow_id: currentWorkflow.id,
-                       status: "running",
-                       started_at: new Date().toISOString(),
-                     } as any);
-                   }
-                 }
+                  lastExecutionId = evt.execution_id;
+                  if (!activeExecutionId) {
+                    setActiveExecutionId(evt.execution_id);
+                  }
+                  const currentExec = getCurrentExecutionForWorkflow(currentWorkflow.id);
+                  if (!currentExec || currentExec.id !== evt.execution_id || currentExec.status !== "running") {
+                    setCurrentExecutionForWorkflow(currentWorkflow.id, {
+                      id: evt.execution_id,
+                      workflow_id: currentWorkflow.id,
+                      status: "running",
+                      started_at: new Date().toISOString(),
+                    } as any);
+                  }
+                }
                 const t = evt.type as string | undefined;
                 if (t === "node_start") {
                   const nid = String(evt.node_id || "");
@@ -1409,7 +1409,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               try {
                 reader.releaseLock();
               } catch { }
-              
+
               const execIdToFetch = lastExecutionId;
               setActiveExecutionId(null);
               activeReaderRef.current = null;
@@ -1698,19 +1698,77 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setActiveChatflowId(null);
   };
 
-  const handleShowHistory = () => {
-    setChatHistoryOpen(true);
-  };
+  const handleFlowGenerated = useCallback(
+    (flowData: WorkflowData) => {
+      const allMetadata = [...(availableNodes || []), ...(customNodes || [])];
+      const enrichedNodes: Node[] = [];
 
-  const handleSelectChat = (chatflowId: string) => {
-    if (chatflowId === "") {
-      // New chat
-      setActiveChatflowId(null);
-    } else {
-      // Select existing chat
-      setActiveChatflowId(chatflowId);
-    }
-  };
+      for (const [index, node] of (flowData.nodes || []).entries()) {
+        const nodeType = node.type || "GenericNode";
+        const metadata = allMetadata.find(
+          (m) => m.name === nodeType || (m as any).id === nodeType
+        ) as any;
+        const data = node.data || {};
+
+        enrichedNodes.push({
+          ...node,
+          id: node.id || `${nodeType}__${uuidv4()}`,
+          type: nodeType,
+          position: node.position || {
+            x: 100 + (index % 4) * 280,
+            y: 120 + Math.floor(index / 4) * 180,
+          },
+          data: {
+            ...data,
+            name:
+              data.name ||
+              (nodeType === "StartNode"
+                ? "Start"
+                : nodeType === "EndNode"
+                  ? "End"
+                  : generateUniqueNodeName(
+                    metadata?.display_name || nodeType,
+                    nodeType,
+                    enrichedNodes
+                  )),
+            metadata,
+            icon: metadata?.icon,
+            description: metadata?.description,
+            displayName: metadata?.display_name,
+            inputs: metadata?.inputs,
+            outputs: metadata?.outputs,
+          },
+        } as Node);
+      }
+
+      const nodeIds = new Set(enrichedNodes.map((node) => node.id));
+      const enrichedEdges = (flowData.edges || [])
+        .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+        .map((edge, index) => ({
+          ...edge,
+          id:
+            edge.id ||
+            `${edge.source}-${edge.sourceHandle || "out"}-${edge.target}-${edge.targetHandle || "in"}-${index}`,
+          type: edge.type || "custom",
+        })) as Edge[];
+
+      setNodes(enrichedNodes);
+      setEdges(enrichedEdges);
+      setNodeStatus({});
+      setEdgeStatus({});
+      setHasUnsavedChanges(true);
+      enqueueSnackbar("KAI Assistant workflow applied to canvas", { variant: "success" });
+    },
+    [
+      availableNodes,
+      customNodes,
+      enqueueSnackbar,
+      generateUniqueNodeName,
+      setEdges,
+      setHasUnsavedChanges,
+      setNodes,
+    ]
+  );
 
   // Handle node click for fullscreen modal
   const handleNodeClick = useCallback(
@@ -1894,7 +1952,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             setChatInput={setChatInput}
             onSendMessage={handleSendMessage}
             onClearChat={handleClearChat}
-            onShowHistory={handleShowHistory}
             activeChatflowId={activeChatflowId}
             currentWorkflow={currentWorkflow}
             flowData={{
@@ -1902,16 +1959,12 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               edges: edges as WorkflowEdge[],
             }}
             chatThinking={chatThinking}
+            onFlowGenerated={handleFlowGenerated}
+            currentNodes={nodes}
+            currentEdges={edges}
           />
 
-          {/* Chat History Sidebar */}
-          <ChatHistorySidebar
-            isOpen={chatHistoryOpen}
-            onClose={() => setChatHistoryOpen(false)}
-            onSelectChat={handleSelectChat}
-            activeChatflowId={activeChatflowId}
-            workflow_id={currentWorkflow?.id}
-          />
+
 
 
 
@@ -2907,370 +2960,370 @@ function useKafkaExecutionListener(
     prevDeps.current = { kafkaNodeKey, currentWorkflowId };
   }, [kafkaNodeKey, currentWorkflowId]);
 
-    useEffect(() => {
-      const nodes = nodesRef.current || [];
-      const edges = edgesRef.current || [];
-      const kafkaNodes = nodes.filter(
-        (node) => node.type === "KafkaConsumer" || node.type === "KafkaTrigger"
-      );
+  useEffect(() => {
+    const nodes = nodesRef.current || [];
+    const edges = edgesRef.current || [];
+    const kafkaNodes = nodes.filter(
+      (node) => node.type === "KafkaConsumer" || node.type === "KafkaTrigger"
+    );
 
-      console.log("[KafkaListener] Hook useEffect triggered. kafkaNodes found:", kafkaNodes.map((n) => n.id));
+    console.log("[KafkaListener] Hook useEffect triggered. kafkaNodes found:", kafkaNodes.map((n) => n.id));
 
-      if (kafkaNodes.length === 0) return;
+    if (kafkaNodes.length === 0) return;
 
-      const eventSources: EventSource[] = [];
-      const executionData = new Map<string, {
-        executionId: string;
-        nodeOutputs: Record<string, any>;
-        executedNodes: string[];
-        sessionId?: string;
-        result?: any;
-        startedAt: string;
-        completedAt?: string;
-      }>();
-      const retryCounts = new Map<string, number>();
-      const MAX_RETRIES = 5;
-      const INITIAL_RETRY_DELAY = 1000;
+    const eventSources: EventSource[] = [];
+    const executionData = new Map<string, {
+      executionId: string;
+      nodeOutputs: Record<string, any>;
+      executedNodes: string[];
+      sessionId?: string;
+      result?: any;
+      startedAt: string;
+      completedAt?: string;
+    }>();
+    const retryCounts = new Map<string, number>();
+    const MAX_RETRIES = 5;
+    const INITIAL_RETRY_DELAY = 1000;
 
-      // Fallback completion timer
-      let fallbackTimeout: NodeJS.Timeout | null = null;
-      const clearFallbackTimeout = () => {
-        if (fallbackTimeout) {
-          clearTimeout(fallbackTimeout);
-          fallbackTimeout = null;
-        }
-      };
-
-      // Get base URL with fallback to prevent 'undefined/api/...' URLs
-      let baseUrl = config.API_BASE_URL;
-      if (!baseUrl && typeof window !== 'undefined') {
-        baseUrl = window.location.origin;
-        console.log(`[KafkaListener] config.API_BASE_URL is empty for Kafka, using window.location.origin as fallback: ${baseUrl}`);
+    // Fallback completion timer
+    let fallbackTimeout: NodeJS.Timeout | null = null;
+    const clearFallbackTimeout = () => {
+      if (fallbackTimeout) {
+        clearTimeout(fallbackTimeout);
+        fallbackTimeout = null;
       }
+    };
 
-      kafkaNodes.forEach((node) => {
-        const listenerId = node.id;
-        const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/kafka/listeners/${listenerId}/stream`;
-        console.log(`[KafkaListener] Connecting to Kafka EventSource at: ${streamUrl}`);
+    // Get base URL with fallback to prevent 'undefined/api/...' URLs
+    let baseUrl = config.API_BASE_URL;
+    if (!baseUrl && typeof window !== 'undefined') {
+      baseUrl = window.location.origin;
+      console.log(`[KafkaListener] config.API_BASE_URL is empty for Kafka, using window.location.origin as fallback: ${baseUrl}`);
+    }
 
-        try {
-          const eventSource = new EventSource(streamUrl);
+    kafkaNodes.forEach((node) => {
+      const listenerId = node.id;
+      const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/kafka/listeners/${listenerId}/stream`;
+      console.log(`[KafkaListener] Connecting to Kafka EventSource at: ${streamUrl}`);
 
-          eventSource.onerror = (error) => {
-            const retryCount = retryCounts.get(listenerId) || 0;
+      try {
+        const eventSource = new EventSource(streamUrl);
 
-            if (retryCount < MAX_RETRIES) {
-              const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
-              console.warn(
-                `[KafkaListener] Kafka stream error for ${listenerId} at URL: ${streamUrl} (readyState: ${eventSource.readyState}). Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
-              );
+        eventSource.onerror = (error) => {
+          const retryCount = retryCounts.get(listenerId) || 0;
 
-              retryCounts.set(listenerId, retryCount + 1);
+          if (retryCount < MAX_RETRIES) {
+            const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
+            console.warn(
+              `[KafkaListener] Kafka stream error for ${listenerId} at URL: ${streamUrl} (readyState: ${eventSource.readyState}). Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+            );
 
-              // Close and reconnect after delay
-              setTimeout(() => {
-                eventSource.close();
-              }, delay);
-            } else {
-              console.error(
-                `[KafkaListener] Kafka stream error for ${listenerId} at URL: ${streamUrl}. Max retries reached. ReadyState: ${eventSource.readyState}. Connection failed.`,
-                error
-              );
-              retryCounts.delete(listenerId);
+            retryCounts.set(listenerId, retryCount + 1);
+
+            // Close and reconnect after delay
+            setTimeout(() => {
+              eventSource.close();
+            }, delay);
+          } else {
+            console.error(
+              `[KafkaListener] Kafka stream error for ${listenerId} at URL: ${streamUrl}. Max retries reached. ReadyState: ${eventSource.readyState}. Connection failed.`,
+              error
+            );
+            retryCounts.delete(listenerId);
+          }
+        };
+
+        eventSource.onmessage = (event) => {
+          try {
+            const currentNodes = nodesRef.current || [];
+            const currentEdges = edgesRef.current || [];
+            console.log("[KafkaListener] Received raw message:", event.data);
+            const data = JSON.parse(event.data);
+            if (data.type === "connected" || data.type === "ping") {
+              console.log("[KafkaListener] Connected or ping event received:", data.type);
+              return;
             }
-          };
+            if (data.type !== "kafka_execution_event" || !data.event) return;
 
-          eventSource.onmessage = (event) => {
-            try {
-              const currentNodes = nodesRef.current || [];
-              const currentEdges = edgesRef.current || [];
-              console.log("[KafkaListener] Received raw message:", event.data);
-              const data = JSON.parse(event.data);
-              if (data.type === "connected" || data.type === "ping") {
-                console.log("[KafkaListener] Connected or ping event received:", data.type);
-                return;
-              }
-              if (data.type !== "kafka_execution_event" || !data.event) return;
+            const executionEvent = data.event;
+            const eventType = executionEvent.type || executionEvent.event;
+            const nodeId = executionEvent.node_id;
+            const executionId = data.execution_id || "unknown";
 
-              const executionEvent = data.event;
-              const eventType = executionEvent.type || executionEvent.event;
-              const nodeId = executionEvent.node_id;
-              const executionId = data.execution_id || "unknown";
+            console.log("[KafkaListener] Processing event:", { type: eventType, nodeId, executionId });
 
-              console.log("[KafkaListener] Processing event:", { type: eventType, nodeId, executionId });
+            if (!executionData.has(executionId)) {
+              console.log("[KafkaListener] New execution started. Clearing active canvas states. executionId:", executionId);
+              clearFallbackTimeout();
 
-              if (!executionData.has(executionId)) {
-                console.log("[KafkaListener] New execution started. Clearing active canvas states. executionId:", executionId);
-                clearFallbackTimeout();
+              // Clear previous run statuses on new execution
+              setNodeStatus({});
+              setEdgeStatus({});
+              setActiveEdges([]);
+              setActiveNodes([]);
 
-                // Clear previous run statuses on new execution
-                setNodeStatus({});
-                setEdgeStatus({});
-                setActiveEdges([]);
-                setActiveNodes([]);
+              executionData.set(executionId, {
+                executionId,
+                nodeOutputs: {},
+                executedNodes: [],
+                startedAt: data.timestamp || new Date().toISOString(),
+              });
 
-                executionData.set(executionId, {
-                  executionId,
-                  nodeOutputs: {},
-                  executedNodes: [],
-                  startedAt: data.timestamp || new Date().toISOString(),
-                });
-
-                // Clear / initialize execution in store immediately
-                if (currentWorkflowId && setCurrentExecutionForWorkflow) {
-                  setCurrentExecutionForWorkflow(currentWorkflowId, {
-                    id: executionId,
-                    workflow_id: currentWorkflowId,
-                    input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
-                    result: {
-                      result: "",
-                      executed_nodes: [],
-                      node_outputs: {},
-                      status: "running" as const,
-                    },
-                    started_at: data.timestamp || new Date().toISOString(),
+              // Clear / initialize execution in store immediately
+              if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                setCurrentExecutionForWorkflow(currentWorkflowId, {
+                  id: executionId,
+                  workflow_id: currentWorkflowId,
+                  input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                  result: {
+                    result: "",
+                    executed_nodes: [],
+                    node_outputs: {},
                     status: "running" as const,
-                  });
-                }
+                  },
+                  started_at: data.timestamp || new Date().toISOString(),
+                  status: "running" as const,
+                });
+              }
+            }
+
+            const execData = executionData.get(executionId)!;
+
+            if (eventType === "node_start" && nodeId) {
+              const actualNode = findCanvasNode(currentNodes, nodeId);
+              const targetId = actualNode ? actualNode.id : nodeId;
+
+              if (!execData.executedNodes.includes(targetId)) {
+                execData.executedNodes.push(targetId);
               }
 
-              const execData = executionData.get(executionId)!;
-
-              if (eventType === "node_start" && nodeId) {
-                const actualNode = findCanvasNode(currentNodes, nodeId);
-                const targetId = actualNode ? actualNode.id : nodeId;
-
-                if (!execData.executedNodes.includes(targetId)) {
-                  execData.executedNodes.push(targetId);
-                }
-
-                console.log("[KafkaListener] node_start details:", { nodeId, actualNodeId: actualNode?.id });
-                if (actualNode) {
-                  const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
-                  console.log("[KafkaListener] Activating node_start in UI for:", actualNode.id, "active edges:", activeFlowEdges.map(e => e.id));
-                  setActiveNodes([actualNode.id]);
-                  setNodeStatus((prev) => ({ ...prev, [actualNode.id]: "pending" }));
-                  setActiveEdges(activeFlowEdges.map((edge) => edge.id));
-                  setEdgeStatus((prev) => ({
-                    ...prev,
-                    ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, "pending" as const])),
-                  }));
-                }
+              console.log("[KafkaListener] node_start details:", { nodeId, actualNodeId: actualNode?.id });
+              if (actualNode) {
+                const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
+                console.log("[KafkaListener] Activating node_start in UI for:", actualNode.id, "active edges:", activeFlowEdges.map(e => e.id));
+                setActiveNodes([actualNode.id]);
+                setNodeStatus((prev) => ({ ...prev, [actualNode.id]: "pending" }));
+                setActiveEdges(activeFlowEdges.map((edge) => edge.id));
+                setEdgeStatus((prev) => ({
+                  ...prev,
+                  ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, "pending" as const])),
+                }));
               }
+            }
 
-              if (eventType === "node_end" && nodeId) {
-                const actualNode = findCanvasNode(currentNodes, nodeId);
-                const targetId = actualNode ? actualNode.id : nodeId;
+            if (eventType === "node_end" && nodeId) {
+              const actualNode = findCanvasNode(currentNodes, nodeId);
+              const targetId = actualNode ? actualNode.id : nodeId;
 
-                execData.nodeOutputs[targetId] = {
-                  ...(execData.nodeOutputs[targetId] || {}),
-                  output: executionEvent.output || executionEvent.result,
-                  outputs: executionEvent.output || executionEvent.result,
-                  status: executionEvent.error ? "failed" : "completed",
-                };
+              execData.nodeOutputs[targetId] = {
+                ...(execData.nodeOutputs[targetId] || {}),
+                output: executionEvent.output || executionEvent.result,
+                outputs: executionEvent.output || executionEvent.result,
+                status: executionEvent.error ? "failed" : "completed",
+              };
 
-                console.log("[KafkaListener] node_end details:", { nodeId, actualNodeId: actualNode?.id });
-                if (actualNode) {
-                  const isError = executionEvent.error || executionEvent.status === "error";
-                  console.log("[KafkaListener] Activating node_end in UI for:", actualNode.id, "status:", isError ? "failed" : "success");
+              console.log("[KafkaListener] node_end details:", { nodeId, actualNodeId: actualNode?.id });
+              if (actualNode) {
+                const isError = executionEvent.error || executionEvent.status === "error";
+                console.log("[KafkaListener] Activating node_end in UI for:", actualNode.id, "status:", isError ? "failed" : "success");
 
-                  // Handle error for snackbar notification
-                  if (isError) {
-                    window.dispatchEvent(
-                      new CustomEvent("chat-execution-error", {
-                        detail: {
-                          error: executionEvent.error || `Node ${nodeId} failed`,
-                          message: executionEvent.error || `Node ${nodeId} failed`,
-                          type: executionEvent.error_type || "execution",
-                          nodeId: actualNode.id,
-                          nodeType: actualNode.type,
-                          stackTrace: executionEvent.stack_trace,
-                        },
-                      })
-                    );
-                  }
-
-                  const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
-                  console.log("[KafkaListener] Incoming edges resolved for node_end:", activeFlowEdges.map(e => e.id));
-                  setNodeStatus((prev) => ({ ...prev, [actualNode.id]: isError ? "failed" : "success" }));
-                  setEdgeStatus((prev) => ({
-                    ...prev,
-                    ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, isError ? "failed" as const : "success" as const])),
-                  }));
-
-                  // Incrementally update execution in store
-                  if (currentWorkflowId && setCurrentExecutionForWorkflow) {
-                    setCurrentExecutionForWorkflow(currentWorkflowId, {
-                      id: executionId,
-                      workflow_id: currentWorkflowId,
-                      input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
-                      result: {
-                        result: execData.result || "",
-                        executed_nodes: execData.executedNodes,
-                        node_outputs: execData.nodeOutputs,
-                        session_id: execData.sessionId,
-                        status: isError ? "failed" as const : "running" as const,
+                // Handle error for snackbar notification
+                if (isError) {
+                  window.dispatchEvent(
+                    new CustomEvent("chat-execution-error", {
+                      detail: {
+                        error: executionEvent.error || `Node ${nodeId} failed`,
+                        message: executionEvent.error || `Node ${nodeId} failed`,
+                        type: executionEvent.error_type || "execution",
+                        nodeId: actualNode.id,
+                        nodeType: actualNode.type,
+                        stackTrace: executionEvent.stack_trace,
                       },
-                      started_at: execData.startedAt,
-                      status: isError ? "failed" as const : "running" as const,
-                    });
-                  }
-
-                  // Fallback completion timer for final node
-                  if (!isError && isFinalWorkflowNode(actualNode.id, currentNodes, currentEdges)) {
-                    console.log("[KafkaListener] Final node reached:", actualNode.id, ". Setting 2000ms fallback complete timer.");
-                    clearFallbackTimeout();
-                    fallbackTimeout = setTimeout(() => {
-                      console.warn("[KafkaListener] Fallback: complete event not received. Resetting active states.");
-                      setActiveEdges([]);
-                      setActiveNodes([]);
-
-                      // Mark as completed in store
-                      if (currentWorkflowId && setCurrentExecutionForWorkflow) {
-                        setCurrentExecutionForWorkflow(currentWorkflowId, {
-                          id: executionId,
-                          workflow_id: currentWorkflowId,
-                          input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
-                          result: {
-                            result: execData.result || "Completed via fallback",
-                            executed_nodes: execData.executedNodes,
-                            node_outputs: execData.nodeOutputs,
-                            session_id: execData.sessionId,
-                            status: "completed" as const,
-                          },
-                          started_at: execData.startedAt,
-                          completed_at: new Date().toISOString(),
-                          status: "completed" as const,
-                        });
-                      }
-                    }, 2000);
-                  }
+                    })
+                  );
                 }
-              }
 
-              // Handle general execution error event
-              if ((eventType as string) === "error" || (eventType as string) === "workflow_error") {
-                const ev = executionEvent as any;
-                console.error("[KafkaListener] workflow_error details:", ev);
-                clearFallbackTimeout();
-                window.dispatchEvent(
-                  new CustomEvent("chat-execution-error", {
-                    detail: {
-                      error: ev.error || "Workflow execution failed",
-                      message: ev.error || "Workflow execution failed",
-                      type: ev.error_type || "execution",
-                      nodeId: ev.node_id,
-                      stackTrace: ev.stack_trace,
-                    },
-                  })
-                );
+                const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
+                console.log("[KafkaListener] Incoming edges resolved for node_end:", activeFlowEdges.map(e => e.id));
+                setNodeStatus((prev) => ({ ...prev, [actualNode.id]: isError ? "failed" : "success" }));
+                setEdgeStatus((prev) => ({
+                  ...prev,
+                  ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, isError ? "failed" as const : "success" as const])),
+                }));
 
-                // Save failed execution to store so canvas updates correctly
-                execData.completedAt = data.timestamp || new Date().toISOString();
-                if (ev.node_outputs) {
-                  const normalizedOutputs = normalizeNodeOutputs(ev.node_outputs, currentNodes);
-                  execData.nodeOutputs = {
-                    ...execData.nodeOutputs,
-                    ...normalizedOutputs,
-                  };
-                }
-                if (ev.executed_nodes) {
-                  execData.executedNodes = ev.executed_nodes.map((id: string) => {
-                    const actualNode = findCanvasNode(currentNodes, id);
-                    return actualNode ? actualNode.id : id;
-                  });
-                }
-                execData.sessionId = ev.session_id;
-
+                // Incrementally update execution in store
                 if (currentWorkflowId && setCurrentExecutionForWorkflow) {
                   setCurrentExecutionForWorkflow(currentWorkflowId, {
                     id: executionId,
                     workflow_id: currentWorkflowId,
                     input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
                     result: {
-                      result: `ERROR: ${ev.error || "Workflow execution failed"}`,
-                      executed_nodes: execData.executedNodes,
-                      node_outputs: execData.nodeOutputs,
-                      session_id: ev.session_id,
-                      status: "failed" as const,
-                    },
-                    started_at: execData.startedAt,
-                    completed_at: execData.completedAt,
-                    status: "failed" as const,
-                  });
-                }
-              }
-
-              if (eventType === "complete" || eventType === "workflow_complete") {
-                console.log("[KafkaListener] complete / workflow_complete event received. Saving execution to store.");
-                clearFallbackTimeout();
-                execData.completedAt = data.timestamp || new Date().toISOString();
-                execData.result = executionEvent.result;
-                if (executionEvent.node_outputs) {
-                  const normalizedOutputs = normalizeNodeOutputs(executionEvent.node_outputs, currentNodes);
-                  execData.nodeOutputs = {
-                    ...execData.nodeOutputs,
-                    ...normalizedOutputs,
-                  };
-                }
-                if (executionEvent.executed_nodes) {
-                  execData.executedNodes = executionEvent.executed_nodes.map((id: string) => {
-                    const actualNode = findCanvasNode(currentNodes, id);
-                    return actualNode ? actualNode.id : id;
-                  });
-                }
-                execData.sessionId = executionEvent.session_id;
-
-                if (currentWorkflowId && setCurrentExecutionForWorkflow) {
-                  setCurrentExecutionForWorkflow(currentWorkflowId, {
-                    id: executionId,
-                    workflow_id: currentWorkflowId,
-                    input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
-                    result: {
-                      result: execData.result,
+                      result: execData.result || "",
                       executed_nodes: execData.executedNodes,
                       node_outputs: execData.nodeOutputs,
                       session_id: execData.sessionId,
-                      status: "completed" as const,
+                      status: isError ? "failed" as const : "running" as const,
                     },
                     started_at: execData.startedAt,
-                    completed_at: execData.completedAt,
-                    status: "completed" as const,
+                    status: isError ? "failed" as const : "running" as const,
                   });
                 }
 
-                console.log("[KafkaListener] Resetting active edges and nodes in 1500ms");
-                setTimeout(() => {
-                  console.log("[KafkaListener] Resetting active edges and nodes now.");
-                  setActiveEdges([]);
-                  setActiveNodes([]);
-                }, 1500);
-              }
-            } catch (error) {
-              console.error("[KafkaListener] Error parsing Kafka execution event:", error);
-            }
-          };
+                // Fallback completion timer for final node
+                if (!isError && isFinalWorkflowNode(actualNode.id, currentNodes, currentEdges)) {
+                  console.log("[KafkaListener] Final node reached:", actualNode.id, ". Setting 2000ms fallback complete timer.");
+                  clearFallbackTimeout();
+                  fallbackTimeout = setTimeout(() => {
+                    console.warn("[KafkaListener] Fallback: complete event not received. Resetting active states.");
+                    setActiveEdges([]);
+                    setActiveNodes([]);
 
-          eventSources.push(eventSource);
+                    // Mark as completed in store
+                    if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                      setCurrentExecutionForWorkflow(currentWorkflowId, {
+                        id: executionId,
+                        workflow_id: currentWorkflowId,
+                        input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                        result: {
+                          result: execData.result || "Completed via fallback",
+                          executed_nodes: execData.executedNodes,
+                          node_outputs: execData.nodeOutputs,
+                          session_id: execData.sessionId,
+                          status: "completed" as const,
+                        },
+                        started_at: execData.startedAt,
+                        completed_at: new Date().toISOString(),
+                        status: "completed" as const,
+                      });
+                    }
+                  }, 2000);
+                }
+              }
+            }
+
+            // Handle general execution error event
+            if ((eventType as string) === "error" || (eventType as string) === "workflow_error") {
+              const ev = executionEvent as any;
+              console.error("[KafkaListener] workflow_error details:", ev);
+              clearFallbackTimeout();
+              window.dispatchEvent(
+                new CustomEvent("chat-execution-error", {
+                  detail: {
+                    error: ev.error || "Workflow execution failed",
+                    message: ev.error || "Workflow execution failed",
+                    type: ev.error_type || "execution",
+                    nodeId: ev.node_id,
+                    stackTrace: ev.stack_trace,
+                  },
+                })
+              );
+
+              // Save failed execution to store so canvas updates correctly
+              execData.completedAt = data.timestamp || new Date().toISOString();
+              if (ev.node_outputs) {
+                const normalizedOutputs = normalizeNodeOutputs(ev.node_outputs, currentNodes);
+                execData.nodeOutputs = {
+                  ...execData.nodeOutputs,
+                  ...normalizedOutputs,
+                };
+              }
+              if (ev.executed_nodes) {
+                execData.executedNodes = ev.executed_nodes.map((id: string) => {
+                  const actualNode = findCanvasNode(currentNodes, id);
+                  return actualNode ? actualNode.id : id;
+                });
+              }
+              execData.sessionId = ev.session_id;
+
+              if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                setCurrentExecutionForWorkflow(currentWorkflowId, {
+                  id: executionId,
+                  workflow_id: currentWorkflowId,
+                  input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                  result: {
+                    result: `ERROR: ${ev.error || "Workflow execution failed"}`,
+                    executed_nodes: execData.executedNodes,
+                    node_outputs: execData.nodeOutputs,
+                    session_id: ev.session_id,
+                    status: "failed" as const,
+                  },
+                  started_at: execData.startedAt,
+                  completed_at: execData.completedAt,
+                  status: "failed" as const,
+                });
+              }
+            }
+
+            if (eventType === "complete" || eventType === "workflow_complete") {
+              console.log("[KafkaListener] complete / workflow_complete event received. Saving execution to store.");
+              clearFallbackTimeout();
+              execData.completedAt = data.timestamp || new Date().toISOString();
+              execData.result = executionEvent.result;
+              if (executionEvent.node_outputs) {
+                const normalizedOutputs = normalizeNodeOutputs(executionEvent.node_outputs, currentNodes);
+                execData.nodeOutputs = {
+                  ...execData.nodeOutputs,
+                  ...normalizedOutputs,
+                };
+              }
+              if (executionEvent.executed_nodes) {
+                execData.executedNodes = executionEvent.executed_nodes.map((id: string) => {
+                  const actualNode = findCanvasNode(currentNodes, id);
+                  return actualNode ? actualNode.id : id;
+                });
+              }
+              execData.sessionId = executionEvent.session_id;
+
+              if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                setCurrentExecutionForWorkflow(currentWorkflowId, {
+                  id: executionId,
+                  workflow_id: currentWorkflowId,
+                  input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                  result: {
+                    result: execData.result,
+                    executed_nodes: execData.executedNodes,
+                    node_outputs: execData.nodeOutputs,
+                    session_id: execData.sessionId,
+                    status: "completed" as const,
+                  },
+                  started_at: execData.startedAt,
+                  completed_at: execData.completedAt,
+                  status: "completed" as const,
+                });
+              }
+
+              console.log("[KafkaListener] Resetting active edges and nodes in 1500ms");
+              setTimeout(() => {
+                console.log("[KafkaListener] Resetting active edges and nodes now.");
+                setActiveEdges([]);
+                setActiveNodes([]);
+              }, 1500);
+            }
+          } catch (error) {
+            console.error("[KafkaListener] Error parsing Kafka execution event:", error);
+          }
+        };
+
+        eventSources.push(eventSource);
+      } catch (error) {
+        console.error(`[KafkaListener] Failed to create EventSource for Kafka listener ${listenerId}:`, error);
+      }
+    });
+
+    // Cleanup: close all event sources when component unmounts or dependencies change
+    return () => {
+      console.log("[KafkaListener] Cleaning up. Closing EventSource count:", eventSources.length);
+      clearFallbackTimeout();
+      eventSources.forEach((es) => {
+        try {
+          es.close();
         } catch (error) {
-          console.error(`[KafkaListener] Failed to create EventSource for Kafka listener ${listenerId}:`, error);
+          console.warn("[KafkaListener] Error closing Kafka EventSource:", error);
         }
       });
-
-      // Cleanup: close all event sources when component unmounts or dependencies change
-      return () => {
-        console.log("[KafkaListener] Cleaning up. Closing EventSource count:", eventSources.length);
-        clearFallbackTimeout();
-        eventSources.forEach((es) => {
-          try {
-            es.close();
-          } catch (error) {
-            console.warn("[KafkaListener] Error closing Kafka EventSource:", error);
-          }
-        });
-        executionData.clear();
-        retryCounts.clear();
-      };
+      executionData.clear();
+      retryCounts.clear();
+    };
   }, [kafkaNodeKey, currentWorkflowId, setCurrentExecutionForWorkflow, setNodeStatus, setEdgeStatus, setActiveEdges, setActiveNodes]);
 }
 
@@ -3383,254 +3436,254 @@ function useErrorTriggerExecutionListener(
 
     if (eventSource) {
       eventSource.onmessage = (event) => {
-      try {
-        const currentNodes = nodesRef.current || [];
-        const currentEdges = edgesRef.current || [];
-        const data = JSON.parse(event.data);
-        if (data.type === "connected" || data.type === "ping") return;
-        if (data.type !== "error_trigger_execution_event" || !data.event) return;
+        try {
+          const currentNodes = nodesRef.current || [];
+          const currentEdges = edgesRef.current || [];
+          const data = JSON.parse(event.data);
+          if (data.type === "connected" || data.type === "ping") return;
+          if (data.type !== "error_trigger_execution_event" || !data.event) return;
 
-        const executionEvent = data.event;
-        const eventType = executionEvent.type || executionEvent.event;
-        const nodeId = executionEvent.node_id;
-        const executionId = data.execution_id || "unknown";
+          const executionEvent = data.event;
+          const eventType = executionEvent.type || executionEvent.event;
+          const nodeId = executionEvent.node_id;
+          const executionId = data.execution_id || "unknown";
 
-        if (!executionData.has(executionId)) {
-          console.log("[ErrorTriggerListener] New execution started. Clearing active canvas states. executionId:", executionId);
-          clearFallbackTimeout();
+          if (!executionData.has(executionId)) {
+            console.log("[ErrorTriggerListener] New execution started. Clearing active canvas states. executionId:", executionId);
+            clearFallbackTimeout();
 
-          // Clear previous run statuses on new execution
-          setNodeStatus({});
-          setEdgeStatus({});
-          setActiveEdges([]);
-          setActiveNodes([]);
+            // Clear previous run statuses on new execution
+            setNodeStatus({});
+            setEdgeStatus({});
+            setActiveEdges([]);
+            setActiveNodes([]);
 
-          executionData.set(executionId, {
-            executionId,
-            nodeOutputs: {},
-            executedNodes: [],
-            startedAt: data.timestamp || new Date().toISOString(),
-          });
-
-          // Clear / initialize execution in store immediately
-          if (currentWorkflowId && setCurrentExecutionForWorkflow) {
-            setCurrentExecutionForWorkflow(currentWorkflowId, {
-              id: executionId,
-              workflow_id: currentWorkflowId,
-              input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
-              result: {
-                result: "",
-                executed_nodes: [],
-                node_outputs: {},
-                status: "running" as const,
-              },
-              started_at: data.timestamp || new Date().toISOString(),
-              status: "running" as const,
+            executionData.set(executionId, {
+              executionId,
+              nodeOutputs: {},
+              executedNodes: [],
+              startedAt: data.timestamp || new Date().toISOString(),
             });
-          }
-        }
 
-        const execData = executionData.get(executionId)!;
-
-        if (eventType === "node_start" && nodeId) {
-          const actualNode = findCanvasNode(currentNodes, nodeId);
-          const targetId = actualNode ? actualNode.id : nodeId;
-
-          if (!execData.executedNodes.includes(targetId)) {
-            execData.executedNodes.push(targetId);
-          }
-
-          if (actualNode) {
-            const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
-            setActiveNodes([actualNode.id]);
-            setNodeStatus((prev) => ({ ...prev, [actualNode.id]: "pending" }));
-            setActiveEdges(activeFlowEdges.map((edge) => edge.id));
-            setEdgeStatus((prev) => ({
-              ...prev,
-              ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, "pending" as const])),
-            }));
-          }
-        }
-
-        if (eventType === "node_end" && nodeId) {
-          const actualNode = findCanvasNode(currentNodes, nodeId);
-          const targetId = actualNode ? actualNode.id : nodeId;
-
-          execData.nodeOutputs[targetId] = {
-            ...(execData.nodeOutputs[targetId] || {}),
-            output: executionEvent.output || executionEvent.result,
-            outputs: executionEvent.output || executionEvent.result,
-            status: executionEvent.error ? "failed" : "completed",
-          };
-
-          if (actualNode) {
-            const isError = executionEvent.error || executionEvent.status === "error";
-
-            // Handle error for snackbar notification
-            if (isError) {
-              window.dispatchEvent(
-                new CustomEvent("chat-execution-error", {
-                  detail: {
-                    error: executionEvent.error || `Node ${nodeId} failed`,
-                    message: executionEvent.error || `Node ${nodeId} failed`,
-                    type: executionEvent.error_type || "execution",
-                    nodeId: actualNode.id,
-                    nodeType: actualNode.type,
-                    stackTrace: executionEvent.stack_trace,
-                  },
-                })
-              );
-            }
-
-            const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
-            setNodeStatus((prev) => ({ ...prev, [actualNode.id]: isError ? "failed" : "success" }));
-            setEdgeStatus((prev) => ({
-              ...prev,
-              ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, isError ? "failed" as const : "success" as const])),
-            }));
-
-            // Incrementally update execution in store
+            // Clear / initialize execution in store immediately
             if (currentWorkflowId && setCurrentExecutionForWorkflow) {
               setCurrentExecutionForWorkflow(currentWorkflowId, {
                 id: executionId,
                 workflow_id: currentWorkflowId,
                 input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
                 result: {
-                  result: execData.result || "",
+                  result: "",
+                  executed_nodes: [],
+                  node_outputs: {},
+                  status: "running" as const,
+                },
+                started_at: data.timestamp || new Date().toISOString(),
+                status: "running" as const,
+              });
+            }
+          }
+
+          const execData = executionData.get(executionId)!;
+
+          if (eventType === "node_start" && nodeId) {
+            const actualNode = findCanvasNode(currentNodes, nodeId);
+            const targetId = actualNode ? actualNode.id : nodeId;
+
+            if (!execData.executedNodes.includes(targetId)) {
+              execData.executedNodes.push(targetId);
+            }
+
+            if (actualNode) {
+              const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
+              setActiveNodes([actualNode.id]);
+              setNodeStatus((prev) => ({ ...prev, [actualNode.id]: "pending" }));
+              setActiveEdges(activeFlowEdges.map((edge) => edge.id));
+              setEdgeStatus((prev) => ({
+                ...prev,
+                ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, "pending" as const])),
+              }));
+            }
+          }
+
+          if (eventType === "node_end" && nodeId) {
+            const actualNode = findCanvasNode(currentNodes, nodeId);
+            const targetId = actualNode ? actualNode.id : nodeId;
+
+            execData.nodeOutputs[targetId] = {
+              ...(execData.nodeOutputs[targetId] || {}),
+              output: executionEvent.output || executionEvent.result,
+              outputs: executionEvent.output || executionEvent.result,
+              status: executionEvent.error ? "failed" : "completed",
+            };
+
+            if (actualNode) {
+              const isError = executionEvent.error || executionEvent.status === "error";
+
+              // Handle error for snackbar notification
+              if (isError) {
+                window.dispatchEvent(
+                  new CustomEvent("chat-execution-error", {
+                    detail: {
+                      error: executionEvent.error || `Node ${nodeId} failed`,
+                      message: executionEvent.error || `Node ${nodeId} failed`,
+                      type: executionEvent.error_type || "execution",
+                      nodeId: actualNode.id,
+                      nodeType: actualNode.type,
+                      stackTrace: executionEvent.stack_trace,
+                    },
+                  })
+                );
+              }
+
+              const activeFlowEdges = resolveExecutionEdges(executionEvent, actualNode, currentNodes, currentEdges);
+              setNodeStatus((prev) => ({ ...prev, [actualNode.id]: isError ? "failed" : "success" }));
+              setEdgeStatus((prev) => ({
+                ...prev,
+                ...Object.fromEntries(activeFlowEdges.map((edge) => [edge.id, isError ? "failed" as const : "success" as const])),
+              }));
+
+              // Incrementally update execution in store
+              if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                setCurrentExecutionForWorkflow(currentWorkflowId, {
+                  id: executionId,
+                  workflow_id: currentWorkflowId,
+                  input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
+                  result: {
+                    result: execData.result || "",
+                    executed_nodes: execData.executedNodes,
+                    node_outputs: execData.nodeOutputs,
+                    session_id: execData.sessionId,
+                    status: isError ? "failed" as const : "running" as const,
+                  },
+                  started_at: execData.startedAt,
+                  status: isError ? "failed" as const : "running" as const,
+                });
+              }
+
+              // Fallback completion timer for final node
+              if (!isError && isFinalWorkflowNode(actualNode.id, currentNodes, currentEdges)) {
+                console.log("[ErrorTriggerListener] Final node reached:", actualNode.id, ". Setting 2000ms fallback complete timer.");
+                clearFallbackTimeout();
+                fallbackTimeout = setTimeout(() => {
+                  console.warn("[ErrorTriggerListener] Fallback: complete event not received. Resetting active states.");
+                  setActiveEdges([]);
+                  setActiveNodes([]);
+
+                  // Mark as completed in store
+                  if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                    setCurrentExecutionForWorkflow(currentWorkflowId, {
+                      id: executionId,
+                      workflow_id: currentWorkflowId,
+                      input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
+                      result: {
+                        result: execData.result || "Completed via fallback",
+                        executed_nodes: execData.executedNodes,
+                        node_outputs: execData.nodeOutputs,
+                        session_id: execData.sessionId,
+                        status: "completed" as const,
+                      },
+                      started_at: execData.startedAt,
+                      completed_at: new Date().toISOString(),
+                      status: "completed" as const,
+                    });
+                  }
+                }, 2000);
+              }
+            }
+          }
+
+          // Handle general execution error event
+          if ((eventType as string) === "error" || (eventType as string) === "workflow_error") {
+            const ev = executionEvent as any;
+            clearFallbackTimeout();
+            window.dispatchEvent(
+              new CustomEvent("chat-execution-error", {
+                detail: {
+                  error: ev.error || "Workflow execution failed",
+                  message: ev.error || "Workflow execution failed",
+                  type: ev.error_type || "execution",
+                  nodeId: ev.node_id,
+                  stackTrace: ev.stack_trace,
+                },
+              })
+            );
+
+            // Save failed execution to store so canvas updates correctly
+            execData.completedAt = data.timestamp || new Date().toISOString();
+            if (ev.node_outputs) {
+              const normalizedOutputs = normalizeNodeOutputs(ev.node_outputs, currentNodes);
+              execData.nodeOutputs = {
+                ...execData.nodeOutputs,
+                ...normalizedOutputs,
+              };
+            }
+            if (ev.executed_nodes) {
+              execData.executedNodes = ev.executed_nodes.map((id: string) => {
+                const actualNode = findCanvasNode(currentNodes, id);
+                return actualNode ? actualNode.id : id;
+              });
+            }
+            execData.sessionId = ev.session_id;
+
+            if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+              setCurrentExecutionForWorkflow(currentWorkflowId, {
+                id: executionId,
+                workflow_id: currentWorkflowId,
+                input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
+                result: {
+                  result: `ERROR: ${ev.error || "Workflow execution failed"}`,
+                  executed_nodes: execData.executedNodes,
+                  node_outputs: execData.nodeOutputs,
+                  session_id: ev.session_id,
+                  status: "failed" as const,
+                },
+                started_at: execData.startedAt,
+                completed_at: execData.completedAt,
+                status: "failed" as const,
+              });
+            }
+          }
+
+          if (eventType === "complete" || eventType === "workflow_complete") {
+            clearFallbackTimeout();
+            execData.completedAt = data.timestamp || new Date().toISOString();
+            execData.result = executionEvent.result;
+            if (executionEvent.node_outputs) {
+              const normalizedOutputs = normalizeNodeOutputs(executionEvent.node_outputs, currentNodes);
+              execData.nodeOutputs = {
+                ...execData.nodeOutputs,
+                ...normalizedOutputs,
+              };
+            }
+            if (executionEvent.executed_nodes) {
+              execData.executedNodes = executionEvent.executed_nodes.map((id: string) => {
+                const actualNode = findCanvasNode(currentNodes, id);
+                return actualNode ? actualNode.id : id;
+              });
+            }
+            execData.sessionId = executionEvent.session_id;
+
+            if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+              setCurrentExecutionForWorkflow(currentWorkflowId, {
+                id: executionId,
+                workflow_id: currentWorkflowId,
+                input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
+                result: {
+                  result: executionEvent.result,
                   executed_nodes: execData.executedNodes,
                   node_outputs: execData.nodeOutputs,
                   session_id: execData.sessionId,
-                  status: isError ? "failed" as const : "running" as const,
+                  status: "completed" as const,
                 },
                 started_at: execData.startedAt,
-                status: isError ? "failed" as const : "running" as const,
+                completed_at: execData.completedAt,
+                status: "completed" as const,
               });
             }
-
-            // Fallback completion timer for final node
-            if (!isError && isFinalWorkflowNode(actualNode.id, currentNodes, currentEdges)) {
-              console.log("[ErrorTriggerListener] Final node reached:", actualNode.id, ". Setting 2000ms fallback complete timer.");
-              clearFallbackTimeout();
-              fallbackTimeout = setTimeout(() => {
-                console.warn("[ErrorTriggerListener] Fallback: complete event not received. Resetting active states.");
-                setActiveEdges([]);
-                setActiveNodes([]);
-
-                // Mark as completed in store
-                if (currentWorkflowId && setCurrentExecutionForWorkflow) {
-                  setCurrentExecutionForWorkflow(currentWorkflowId, {
-                    id: executionId,
-                    workflow_id: currentWorkflowId,
-                    input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
-                    result: {
-                      result: execData.result || "Completed via fallback",
-                      executed_nodes: execData.executedNodes,
-                      node_outputs: execData.nodeOutputs,
-                      session_id: execData.sessionId,
-                      status: "completed" as const,
-                    },
-                    started_at: execData.startedAt,
-                    completed_at: new Date().toISOString(),
-                    status: "completed" as const,
-                  });
-                }
-              }, 2000);
-            }
           }
+        } catch (err) {
+          console.error("Error processing error trigger execution event:", err);
         }
-
-        // Handle general execution error event
-        if ((eventType as string) === "error" || (eventType as string) === "workflow_error") {
-          const ev = executionEvent as any;
-          clearFallbackTimeout();
-          window.dispatchEvent(
-            new CustomEvent("chat-execution-error", {
-              detail: {
-                error: ev.error || "Workflow execution failed",
-                message: ev.error || "Workflow execution failed",
-                type: ev.error_type || "execution",
-                nodeId: ev.node_id,
-                stackTrace: ev.stack_trace,
-              },
-            })
-          );
-
-          // Save failed execution to store so canvas updates correctly
-          execData.completedAt = data.timestamp || new Date().toISOString();
-          if (ev.node_outputs) {
-            const normalizedOutputs = normalizeNodeOutputs(ev.node_outputs, currentNodes);
-            execData.nodeOutputs = {
-              ...execData.nodeOutputs,
-              ...normalizedOutputs,
-            };
-          }
-          if (ev.executed_nodes) {
-            execData.executedNodes = ev.executed_nodes.map((id: string) => {
-              const actualNode = findCanvasNode(currentNodes, id);
-              return actualNode ? actualNode.id : id;
-            });
-          }
-          execData.sessionId = ev.session_id;
-
-          if (currentWorkflowId && setCurrentExecutionForWorkflow) {
-            setCurrentExecutionForWorkflow(currentWorkflowId, {
-              id: executionId,
-              workflow_id: currentWorkflowId,
-              input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
-              result: {
-                result: `ERROR: ${ev.error || "Workflow execution failed"}`,
-                executed_nodes: execData.executedNodes,
-                node_outputs: execData.nodeOutputs,
-                session_id: ev.session_id,
-                status: "failed" as const,
-              },
-              started_at: execData.startedAt,
-              completed_at: execData.completedAt,
-              status: "failed" as const,
-            });
-          }
-        }
-
-        if (eventType === "complete" || eventType === "workflow_complete") {
-          clearFallbackTimeout();
-          execData.completedAt = data.timestamp || new Date().toISOString();
-          execData.result = executionEvent.result;
-          if (executionEvent.node_outputs) {
-            const normalizedOutputs = normalizeNodeOutputs(executionEvent.node_outputs, currentNodes);
-            execData.nodeOutputs = {
-              ...execData.nodeOutputs,
-              ...normalizedOutputs,
-            };
-          }
-          if (executionEvent.executed_nodes) {
-            execData.executedNodes = executionEvent.executed_nodes.map((id: string) => {
-              const actualNode = findCanvasNode(currentNodes, id);
-              return actualNode ? actualNode.id : id;
-            });
-          }
-          execData.sessionId = executionEvent.session_id;
-
-          if (currentWorkflowId && setCurrentExecutionForWorkflow) {
-            setCurrentExecutionForWorkflow(currentWorkflowId, {
-              id: executionId,
-              workflow_id: currentWorkflowId,
-              input_text: data.error_payload ? JSON.stringify(data.error_payload) : "",
-              result: {
-                result: executionEvent.result,
-                executed_nodes: execData.executedNodes,
-                node_outputs: execData.nodeOutputs,
-                session_id: execData.sessionId,
-                status: "completed" as const,
-              },
-              started_at: execData.startedAt,
-              completed_at: execData.completedAt,
-              status: "completed" as const,
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Error processing error trigger execution event:", err);
-      }
       };
     }
 
