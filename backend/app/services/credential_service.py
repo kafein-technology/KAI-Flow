@@ -4,10 +4,22 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy import text, bindparam
 from app.models.user_credential import UserCredential
+from app.models.workflow import Workflow
 from app.services.base import BaseService
-from app.schemas.user_credential import UserCredentialCreate, UserCredentialUpdate
+from app.schemas.user_credential import (
+    UserCredentialCreate,
+    UserCredentialUpdate,
+    CredentialWorkflowUsageResponse,
+    CredentialWorkflowUsageItem,
+    CredentialWorkflowNodeUsage,
+)
 from app.core.encryption import encrypt_data, decrypt_data
+from app.core.credential_fields import (
+    CREDENTIAL_FIELD_NAMES,
+    find_credential_usages_in_flow_data,
+)
 
 
 class CredentialService(BaseService[UserCredential]):
@@ -136,4 +148,78 @@ class CredentialService(BaseService[UserCredential]):
                 "secret": {},
                 "created_at": credential.created_at,
                 "updated_at": credential.updated_at
-            } 
+            }
+
+    async def get_workflows_using_credential(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        credential_id: uuid.UUID,
+    ) -> Optional[CredentialWorkflowUsageResponse]:
+        """
+        Find workflows owned by the user that reference the credential in node data.
+        Uses a JSONB filter in PostgreSQL, then scans only matched workflows in Python.
+        """
+        credential = await self.get_by_user_and_id(db, user_id, credential_id)
+        if not credential:
+            return None
+
+        cred_id_str = str(credential_id)
+        field_conditions = " OR ".join(
+            f"(node->'data'->>'{field}') = :cred_id"
+            for field in CREDENTIAL_FIELD_NAMES
+        )
+
+        stmt = (
+            select(
+                Workflow.id,
+                Workflow.name,
+                Workflow.updated_at,
+                Workflow.flow_data,
+            )
+            .where(
+                Workflow.user_id == user_id,
+                text(
+                    f"""
+                    EXISTS (
+                        SELECT 1
+                        FROM jsonb_array_elements(workflows.flow_data->'nodes') AS node
+                        WHERE {field_conditions}
+                    )
+                    """
+                ).bindparams(bindparam("cred_id", cred_id_str)),
+            )
+            .order_by(Workflow.updated_at.desc())
+        )
+
+        result = await db.execute(stmt)
+        rows = result.all()
+
+        workflows: List[CredentialWorkflowUsageItem] = []
+        for row in rows:
+            using_nodes_raw = find_credential_usages_in_flow_data(row.flow_data, cred_id_str)
+            if not using_nodes_raw:
+                continue
+
+            using_nodes = [
+                CredentialWorkflowNodeUsage(
+                    node_id=usage["node_id"],
+                    node_type=usage["node_type"],
+                    field=usage["field"],
+                )
+                for usage in using_nodes_raw
+            ]
+            workflows.append(
+                CredentialWorkflowUsageItem(
+                    id=row.id,
+                    name=row.name,
+                    updated_at=row.updated_at,
+                    using_nodes=using_nodes,
+                )
+            )
+
+        return CredentialWorkflowUsageResponse(
+            credential_id=credential_id,
+            workflow_count=len(workflows),
+            workflows=workflows,
+        ) 

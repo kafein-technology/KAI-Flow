@@ -279,6 +279,25 @@ export interface CredentialCreateRequest {
   service_type?: string;
 }
 
+export interface CredentialWorkflowNodeUsage {
+  node_id: string;
+  node_type: string;
+  field: string;
+}
+
+export interface CredentialWorkflowUsageItem {
+  id: string;
+  name: string;
+  updated_at: string;
+  using_nodes: CredentialWorkflowNodeUsage[];
+}
+
+export interface CredentialWorkflowUsageResponse {
+  credential_id: string;
+  workflow_count: number;
+  workflows: CredentialWorkflowUsageItem[];
+}
+
 // Variables types (for future implementation)
 export interface Variable {
   id: string;

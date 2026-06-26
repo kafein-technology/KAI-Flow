@@ -11,18 +11,17 @@ import {
   Cloud,
   Settings,
 } from "lucide-react";
-import { testUserCredential, testCredentialRaw } from "~/services/userCredentialService";
+import { testUserCredential, testCredentialRaw, getUserCredentialById, getCredentialWorkflows } from "~/services/userCredentialService";
 import React, { useState, useEffect } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useUserCredentialStore } from "../stores/userCredential";
-import type { CredentialCreateRequest, UserCredential } from "../types/api";
+import type { CredentialCreateRequest, UserCredential, CredentialWorkflowUsageResponse } from "../types/api";
 import Loading from "~/components/Loading";
 import AuthGuard from "~/components/AuthGuard";
-import { apiClient } from "../lib/api-client";
-import { getUserCredentialById } from "~/services/userCredentialService";
 import ServiceSelectionModal from "../components/credentials/ServiceSelectionModal";
 import DynamicCredentialForm from "../components/credentials/DynamicCredentialForm";
 import CredentialCard from "../components/credentials/CredentialCard";
+import CredentialWorkflowUsage from "../components/credentials/CredentialWorkflowUsage";
 import {
   type ServiceDefinition,
   getServicesByCategory,
@@ -51,6 +50,18 @@ function CredentialsLayout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [editingInitialValues, setEditingInitialValues] = useState<Record<string, any>>({});
+  const [workflowUsage, setWorkflowUsage] = useState<CredentialWorkflowUsageResponse | null>(null);
+  const [workflowUsageLoading, setWorkflowUsageLoading] = useState(false);
+  const [workflowUsageError, setWorkflowUsageError] = useState<string | null>(null);
+
+  const resetCredentialModal = () => {
+    setSelectedService(null);
+    setEditingCredential(null);
+    setEditingInitialValues({});
+    setWorkflowUsage(null);
+    setWorkflowUsageLoading(false);
+    setWorkflowUsageError(null);
+  };
 
   const servicesByCategory = getServicesByCategory();
   const categories = Object.keys(servicesByCategory);
@@ -118,7 +129,10 @@ function CredentialsLayout() {
 
   const handleEditCredential = async (credential: UserCredential) => {
     setEditingCredential(credential);
-    // Get the service definition for editing
+    setWorkflowUsage(null);
+    setWorkflowUsageError(null);
+    setWorkflowUsageLoading(true);
+
     const servicesByCategory = getServicesByCategory();
     const allServices = Object.values(servicesByCategory).flat();
     const serviceDef = allServices.find(
@@ -127,17 +141,33 @@ function CredentialsLayout() {
     if (serviceDef) {
       setSelectedService(serviceDef);
     }
-    try {
-      const detail = await getUserCredentialById(credential.id);
+
+    const [detailResult, usageResult] = await Promise.allSettled([
+      getUserCredentialById(credential.id),
+      getCredentialWorkflows(credential.id),
+    ]);
+
+    if (detailResult.status === "fulfilled") {
+      const detail = detailResult.value;
       if (detail?.secret && typeof detail.secret === "object") {
         setEditingInitialValues(detail.secret);
       } else {
         setEditingInitialValues({});
       }
-    } catch (e) {
-      console.error("Failed to fetch credential secret for editing:", e);
+    } else {
+      console.error("Failed to fetch credential secret for editing:", detailResult.reason);
       setEditingInitialValues({});
     }
+
+    if (usageResult.status === "fulfilled") {
+      setWorkflowUsage(usageResult.value);
+      setWorkflowUsageError(null);
+    } else {
+      console.error("Failed to fetch credential workflow usage:", usageResult.reason);
+      setWorkflowUsage(null);
+      setWorkflowUsageError("Could not load workflow usage.");
+    }
+    setWorkflowUsageLoading(false);
   };
 
   const handleUpdateCredential = async (values: Record<string, any>) => {
@@ -161,9 +191,7 @@ function CredentialsLayout() {
       };
 
       await updateCredential(editingCredential.id, payload);
-      setEditingCredential(null);
-      setSelectedService(null);
-      setEditingInitialValues({});
+      resetCredentialModal();
     } catch (e: any) {
       console.error("Failed to update credential:", e);
     } finally {
@@ -386,11 +414,7 @@ function CredentialsLayout() {
                     : "Connect to " + selectedService.name}
                 </h2>
                 <button
-                  onClick={() => {
-                    setSelectedService(null);
-                    setEditingCredential(null);
-                    setEditingInitialValues({});
-                  }}
+                  onClick={resetCredentialModal}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <svg
@@ -409,6 +433,16 @@ function CredentialsLayout() {
                 </button>
               </div>
 
+              {editingCredential && (
+                <div className="mb-6">
+                  <CredentialWorkflowUsage
+                    usage={workflowUsage}
+                    isLoading={workflowUsageLoading}
+                    error={workflowUsageError}
+                  />
+                </div>
+              )}
+
               <DynamicCredentialForm
                 service={selectedService}
                 onSubmit={
@@ -416,11 +450,7 @@ function CredentialsLayout() {
                     ? handleUpdateCredential
                     : handleCredentialSubmit
                 }
-                onCancel={() => {
-                  setSelectedService(null);
-                  setEditingCredential(null);
-                  setEditingInitialValues({});
-                }}
+                onCancel={resetCredentialModal}
                 onTest={async (values) => {
                   const { name, ...data } = values;
                   return await testCredentialRaw(selectedService.id, data);
