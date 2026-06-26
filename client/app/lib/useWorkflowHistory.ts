@@ -66,6 +66,11 @@ export function useWorkflowHistory(
   const previousSnapshotRef = useRef<WorkflowSnapshot | null>(null);
   const isApplyingHistoryRef = useRef(false);
   const skipRecordingRef = useRef(false);
+  const recordTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+  nodesRef.current = nodes;
+  edgesRef.current = edges;
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
@@ -73,6 +78,27 @@ export function useWorkflowHistory(
     setCanUndo(pastRef.current.length > 0);
     setCanRedo(futureRef.current.length > 0);
   }, []);
+
+  const recordSnapshot = useCallback(() => {
+    const currentNodes = nodesRef.current;
+    const currentEdges = edgesRef.current;
+    const currentKey = normalizeSnapshot(currentNodes, currentEdges);
+    const previous = previousSnapshotRef.current;
+
+    if (previous) {
+      const previousKey = normalizeSnapshot(previous.nodes, previous.edges);
+      if (previousKey !== currentKey) {
+        pastRef.current.push(previous);
+        if (pastRef.current.length > MAX_HISTORY) {
+          pastRef.current.shift();
+        }
+        futureRef.current = [];
+        updateAvailability();
+      }
+    }
+
+    previousSnapshotRef.current = cloneSnapshot(currentNodes, currentEdges);
+  }, [updateAvailability]);
 
   const resetHistory = useCallback(
     (snapshotNodes: Node[], snapshotEdges: Edge[]) => {
@@ -97,32 +123,40 @@ export function useWorkflowHistory(
       return;
     }
 
-    const timer = setTimeout(() => {
-      const currentKey = normalizeSnapshot(nodes, edges);
-      const previous = previousSnapshotRef.current;
+    if (recordTimerRef.current) {
+      clearTimeout(recordTimerRef.current);
+    }
 
-      if (previous) {
-        const previousKey = normalizeSnapshot(previous.nodes, previous.edges);
-        if (previousKey !== currentKey) {
-          pastRef.current.push(previous);
-          if (pastRef.current.length > MAX_HISTORY) {
-            pastRef.current.shift();
-          }
-          futureRef.current = [];
-          updateAvailability();
-        }
-      }
-
-      previousSnapshotRef.current = cloneSnapshot(nodes, edges);
+    recordTimerRef.current = setTimeout(() => {
+      recordTimerRef.current = null;
+      recordSnapshot();
     }, 300);
 
-    return () => clearTimeout(timer);
-  }, [nodes, edges, updateAvailability]);
+    return () => {
+      if (recordTimerRef.current) {
+        clearTimeout(recordTimerRef.current);
+        recordTimerRef.current = null;
+      }
+    };
+  }, [nodes, edges, recordSnapshot]);
+
+  const flushRecording = useCallback(() => {
+    if (recordTimerRef.current) {
+      clearTimeout(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+
+    if (isApplyingHistoryRef.current || skipRecordingRef.current) {
+      return;
+    }
+
+    recordSnapshot();
+  }, [recordSnapshot]);
 
   const undo = useCallback(() => {
     if (pastRef.current.length === 0) return;
 
-    const current = cloneSnapshot(nodes, edges);
+    const current = cloneSnapshot(nodesRef.current, edgesRef.current);
     futureRef.current.push(current);
 
     const previous = pastRef.current.pop()!;
@@ -131,12 +165,12 @@ export function useWorkflowHistory(
     setNodes(previous.nodes);
     setEdges(previous.edges);
     updateAvailability();
-  }, [nodes, edges, setNodes, setEdges, updateAvailability]);
+  }, [setNodes, setEdges, updateAvailability]);
 
   const redo = useCallback(() => {
     if (futureRef.current.length === 0) return;
 
-    const current = cloneSnapshot(nodes, edges);
+    const current = cloneSnapshot(nodesRef.current, edgesRef.current);
     pastRef.current.push(current);
 
     const next = futureRef.current.pop()!;
@@ -145,9 +179,9 @@ export function useWorkflowHistory(
     setNodes(next.nodes);
     setEdges(next.edges);
     updateAvailability();
-  }, [nodes, edges, setNodes, setEdges, updateAvailability]);
+  }, [setNodes, setEdges, updateAvailability]);
 
-  return { undo, redo, canUndo, canRedo, resetHistory };
+  return { undo, redo, canUndo, canRedo, resetHistory, flushRecording };
 }
 
 /** Node config modal / workflow canvas — workflow undo/redo should apply here. */

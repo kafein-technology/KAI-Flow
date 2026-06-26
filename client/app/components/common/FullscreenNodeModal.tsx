@@ -63,6 +63,7 @@ interface FullscreenNodeModalProps {
   onSave: (values: any) => void;
   onConfigChange?: (values: any) => void;
   historyRevision?: number;
+  configFlushRef?: React.MutableRefObject<(() => void) | null>;
   onExecute?: () => void; // New execute function
   ConfigComponent: React.ComponentType<{
     configData: any;
@@ -101,6 +102,7 @@ export default function FullscreenNodeModal({
   onSave,
   onConfigChange,
   historyRevision = 0,
+  configFlushRef,
   onExecute,
   ConfigComponent,
   executionData,
@@ -109,6 +111,7 @@ export default function FullscreenNodeModal({
   const [formKey, setFormKey] = useState(0);
   const configChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const configChangeRevisionRef = useRef(0);
+  const pendingConfigValuesRef = useRef<Record<string, unknown> | null>(null);
   const prevHistoryRevisionRef = useRef(historyRevision);
   const nodeAliasRef = useRef(
     configData?.name || nodeMetadata.display_name || nodeMetadata.name
@@ -128,6 +131,8 @@ export default function FullscreenNodeModal({
     (values: Record<string, unknown>) => {
       if (!onConfigChange) return;
 
+      pendingConfigValuesRef.current = values;
+
       if (configChangeTimerRef.current) {
         clearTimeout(configChangeTimerRef.current);
       }
@@ -138,10 +143,29 @@ export default function FullscreenNodeModal({
         configChangeTimerRef.current = null;
         if (scheduledRevision !== configChangeRevisionRef.current) return;
         onConfigChange(values);
-      }, 400);
+      }, 200);
     },
     [onConfigChange]
   );
+
+  const flushConfigChange = useCallback(() => {
+    if (configChangeTimerRef.current) {
+      clearTimeout(configChangeTimerRef.current);
+      configChangeTimerRef.current = null;
+    }
+
+    if (onConfigChange && pendingConfigValuesRef.current) {
+      onConfigChange(pendingConfigValuesRef.current);
+    }
+  }, [onConfigChange]);
+
+  useEffect(() => {
+    if (!configFlushRef) return;
+    configFlushRef.current = flushConfigChange;
+    return () => {
+      configFlushRef.current = null;
+    };
+  }, [configFlushRef, flushConfigChange]);
 
   const handleFormChange = useCallback(
     (values: Record<string, unknown>) => {
@@ -187,7 +211,10 @@ export default function FullscreenNodeModal({
     nodeAliasRef.current = value;
     setNodeAlias(value);
     setNodeAliasError(validateNodeAlias(value));
-    scheduleConfigChange({ name: value });
+    scheduleConfigChange({
+      ...(pendingConfigValuesRef.current ?? configValues),
+      name: value,
+    });
   };
 
   // Helper function to filter out metadata and system fields from node data

@@ -64,7 +64,7 @@ const Navbar: React.FC<NavbarProps> = ({
   autoSaveStatus,
   lastAutoSave,
   onAutoSaveSettings,
-  updateWorkflowVisibility,
+  updateWorkflowStatus,
   onImportStart,
   onWorkflowImported,
   onUndo,
@@ -79,7 +79,6 @@ const Navbar: React.FC<NavbarProps> = ({
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isPublicTogglePending, setIsPublicTogglePending] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
@@ -302,8 +301,8 @@ const Navbar: React.FC<NavbarProps> = ({
   return (
     <>
       <header className="w-full h-16 bg-[#18181B] text-foreground fixed top-0 left-0 z-20">
-        <nav className="flex justify-between items-center p-4 bg-background text-foreground m-auto">
-          <div className="flex items-center gap-2">
+        <nav className="relative flex items-center p-4 bg-background text-foreground m-auto">
+          <div className="flex items-center gap-2 z-10">
             <Link
               to="/workflows"
               className="flex items-center"
@@ -318,51 +317,51 @@ const Navbar: React.FC<NavbarProps> = ({
             </Link>
           </div>
 
-          <div className="flex-1 flex justify-center items-center px-10">
+          <div className="absolute inset-x-0 flex justify-center items-center px-48 pointer-events-none z-0">
             <input
               type="text"
               value={workflowName}
               onChange={(e) => setWorkflowName(e.target.value)}
               onBlur={handleBlur}
               placeholder="Dosya Adı"
-              className="text-lg font-medium text-white/90 bg-transparent px-4 py-1.5 rounded-md border border-transparent hover:border-white/20 focus:border-white/30 hover:bg-white/5 focus:bg-white/10 focus:outline-none transition-all duration-300 text-center w-full max-w-[400px] focus:max-w-[800px]"
+              className="pointer-events-auto text-lg font-medium text-white/90 bg-transparent px-4 py-1.5 rounded-md border border-transparent hover:border-white/20 focus:border-white/30 hover:bg-white/5 focus:bg-white/10 focus:outline-none transition-all duration-300 text-center w-full max-w-[400px] focus:max-w-[800px]"
             />
           </div>
 
-          <div className="flex items-center gap-2 relative">
-            <div
-              className={`grid transition-[grid-template-columns] duration-200 ease-out ${
-                showExecutionStatus ? "grid-cols-[1fr]" : "grid-cols-[0fr]"
-              }`}
-            >
-              <div className="overflow-hidden min-w-0">
-                {showExecutionStatus && (
-                  <div className="flex items-center gap-2 text-gray-400 shrink-0 whitespace-nowrap">
-                    <Loader className="w-3.5 h-3.5 animate-spin" />
-                    <span className="text-xs font-medium">Executing...</span>
-                    {(activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending") ? currentExecution.id : null)) && onCancelExecution && (
-                      <button
-                        onClick={async () => {
-                          const runId = activeExecutionId || (currentExecution ? currentExecution.id : null);
-                          if (runId && confirm("Are you sure you want to cancel this execution?")) {
-                            try {
-                              await onCancelExecution(runId);
-                              enqueueSnackbar("Workflow execution cancel requested.", { variant: "info" });
-                            } catch (err) {
-                              console.error("Failed to cancel execution:", err);
-                              enqueueSnackbar("Failed to cancel execution.", { variant: "error" });
-                            }
+          <div className="flex items-center gap-2 relative ml-auto z-10">
+            <div className={`flex items-center justify-end shrink-0 ${showExecutionStatus ? "min-w-[9.5rem]" : ""}`}>
+              {showExecutionStatus && (
+                <div className="flex items-center gap-2 text-gray-400 whitespace-nowrap">
+                  <Loader className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  <span className="text-xs font-medium">Executing...</span>
+                  {onCancelExecution && (
+                    <button
+                      onClick={async () => {
+                        const runId = activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending") ? currentExecution.id : null);
+                        if (runId && confirm("Are you sure you want to cancel this execution?")) {
+                          try {
+                            await onCancelExecution(runId);
+                            enqueueSnackbar("Workflow execution cancel requested.", { variant: "info" });
+                          } catch (err) {
+                            console.error("Failed to cancel execution:", err);
+                            enqueueSnackbar("Failed to cancel execution.", { variant: "error" });
                           }
-                        }}
-                        className="px-2 py-0.5 text-[11px] text-red-500 hover:text-red-400 border border-red-500/30 hover:border-red-500/50 rounded transition-colors cursor-pointer"
-                        title="Cancel Execution"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+                        }
+                      }}
+                      className={`px-2 py-0.5 text-[11px] text-red-500 hover:text-red-400 border border-red-500/30 hover:border-red-500/50 rounded transition-colors cursor-pointer shrink-0 ${
+                        activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending"))
+                          ? "visible"
+                          : "invisible pointer-events-none"
+                      }`}
+                      title="Cancel Execution"
+                      aria-hidden={!(activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending")))}
+                      tabIndex={activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending")) ? 0 : -1}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div
@@ -437,29 +436,28 @@ const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {currentWorkflow && updateWorkflowVisibility && (
+            {currentWorkflow && updateWorkflowStatus && (
               <ToggleSwitch
-                theme="dark"
-                isActive={currentWorkflow.is_public ?? false}
-                disabled={isPublicTogglePending}
-                onToggle={async (isPublic) => {
-                  if (isPublicTogglePending) return;
-                  setIsPublicTogglePending(true);
+                isActive={currentWorkflow.is_active ?? false}
+                onToggle={async (isActive) => {
                   try {
-                    await updateWorkflowVisibility(currentWorkflow.id, isPublic);
+                    await updateWorkflowStatus(currentWorkflow.id, isActive);
                     if (setCurrentWorkflow) {
-                      setCurrentWorkflow({ ...currentWorkflow, is_public: isPublic });
+                      setCurrentWorkflow({ ...currentWorkflow, is_active: isActive });
                     }
-                    enqueueSnackbar(`Workflow is now ${isPublic ? "Public" : "Private"}`, { variant: "success" });
+                    enqueueSnackbar(
+                      `Workflow ${isActive ? "activated" : "deactivated"}`,
+                      { variant: "success" }
+                    );
                   } catch (error) {
-                    enqueueSnackbar("Workflow visibility could not be updated", { variant: "error" });
-                  } finally {
-                    setIsPublicTogglePending(false);
+                    enqueueSnackbar("Workflow status could not be updated", {
+                      variant: "error",
+                    });
                   }
                 }}
                 size="sm"
-                label="Activity"
-                description={currentWorkflow.is_public ? "Active" : undefined}
+                label="Workflow Status"
+                description={currentWorkflow.is_active ? "Active" : "Inactive"}
               />
             )}
 

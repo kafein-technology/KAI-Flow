@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
+import { flushSync } from "react-dom";
 import { v4 as uuidv4 } from "uuid";
 import {
   useNodesState,
@@ -308,23 +309,32 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const { undo, redo, canUndo, canRedo, resetHistory } = useWorkflowHistory(
+  const { undo, redo, canUndo, canRedo, resetHistory, flushRecording } = useWorkflowHistory(
     nodes,
     edges,
     setNodes,
     setEdges
   );
   const [historyRevision, setHistoryRevision] = useState(0);
+  const configFlushRef = useRef<(() => void) | null>(null);
 
   const handleUndo = useCallback(() => {
+    flushSync(() => {
+      configFlushRef.current?.();
+    });
+    flushRecording();
     setHistoryRevision((revision) => revision + 1);
     undo();
-  }, [undo]);
+  }, [undo, flushRecording]);
 
   const handleRedo = useCallback(() => {
+    flushSync(() => {
+      configFlushRef.current?.();
+    });
+    flushRecording();
     setHistoryRevision((revision) => revision + 1);
     redo();
-  }, [redo]);
+  }, [redo, flushRecording]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const hasInitializedEmptyCanvas = useRef(false);
   const isImportingRef = useRef(false);
@@ -2101,6 +2111,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             onSave={handleFullscreenModalSave}
             onConfigChange={handleNodeConfigChange}
             historyRevision={historyRevision}
+            configFlushRef={configFlushRef}
             onExecute={() =>
               handleStartNodeExecution(fullscreenModal.nodeData?.id || "")
             }

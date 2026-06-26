@@ -80,7 +80,6 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
   const handleSaveConfig = (values: Partial<GenericData>) => {
     console.log(values);
     const updatedData = { ...data, ...values };
-    // Update node data without affecting local configData to prevent loops
     setNodes((nodes) =>
       nodes.map((node) =>
         node.id === id ? { ...node, data: updatedData } : node
@@ -88,6 +87,22 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
     );
     setIsConfigMode(false);
   };
+
+  const handleConfigChange = useCallback(
+    (values: Partial<GenericData>) => {
+      const updatedData = { ...data, ...values };
+      setNodes((nodes) =>
+        nodes.map((node) => {
+          if (node.id !== id) return node;
+          if (JSON.stringify(node.data) === JSON.stringify(updatedData)) {
+            return node;
+          }
+          return { ...node, data: updatedData };
+        })
+      );
+    },
+    [data, id, setNodes]
+  );
 
   const handleDeleteNode = useCallback(
     (e: React.MouseEvent) => {
@@ -434,6 +449,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
         }}
         validate={validate}
         onSubmit={handleSaveConfig}
+        onChange={handleConfigChange}
         onCancel={() => setIsConfigMode(false)}
       />
     );
