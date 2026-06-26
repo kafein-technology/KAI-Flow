@@ -47,7 +47,7 @@ const formatDataForDisplay = (data: any) => {
   if (typeof data === "object" && data !== null) {
     return JSON.stringify(data);
   }
-  return String(data);
+  return String(data).replace(/[\r\n]+/g, " ");
 };
 
 function ExecutionsPage() {
@@ -243,12 +243,19 @@ function ExecutionsPage() {
     });
   }, [executions, filters, workflows]);
 
-  const totalPages = Math.ceil(filteredExecutions.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(filteredExecutions.length / itemsPerPage));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const startIndex = (effectivePage - 1) * itemsPerPage;
   const currentExecutions = filteredExecutions.slice(
     startIndex,
     startIndex + itemsPerPage
   );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
 
   // Reset page and selections when filters change
   useEffect(() => {
@@ -632,7 +639,7 @@ function ExecutionsPage() {
             ) : (
               <>
                 {/* Executions Table */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden min-h-[921px]">
                   <div className="overflow-x-auto">
                     <table className="w-full" style={{ tableLayout: "fixed" }}>
                       <colgroup>
@@ -695,8 +702,8 @@ function ExecutionsPage() {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {currentExecutions.map((execution) => (
-                          <tr key={execution.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-4">
+                          <tr key={execution.id} className="hover:bg-gray-50 h-[88px]">
+                            <td className="px-3 py-4 align-top">
                               <input
                                 type="checkbox"
                                 checked={selectedExecutions.has(execution.id)}
@@ -706,14 +713,17 @@ function ExecutionsPage() {
                                     e.target.checked
                                   )
                                 }
-                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mt-0.5"
                               />
                             </td>
-                            <td className="px-3 py-4">
-                              <div className="flex items-center">
-                                <Play className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0" />
-                                <div className="min-w-0">
-                                  <div className="text-sm font-medium text-gray-900">
+                            <td className="px-3 py-4 align-top">
+                              <div className="flex items-start">
+                                <Play className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0 mt-0.5" />
+                                <div className="min-w-0 flex-1">
+                                  <div
+                                    className="text-sm font-medium text-gray-900 line-clamp-2 h-10"
+                                    title={getWorkflowName(execution.workflow_id)}
+                                  >
                                     {getWorkflowName(execution.workflow_id)}
                                   </div>
                                   <div className="text-xs text-gray-500">
@@ -722,55 +732,65 @@ function ExecutionsPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-3 py-4">
-                              <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(
-                                  execution.status
-                                )}`}
-                              >
-                                {execution.status === "completed" && (
-                                  <Check className="w-3 h-3 mr-1" />
-                                )}
-                                {execution.status === "failed" && (
-                                  <X className="w-3 h-3 mr-1" />
-                                )}
-                                {execution.status === "running" && (
-                                  <Clock className="w-3 h-3 mr-1 animate-spin" />
-                                )}
-                                {execution.status === "cancelled" && (
-                                  <X className="w-3 h-3 mr-1" />
-                                )}
-                                {execution.status.charAt(0).toUpperCase() +
-                                  execution.status.slice(1)}
-                              </span>
+                            <td className="px-3 py-4 align-top">
+                              <div className="truncate pt-0.5">
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(
+                                    execution.status
+                                  )}`}
+                                >
+                                  {execution.status === "completed" && (
+                                    <Check className="w-3 h-3 mr-1" />
+                                  )}
+                                  {execution.status === "failed" && (
+                                    <X className="w-3 h-3 mr-1" />
+                                  )}
+                                  {execution.status === "running" && (
+                                    <Clock className="w-3 h-3 mr-1 animate-spin" />
+                                  )}
+                                  {execution.status === "cancelled" && (
+                                    <X className="w-3 h-3 mr-1" />
+                                  )}
+                                  {execution.status.charAt(0).toUpperCase() +
+                                    execution.status.slice(1)}
+                                </span>
+                              </div>
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-900">
-                              {execution.started_at
-                                ? timeAgo(execution.started_at)
-                                : "-"}
+                            <td className="px-3 py-4 text-sm text-gray-900 align-top">
+                              <div className="line-clamp-2 h-10 pt-0.5" title={execution.started_at ? timeAgo(execution.started_at) : "-"}>
+                                {execution.started_at
+                                  ? timeAgo(execution.started_at)
+                                  : "-"}
+                              </div>
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-900">
-                              {formatDuration(
-                                execution.started_at,
-                                execution.completed_at
-                              )}
+                            <td className="px-3 py-4 text-sm text-gray-900 align-top">
+                              <div className="truncate pt-0.5" title={formatDuration(execution.started_at, execution.completed_at)}>
+                                {formatDuration(
+                                  execution.started_at,
+                                  execution.completed_at
+                                )}
+                              </div>
                             </td>
                             <td
-                              className="px-3 py-4 text-sm text-gray-900 overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer hover:text-purple-600 transition-colors"
+                              className="px-3 py-4 text-sm text-gray-900 cursor-pointer hover:text-purple-600 transition-colors align-top"
                               title={formatDataForDisplay(getInputData(execution))}
                               onClick={() => handleViewClick("Input Data", getInputData(execution))}
                             >
-                              {formatDataForDisplay(getInputData(execution))}
+                              <div className="truncate pt-0.5">
+                                {formatDataForDisplay(getInputData(execution))}
+                              </div>
                             </td>
                             <td
-                              className="px-3 py-4 text-sm text-gray-900 overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer hover:text-purple-600 transition-colors"
+                              className="px-3 py-4 text-sm text-gray-900 cursor-pointer hover:text-purple-600 transition-colors align-top"
                               title={formatDataForDisplay(getOutputData(execution))}
                               onClick={() => handleViewClick("Output Data", getOutputData(execution))}
                             >
-                              {formatDataForDisplay(getOutputData(execution))}
+                              <div className="truncate pt-0.5">
+                                {formatDataForDisplay(getOutputData(execution))}
+                              </div>
                             </td>
-                            <td className="px-3 py-4 text-center">
-                              <div className="flex justify-center items-center gap-2.5">
+                            <td className="px-3 py-4 text-center align-top">
+                              <div className="flex justify-center items-start gap-2.5 pt-0.5">
                                 {(execution.status === "running" || execution.status === "pending") && (
                                   <button
                                     onClick={async () => {
@@ -821,12 +841,12 @@ function ExecutionsPage() {
                         onClick={() =>
                           setCurrentPage((prev) => Math.max(prev - 1, 1))
                         }
-                        disabled={currentPage === 1}
+                        disabled={effectivePage === 1}
                         className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
-
+ 
                       <div className="flex gap-1">
                         {Array.from(
                           { length: totalPages },
@@ -835,7 +855,7 @@ function ExecutionsPage() {
                           <button
                             key={page}
                             onClick={() => setCurrentPage(page)}
-                            className={`px-3 py-1 rounded text-sm ${page === currentPage
+                            className={`px-3 py-1 rounded text-sm ${page === effectivePage
                               ? "bg-purple-600 text-white"
                               : "text-gray-700 hover:bg-gray-100"
                               }`}
@@ -844,14 +864,14 @@ function ExecutionsPage() {
                           </button>
                         ))}
                       </div>
-
+ 
                       <button
                         onClick={() =>
                           setCurrentPage((prev) =>
                             Math.min(prev + 1, totalPages)
                           )
                         }
-                        disabled={currentPage === totalPages}
+                        disabled={effectivePage === totalPages}
                         className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ChevronRight className="w-5 h-5" />
