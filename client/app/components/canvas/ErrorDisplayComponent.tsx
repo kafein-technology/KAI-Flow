@@ -161,7 +161,7 @@ export default function ErrorDisplayComponent({
   const errorIcon = getErrorIcon(type);
 
   return (
-    <div className={`absolute top-20 left-4 z-50 max-w-lg ${className}`}>
+    <div className={`fixed top-20 left-20 z-50 max-w-lg ${className}`}>
       <div
         className={`${errorColor} border rounded-lg shadow-lg overflow-hidden`}
       >
@@ -228,7 +228,7 @@ export default function ErrorDisplayComponent({
                   <ul className="text-xs space-y-1">
                     {suggestions.map((suggestion, index) => (
                       <li key={index} className="flex items-start space-x-2">
-                        <span className="text-current opacity-60">•</span>
+                        <span className="text-current opacity-60">-</span>
                         <span>{suggestion}</span>
                       </li>
                     ))}

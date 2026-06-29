@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
+import { flushSync } from "react-dom";
 import { v4 as uuidv4 } from "uuid";
 import {
   useNodesState,
@@ -36,9 +37,8 @@ import type {
 
 type NodeStatus = "success" | "failed" | "pending";
 
-import { Loader } from "lucide-react";
+import { Loader, Plus, BookOpen, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 import ChatComponent from "./ChatComponent";
-import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
 import NodeContextMenu from "./NodeContextMenu";
@@ -56,6 +56,7 @@ import GenericNode from "../node";
 // Import config components
 import { config } from "../../lib/config";
 import { GenericNodeForm } from "../node";
+import { useWorkflowHistory, isEditableKeyboardTarget } from "../../lib/useWorkflowHistory";
 
 interface FlowCanvasProps {
   workflowId?: string;
@@ -306,11 +307,21 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const { undo, redo, canUndo, canRedo, resetHistory, flushRecording } = useWorkflowHistory(
+    nodes,
+    edges,
+    setNodes,
+    setEdges
+  );
+  const [historyRevision, setHistoryRevision] = useState(0);
+  const configFlushRef = useRef<(() => void) | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const hasInitializedEmptyCanvas = useRef(false);
+  const loadedWorkflowIdRef = useRef<string | null>(null);
   const isImportingRef = useRef(false);
-  const { screenToFlowPosition } = useReactFlow();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
   const [activeNodes, setActiveNodes] = useState<string[]>([]);
   const [nodeStatus, setNodeStatus] = useState<
@@ -354,6 +365,40 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [autoSaveStatus, setAutoSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
+  const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  const markSaveSuccess = useCallback((savedAt: Date = new Date()) => {
+    setLastAutoSave(savedAt);
+    setAutoSaveStatus("saved");
+    if (saveStatusTimeoutRef.current) {
+      clearTimeout(saveStatusTimeoutRef.current);
+    }
+    saveStatusTimeoutRef.current = setTimeout(() => {
+      setAutoSaveStatus("idle");
+      saveStatusTimeoutRef.current = null;
+    }, 3000);
+  }, []);
+
+  const markSaveError = useCallback(() => {
+    setAutoSaveStatus("error");
+    if (saveStatusTimeoutRef.current) {
+      clearTimeout(saveStatusTimeoutRef.current);
+    }
+    saveStatusTimeoutRef.current = setTimeout(() => {
+      setAutoSaveStatus("idle");
+      saveStatusTimeoutRef.current = null;
+    }, 5000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (saveStatusTimeoutRef.current) {
+        clearTimeout(saveStatusTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Unsaved changes modal ref
   const unsavedChangesModalRef = useRef<HTMLDialogElement>(null);
@@ -380,6 +425,38 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   }>({
     isOpen: false,
   });
+  const fullscreenModalRef = useRef(fullscreenModal);
+  fullscreenModalRef.current = fullscreenModal;
+
+  const isApplyingHistoryRef = useRef(false);
+
+  const handleUndo = useCallback(() => {
+    isApplyingHistoryRef.current = true;
+    flushSync(() => {
+      configFlushRef.current?.();
+    });
+    flushRecording();
+    setHistoryRevision((revision) => revision + 1);
+    undo();
+  }, [undo, flushRecording]);
+
+  const handleRedo = useCallback(() => {
+    isApplyingHistoryRef.current = true;
+    flushSync(() => {
+      configFlushRef.current?.();
+    });
+    flushRecording();
+    setHistoryRevision((revision) => revision + 1);
+    redo();
+  }, [redo, flushRecording]);
+
+  useEffect(() => {
+    if (isApplyingHistoryRef.current) {
+      queueMicrotask(() => {
+        isApplyingHistoryRef.current = false;
+      });
+    }
+  }, [historyRevision]);
 
   const {
     currentWorkflow,
@@ -663,6 +740,18 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
   }, [currentWorkflow?.name]);
 
+  useEffect(() => {
+    if (!currentWorkflow) {
+      setLastAutoSave(null);
+      setAutoSaveStatus("idle");
+      return;
+    }
+    if (currentWorkflow.updated_at) {
+      setLastAutoSave(new Date(currentWorkflow.updated_at));
+    }
+    setAutoSaveStatus("idle");
+  }, [currentWorkflow?.id]);
+
   // Clear chats and execution data when workflow changes to prevent accumulation
   useEffect(() => {
     if (currentWorkflow?.id) {
@@ -677,30 +766,42 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   // Initialize nodes from store when loaded for the first time
   useEffect(() => {
-    if (availableNodes.length > 0 && nodes.length === 0 && !currentWorkflow && !hasInitializedEmptyCanvas.current) {
+    if (!workflowId && availableNodes.length > 0 && nodes.length === 0 && !currentWorkflow && !hasInitializedEmptyCanvas.current) {
       // Sadece start node'u ekle
       const startNodeMeta = availableNodes.find((n) => n.name === "StartNode");
       if (startNodeMeta) {
-        setNodes([
-          {
-            id: "StartNode__" + crypto.randomUUID(),
-            type: "StartNode",
-            position: { x: 100, y: 100 },
-            data: {
-              name: "Start",
-              metadata: startNodeMeta,
-            },
+        const startNode = {
+          id: "StartNode__" + crypto.randomUUID(),
+          type: "StartNode",
+          position: { x: 100, y: 100 },
+          data: {
+            name: "Start",
+            metadata: startNodeMeta,
           },
-        ]);
+        };
+        setNodes([startNode]);
         hasInitializedEmptyCanvas.current = true;
+        resetHistory([startNode], []);
       }
     }
-  }, [availableNodes, currentWorkflow, nodes.length, setNodes]);
+  }, [workflowId, availableNodes, currentWorkflow, nodes.length, setNodes, resetHistory]);
 
   useEffect(() => {
-    if (currentWorkflow?.flow_data) {
-      const { nodes: rawNodes, edges } = currentWorkflow.flow_data;
+    // If currentWorkflow is null and we had a loaded workflow, reset the canvas
+    if (!currentWorkflow) {
+      if (loadedWorkflowIdRef.current !== null && !isImportingRef.current) {
+        setNodes([]);
+        setEdges([]);
+        resetHistory([], []);
+        loadedWorkflowIdRef.current = null;
+      }
+      isImportingRef.current = false;
+      return;
+    }
 
+    // ONLY load if this is a DIFFERENT workflow or if it hasn't been loaded/initialized yet
+    if (loadedWorkflowIdRef.current !== currentWorkflow.id) {
+      const { nodes: rawNodes, edges } = currentWorkflow.flow_data || {};
       const combinedNodes = [...(availableNodes || []), ...(customNodes || [])];
 
       // Inject missing metadata/colors for nodes from availableNodes registry
@@ -748,16 +849,19 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
         );
         setEdges(validEdges);
+        resetHistory(enrichedNodes, validEdges);
       } else {
-        setEdges(edges || []);
+        const loadedEdges = edges || [];
+        setEdges(loadedEdges);
+        resetHistory(enrichedNodes, loadedEdges);
       }
-    } else if (!isImportingRef.current) {
-      setNodes([]);
-      setEdges([]);
+
+      loadedWorkflowIdRef.current = currentWorkflow.id;
     }
+
     // Reset import flag after every useEffect run (self-healing)
     isImportingRef.current = false;
-  }, [currentWorkflow, availableNodes, customNodes]);
+  }, [currentWorkflow, availableNodes, customNodes, resetHistory]);
 
   useEffect(() => {
     if (currentWorkflow) {
@@ -807,11 +911,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
       setDetailedExecutionError(errorDetails);
 
-      // Display snackbar with the direct error message
-      enqueueSnackbar(errorDetails.message, {
-        variant: "error",
-        autoHideDuration: 5000,
-      });
     };
 
     window.addEventListener(
@@ -826,6 +925,32 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       );
     };
   }, [enqueueSnackbar]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "z" && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+      } else if (
+        event.key.toLowerCase() === "y" ||
+        (event.key.toLowerCase() === "z" && event.shiftKey)
+      ) {
+        event.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleUndo, handleRedo]);
+
+  const activeModalNode = fullscreenModal.nodeData
+    ? nodes.find((node) => node.id === fullscreenModal.nodeData.id) ?? fullscreenModal.nodeData
+    : null;
 
   // Clean up edges when nodes are deleted
   useEffect(() => {
@@ -971,6 +1096,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       return;
     }
 
+    setAutoSaveStatus("saving");
+
     if (!currentWorkflow) {
       try {
         const newWorkflow = await createWorkflow({
@@ -986,6 +1113,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
         setCurrentWorkflow(newWorkflow);
         setHasUnsavedChanges(false);
+        markSaveSuccess(
+          newWorkflow.updated_at
+            ? new Date(newWorkflow.updated_at)
+            : new Date()
+        );
         enqueueSnackbar(`Workflow "${workflowName}" created and saved!`, {
           variant: "success",
         });
@@ -993,25 +1125,30 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         console.error("Failed to create workflow:", error);
         const errorMessage = error?.response?.data?.detail || error?.message || "Failed to create workflow";
         enqueueSnackbar(errorMessage, { variant: "error" });
+        markSaveError();
       }
       return;
     }
 
     try {
-      await updateWorkflow(currentWorkflow.id, {
+      const updatedWorkflow = await updateWorkflow(currentWorkflow.id, {
         name: workflowName,
         description: currentWorkflow.description,
         flow_data: flowData,
       });
 
-      // Only set unsaved changes to false after successful update
       setHasUnsavedChanges(false);
+      markSaveSuccess(
+        updatedWorkflow?.updated_at
+          ? new Date(updatedWorkflow.updated_at)
+          : new Date()
+      );
       enqueueSnackbar("Workflow saved successfully!", { variant: "success" });
     } catch (error: any) {
       console.error("Failed to save workflow:", error);
       const errorMessage = error?.response?.data?.detail || error?.message || "Failed to save workflow";
       enqueueSnackbar(errorMessage, { variant: "error" });
-      // Don't set hasUnsavedChanges to false on error
+      markSaveError();
     }
   }, [
     currentWorkflow,
@@ -1023,6 +1160,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setCurrentWorkflow,
     setHasUnsavedChanges,
     workflowName,
+    markSaveSuccess,
+    markSaveError,
   ]);
 
   // Context Menu Handlers
@@ -1108,41 +1247,31 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         settings: currentWorkflow.flow_data?.settings,
       };
 
-      await updateWorkflow(currentWorkflow.id, {
+      const updatedWorkflow = await updateWorkflow(currentWorkflow.id, {
         name: workflowName,
         description: currentWorkflow.description,
         flow_data: flowData,
       });
 
       setHasUnsavedChanges(false);
-      setLastAutoSave(new Date());
-      setAutoSaveStatus("saved");
+      markSaveSuccess(
+        updatedWorkflow?.updated_at
+          ? new Date(updatedWorkflow.updated_at)
+          : new Date()
+      );
 
-      // Show subtle notification
       enqueueSnackbar("Auto-saved", {
         variant: "success",
         autoHideDuration: 2000,
-        anchorOrigin: { vertical: "bottom", horizontal: "right" },
       });
-
-      // Reset status after 3 seconds
-      setTimeout(() => {
-        setAutoSaveStatus("idle");
-      }, 3000);
     } catch (error) {
       console.error("Auto-save failed:", error);
-      setAutoSaveStatus("error");
+      markSaveError();
 
       enqueueSnackbar("Auto-save failed", {
         variant: "error",
         autoHideDuration: 3000,
-        anchorOrigin: { vertical: "bottom", horizontal: "right" },
       });
-
-      // Reset error status after 5 seconds
-      setTimeout(() => {
-        setAutoSaveStatus("idle");
-      }, 5000);
     }
   }, [
     autoSaveEnabled,
@@ -1154,6 +1283,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     workflowName,
     setHasUnsavedChanges,
     enqueueSnackbar,
+    markSaveSuccess,
+    markSaveError,
   ]);
 
   // Auto-save timer effect
@@ -1315,35 +1446,42 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                     });
                   }
                 } else if (t === "error") {
-                  // Mark current active items as failed
-                  const failedNodeId = activeNodes[0];
-                  setErrorNodeId(failedNodeId);
+                  // Use evt.node_id directly (not stale closure activeNodes)
+                  const failedNodeId = evt.node_id ? String(evt.node_id) : undefined;
+                  setErrorNodeId(failedNodeId || null);
 
-                  setNodeStatus((s) =>
-                    failedNodeId ? { ...s, [failedNodeId]: "failed" } : s
-                  );
-                  setEdgeStatus((s) =>
-                    activeEdges.length > 0
-                      ? { ...s, [activeEdges[0]]: "failed" }
-                      : s
-                  );
+                  if (failedNodeId) {
+                    setNodeStatus((s) => ({ ...s, [failedNodeId]: "failed" }));
+                  }
+                  // Mark edges to the failed node as failed
+                  if (failedNodeId) {
+                    setEdgeStatus((s) => {
+                      const updated = { ...s };
+                      (edges as Edge[]).forEach((edge) => {
+                        if (edge.target === failedNodeId) {
+                          updated[edge.id] = "failed";
+                        }
+                      });
+                      return updated;
+                    });
+                  }
 
                   // Create detailed error for display
                   const errorDetails = {
                     message: evt.error || "Node execution failed",
                     type: evt.error_type || "execution",
-                    nodeId: evt.node_id || failedNodeId,
-                    nodeType: evt.node_id
-                      ? nodes.find((n) => n.id === evt.node_id)?.type
-                      : failedNodeId
-                        ? nodes.find((n) => n.id === failedNodeId)?.type
-                        : undefined,
+                    nodeId: failedNodeId,
+                    nodeType: failedNodeId
+                      ? nodes.find((n) => n.id === failedNodeId)?.type
+                      : undefined,
                     timestamp: evt.timestamp || new Date().toLocaleTimeString(),
                     stackTrace:
                       evt.stack_trace || evt.details || evt.stack_trace,
                   };
 
                   setDetailedExecutionError(errorDetails);
+                  streamHadError = true;
+                  streamErrorMessage = evt.error || "Node execution failed";
 
                   // Store the failed execution result in the store so that nodes reflect the current failed state outputs
                   const executionResult = {
@@ -1394,6 +1532,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             }
           };
 
+          // Track streaming error state
+          let streamHadError = false;
+          let streamErrorMessage = "";
+
           // Pump the stream
           // We intentionally do not await the entire stream to keep UI responsive
           (async () => {
@@ -1413,6 +1555,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               const execIdToFetch = lastExecutionId;
               setActiveExecutionId(null);
               activeReaderRef.current = null;
+
+              // Show success snackbar only if no errors were received during streaming
+              if (!streamHadError) {
+                enqueueSnackbar("Workflow executed successfully", {
+                  variant: "success",
+                });
+                clearExecutionError();
+              }
 
               if (execIdToFetch && currentWorkflow?.id) {
                 (async () => {
@@ -1436,19 +1586,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           // fallback to non-streaming if needed
           await executeWorkflow(currentWorkflow.id, executionData);
         }
-
-        // Show success message
-        enqueueSnackbar("Workflow executed successfully", {
-          variant: "success",
-        });
-
-        // Clear any previous execution errors
-        clearExecutionError();
       } catch (error: any) {
         console.error("Error executing workflow:", error);
 
-        const failedNodeId = activeNodes[0];
-        setErrorNodeId(failedNodeId);
+        const failedNodeId = error.node_id || undefined;
+        setErrorNodeId(failedNodeId || null);
 
         // Create detailed error for display
         const errorDetails = {
@@ -1464,17 +1606,19 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
         setDetailedExecutionError(errorDetails);
 
-        enqueueSnackbar(error.message, {
-          variant: "error",
-        });
-
-        // Mark last active node/edge as failed if possible
-        setNodeStatus((s) =>
-          failedNodeId ? { ...s, [failedNodeId]: "failed" } : s
-        );
-        setEdgeStatus((s) =>
-          activeEdges.length > 0 ? { ...s, [activeEdges[0]]: "failed" } : s
-        );
+        // Mark failed node/edges
+        if (failedNodeId) {
+          setNodeStatus((s) => ({ ...s, [failedNodeId]: "failed" }));
+          setEdgeStatus((s) => {
+            const updated = { ...s };
+            (edges as Edge[]).forEach((edge) => {
+              if (edge.target === failedNodeId) {
+                updated[edge.id] = "failed";
+              }
+            });
+            return updated;
+          });
+        }
       }
     },
     [
@@ -1485,8 +1629,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       clearExecutionError,
       enqueueSnackbar,
       setActiveEdges,
-      activeNodes,
-      activeEdges,
     ]
   );
 
@@ -1525,14 +1667,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
       setDetailedExecutionError(errorDetails);
 
-      enqueueSnackbar(executionError, {
-        variant: "error",
-      });
       clearExecutionError();
     }
   }, [
     executionError,
-    enqueueSnackbar,
     clearExecutionError,
     errorNodeId,
     nodes,
@@ -1816,6 +1954,29 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     [fullscreenModal.nodeData, setNodes]
   );
 
+  const handleNodeConfigChange = useCallback(
+    (values: Record<string, unknown>) => {
+      if (isApplyingHistoryRef.current) return;
+
+      const nodeId = fullscreenModalRef.current.nodeData?.id;
+      if (!nodeId) return;
+
+      setNodes((nodes) =>
+        nodes.map((node) => {
+          if (node.id !== nodeId) return node;
+
+          const nextData = { ...node.data, ...values };
+          if (JSON.stringify(node.data) === JSON.stringify(nextData)) {
+            return node;
+          }
+
+          return { ...node, data: nextData };
+        })
+      );
+    },
+    [setNodes]
+  );
+
   // Handle fullscreen modal close
   const handleFullscreenModalClose = useCallback(() => {
     setFullscreenModal({ isOpen: false });
@@ -1850,26 +2011,65 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         autoSaveStatus={autoSaveStatus}
         lastAutoSave={lastAutoSave}
         onAutoSaveSettings={handleAutoSaveSettings}
-        updateWorkflowStatus={updateWorkflowStatus}
         updateWorkflowVisibility={updateWorkflowVisibility}
         onImportStart={() => { isImportingRef.current = true; }}
+        onWorkflowImported={(importedNodes, importedEdges) => {
+          resetHistory(importedNodes, importedEdges);
+        }}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
         executionLoading={executionLoading}
         activeExecutionId={activeExecutionId}
         currentExecution={currentExecution}
         onCancelExecution={handleCancelExecution}
+        hasUnsavedChanges={hasUnsavedChanges}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
-        {/* Sidebar Toggle Button */}
-        <SidebarToggleButton
-          isSidebarOpen={isSidebarOpen}
-          setIsSidebarOpen={setIsSidebarOpen}
-        />
+        {/* Left Activity Bar (Dikey Sol Menü) */}
+        <div className="fixed left-0 top-16 w-16 h-[calc(100vh-4rem)] bg-[#18181B] border-r border-gray-800/80 z-30 flex flex-col items-center justify-between py-4 select-none">
+          {/* Top section: Nodes */}
+          <div className="flex flex-col items-center gap-4 w-full">
+            {/* Nodes Panel Toggle Button */}
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className={`p-3 rounded-xl transition-all duration-200 border ${
+                isSidebarOpen
+                  ? "bg-blue-600/10 text-blue-400 border-blue-500/20 shadow-lg"
+                  : "text-white border-transparent hover:bg-gray-800"
+              }`}
+              title={isSidebarOpen ? "Close Nodes Panel" : "Open Nodes Panel"}
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Bottom section: Tutorial */}
+          <div className="flex flex-col items-center gap-4 w-full mt-auto">
+            {/* Divider */}
+            <div className="w-8 h-[1px] bg-gray-800"></div>
+
+            {/* Tutorial Button */}
+            <button
+              onClick={() => setIsTutorialOpen(true)}
+              className={`p-3 rounded-xl transition-all duration-200 border ${
+                isTutorialOpen
+                  ? "bg-blue-600/10 text-blue-400 border-blue-500/20"
+                  : "text-white border-transparent hover:bg-gray-800"
+              }`}
+              title="Open Tutorials"
+            >
+              <BookOpen className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
 
         {/* Sidebar modal */}
         {isSidebarOpen && <Sidebar onClose={() => setIsSidebarOpen(false)} />}
 
         {/* Canvas alanı */}
-        <div className="flex-1">
+        <div className="flex-1 pl-16 relative">
           {/* Error Display */}
           <ErrorDisplayComponent
             error={detailedExecutionError || error}
@@ -1896,6 +2096,36 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             onNodeContextMenu={onNodeContextMenu}
             onPaneClick={onPaneClick}
           />
+
+          {/* Horizontal Canvas Controls */}
+          <div className="absolute left-20 bottom-4 z-10 flex items-center gap-1 bg-[#18181B] border border-gray-800/80 p-1.5 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] select-none">
+            {/* Zoom In Button */}
+            <button
+              onClick={() => zoomIn({ duration: 300 })}
+              className="p-2 rounded-lg border border-transparent text-gray-400 hover:text-white hover:bg-gray-800 transition-all duration-150"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+
+            {/* Zoom Out Button */}
+            <button
+              onClick={() => zoomOut({ duration: 300 })}
+              className="p-2 rounded-lg border border-transparent text-gray-400 hover:text-white hover:bg-gray-800 transition-all duration-150"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+
+            {/* Fit View Button */}
+            <button
+              onClick={() => fitView({ duration: 300 })}
+              className="p-2 rounded-lg border border-transparent text-gray-400 hover:text-white hover:bg-gray-800 transition-all duration-150"
+              title="Fit View"
+            >
+              <Maximize className="w-4 h-4" />
+            </button>
+          </div>
 
           {/* Context Menu Render */}
           {contextMenu && (
@@ -1963,33 +2193,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             currentNodes={nodes}
             currentEdges={edges}
           />
-
-
-
-
-
-          {/* Execution Error Display */}
-          {executionError && (
-            <div className="fixed top-20 right-5 z-50 px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-lg flex items-center gap-2">
-              <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                <span className="text-red-600 text-xs font-bold">!</span>
-              </div>
-              <span className="text-sm font-medium">Execution failed</span>
-            </div>
-          )}
-
-          {/* Execution Success Display */}
-          {showSuccessMessage && currentExecution && !executionLoading && (
-            <div className="fixed top-20 right-5 z-50 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg flex items-center gap-2 animate-pulse">
-              <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                <span className="text-green-600 text-xs font-bold">✓</span>
-              </div>
-              <span className="text-sm font-medium">Execution completed</span>
-            </div>
-          )}
         </div>
       </div>
-      <TutorialButton />
+      <TutorialButton
+        isOpen={isTutorialOpen}
+        onClose={() => setIsTutorialOpen(false)}
+        showTriggerButton={false}
+      />
 
       {/* Unsaved Changes Modal */}
       <UnsavedChangesModal
@@ -2018,8 +2228,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             isOpen={fullscreenModal.isOpen}
             onClose={handleFullscreenModalClose}
             nodeMetadata={fullscreenModal.nodeMetadata}
-            configData={fullscreenModal.nodeData?.data || {}}
+            configData={activeModalNode?.data || {}}
             onSave={handleFullscreenModalSave}
+            onConfigChange={handleNodeConfigChange}
+            historyRevision={historyRevision}
+            configFlushRef={configFlushRef}
             onExecute={() =>
               handleStartNodeExecution(fullscreenModal.nodeData?.id || "")
             }
@@ -3899,6 +4112,22 @@ function useTimerExecutionListener(
 
                   const isError = executionEvent.error || executionEvent.status === "error";
 
+                  if (isError && actualNode) {
+                    const ev = executionEvent as any;
+                    window.dispatchEvent(
+                      new CustomEvent("chat-execution-error", {
+                        detail: {
+                          error: ev.error || `Node ${node_id} failed`,
+                          message: ev.error || `Node ${node_id} failed`,
+                          type: ev.error_type || "execution",
+                          nodeId: actualNode.id,
+                          nodeType: actualNode.type,
+                          stackTrace: ev.stack_trace,
+                        },
+                      })
+                    );
+                  }
+
                   if (actualNode) {
                     setNodeStatus((s) => ({ ...s, [actualNode.id]: isError ? "failed" : "success" }));
                     setEdgeStatus((s) => {
@@ -3978,6 +4207,35 @@ function useTimerExecutionListener(
                 }
                 execData.sessionId = ev.session_id;
 
+                const failedNodeId = ev.node_id || (execData.executedNodes.length > 0 ? execData.executedNodes[execData.executedNodes.length - 1] : undefined);
+                const actualFailedNode = failedNodeId ? findCanvasNode(currentNodesList, failedNodeId) : null;
+
+                window.dispatchEvent(
+                  new CustomEvent("chat-execution-error", {
+                    detail: {
+                      error: ev.error || "Workflow execution failed",
+                      message: ev.error || "Workflow execution failed",
+                      type: ev.error_type || "execution",
+                      nodeId: actualFailedNode?.id || failedNodeId,
+                      nodeType: actualFailedNode?.type,
+                      stackTrace: ev.stack_trace,
+                    },
+                  })
+                );
+
+                if (failedNodeId) {
+                  setNodeStatus((s) => ({ ...s, [failedNodeId]: "failed" }));
+                  setEdgeStatus((s) => {
+                    const updated = { ...s };
+                    (currentEdgesList as Edge[]).forEach((edge) => {
+                      if (edge.target === failedNodeId) {
+                        updated[edge.id] = "failed";
+                      }
+                    });
+                    return updated;
+                  });
+                }
+
                 if (currentWorkflowId && setCurrentExecutionForWorkflow) {
                   setCurrentExecutionForWorkflow(currentWorkflowId, {
                     id: executionId,
@@ -3992,7 +4250,6 @@ function useTimerExecutionListener(
                     },
                     started_at: execData.startedAt,
                     completed_at: execData.completedAt,
-                    status: "failed" as const,
                   });
                 }
               } else if (eventType === "complete" || eventType === "workflow_complete") {

@@ -1,10 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BookOpen, X } from "lucide-react";
 import TutorialLauncher from "./TutorialLauncher";
 import TutorialWorkflowGuide from "./TutorialWorkflowGuide";
 import { useTutorialProgress } from "../../stores/tutorialProgress";
 
-export default function TutorialButton() {
+interface TutorialButtonProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  showTriggerButton?: boolean;
+}
+
+export default function TutorialButton({
+  isOpen,
+  onClose,
+  showTriggerButton = true,
+}: TutorialButtonProps) {
   const [showLauncher, setShowLauncher] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [selectedTutorial, setSelectedTutorial] = useState<
@@ -21,6 +31,13 @@ export default function TutorialButton() {
     }
   };
 
+  useEffect(() => {
+    if (isOpen) {
+      handleTutorialButtonClick();
+      onClose?.();
+    }
+  }, [isOpen]);
+
   const handleLaunchTutorial = (tutorialId: string) => {
     setSelectedTutorial(tutorialId);
     setShowLauncher(false);
@@ -35,13 +52,15 @@ export default function TutorialButton() {
   return (
     <>
       {/* Tutorial Button */}
-      <button
-        onClick={handleTutorialButtonClick}
-        className="fixed bottom-6 left-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all duration-200 hover:scale-110 z-40"
-        title="Open Tutorials"
-      >
-        <BookOpen className="w-6 h-6" />
-      </button>
+      {showTriggerButton && (
+        <button
+          onClick={handleTutorialButtonClick}
+          className="fixed bottom-6 left-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all duration-200 hover:scale-110 z-40"
+          title="Open Tutorials"
+        >
+          <BookOpen className="w-6 h-6" />
+        </button>
+      )}
 
       {/* Tutorial Launcher Modal */}
       {showLauncher && (

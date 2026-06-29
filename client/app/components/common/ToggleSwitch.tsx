@@ -9,6 +9,7 @@ interface ToggleSwitchProps {
   showIcon?: boolean;
   label?: string;
   description?: string;
+  theme?: "light" | "dark";
   activeIcon?: React.ReactNode;
   inactiveIcon?: React.ReactNode;
 }
@@ -21,6 +22,7 @@ export default function ToggleSwitch({
   showIcon = true,
   label,
   description,
+  theme = "light",
   activeIcon,
   inactiveIcon,
 }: ToggleSwitchProps) {
@@ -66,7 +68,7 @@ export default function ToggleSwitch({
         {/* Toggle Circle */}
         <span
           className={`
-            absolute left-1 inline-block
+            absolute left-1 top-1 inline-block
             ${size === "sm" ? "w-4 h-4" : size === "md" ? "w-5 h-5" : "w-6 h-6"}
             bg-white rounded-full transition-all duration-300 ease-in-out
             shadow-lg transform
@@ -95,14 +97,26 @@ export default function ToggleSwitch({
           {label && (
             <span
               className={`font-medium ${
-                isActive ? "text-green-700" : "text-gray-600"
+                theme === "dark"
+                  ? isActive
+                    ? "text-green-400"
+                    : "text-white/80"
+                  : isActive
+                    ? "text-green-700"
+                    : "text-gray-600"
               }`}
             >
               {label}
             </span>
           )}
           {description && (
-            <span className="text-xs text-gray-500">{description}</span>
+            <span
+              className={`text-xs ${
+                theme === "dark" ? "text-white/50" : "text-gray-500"
+              }`}
+            >
+              {description}
+            </span>
           )}
         </div>
       )}

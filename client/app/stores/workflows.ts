@@ -27,7 +27,7 @@ interface WorkflowState {
   fetchPublicWorkflows: () => Promise<void>;
   fetchWorkflow: (id: string) => Promise<void>;
   createWorkflow: (data: WorkflowCreateRequest) => Promise<Workflow>;
-  updateWorkflow: (id: string, data: WorkflowUpdateRequest) => Promise<void>;
+  updateWorkflow: (id: string, data: WorkflowUpdateRequest) => Promise<Workflow>;
   deleteWorkflow: (id: string) => Promise<void>;
   duplicateWorkflow: (id: string, new_name?: string) => Promise<Workflow>;
   updateWorkflowVisibility: (id: string, is_public: boolean) => Promise<void>;
@@ -111,6 +111,7 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
         isLoading: false,
         error: null,
       }));
+      return updatedWorkflow;
     } catch (error: any) {
       const errorMessage = error?.response?.data?.detail || error?.message || "Failed to update workflow";
       console.error("Update workflow error:", errorMessage, error);
