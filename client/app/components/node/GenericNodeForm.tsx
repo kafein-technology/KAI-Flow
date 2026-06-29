@@ -28,6 +28,53 @@ interface GenericNodeFormProps {
   onCancel: () => void;
   configData?: any;
   onSave?: (values: any) => void;
+  onChange?: (values: GenericData) => void;
+}
+
+const cleanValues = (obj: any): any => {
+  if (obj === null || obj === undefined) return "";
+  if (typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(cleanValues);
+  
+  const cleaned: any = {};
+  const keys = Object.keys(obj).sort();
+  for (const key of keys) {
+    const val = cleanValues(obj[key]);
+    if (val !== "" && val !== null && val !== undefined) {
+      cleaned[key] = val;
+    }
+  }
+  return cleaned;
+};
+
+function FormValuesObserver({
+  values,
+  initialValues,
+  onChange,
+}: {
+  values: GenericData;
+  initialValues: GenericData;
+  onChange?: (values: GenericData) => void;
+}) {
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const valuesKeyRef = useRef<string>("");
+
+  useEffect(() => {
+    // Compare cleaned values. If identical to cleaned initialValues, do not trigger onChange
+    const cleanCurrent = cleanValues(values);
+    const cleanInitial = cleanValues(initialValues);
+    if (JSON.stringify(cleanCurrent) === JSON.stringify(cleanInitial)) {
+      return;
+    }
+
+    const nextKey = JSON.stringify(values);
+    if (valuesKeyRef.current === nextKey) return;
+    valuesKeyRef.current = nextKey;
+    onChangeRef.current?.(values);
+  }, [values, initialValues]);
+
+  return null;
 }
 
 export default function GenericNodeForm({
@@ -37,6 +84,7 @@ export default function GenericNodeForm({
   onCancel,
   configData,
   onSave,
+  onChange,
 }: GenericNodeFormProps) {
   const properties = configData?.metadata?.properties || [];
 
@@ -181,7 +229,9 @@ export default function GenericNodeForm({
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
-          <Form className="grid grid-cols-2 gap-3 w-full p-6">
+          <>
+            <FormValuesObserver values={values} initialValues={initialValues} onChange={onChange} />
+            <Form className="grid grid-cols-2 gap-3 w-full p-6">
             {getVisibleProperties(activeTab).map((property: NodeProperty) => {
               // Check display options
               if (property.displayOptions?.show) {
@@ -389,6 +439,7 @@ export default function GenericNodeForm({
               </div>
             )}
           </Form>
+          </>
         )}
       </Formik>
     </div>

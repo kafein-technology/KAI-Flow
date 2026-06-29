@@ -38,7 +38,7 @@ function AuthSynchronizer() {
 
   useEffect(() => {
     if (isAuthenticated && user?.access_token) {
-      // Check if token is expired — don't write expired tokens to localStorage
+      // Check if token is expired - don't write expired tokens to localStorage
       try {
         const payload = JSON.parse(atob(user.access_token.split('.')[1]));
         const isExpired = payload.exp * 1000 < Date.now();

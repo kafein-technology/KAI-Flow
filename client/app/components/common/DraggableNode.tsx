@@ -122,22 +122,20 @@ function DraggableNode({ nodeType, icon }: DraggableNodeProps) {
     <div
       draggable
       onDragStart={onDragStart}
-      className="text-gray-100 flex items-center gap-2 p-3 hover:bg-gray-700/50 transition-all select-none cursor-grab rounded-2xl border border-transparent hover:border-gray-600"
+      className="text-gray-100 flex items-start gap-1 p-3 hover:bg-gray-800/60 transition-all select-none cursor-grab rounded-2xl border border-transparent hover:border-gray-700/50 w-full min-w-0 bg-gray-900/20 mb-2"
     >
-      <div className={`flex items-center justify-center ${ICON_CONTAINER_SIZE} m-2 shrink-0 [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain`}>
-        {getNodeIcon(nodeType.type) || <></>}
+      <div className="flex items-center justify-center w-8 h-8 m-1 shrink-0 [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain bg-gray-800/80 rounded-lg p-1.5 border border-gray-700/50">
+        {getNodeIcon(nodeType.type) || <Box className="w-5 h-5 text-blue-400" />}
       </div>
-      <div className="flex flex-col gap-2">
-        <div>
-          <h2 className="text-md font-medium text-gray-200">
-            {nodeType.display_name ||
-              nodeType.data?.displayName ||
-              nodeType.name}
-          </h2>
-        </div>
-        <div>
-          <p className="text-xs text-gray-400">{nodeType.info}</p>
-        </div>
+      <div className="flex flex-col gap-1 min-w-0 flex-1 ml-2 mt-0.5">
+        <h2 className="text-sm font-semibold text-gray-100 break-words whitespace-normal leading-tight">
+          {nodeType.display_name ||
+            nodeType.data?.displayName ||
+            nodeType.name}
+        </h2>
+        <p className="text-[11px] text-gray-400 break-words whitespace-normal leading-normal">
+          {nodeType.info}
+        </p>
       </div>
     </div>
   );

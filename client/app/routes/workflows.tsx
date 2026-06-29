@@ -10,6 +10,8 @@ import {
   Play,
   Pause,
   Activity,
+  Power,
+  PowerOff,
   Clock,
   Calendar,
   Globe,
@@ -787,8 +789,8 @@ function WorkflowsLayout() {
                                     isPublic
                                   )
                                 }
-                                activeIcon={<Activity className="w-3 h-3 text-green-600" />}
-                                inactiveIcon={<Pause className="w-3 h-3 text-gray-500" />}
+                                activeIcon={<Power className="w-3 h-3 text-green-600" />}
+                                inactiveIcon={<PowerOff className="w-3 h-3 text-gray-500" />}
                               />
                             </div>
                           </div>
