@@ -362,30 +362,17 @@ async def _test_openai_compatible(secret: Dict[str, Any]) -> CredentialTestRespo
 
         client = AsyncOpenAI(**client_kwargs)
         
-        # 1. Ensure the endpoint exists and responds to OpenAI format
-        await asyncio.wait_for(client.models.list(), timeout=10)
-        
-        # 2. Force an authentication check
-        # Some providers (like OpenRouter) have a completely public /models endpoint.
-        # Sending a dummy chat request with empty messages usually fails fast on Auth (401)
-        # BEFORE it fails on missing messages (400), letting us verify the API key!
-        try:
-            await asyncio.wait_for(
-                client.chat.completions.create(
-                    model="test-auth",
-                    messages=[],
-                    max_tokens=1
-                ),
-                timeout=10
-            )
-        except Exception as auth_test_e:
-            err_msg = str(auth_test_e).lower()
-            if "401" in err_msg or "unauthorized" in err_msg or "invalid" in err_msg:
-                return CredentialTestResponse(success=False, message="Invalid API Key or Unauthorized.")
-            # If it's a 400 Bad Request or 404 Model Not Found, it means authentication passed!
-            pass
-
-        msg = "Connected to OpenAI Compatible provider successfully."
+        # 1. First, test using chat/completions endpoint
+        model_name = secret.get("model_name", "")
+        await asyncio.wait_for(
+            client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=16
+            ),
+            timeout=10
+        )
+        msg = "Connected to OpenAI Compatible provider successfully via chat/completions."
         if skip_ssl:
             msg += " (SSL verification was skipped)"
         return CredentialTestResponse(success=True, message=msg)

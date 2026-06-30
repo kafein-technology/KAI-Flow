@@ -514,9 +514,9 @@ class ReactAgentNode(ProcessorNode):
                 f"Make sure to connect an OpenAI Chat node to the 'llm' input of this Agent."
             )
 
-        if not isinstance(llm, BaseLanguageModel):
+        if not isinstance(llm, (BaseLanguageModel, Runnable)):
             raise ValueError(
-                f"Connected LLM must be a BaseLanguageModel instance, got {type(llm)}. "
+                f"Connected LLM must be a BaseLanguageModel or Runnable instance, got {type(llm)}. "
                 f"Ensure the OpenAI Chat node is properly configured and connected."
             )
 
@@ -549,12 +549,13 @@ class ReactAgentNode(ProcessorNode):
         # Get raw user_prompt_template from user_data
         raw_template = self.user_data.get("user_prompt_template", "").strip()
 
-        # CHAT MODE: If user_prompt_template was successfully templated (contains actual content)
-        # Use the templated value as user input
+        # Check if the raw template has any variables (indicated by ${{ syntax)
+        has_variables = "${{" in raw_template
+
+        # Use the templated/custom value if it's static (no variables) OR if the variables were successfully resolved
         if templated_user_prompt and raw_template:
-            # Check if templating actually happened (value changed from raw template)
-            if templated_user_prompt != raw_template and "{{" not in templated_user_prompt:
-                print(f"[TEMPLATE] ReactAgent using templated user_prompt_template (Chat mode): '{templated_user_prompt[:50]}...'")
+            if (not has_variables) or (templated_user_prompt != raw_template and "${{" not in templated_user_prompt):
+                print(f"[TEMPLATE] ReactAgent using user_prompt_template: '{templated_user_prompt[:50]}...'")
                 return templated_user_prompt
 
         # STARTNODE MODE or FALLBACK: Use the connected 'input' field

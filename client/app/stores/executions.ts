@@ -4,11 +4,12 @@ import type { WorkflowExecution } from '../types/api';
 
 interface ExecutionsStore {
   executions: WorkflowExecution[];
+  currentExecution: WorkflowExecution | null;
   currentExecutions: Record<string, WorkflowExecution | null>; // workflow_id -> execution
   loading: boolean;
   error: string | null;
   fetchExecutions: (workflow_id?: string, params?: { skip?: number; limit?: number }) => Promise<void>;
-  fetchAllExecutions: () => Promise<void>;
+  fetchAllExecutions: (silent?: boolean) => Promise<void>;
   getExecution: (execution_id: string) => Promise<void>;
   createExecution: (workflow_id: string, inputs: Record<string, any>) => Promise<void>;
   executeWorkflow: (workflow_id: string, executionData: {
@@ -22,11 +23,14 @@ interface ExecutionsStore {
   setCurrentExecutionForWorkflow: (workflow_id: string, execution: WorkflowExecution | null) => void;
   getCurrentExecutionForWorkflow: (workflow_id: string) => WorkflowExecution | null;
   deleteExecution: (execution_id: string) => Promise<void>;
+  cancelExecution: (execution_id: string) => Promise<void>;
+  cancelWorkflowExecutions: (workflow_id: string) => Promise<void>;
   clearError: () => void;
 }
 
 export const useExecutionsStore = create<ExecutionsStore>((set, get) => ({
   executions: [],
+  currentExecution: null,
   currentExecutions: {},
   loading: false,
   error: null,
@@ -43,10 +47,10 @@ export const useExecutionsStore = create<ExecutionsStore>((set, get) => ({
       set({ error: e.message || 'Failed to fetch executions', loading: false });
     }
   },
-  fetchAllExecutions: async () => {
-    set({ loading: true, error: null });
+  fetchAllExecutions: async (silent?: boolean) => {
+    if (!silent) set({ loading: true, error: null });
     try {
-      const executions = await executionService.listExecutions(); // workflow_id olmadan çağır
+      const executions = await executionService.listExecutions(); // call without workflow_id
       set({ executions, loading: false });
     } catch (e: any) {
       set({ error: e.message || 'Failed to fetch all executions', loading: false });
@@ -107,6 +111,65 @@ export const useExecutionsStore = create<ExecutionsStore>((set, get) => ({
       }));
     } catch (e: any) {
       set({ error: e.message || 'Failed to delete execution', loading: false });
+    }
+  },
+  cancelExecution: async (execution_id) => {
+    set({ loading: true, error: null });
+    try {
+      const updatedExecution = await executionService.cancelExecution(execution_id);
+      set((state) => {
+        const nextCurrentExecutions = { ...state.currentExecutions };
+        const wfId = updatedExecution.workflow_id;
+        if (wfId && nextCurrentExecutions[wfId]) {
+          const current = nextCurrentExecutions[wfId];
+          if (
+            current?.id === execution_id ||
+            current?.status === 'pending' ||
+            current?.status === 'running'
+          ) {
+            nextCurrentExecutions[wfId] = updatedExecution;
+          }
+        }
+        return {
+          executions: state.executions.map(ex => ex.id === execution_id ? updatedExecution : ex),
+          currentExecutions: nextCurrentExecutions,
+          loading: false
+        };
+      });
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to cancel execution', loading: false });
+      throw e;
+    }
+  },
+  cancelWorkflowExecutions: async (workflow_id) => {
+    set({ loading: true, error: null });
+    try {
+      const cancelledExecutions = await executionService.cancelWorkflowExecutions(workflow_id);
+      set((state) => {
+        const nextCurrentExecutions = { ...state.currentExecutions };
+        const current = nextCurrentExecutions[workflow_id];
+        if (current && (current.status === 'pending' || current.status === 'running')) {
+          const match =
+            cancelledExecutions.find((ex) => ex.id === current.id) ||
+            cancelledExecutions[0];
+          nextCurrentExecutions[workflow_id] = match ?? {
+            ...current,
+            status: 'cancelled',
+            completed_at: new Date().toISOString(),
+          };
+        }
+        return {
+          executions: state.executions.map((ex) => {
+            const updated = cancelledExecutions.find((c) => c.id === ex.id);
+            return updated ?? ex;
+          }),
+          currentExecutions: nextCurrentExecutions,
+          loading: false,
+        };
+      });
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to cancel workflow executions', loading: false });
+      throw e;
     }
   },
   clearError: () => set({ error: null }),

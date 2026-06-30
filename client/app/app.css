@@ -59,3 +59,15 @@ html {
 .notistack-SnackbarContainer {
   margin-top: 4% !important;
 }
+
+/* Prevent browser native controls from conflicting with custom password toggle */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}
+
+input::-webkit-credentials-auto-fill-button {
+  visibility: hidden !important;
+  display: none !important;
+  pointer-events: none !important;
+}

@@ -23,7 +23,6 @@ from ..base import (
 
 logger = logging.getLogger(__name__)
 
-# Safe built-in functions and modules for Python sandbox
 SAFE_PYTHON_BUILTINS = {
     "abs", "all", "any", "ascii", "bin", "bool", "bytes", "chr", "dict", "dir", "divmod", "enumerate", "filter", "float",
     "format", "frozenset", "hex", "int", "isinstance", "issubclass", "iter", "len", "list", "map", "max", "min", "next",
@@ -31,6 +30,28 @@ SAFE_PYTHON_BUILTINS = {
     "type", "zip", # Additional safe functions (note: broadens sandbox surface, kept for backward compatibility)
     "hasattr", "getattr", "setattr", "delattr", "hash", "id", "callable", "classmethod", "staticmethod", "property",
     "locals", "globals", "vars",
+
+    # Exceptions
+    "BaseException", "Exception", "ArithmeticError", "BufferError", "LookupError",
+    "AssertionError", "AttributeError", "EOFError", "FloatingPointError",
+    "GeneratorExit", "ImportError", "ModuleNotFoundError", "IndexError",
+    "KeyError", "KeyboardInterrupt", "MemoryError", "NameError", "NotImplementedError",
+    "OSError", "OverflowError", "RecursionError", "ReferenceError", "RuntimeError",
+    "StopIteration", "StopAsyncIteration", "SyntaxError", "IndentationError", "TabError",
+    "SystemError", "SystemExit", "TypeError", "UnboundLocalError", "UnicodeError",
+    "UnicodeEncodeError", "UnicodeDecodeError", "UnicodeTranslateError", "ValueError",
+    "ZeroDivisionError", "EnvironmentError", "IOError",
+
+    # OS Error subclasses
+    "BlockingIOError", "ChildProcessError", "ConnectionError", "BrokenPipeError",
+    "ConnectionAbortedError", "ConnectionRefusedError", "ConnectionResetError",
+    "FileExistsError", "FileNotFoundError", "InterruptedError", "IsADirectoryError",
+    "NotADirectoryError", "PermissionError", "ProcessLookupError", "TimeoutError",
+
+    # Warnings
+    "Warning", "UserWarning", "DeprecationWarning", "PendingDeprecationWarning",
+    "SyntaxWarning", "RuntimeWarning", "FutureWarning", "ImportWarning",
+    "UnicodeWarning", "BytesWarning", "ResourceWarning", "EncodingWarning",
 }
 
 SAFE_PYTHON_MODULES = {

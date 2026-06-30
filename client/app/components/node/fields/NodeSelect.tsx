@@ -62,9 +62,8 @@ export const NodeSelect = ({ property, values }: NodeSelectProps) => {
           onClick={() => setDropdownOpen(!dropdownOpen)}
           onMouseDown={(e: any) => e.stopPropagation()}
           onTouchStart={(e: any) => e.stopPropagation()}
-          className={`w-full flex items-center justify-between bg-[#10182c] border border-slate-600 rounded-lg px-4 py-3 text-left transition-all duration-200 cursor-pointer hover:border-slate-500 ${
-            dropdownOpen ? "border-blue-500" : ""
-          }`}
+          className={`w-full flex items-center justify-between bg-[#10182c] border border-slate-600 rounded-lg px-4 py-3 text-left transition-all duration-200 cursor-pointer hover:border-slate-500 ${dropdownOpen ? "border-blue-500" : ""
+            }`}
         >
           <span className="text-sm text-white">{displayText}</span>
           <ChevronDown
@@ -81,11 +80,10 @@ export const NodeSelect = ({ property, values }: NodeSelectProps) => {
                 key={option.value}
                 type="button"
                 onClick={() => handleSelect(option.value)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors duration-150 ${
-                  currentValue === option.value
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors duration-150 ${currentValue === option.value
                     ? "bg-blue-500/20 text-blue-300"
                     : "text-slate-300 hover:bg-blue-500/20 hover:text-blue-300"
-                }`}
+                  }`}
               >
                 {option.label}
               </button>

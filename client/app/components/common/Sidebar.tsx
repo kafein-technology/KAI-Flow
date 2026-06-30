@@ -109,7 +109,7 @@ function Sidebar({ onClose }: SidebarProps) {
       inputs: nodeMetadata.inputs,
       outputs: nodeMetadata.outputs,
       icon: nodeMetadata.icon,
-      color: nodeMetadata.color,
+      colors: nodeMetadata.colors,
     },
     info: nodeMetadata.description,
   });
@@ -130,7 +130,7 @@ function Sidebar({ onClose }: SidebarProps) {
   }, {} as Record<string, any[]>);
 
   return (
-    <div className="fixed top-36 h-[calc(100vh-12rem)] w-100 bg-[#18181A] overflow-y-auto z-30 shadow-2xl animate-slide-in rounded-2xl">
+    <div className="fixed top-16 left-16 h-[calc(100vh-4rem)] w-95 bg-[#18181B] border-r border-gray-800/80 overflow-y-auto overflow-x-hidden z-20 shadow-[5px_0_25px_rgba(0,0,0,0.5)] custom-scrollbar">
       {/* Header */}
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
@@ -149,11 +149,10 @@ function Sidebar({ onClose }: SidebarProps) {
             {/* Smart Suggestions Toggle */}
             <button
               onClick={toggleEnabled}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-                isEnabled
-                  ? "bg-yellow-500/20 text-yellow-400 border border-yellow-400/30"
-                  : "bg-gray-700 text-gray-400 border border-gray-600"
-              }`}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${isEnabled
+                ? "bg-yellow-500/20 text-yellow-400 border border-yellow-400/30"
+                : "bg-gray-700 text-gray-400 border border-gray-600"
+                }`}
               title={
                 isEnabled
                   ? "Disable Smart Suggestions"
@@ -217,7 +216,7 @@ function Sidebar({ onClose }: SidebarProps) {
                 ([categoryName, categoryNodes]) => (
                   <div
                     key={categoryName}
-                    className="collapse collapse-arrow rounded-lg bg-gray-800/30 border border-gray-700"
+                    className="collapse collapse-arrow rounded-lg bg-gray-800/30 border border-gray-700 w-full min-w-0"
                   >
                     <input type="checkbox" defaultChecked />
                     <div className="collapse-title font-semibold text-sm text-gray-200">
@@ -227,12 +226,9 @@ function Sidebar({ onClose }: SidebarProps) {
                         ({categoryNodes.length})
                       </span>
                     </div>
-                    <div className="collapse-content space-y-2">
+                    <div className="collapse-content w-full min-w-0 overflow-hidden pt-2 pb-1 px-1">
                       {categoryNodes.map((nodeType) => (
-                        <React.Fragment key={nodeType.id}>
-                          <DraggableNode nodeType={nodeType} icon={nodeType.data.icon} />
-                          <hr className="my-2 border-gray-600" />
-                        </React.Fragment>
+                        <DraggableNode key={nodeType.id} nodeType={nodeType} icon={nodeType.data.icon} />
                       ))}
                     </div>
                   </div>

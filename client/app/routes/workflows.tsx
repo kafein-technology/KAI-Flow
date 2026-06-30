@@ -10,6 +10,8 @@ import {
   Play,
   Pause,
   Activity,
+  Power,
+  PowerOff,
   Clock,
   Calendar,
   Globe,
@@ -20,7 +22,7 @@ import {
   Lock,
   Upload,
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
@@ -162,15 +164,29 @@ function WorkflowsLayout() {
   const [page, setPage] = useState(1);
   const [showExportModal, setShowExportModal] = useState(false);
 
-  // Sayfalama hesaplamaları
-  const totalItems = workflows.length; // Use workflows from the store for total count
+  const filteredWorkflows = useMemo(() => {
+    return workflows.filter((workflow) => {
+      const matchesSearch =
+        workflow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        workflow.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && workflow.is_public) ||
+        (statusFilter === "inactive" && !workflow.is_public);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [workflows, searchQuery, statusFilter]);
+
+  const totalItems = filteredWorkflows.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const startIdx = (page - 1) * itemsPerPage;
+  const effectivePage = Math.min(page, totalPages);
+  const startIdx = (effectivePage - 1) * itemsPerPage;
   const endIdx = Math.min(startIdx + itemsPerPage, totalItems);
-  const pagedWorkflows = workflows.slice(startIdx, itemsPerPage); // Use workflows from the store for paged data
+  const pagedWorkflows = filteredWorkflows.slice(startIdx, endIdx);
 
   useEffect(() => {
-    // Sayfa değişince, eğer mevcut sayfa yeni toplam sayfa sayısından büyükse, son sayfaya çek
     if (page > totalPages) setPage(totalPages);
   }, [totalPages, page]);
 
@@ -183,19 +199,6 @@ function WorkflowsLayout() {
   //       fetchExternalWorkflows();
   //     }
   //   }, [activeTab]);
-
-  const filteredWorkflows = workflows.filter((workflow) => {
-    const matchesSearch =
-      workflow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      workflow.description?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && workflow.is_public) ||
-      (statusFilter === "inactive" && !workflow.is_public);
-
-    return matchesSearch && matchesStatus;
-  });
 
   const handleDelete = async (workflow: Workflow) => {
     setWorkflowToDelete(workflow);
@@ -350,7 +353,7 @@ function WorkflowsLayout() {
       if (updateWorkflowVisibility) {
         await updateWorkflowVisibility(workflowId, isPublic);
         enqueueSnackbar(
-          `Workflow is now ${isPublic ? "Public" : "Private"}`,
+          `Workflow is now ${isPublic ? "Active" : "Inactive"}`,
           { variant: "success" }
         );
       }
@@ -548,7 +551,10 @@ function WorkflowsLayout() {
                 {true && (
                   <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                     <button
-                      onClick={() => setStatusFilter("all")}
+                      onClick={() => {
+                        setStatusFilter("all");
+                        setPage(1);
+                      }}
                       className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${statusFilter === "all"
                         ? "bg-white text-gray-900 shadow-sm"
                         : "text-gray-600 hover:text-gray-900"
@@ -557,7 +563,10 @@ function WorkflowsLayout() {
                       All
                     </button>
                     <button
-                      onClick={() => setStatusFilter("active")}
+                      onClick={() => {
+                        setStatusFilter("active");
+                        setPage(1);
+                      }}
                       className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${statusFilter === "active"
                         ? "bg-white text-gray-900 shadow-sm"
                         : "text-gray-600 hover:text-gray-900"
@@ -569,7 +578,10 @@ function WorkflowsLayout() {
                       </div>
                     </button>
                     <button
-                      onClick={() => setStatusFilter("inactive")}
+                      onClick={() => {
+                        setStatusFilter("inactive");
+                        setPage(1);
+                      }}
                       className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${statusFilter === "inactive"
                         ? "bg-white text-gray-900 shadow-sm"
                         : "text-gray-600 hover:text-gray-900"
@@ -594,7 +606,10 @@ function WorkflowsLayout() {
                         className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                         placeholder="Search workflows..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setPage(1);
+                        }}
                       />
                     </div>
 
@@ -673,12 +688,10 @@ function WorkflowsLayout() {
                   <EmptyState />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredWorkflows
-                      .slice(startIdx, endIdx)
-                      .map((workflow) => (
+                    {pagedWorkflows.map((workflow) => (
                         <div
                           key={workflow.id}
-                          className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group relative overflow-hidden"
+                          className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group relative overflow-hidden flex flex-col h-[320px]"
                         >
                           {/* Status Indicator Bar */}
                           <div
@@ -690,22 +703,22 @@ function WorkflowsLayout() {
 
                           {/* Header */}
                           <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2 min-w-0">
                                 <div
-                                  className={`w-2 h-2 rounded-full ${workflow.is_public
+                                  className={`w-2 h-2 rounded-full shrink-0 ${workflow.is_public
                                     ? "bg-green-500 animate-pulse"
                                     : "bg-gray-400"
                                     }`}
                                 />
                                 <Link
                                   to={`/canvas?workflow=${workflow.id}`}
-                                  className="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors group-hover:text-purple-600"
+                                  className="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors group-hover:text-purple-600 block truncate"
                                 >
                                   {workflow.name}
                                 </Link>
                               </div>
-                              <p className="text-sm text-gray-600 line-clamp-2">
+                              <p className="text-sm text-gray-600 line-clamp-2 h-10">
                                 {workflow.description || "No description"}
                               </p>
                             </div>
@@ -719,8 +732,8 @@ function WorkflowsLayout() {
                                 description={workflow.description}
                                 metadata={{
                                   status: workflow.is_public
-                                    ? "Public"
-                                    : "Private",
+                                    ? "Active"
+                                    : "Inactive",
                                   lastActivity: workflow.updated_at,
                                 }}
                                 size="sm"
@@ -734,11 +747,11 @@ function WorkflowsLayout() {
                             <div className="flex items-center gap-2">
                               <span
                                 className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${workflow.is_public
-                                  ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                  ? "bg-green-100 text-green-800 border border-green-200"
                                   : "bg-gray-100 text-gray-800 border border-gray-200"
                                   }`}
                               >
-                                {workflow.is_public ? "Public" : "Private"}
+                                {workflow.is_public ? "Active" : "Inactive"}
                               </span>
                               {/* 
                               <span
@@ -776,14 +789,14 @@ function WorkflowsLayout() {
                                     isPublic
                                   )
                                 }
-                                activeIcon={<Globe className="w-3 h-3 text-green-600" />}
-                                inactiveIcon={<Lock className="w-3 h-3 text-gray-500" />}
+                                activeIcon={<Power className="w-3 h-3 text-green-600" />}
+                                inactiveIcon={<PowerOff className="w-3 h-3 text-gray-500" />}
                               />
                             </div>
                           </div>
 
                           {/* Metadata */}
-                          <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
+                          <div className="grid grid-cols-2 gap-4 mt-auto mb-4 p-3 bg-gray-50 rounded-lg">
                             <div className="flex items-center gap-2 text-xs text-gray-600">
                               <Calendar className="w-3 h-3" />
                               <span className="font-medium">Created:</span>

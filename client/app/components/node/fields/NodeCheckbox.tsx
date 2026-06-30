@@ -38,14 +38,12 @@ export const NodeCheckbox = ({ property, values }: NodeCheckboxProps) => {
           onClick={() => helpers.setValue(!isChecked)}
           onMouseDown={(e: any) => e.stopPropagation()}
           onTouchStart={(e: any) => e.stopPropagation()}
-          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-            isChecked ? "bg-blue-500" : "bg-slate-600"
-          }`}
+          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isChecked ? "bg-blue-500" : "bg-slate-600"
+            }`}
         >
           <span
-            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${
-              isChecked ? "translate-x-5" : "translate-x-0"
-            }`}
+            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${isChecked ? "translate-x-5" : "translate-x-0"
+              }`}
           />
         </button>
       </div>

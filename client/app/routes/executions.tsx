@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Download,
   Loader2,
+  StopCircle,
 } from "lucide-react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import AuthGuard from "~/components/AuthGuard";
@@ -26,7 +27,7 @@ import { exportExecutionsCSV } from "~/services/executionService";
 interface Execution {
   id: string;
   workflow_id: string;
-  status: "pending" | "running" | "completed" | "failed";
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
   input_text?: string;
   output_text?: string;
   started_at: string;
@@ -46,7 +47,7 @@ const formatDataForDisplay = (data: any) => {
   if (typeof data === "object" && data !== null) {
     return JSON.stringify(data);
   }
-  return String(data);
+  return String(data).replace(/[\r\n]+/g, " ");
 };
 
 function ExecutionsPage() {
@@ -122,7 +123,7 @@ function ExecutionsPage() {
     new Set()
   );
 
-  const { executions, loading, error, fetchAllExecutions, deleteExecution } =
+  const { executions, loading, error, fetchAllExecutions, deleteExecution, cancelExecution } =
     useExecutionsStore();
   const { workflows, fetchWorkflows } = useWorkflows();
 
@@ -133,8 +134,51 @@ function ExecutionsPage() {
 
   useEffect(() => {
     fetchWorkflows();
-    fetchAllExecutions(); // Tüm executions'ları getir
+    fetchAllExecutions(); // Fetch all executions
   }, [fetchWorkflows, fetchAllExecutions]);
+
+  // Smart Polling (automatic refresh with smart intervals)
+  useEffect(() => {
+    // Check if there is any active execution (running or pending) in the list
+    const hasActiveExecution = executions.some(
+      (ex) => ex.status === "running" || ex.status === "pending"
+    );
+
+    // Update every 2 seconds if there is an active execution, otherwise every 3 seconds
+    const intervalTime = hasActiveExecution ? 2000 : 3000;
+
+    const timer = setInterval(() => {
+      fetchAllExecutions(true); // silent = true: silently refresh without displaying loading indicators in the UI
+    }, intervalTime);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [executions, fetchAllExecutions]);
+
+  // Listen for executions started from other tabs or widgets dynamically
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return;
+
+    const channel = new BroadcastChannel("kai-flow-executions");
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "EXECUTION_STARTED") {
+        fetchAllExecutions(true);
+      }
+    };
+    channel.addEventListener("message", handleMessage);
+
+    const handleLocalMessage = () => {
+      fetchAllExecutions(true);
+    };
+    window.addEventListener("kai-flow-execution-started", handleLocalMessage);
+
+    return () => {
+      channel.removeEventListener("message", handleMessage);
+      channel.close();
+      window.removeEventListener("kai-flow-execution-started", handleLocalMessage);
+    };
+  }, [fetchAllExecutions]);
 
   // Filter executions
   const filteredExecutions = useMemo(() => {
@@ -199,12 +243,19 @@ function ExecutionsPage() {
     });
   }, [executions, filters, workflows]);
 
-  const totalPages = Math.ceil(filteredExecutions.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(filteredExecutions.length / itemsPerPage));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const startIndex = (effectivePage - 1) * itemsPerPage;
   const currentExecutions = filteredExecutions.slice(
     startIndex,
     startIndex + itemsPerPage
   );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
 
   // Reset page and selections when filters change
   useEffect(() => {
@@ -222,6 +273,8 @@ function ExecutionsPage() {
         return "bg-blue-100 text-blue-800 border-blue-200";
       case "pending":
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "cancelled":
+        return "bg-orange-100 text-orange-800 border-orange-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -586,7 +639,7 @@ function ExecutionsPage() {
             ) : (
               <>
                 {/* Executions Table */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden min-h-[921px]">
                   <div className="overflow-x-auto">
                     <table className="w-full" style={{ tableLayout: "fixed" }}>
                       <colgroup>
@@ -597,7 +650,7 @@ function ExecutionsPage() {
                         <col style={{ width: columnWidths.duration }} />
                         <col style={{ width: columnWidths.input }} />
                         <col style={{ width: columnWidths.output }} />
-                        <col style={{ width: 80 }} />
+                        <col style={{ width: 110 }} />
                       </colgroup>
                       <thead className="bg-gray-50">
                         <tr>
@@ -642,15 +695,15 @@ function ExecutionsPage() {
                               />
                             </th>
                           ))}
-                          <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                           </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {currentExecutions.map((execution) => (
-                          <tr key={execution.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-4">
+                          <tr key={execution.id} className="hover:bg-gray-50 h-[88px]">
+                            <td className="px-3 py-4 align-top">
                               <input
                                 type="checkbox"
                                 checked={selectedExecutions.has(execution.id)}
@@ -660,14 +713,17 @@ function ExecutionsPage() {
                                     e.target.checked
                                   )
                                 }
-                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mt-0.5"
                               />
                             </td>
-                            <td className="px-3 py-4">
-                              <div className="flex items-center">
-                                <Play className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0" />
-                                <div className="min-w-0">
-                                  <div className="text-sm font-medium text-gray-900">
+                            <td className="px-3 py-4 align-top">
+                              <div className="flex items-start">
+                                <Play className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0 mt-0.5" />
+                                <div className="min-w-0 flex-1">
+                                  <div
+                                    className="text-sm font-medium text-gray-900 line-clamp-2 h-10"
+                                    title={getWorkflowName(execution.workflow_id)}
+                                  >
                                     {getWorkflowName(execution.workflow_id)}
                                   </div>
                                   <div className="text-xs text-gray-500">
@@ -676,58 +732,86 @@ function ExecutionsPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-3 py-4">
-                              <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(
-                                  execution.status
-                                )}`}
-                              >
-                                {execution.status === "completed" && (
-                                  <Check className="w-3 h-3 mr-1" />
-                                )}
-                                {execution.status === "failed" && (
-                                  <X className="w-3 h-3 mr-1" />
-                                )}
-                                {execution.status === "running" && (
-                                  <Clock className="w-3 h-3 mr-1 animate-spin" />
-                                )}
-                                {execution.status.charAt(0).toUpperCase() +
-                                  execution.status.slice(1)}
-                              </span>
+                            <td className="px-3 py-4 align-top">
+                              <div className="truncate pt-0.5">
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(
+                                    execution.status
+                                  )}`}
+                                >
+                                  {execution.status === "completed" && (
+                                    <Check className="w-3 h-3 mr-1" />
+                                  )}
+                                  {execution.status === "failed" && (
+                                    <X className="w-3 h-3 mr-1" />
+                                  )}
+                                  {execution.status === "running" && (
+                                    <Clock className="w-3 h-3 mr-1 animate-spin" />
+                                  )}
+                                  {execution.status === "cancelled" && (
+                                    <X className="w-3 h-3 mr-1" />
+                                  )}
+                                  {execution.status.charAt(0).toUpperCase() +
+                                    execution.status.slice(1)}
+                                </span>
+                              </div>
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-900">
-                              {execution.started_at
-                                ? timeAgo(execution.started_at)
-                                : "-"}
+                            <td className="px-3 py-4 text-sm text-gray-900 align-top">
+                              <div className="line-clamp-2 h-10 pt-0.5" title={execution.started_at ? timeAgo(execution.started_at) : "-"}>
+                                {execution.started_at
+                                  ? timeAgo(execution.started_at)
+                                  : "-"}
+                              </div>
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-900">
-                              {formatDuration(
-                                execution.started_at,
-                                execution.completed_at
-                              )}
+                            <td className="px-3 py-4 text-sm text-gray-900 align-top">
+                              <div className="truncate pt-0.5" title={formatDuration(execution.started_at, execution.completed_at)}>
+                                {formatDuration(
+                                  execution.started_at,
+                                  execution.completed_at
+                                )}
+                              </div>
                             </td>
                             <td
-                              className="px-3 py-4 text-sm text-gray-900 overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer hover:text-purple-600 transition-colors"
+                              className="px-3 py-4 text-sm text-gray-900 cursor-pointer hover:text-purple-600 transition-colors align-top"
                               title={formatDataForDisplay(getInputData(execution))}
                               onClick={() => handleViewClick("Input Data", getInputData(execution))}
                             >
-                              {formatDataForDisplay(getInputData(execution))}
+                              <div className="truncate pt-0.5">
+                                {formatDataForDisplay(getInputData(execution))}
+                              </div>
                             </td>
                             <td
-                              className="px-3 py-4 text-sm text-gray-900 overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer hover:text-purple-600 transition-colors"
+                              className="px-3 py-4 text-sm text-gray-900 cursor-pointer hover:text-purple-600 transition-colors align-top"
                               title={formatDataForDisplay(getOutputData(execution))}
                               onClick={() => handleViewClick("Output Data", getOutputData(execution))}
                             >
-                              {formatDataForDisplay(getOutputData(execution))}
+                              <div className="truncate pt-0.5">
+                                {formatDataForDisplay(getOutputData(execution))}
+                              </div>
                             </td>
-                            <td className="px-3 py-4 text-right">
-                              <button
-                                onClick={() => handleDeleteClick(execution.id)}
-                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-                                title="Delete execution"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                            <td className="px-3 py-4 text-center align-top">
+                              <div className="flex justify-center items-start gap-2.5 pt-0.5">
+                                {(execution.status === "running" || execution.status === "pending") && (
+                                  <button
+                                    onClick={async () => {
+                                      if (confirm("Are you sure you want to cancel this execution?")) {
+                                        await cancelExecution(execution.id);
+                                      }
+                                    }}
+                                    className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-all duration-200"
+                                    title="Cancel execution"
+                                  >
+                                    <StopCircle className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteClick(execution.id)}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                  title="Delete execution"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -757,12 +841,12 @@ function ExecutionsPage() {
                         onClick={() =>
                           setCurrentPage((prev) => Math.max(prev - 1, 1))
                         }
-                        disabled={currentPage === 1}
+                        disabled={effectivePage === 1}
                         className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
-
+ 
                       <div className="flex gap-1">
                         {Array.from(
                           { length: totalPages },
@@ -771,7 +855,7 @@ function ExecutionsPage() {
                           <button
                             key={page}
                             onClick={() => setCurrentPage(page)}
-                            className={`px-3 py-1 rounded text-sm ${page === currentPage
+                            className={`px-3 py-1 rounded text-sm ${page === effectivePage
                               ? "bg-purple-600 text-white"
                               : "text-gray-700 hover:bg-gray-100"
                               }`}
@@ -780,14 +864,14 @@ function ExecutionsPage() {
                           </button>
                         ))}
                       </div>
-
+ 
                       <button
                         onClick={() =>
                           setCurrentPage((prev) =>
                             Math.min(prev + 1, totalPages)
                           )
                         }
-                        disabled={currentPage === totalPages}
+                        disabled={effectivePage === totalPages}
                         className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ChevronRight className="w-5 h-5" />

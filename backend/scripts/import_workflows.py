@@ -22,7 +22,7 @@ import base64
 import sys
 import traceback
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -38,6 +38,11 @@ from app.models.user import User
 from app.models.user_credential import UserCredential
 from app.models.workflow import Workflow
 from sqlalchemy import select
+from scripts.workflow_bundle_utils import (
+    apply_error_workflow_link,
+    map_credentials_in_flow_data,
+    resolve_exported_error_workflow_id,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -146,25 +151,26 @@ async def import_from_config(config_path: str, dry_run: bool = False):
 
                 # Check if credential values are filled
                 has_values = any(v for v in secret.values() if v)
-                if not has_values:
-                    log(f"  SKIP: Empty credential: {name} (fill secrets first)")
-                    skipped_credentials += 1
-                    continue
 
                 if existing_cred:
                     uuid_mapping[old_cred_id] = str(existing_cred.id)
                     if dry_run:
-                        log(f"  Would UPDATE: {name}")
+                        log(f"  Would UPDATE (or skip secret update): {name}")
                         continue
                     
-                    try:
-                        encrypted_bytes = encrypt_data(secret)
-                        encrypted_secret = base64.b64encode(encrypted_bytes).decode('utf-8')
-                        existing_cred.encrypted_secret = encrypted_secret
-                        updated_credentials += 1
-                        log(f"  Updated: {name}")
-                    except Exception as e:
-                        log(f"  ERROR updating {name}: {e}")
+                    # Update secret ONLY if new secrets are provided in YAML
+                    if has_values:
+                        try:
+                            encrypted_bytes = encrypt_data(secret)
+                            encrypted_secret = base64.b64encode(encrypted_bytes).decode('utf-8')
+                            existing_cred.encrypted_secret = encrypted_secret
+                            updated_credentials += 1
+                            log(f"  Updated: {name}")
+                        except Exception as e:
+                            log(f"  ERROR updating {name}: {e}")
+                            skipped_credentials += 1
+                    else:
+                        log(f"  Skipped secret update (YAML is empty) but kept mapping for: {name}")
                         skipped_credentials += 1
                 else:
                     if dry_run:
@@ -175,7 +181,7 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                     new_cred_id = uuid.uuid4()
                     uuid_mapping[old_cred_id] = str(new_cred_id)
 
-                    # Create credential with NEW UUID
+                    # Create credential with NEW UUID (even if secrets are empty, allowing user to fill them in UI)
                     try:
                         encrypted_bytes = encrypt_data(secret)
                         encrypted_secret = base64.b64encode(encrypted_bytes).decode('utf-8')
@@ -191,18 +197,22 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                         await db.flush()
 
                         created_credentials += 1
-                        log(f"  Created: {name}")
+                        log(f"  Created (empty/filled): {name}")
 
                     except Exception as e:
                         log(f"  ERROR creating {name}: {e}")
                         skipped_credentials += 1
 
-            # 3. Import workflows with NEW UUIDs and mapped credentials
+            # 3. Prepare workflow payloads
             created_workflows = 0
             skipped_workflows = 0
             updated_workflows = 0
+            error_handlers_linked = 0
+            error_handlers_skipped = 0
 
             log(f"\nProcessing workflows...")
+
+            workflow_payloads: List[Dict[str, Any]] = []
 
             for wf_config in config.get("workflows", []):
                 old_wf_id = wf_config.get("id")
@@ -221,7 +231,6 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                     skipped_workflows += 1
                     continue
 
-                # Check if workflow with exact name already exists for target user
                 existing_wf = None
                 try:
                     existing = await db.execute(
@@ -234,61 +243,129 @@ async def import_from_config(config_path: str, dry_run: bool = False):
                 except Exception as e:
                     log(f"  WARN: Error checking workflow {wf_name}: {e}")
 
-                # Read flow data and map credentials
                 try:
                     flow_data = json.loads(flow_file.read_text(encoding="utf-8"))
-                    
-                    # Replace old credential UUIDs with new/mapped ones
-                    CREDENTIAL_FIELD_NAMES = [
-                        "credential_id", "credential",
-                        "basic_auth_credential_id", "header_auth_credential_id"
-                    ]
-                    
-                    for node in flow_data.get("nodes", []):
-                        node_data = node.get("data", {})
-                        for field_name in CREDENTIAL_FIELD_NAMES:
-                            cred_val = node_data.get(field_name)
-                            if cred_val and isinstance(cred_val, str) and cred_val in uuid_mapping:
-                                node_data[field_name] = uuid_mapping[cred_val]
-                                
+                    map_credentials_in_flow_data(flow_data, uuid_mapping)
                 except Exception as e:
                     log(f"  ERROR reading or parsing {flow_file}: {e}")
                     skipped_workflows += 1
                     continue
 
-                if dry_run:
+                workflow_payloads.append({
+                    "wf_config": wf_config,
+                    "flow_data": flow_data,
+                    "wf_name": wf_name,
+                    "old_wf_id": old_wf_id,
+                    "existing_wf": existing_wf,
+                })
+
+            workflow_uuid_mapping: Dict[str, str] = {}
+            workflow_records: List[Dict[str, Any]] = []
+
+            if dry_run:
+                for payload in workflow_payloads:
+                    old_wf_id = payload["old_wf_id"]
+                    wf_name = payload["wf_name"]
+                    existing_wf = payload["existing_wf"]
+
                     if existing_wf:
+                        workflow_uuid_mapping[old_wf_id] = str(existing_wf.id)
                         log(f"  Would UPDATE: {wf_name}")
                     else:
+                        workflow_uuid_mapping[old_wf_id] = f"<new:{wf_name}>"
                         log(f"  Would import: {wf_name}")
-                    continue
 
-                # Create or Update Workflow
-                try:
-                    if existing_wf:
-                        # Update workflow
-                        existing_wf.description = wf_config.get("description", "")
-                        existing_wf.is_public = wf_config.get("is_public", False)
-                        existing_wf.flow_data = flow_data
-                        updated_workflows += 1
-                        log(f"  Updated: {wf_name}")
+                log(f"\nProcessing error handler links...")
+                for payload in workflow_payloads:
+                    wf_name = payload["wf_name"]
+                    old_error_id = resolve_exported_error_workflow_id(
+                        payload["wf_config"],
+                        payload["flow_data"],
+                    )
+                    if not old_error_id:
+                        continue
+
+                    mapped_id = workflow_uuid_mapping.get(old_error_id)
+                    if mapped_id and not mapped_id.startswith("<new:"):
+                        log(f"  Would link error handler: {wf_name} -> {mapped_id}")
+                        error_handlers_linked += 1
                     else:
-                        # Create workflow with NEW UUID
-                        workflow = Workflow(
-                            id=uuid.uuid4(),
-                            user_id=user.id,
-                            name=wf_name,
-                            description=wf_config.get("description", ""),
-                            is_public=wf_config.get("is_public", False),
-                            flow_data=flow_data
-                        )
-                        db.add(workflow)
-                        created_workflows += 1
-                        log(f"  Imported: {wf_name}")
+                        log(f"  WARN: Error handler not in bundle for {wf_name} (ref: {old_error_id})")
+                        error_handlers_skipped += 1
+            else:
+                # Pass 1: import workflows and build UUID mapping
+                for payload in workflow_payloads:
+                    wf_config = payload["wf_config"]
+                    flow_data = payload["flow_data"]
+                    wf_name = payload["wf_name"]
+                    old_wf_id = payload["old_wf_id"]
+                    existing_wf = payload["existing_wf"]
 
-                except Exception as e:
-                    log(f"  ERROR importing/updating {wf_name}: {e}")
-                    skipped_workflows += 1
+                    try:
+                        if existing_wf:
+                            existing_wf.description = wf_config.get("description", "")
+                            existing_wf.is_public = wf_config.get("is_public", False)
+                            existing_wf.flow_data = flow_data
+                            workflow_uuid_mapping[old_wf_id] = str(existing_wf.id)
+                            workflow_records.append({
+                                "workflow": existing_wf,
+                                "flow_data": flow_data,
+                                "wf_config": wf_config,
+                                "wf_name": wf_name,
+                            })
+                            updated_workflows += 1
+                            log(f"  Updated: {wf_name}")
+                        else:
+                            new_wf_id = uuid.uuid4()
+                            workflow = Workflow(
+                                id=new_wf_id,
+                                user_id=user.id,
+                                name=wf_name,
+                                description=wf_config.get("description", ""),
+                                is_public=wf_config.get("is_public", False),
+                                flow_data=flow_data,
+                            )
+                            db.add(workflow)
+                            workflow_uuid_mapping[old_wf_id] = str(new_wf_id)
+                            workflow_records.append({
+                                "workflow": workflow,
+                                "flow_data": flow_data,
+                                "wf_config": wf_config,
+                                "wf_name": wf_name,
+                            })
+                            created_workflows += 1
+                            log(f"  Imported: {wf_name}")
+                    except Exception as e:
+                        log(f"  ERROR importing/updating {wf_name}: {e}")
+                        skipped_workflows += 1
+
+                await db.flush()
+
+                # Pass 2: restore error handler links
+                log(f"\nProcessing error handler links...")
+                for record in workflow_records:
+                    workflow = record["workflow"]
+                    flow_data = record["flow_data"]
+                    wf_config = record["wf_config"]
+                    wf_name = record["wf_name"]
+
+                    old_error_id = resolve_exported_error_workflow_id(wf_config, flow_data)
+                    if not old_error_id:
+                        continue
+
+                    linked = apply_error_workflow_link(
+                        workflow,
+                        flow_data,
+                        old_error_id,
+                        workflow_uuid_mapping,
+                    )
+                    if linked:
+                        mapped_id = str(workflow.error_workflow)
+                        log(f"  Linked error handler: {wf_name} -> {mapped_id}")
+                        error_handlers_linked += 1
+                    else:
+                        log(f"  WARN: Error handler not in bundle for {wf_name} (ref: {old_error_id})")
+                        error_handlers_skipped += 1
 
             # Commit all changes
             if not dry_run:
@@ -299,6 +376,7 @@ async def import_from_config(config_path: str, dry_run: bool = False):
             log(f"Import Summary")
             log(f"  Credentials: {created_credentials} created, {updated_credentials} updated, {skipped_credentials} skipped")
             log(f"  Workflows: {created_workflows} imported, {updated_workflows} updated, {skipped_workflows} skipped")
+            log(f"  Error handlers: {error_handlers_linked} linked, {error_handlers_skipped} skipped")
 
             if dry_run:
                 log(f"\n** DRY RUN - No changes were made **")
@@ -328,4 +406,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

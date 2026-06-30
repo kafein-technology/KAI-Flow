@@ -1,68 +1,3 @@
-"""
-
-
-Comprehensive Application Intelligence:
-
-1. **Startup and Lifecycle Monitoring**:
-   - Service initialization tracking with dependency validation
-   - Component health verification with detailed status reporting
-   - Resource allocation monitoring with optimization recommendations
-   - Configuration validation with security compliance checking
-
-2. **Request and Response Analytics**:
-   - Real-time request processing with latency tracking
-   - Response size and performance optimization analysis
-   - Error rate monitoring with pattern recognition
-   - User behavior analytics with security correlation
-
-3. **Service Integration Monitoring**:
-   - Database connection health with performance metrics
-   - Node registry status with availability tracking
-   - Engine performance with execution analytics
-   - External service dependencies with reliability assessment
-
-4. **Security and Compliance Monitoring**:
-   - Authentication success/failure tracking with anomaly detection
-   - CORS violation monitoring with policy enforcement
-   - Suspicious activity detection with automated response
-   - Audit trail generation with compliance reporting
-
-ERROR HANDLING STRATEGY:
-=======================
-
-Enterprise-Grade Error Management:
-
-1. **Structured Error Responses**:
-   - Standardized error formats with detailed diagnostics
-   - Error classification with resolution guidance
-   - Context preservation with debugging information
-   - User-friendly messages with technical details for operators
-
-2. **Component Failure Management**:
-   - Database connection failures with automatic retry
-   - Node registry failures with fallback mechanisms
-   - Engine initialization failures with recovery procedures
-   - Service integration failures with circuit breaker patterns
-
-3. **Request Processing Errors**:
-   - Validation errors with detailed field-level feedback
-   - Authentication failures with security event logging
-   - Rate limiting with intelligent backoff recommendations
-   - Timeout handling with partial result preservation
-
-AUTHORS: KAI-Flow Application Gateway Team
-VERSION: 2.1.0
-LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Flow Platform
-
-──────────────────────────────────────────────────────────────
-IMPLEMENTATION DETAILS:
-• Framework: FastAPI with async/await support and enterprise middleware
-• Security: Multi-layer protection with CORS, authentication, and monitoring
-• Performance: Sub-50ms overhead with intelligent request routing
-• Features: Health monitoring, error handling, service integration, analytics
-──────────────────────────────────────────────────────────────
-"""
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
@@ -101,6 +36,7 @@ from app.api.auth import router as auth_router
 from app.api.api_key import router as api_key_router
 from app.api.chat import router as chat_router
 from app.api.variables import router as variables_router
+from app.api.ai_builder import router as ai_builder_router
 from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
 from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
@@ -110,7 +46,7 @@ from app.api.http_client import router as http_client_router
 from app.api.documents import router as documents_router
 from app.api.scheduled_jobs import router as scheduled_jobs_router
 from app.api.vectors import router as vectors_router
-from app.api.test_endpoint import router as test_router
+from app.api.timers import router as timers_router
 
 
 from app.api.external_workflows import router as external_workflows_router
@@ -122,8 +58,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager."""
-    
     # Initialize enhanced logging system first
     auto_configure_enhanced_logging()
     
@@ -171,9 +105,9 @@ async def lifespan(app: FastAPI):
     try:
         from app.nodes.triggers.kafka_trigger import kafka_reconciliation_loop
         _kafka_reconciliation_task = asyncio.create_task(kafka_reconciliation_loop())
-        logger.info("Kafka reconciliation loop başlatıldı (asyncio task)")
+        logger.info("Kafka reconciliation loop started (asyncio task)")
     except Exception as e:
-        logger.error(f"Kafka reconciliation loop başlatılamadı: {e}", exc_info=True)
+        logger.error(f"Failed to start Kafka reconciliation loop: {e}", exc_info=True)
     
     yield
     
@@ -187,7 +121,7 @@ async def lifespan(app: FastAPI):
             await _kafka_reconciliation_task
         except asyncio.CancelledError:
             pass
-        logger.info("Kafka reconciliation loop durduruldu")
+        logger.info("Kafka reconciliation loop stopped")
     
     # Stop all Kafka listeners gracefully
     try:
@@ -215,9 +149,6 @@ app = FastAPI(
 )
 
 # Serve embeddable widget assets from the backend (e.g. /widget/widget.js)
-# Packaging expectation:
-# - In Docker, repo-root widget/widget.js is copied into /app/widget/widget.js (see [`Dockerfile`](Dockerfile:1))
-# - In local dev, repo-root ./widget/ may sit one level above this file (backend/..)
 _widget_dir_candidates = [
     os.getenv("KAI_WIDGET_DIR", "").strip(),
     os.path.join(os.path.dirname(__file__), "widget"),  # Docker: /app/widget
@@ -274,6 +205,7 @@ app.include_router(api_key_router, prefix=f"/{API_START}/{API_VERSION}/api-keys"
 app.include_router(executions_router, prefix=f"/{API_START}/{API_VERSION}/executions", tags=["Executions"])
 app.include_router(credentials_router, prefix=f"/{API_START}/{API_VERSION}/credentials", tags=["Credentials"])
 app.include_router(chat_router, prefix=f"/{API_START}/{API_VERSION}/chat", tags=["Chat"])
+app.include_router(ai_builder_router, prefix=f"/{API_START}/{API_VERSION}/ai-builder", tags=["AI Builder"])
 app.include_router(variables_router, prefix=f"/{API_START}/{API_VERSION}/variables", tags=["Variables"])
 app.include_router(node_configurations_router, prefix=f"/{API_START}/{API_VERSION}/node-configurations", tags=["Node Configurations"])
 app.include_router(node_registry_router, prefix=f"/{API_START}/{API_VERSION}/nodes/registry", tags=["Node Registry"])
@@ -281,8 +213,9 @@ app.include_router(documents_router, prefix=f"/{API_START}/{API_VERSION}/documen
 app.include_router(scheduled_jobs_router, prefix=f"/{API_START}/{API_VERSION}/jobs/scheduled", tags=["Scheduled Jobs"])
 app.include_router(vectors_router, prefix=f"/{API_START}/{API_VERSION}/vectors", tags=["Vector Storage"])
 
-# Include test router
-app.include_router(test_router)
+# Include Timers router (both versioned and unversioned to match frontend API calls)
+app.include_router(timers_router, prefix=f"/{API_START}/timers", tags=["Timers"])
+app.include_router(timers_router, prefix=f"/{API_START}/{API_VERSION}/timers", tags=["Timers"])
 
 # Include webhook routers
 app.include_router(webhook_router, prefix=f"/{API_START}/{API_VERSION}/webhooks", tags=["Webhooks"])
@@ -306,7 +239,6 @@ app.include_router(external_workflows_router, prefix=f"/{API_START}/{API_VERSION
 # Health checks and info endpoints
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Enhanced health check endpoint with comprehensive monitoring."""
     try:
         # Check node registry health
         nodes_healthy = len(node_registry.nodes) > 0
@@ -380,7 +312,6 @@ async def health_check_api():
 # Info endpoint
 @app.get("/info", tags=["Info"])
 async def get_info():
-    """Get application information and statistics."""
     try:
         return {
             "name": "Agent-Flow V2",
@@ -422,11 +353,9 @@ async def get_info():
 async def get_info_v1():
     original = await get_info()
 
-    # If get_info returned a JSONResponse (error case), forward it as-is
     if isinstance(original, JSONResponse):
         return original
 
-    # Otherwise it's a normal dict – add legacy fields expected by tests
     original.setdefault("endpoints", [
         "/",
         f"/{API_START}/health",
@@ -439,7 +368,6 @@ async def get_info_v1():
 # Root endpoint
 @app.get("/", tags=["Root"])
 async def root():
-    """Root endpoint with API information."""
     return {
         "status": "healthy",
         "app": "Agent-Flow V2",
@@ -455,7 +383,6 @@ if __name__ == "__main__":
     import uvicorn
     import os
 
-    # Check if SSL files exist
     ssl_ready = False
     if SSL_KEYFILE and SSL_CERTFILE:
         if os.path.exists(SSL_KEYFILE) and os.path.exists(SSL_CERTFILE):

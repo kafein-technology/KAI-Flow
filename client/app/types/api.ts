@@ -85,6 +85,7 @@ export interface WorkflowCreateRequest {
   flow_data: WorkflowData;
   is_public?: boolean;
   error_workflow?: string | null;
+  chatflow_id?: string;
 }
 
 export interface WorkflowUpdateRequest {
@@ -180,7 +181,7 @@ export interface WorkflowExecution {
   result: WorkflowExecutionResult;
   started_at: string;
   completed_at?: string;
-  status: 'completed' | 'failed' | 'running';
+  status: 'completed' | 'failed' | 'running' | 'pending' | 'cancelled';
   runtime?: string;
 }
 

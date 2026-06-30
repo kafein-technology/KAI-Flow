@@ -10,7 +10,8 @@ interface ChatHistorySidebarProps {
   onClose: () => void;
   onSelectChat: (chatflowId: string) => void;
   activeChatflowId: string | null;
-  workflow_id?: string; // Workflow ID eklendi
+  workflow_id?: string; // Added workflow_id
+  isBuilder?: boolean; // Added isBuilder
 }
 
 export default function ChatHistorySidebar({
@@ -19,9 +20,18 @@ export default function ChatHistorySidebar({
   onSelectChat,
   activeChatflowId,
   workflow_id,
+  isBuilder = false,
 }: ChatHistorySidebarProps) {
-  const { chats, fetchAllChats, fetchWorkflowChats, loading, clearMessages } =
-    useChatStore();
+  const { 
+    chats, 
+    builderChats,
+    fetchAllChats, 
+    fetchWorkflowChats, 
+    fetchWorkflowBuilderChats,
+    loading, 
+    clearMessages,
+    clearBuilderMessages 
+  } = useChatStore();
   const { getPinnedItems } = usePinnedItems();
   const [chatSummaries, setChatSummaries] = useState<
     Array<{
@@ -36,20 +46,23 @@ export default function ChatHistorySidebar({
   useEffect(() => {
     if (isOpen) {
       if (workflow_id) {
-        // Workflow'a özel chat history getir
-        fetchWorkflowChats(workflow_id);
+        if (isBuilder) {
+          fetchWorkflowBuilderChats(workflow_id);
+        } else {
+          fetchWorkflowChats(workflow_id, false);
+        }
       } else {
-        // Tüm chat history'yi getir
         fetchAllChats();
       }
     }
-  }, [isOpen, fetchAllChats, fetchWorkflowChats, workflow_id]);
+  }, [isOpen, fetchAllChats, fetchWorkflowChats, fetchWorkflowBuilderChats, workflow_id, isBuilder]);
 
   useEffect(() => {
-    // Create chat summaries from the chats data
-    const summaries = Object.entries(chats)
+    // Create chat summaries from the active chats data
+    const activeChats = isBuilder ? builderChats : chats;
+    const summaries = Object.entries(activeChats)
       .map(([chatflowId, messages]) => {
-        const sortedMessages = messages.sort(
+        const sortedMessages = [...messages].sort(
           (a, b) =>
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
@@ -80,7 +93,7 @@ export default function ChatHistorySidebar({
       );
 
     setChatSummaries(summaries);
-  }, [chats]);
+  }, [chats, builderChats, isBuilder]);
 
   // Get pinned chats
   const pinnedChats = getPinnedItems("chat");
@@ -115,12 +128,16 @@ export default function ChatHistorySidebar({
 
   const handleDeleteChat = async (chatflowId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Bu konuşmayı silmek istediğinizden emin misiniz?")) {
+    if (confirm("Are you sure you want to delete this conversation?")) {
       try {
-        await clearMessages(chatflowId);
+        if (isBuilder) {
+          await clearBuilderMessages(chatflowId);
+        } else {
+          await clearMessages(chatflowId);
+        }
       } catch (error) {
-        console.error("Chat silinirken hata oluştu:", error);
-        alert("Chat silinirken bir hata oluştu. Lütfen tekrar deneyin.");
+        console.error("Error deleting chat:", error);
+        alert("An error occurred while deleting the chat. Please try again.");
       }
     }
   };
@@ -137,7 +154,7 @@ export default function ChatHistorySidebar({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h2 className="text-lg font-semibold text-gray-200">
-            Konuşma Geçmişi
+            Conversation History
           </h2>
           <button
             onClick={onClose}

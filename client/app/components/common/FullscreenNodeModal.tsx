@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   X,
   Settings,
@@ -19,6 +19,9 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { enqueueSnackbar } from "notistack";
 import DataDisplayModes from "./DataDisplayModes";
+import { deepClone } from "../../lib/useWorkflowHistory";
+import * as LucideIcons from "lucide-react";
+import { resolveIconPath } from "~/lib/iconUtils";
 
 interface NodeInput {
   name: string;
@@ -61,11 +64,15 @@ interface FullscreenNodeModalProps {
   nodeMetadata: NodeMetadata;
   configData: any;
   onSave: (values: any) => void;
+  onConfigChange?: (values: any) => void;
+  historyRevision?: number;
+  configFlushRef?: React.MutableRefObject<(() => void) | null>;
   onExecute?: () => void; // New execute function
   ConfigComponent: React.ComponentType<{
     configData: any;
     onSave: (values: any) => void;
     onCancel: () => void;
+    onChange?: (values: any) => void;
   }>;
   executionData?: {
     nodeId: string;
@@ -96,15 +103,99 @@ export default function FullscreenNodeModal({
   nodeMetadata,
   configData,
   onSave,
+  onConfigChange,
+  historyRevision = 0,
+  configFlushRef,
   onExecute,
   ConfigComponent,
   executionData,
 }: FullscreenNodeModalProps) {
   const [configValues, setConfigValues] = useState(configData);
-  const [nodeAlias, setNodeAlias] = useState(
+  const [formKey, setFormKey] = useState(0);
+  const configChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const configChangeRevisionRef = useRef(0);
+  const pendingConfigValuesRef = useRef<Record<string, unknown> | null>(null);
+  const prevHistoryRevisionRef = useRef(historyRevision);
+  const nodeAliasRef = useRef(
     configData?.name || nodeMetadata.display_name || nodeMetadata.name
   );
+  const [nodeAlias, setNodeAlias] = useState(nodeAliasRef.current);
   const [nodeAliasError, setNodeAliasError] = useState<string | null>(null);
+
+  const initialConfigDataRef = useRef<any>(null);
+  const hasSavedRef = useRef(false);
+  const prevIsOpenRef = useRef(isOpen);
+
+  useEffect(() => {
+    if (isOpen) {
+      initialConfigDataRef.current = deepClone(configData);
+      hasSavedRef.current = false;
+    }
+  }, [isOpen, configData]);
+
+  useEffect(() => {
+    if (prevIsOpenRef.current && !isOpen) {
+      if (!hasSavedRef.current && onConfigChange && initialConfigDataRef.current) {
+        onConfigChange(initialConfigDataRef.current);
+      }
+    }
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, onConfigChange]);
+
+  const cancelPendingConfigChange = useCallback(() => {
+    configChangeRevisionRef.current += 1;
+    if (configChangeTimerRef.current) {
+      clearTimeout(configChangeTimerRef.current);
+      configChangeTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleConfigChange = useCallback(
+    (values: Record<string, unknown>) => {
+      if (!onConfigChange) return;
+
+      pendingConfigValuesRef.current = values;
+
+      if (configChangeTimerRef.current) {
+        clearTimeout(configChangeTimerRef.current);
+      }
+
+      const scheduledRevision = configChangeRevisionRef.current;
+
+      configChangeTimerRef.current = setTimeout(() => {
+        configChangeTimerRef.current = null;
+        if (scheduledRevision !== configChangeRevisionRef.current) return;
+        onConfigChange(values);
+      }, 200);
+    },
+    [onConfigChange]
+  );
+
+  const flushConfigChange = useCallback(() => {
+    if (configChangeTimerRef.current) {
+      clearTimeout(configChangeTimerRef.current);
+      configChangeTimerRef.current = null;
+    }
+
+    if (onConfigChange && pendingConfigValuesRef.current) {
+      onConfigChange(pendingConfigValuesRef.current);
+    }
+  }, [onConfigChange]);
+
+  useEffect(() => {
+    if (!configFlushRef) return;
+    configFlushRef.current = flushConfigChange;
+    return () => {
+      configFlushRef.current = null;
+    };
+  }, [configFlushRef, flushConfigChange]);
+
+  const handleFormChange = useCallback(
+    (values: Record<string, unknown>) => {
+      scheduleConfigChange({ ...values, name: nodeAliasRef.current });
+    },
+    [scheduleConfigChange]
+  );
 
   const inputDataToDisplay = executionData?.inputs;
 
@@ -140,8 +231,13 @@ export default function FullscreenNodeModal({
 
   const handleNodeAliasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    nodeAliasRef.current = value;
     setNodeAlias(value);
     setNodeAliasError(validateNodeAlias(value));
+    scheduleConfigChange({
+      ...(pendingConfigValuesRef.current ?? configValues),
+      name: value,
+    });
   };
 
   // Helper function to filter out metadata and system fields from node data
@@ -551,10 +647,27 @@ export default function FullscreenNodeModal({
 
   useEffect(() => {
     setConfigValues(configData);
-    setNodeAlias(
-      configData?.name || nodeMetadata.display_name || nodeMetadata.name
-    );
-  }, [configData, nodeMetadata.display_name, nodeMetadata.name]);
+    const alias =
+      configData?.name || nodeMetadata.display_name || nodeMetadata.name;
+    nodeAliasRef.current = alias;
+    setNodeAlias(alias);
+    setNodeAliasError(null);
+    // Sync workflow state into the form after undo/redo or when configData changes externally (e.g., import).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyRevision, configData]);
+
+  useEffect(() => {
+    if (prevHistoryRevisionRef.current === historyRevision) return;
+    prevHistoryRevisionRef.current = historyRevision;
+    cancelPendingConfigChange();
+    setFormKey((key) => key + 1);
+  }, [historyRevision, cancelPendingConfigChange]);
+
+  useEffect(() => {
+    return () => {
+      cancelPendingConfigChange();
+    };
+  }, [cancelPendingConfigChange]);
 
   const handleSave = (values: any) => {
     try {
@@ -574,6 +687,7 @@ export default function FullscreenNodeModal({
 
       const finalValues = { ...values, name: nodeAlias };
       setConfigValues(finalValues);
+      hasSavedRef.current = true;
       onSave(finalValues);
       enqueueSnackbar("Node configuration saved successfully!", {
         variant: "success",
@@ -614,7 +728,9 @@ export default function FullscreenNodeModal({
         className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
         onKeyDown={handleKeyDown}
         tabIndex={-1}
+        data-workflow-history
       >
+
         <div className="w-full h-full flex flex-col bg-gray-900">
           {/* Header */}
           <motion.div
@@ -623,36 +739,57 @@ export default function FullscreenNodeModal({
             transition={{ delay: 0.1 }}
             className="flex items-center justify-between p-6 border-b border-gray-700 bg-gray-800"
           >
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                {nodeMetadata.icon && (
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <Settings className="w-5 h-5 text-white" />
-                  </div>
-                )}
-                <div>
-                  <h1 className="text-xl font-bold text-white">
+            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+              <div className="min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  {nodeMetadata.icon && (() => {
+                    const iconObj = nodeMetadata.icon as any;
+                    return (
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                        {iconObj.path ? (
+                          <img
+                            src={resolveIconPath(iconObj.path)}
+                            alt={iconObj.alt || "Node Icon"}
+                            className="w-6 h-6 object-contain"
+                          />
+                        ) : (() => {
+                          const iconName = typeof iconObj === "string" ? iconObj : iconObj.name;
+                          if (!iconName) return <Settings className="w-5 h-5 text-white" />;
+                          let IconComponent = (LucideIcons as any)[iconName];
+                          if (!IconComponent) {
+                            for (const [key, value] of Object.entries(LucideIcons)) {
+                              if (key.toLowerCase() === iconName.replace(/-/g, "").toLowerCase()) {
+                                IconComponent = value;
+                                break;
+                              }
+                            }
+                          }
+                          const FinalIcon = IconComponent || Settings;
+                          return <FinalIcon className="w-5 h-5 text-white" />;
+                        })()}
+                      </div>
+                    );
+                  })()}
+                  <h1 className="text-xl font-bold text-white truncate max-w-xl" title={nodeMetadata.display_name || nodeMetadata.name}>
                     {nodeMetadata.display_name || nodeMetadata.name}
                   </h1>
-                  <p className="text-sm text-gray-400">
-                    {nodeMetadata.category}
-                  </p>
-                  <div className="mt-3">
-                    <label className="block text-xs text-gray-400 mb-1">
-                      Specify the node name for using node output.
-                    </label>
-                    <input
-                      className={`w-64 px-2 py-1 rounded bg-gray-900 border text-sm text-gray-100 focus:outline-none focus:ring-1 ${nodeAliasError
-                        ? "border-yellow-500 focus:ring-yellow-500"
-                        : "border-gray-700 focus:ring-blue-500"
-                        }`}
-                      value={nodeAlias}
-                      onChange={handleNodeAliasChange}
-                      placeholder={
-                        nodeMetadata.display_name || nodeMetadata.name
-                      }
-                    />
-                    {nodeAliasError && (
+                </div>
+                <div className="mt-2">
+                  <label className="block text-xs text-gray-400 mb-1">
+                    Specify the node name for using node output.
+                  </label>
+                  <input
+                    className={`w-64 px-2 py-1 rounded bg-gray-900 border text-sm text-gray-100 focus:outline-none focus:ring-1 ${nodeAliasError
+                      ? "border-yellow-500 focus:ring-yellow-500"
+                      : "border-gray-700 focus:ring-blue-500"
+                      }`}
+                    value={nodeAlias}
+                    onChange={handleNodeAliasChange}
+                    placeholder={
+                      nodeMetadata.display_name || nodeMetadata.name
+                    }
+                  />
+                  {nodeAliasError && (
                       <div className="mt-1 text-xs text-yellow-400">
                         {nodeAliasError}
                       </div>
@@ -660,7 +797,6 @@ export default function FullscreenNodeModal({
                   </div>
                 </div>
               </div>
-            </div>
 
             <div className="flex items-center gap-3">
               <div className="px-3 py-1 rounded-full bg-gray-700 text-xs text-gray-300">
@@ -692,7 +828,7 @@ export default function FullscreenNodeModal({
               initial={{ x: -50, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="w-1/3 bg-gray-850 border-r border-gray-700 overflow-y-auto"
+              className="w-1/3 bg-gray-850 border-r border-gray-700 overflow-y-auto custom-scrollbar"
             >
               <div className="p-4">
                 <div className="flex items-center gap-3 mb-6">
@@ -746,7 +882,7 @@ export default function FullscreenNodeModal({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="flex-1 overflow-y-auto bg-gray-900"
+              className="flex-1 overflow-y-auto bg-gray-900 custom-scrollbar"
             >
               <div className="h-full flex flex-col">
                 <div className="p-4 border-b border-gray-700">
@@ -755,12 +891,14 @@ export default function FullscreenNodeModal({
                     Node Configuration
                   </h2>
                 </div>
-                <div className="flex-1 p-3 overflow-y-auto">
+                <div className="flex-1 p-3 overflow-y-auto custom-scrollbar">
                   <div className="max-w-full">
                     <ConfigComponent
+                      key={formKey}
                       configData={configValues}
                       onSave={handleSave}
                       onCancel={onClose}
+                      onChange={handleFormChange}
                     />
                   </div>
                 </div>
@@ -772,7 +910,7 @@ export default function FullscreenNodeModal({
               initial={{ x: 50, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="w-1/3 bg-gray-850 border-l border-gray-700 overflow-y-auto"
+              className="w-1/3 bg-gray-850 border-l border-gray-700 overflow-y-auto custom-scrollbar"
             >
               <div className="p-4">
                 <div className="flex items-center gap-3 mb-6">
@@ -833,7 +971,7 @@ export default function FullscreenNodeModal({
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="flex items-center justify-between p-6 border-t border-gray-700 bg-gray-800"
+            className="flex items-center justify-between py-3 px-6 border-t border-gray-700 bg-gray-800"
           >
             <div className="flex items-center gap-4 text-sm text-gray-400">
               <span>Node Type: {nodeMetadata.node_type}</span>
