@@ -24,6 +24,7 @@ interface ExecutionsStore {
   getCurrentExecutionForWorkflow: (workflow_id: string) => WorkflowExecution | null;
   deleteExecution: (execution_id: string) => Promise<void>;
   cancelExecution: (execution_id: string) => Promise<void>;
+  cancelWorkflowExecutions: (workflow_id: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -119,8 +120,15 @@ export const useExecutionsStore = create<ExecutionsStore>((set, get) => ({
       set((state) => {
         const nextCurrentExecutions = { ...state.currentExecutions };
         const wfId = updatedExecution.workflow_id;
-        if (wfId && nextCurrentExecutions[wfId] && nextCurrentExecutions[wfId]?.id === execution_id) {
-          nextCurrentExecutions[wfId] = updatedExecution;
+        if (wfId && nextCurrentExecutions[wfId]) {
+          const current = nextCurrentExecutions[wfId];
+          if (
+            current?.id === execution_id ||
+            current?.status === 'pending' ||
+            current?.status === 'running'
+          ) {
+            nextCurrentExecutions[wfId] = updatedExecution;
+          }
         }
         return {
           executions: state.executions.map(ex => ex.id === execution_id ? updatedExecution : ex),
@@ -130,6 +138,37 @@ export const useExecutionsStore = create<ExecutionsStore>((set, get) => ({
       });
     } catch (e: any) {
       set({ error: e.message || 'Failed to cancel execution', loading: false });
+      throw e;
+    }
+  },
+  cancelWorkflowExecutions: async (workflow_id) => {
+    set({ loading: true, error: null });
+    try {
+      const cancelledExecutions = await executionService.cancelWorkflowExecutions(workflow_id);
+      set((state) => {
+        const nextCurrentExecutions = { ...state.currentExecutions };
+        const current = nextCurrentExecutions[workflow_id];
+        if (current && (current.status === 'pending' || current.status === 'running')) {
+          const match =
+            cancelledExecutions.find((ex) => ex.id === current.id) ||
+            cancelledExecutions[0];
+          nextCurrentExecutions[workflow_id] = match ?? {
+            ...current,
+            status: 'cancelled',
+            completed_at: new Date().toISOString(),
+          };
+        }
+        return {
+          executions: state.executions.map((ex) => {
+            const updated = cancelledExecutions.find((c) => c.id === ex.id);
+            return updated ?? ex;
+          }),
+          currentExecutions: nextCurrentExecutions,
+          loading: false,
+        };
+      });
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to cancel workflow executions', loading: false });
       throw e;
     }
   },

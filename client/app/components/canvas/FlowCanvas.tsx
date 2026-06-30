@@ -331,6 +331,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     Record<string, "success" | "failed" | "pending">
   >({});
   const [activeExecutionId, setActiveExecutionId] = useState<string | null>(null);
+  const [isManualExecutionRunning, setIsManualExecutionRunning] = useState(false);
 
   // Create node config components and base node types directly from nodes
   const nodeConfigComponents = useMemo(
@@ -498,6 +499,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     getCurrentExecutionForWorkflow,
     setCurrentExecutionForWorkflow,
     cancelExecution,
+    cancelWorkflowExecutions,
     loading: executionLoading,
     error: executionError,
     clearError: clearExecutionError,
@@ -514,41 +516,68 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   // Active stream reader ref to allow cancellation
   const activeReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const activeExecutionIdRef = useRef<string | null>(null);
+  const streamCancelledByUserRef = useRef(false);
 
   const handleCancelExecution = useCallback(
-    async (executionId: string) => {
-      // 1. Abort the active stream reader if there is one
-      if (activeReaderRef.current) {
-        try {
-          await activeReaderRef.current.cancel();
-          activeReaderRef.current = null;
-        } catch (err) {
-          console.error("Error cancelling stream reader:", err);
-        }
-      }
+    async (executionId?: string | null) => {
+      streamCancelledByUserRef.current = true;
+      setIsManualExecutionRunning(false);
+
+      const resolvedId =
+        executionId ||
+        activeExecutionIdRef.current ||
+        activeExecutionId;
 
       // Reset active nodes and edges states immediately
       setActiveEdges([]);
       setActiveNodes([]);
+      setActiveExecutionId(null);
+      activeExecutionIdRef.current = null;
 
-      // 2. Call the store's cancelExecution
+      // Abort the active stream reader if there is one
+      if (activeReaderRef.current) {
+        try {
+          await activeReaderRef.current.cancel();
+        } catch (err) {
+          console.error("Error cancelling stream reader:", err);
+        } finally {
+          activeReaderRef.current = null;
+        }
+      }
+
       try {
-        await cancelExecution(executionId);
+        if (resolvedId) {
+          await cancelExecution(resolvedId);
+        } else if (currentWorkflow?.id) {
+          await cancelWorkflowExecutions(currentWorkflow.id);
+        }
       } catch (err: any) {
         console.warn("Backend cancellation failed, handling locally:", err);
       } finally {
-        // Always mark the execution as cancelled/completed locally so the UI updates
-        const currentExec = currentWorkflow?.id ? getCurrentExecutionForWorkflow(currentWorkflow.id) : null;
-        if (currentWorkflow?.id && currentExec && currentExec.id === executionId) {
-          setCurrentExecutionForWorkflow(currentWorkflow.id, {
-            ...currentExec,
-            status: "cancelled",
-            completed_at: new Date().toISOString(),
-          } as any);
+        if (currentWorkflow?.id) {
+          const currentExec = getCurrentExecutionForWorkflow(currentWorkflow.id);
+          if (
+            currentExec &&
+            (currentExec.status === "running" || currentExec.status === "pending")
+          ) {
+            setCurrentExecutionForWorkflow(currentWorkflow.id, {
+              ...currentExec,
+              status: "cancelled",
+              completed_at: new Date().toISOString(),
+            } as any);
+          }
         }
       }
     },
-    [cancelExecution, currentWorkflow?.id, getCurrentExecutionForWorkflow, setCurrentExecutionForWorkflow]
+    [
+      activeExecutionId,
+      cancelExecution,
+      cancelWorkflowExecutions,
+      currentWorkflow?.id,
+      getCurrentExecutionForWorkflow,
+      setCurrentExecutionForWorkflow,
+    ]
   );
 
   // Poll for the active execution status when it is running/pending
@@ -1316,14 +1345,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
         let lastExecutionId: string | null = null;
 
-        // Set execution status to pending in store to show Cancel button immediately
-        const tempExecutionId = uuidv4();
-        setCurrentExecutionForWorkflow(currentWorkflow.id, {
-          id: tempExecutionId,
-          workflow_id: currentWorkflow.id,
-          status: "pending",
-          started_at: new Date().toISOString(),
-        } as any);
+        streamCancelledByUserRef.current = false;
+        setIsManualExecutionRunning(true);
+        activeExecutionIdRef.current = null;
+        setActiveExecutionId(null);
 
         // Show loading message
         enqueueSnackbar("Executing workflow...", { variant: "info" });
@@ -1381,9 +1406,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 const evt = JSON.parse(jsonStr);
                 if (evt.execution_id) {
                   lastExecutionId = evt.execution_id;
-                  if (!activeExecutionId) {
-                    setActiveExecutionId(evt.execution_id);
-                  }
+                  activeExecutionIdRef.current = evt.execution_id;
+                  setActiveExecutionId(evt.execution_id);
                   const currentExec = getCurrentExecutionForWorkflow(currentWorkflow.id);
                   if (!currentExec || currentExec.id !== evt.execution_id || currentExec.status !== "running") {
                     setCurrentExecutionForWorkflow(currentWorkflow.id, {
@@ -1546,18 +1570,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               } catch { }
 
               const execIdToFetch = lastExecutionId;
+              const wasCancelledByUser = streamCancelledByUserRef.current;
+              setIsManualExecutionRunning(false);
               setActiveExecutionId(null);
+              activeExecutionIdRef.current = null;
               activeReaderRef.current = null;
 
-              // Show success snackbar only if no errors were received during streaming
-              if (!streamHadError) {
+              if (!streamHadError && !wasCancelledByUser) {
                 enqueueSnackbar("Workflow executed successfully", {
                   variant: "success",
                 });
                 clearExecutionError();
               }
 
-              if (execIdToFetch && currentWorkflow?.id) {
+              if (execIdToFetch && currentWorkflow?.id && !wasCancelledByUser) {
                 (async () => {
                   try {
                     const finalExecution = await getExecution(execIdToFetch);
@@ -1573,13 +1599,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   }
                 })();
               }
+
+              streamCancelledByUserRef.current = false;
             }
           })();
         } catch (_) {
           // fallback to non-streaming if needed
+          setIsManualExecutionRunning(false);
           await executeWorkflow(currentWorkflow.id, executionData);
         }
       } catch (error: any) {
+        setIsManualExecutionRunning(false);
         console.error("Error executing workflow:", error);
 
         const failedNodeId = error.node_id || undefined;
@@ -2014,6 +2044,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         canUndo={canUndo}
         canRedo={canRedo}
         executionLoading={executionLoading}
+        isManualExecutionRunning={isManualExecutionRunning}
         activeExecutionId={activeExecutionId}
         currentExecution={currentExecution}
         onCancelExecution={handleCancelExecution}
