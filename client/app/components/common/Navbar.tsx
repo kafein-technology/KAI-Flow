@@ -151,8 +151,11 @@ const Navbar: React.FC<NavbarProps> = ({
           if (nodeStore.nodes.length === 0) {
             await nodeStore.fetchNodes();
             await nodeStore.fetchCategories();
-            nodeStore = useNodeStore.getState();
           }
+          if (nodeStore.customNodes.length === 0) {
+            await nodeStore.fetchCustomNodes();
+          }
+          nodeStore = useNodeStore.getState();
 
           const allNodesMetadata = [...(nodeStore.nodes || []), ...(nodeStore.customNodes || [])];
           const enrichedNodes = (json.flow_data?.nodes || []).map((node: any) => {
