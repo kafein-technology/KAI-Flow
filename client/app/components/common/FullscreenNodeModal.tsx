@@ -652,9 +652,9 @@ export default function FullscreenNodeModal({
     nodeAliasRef.current = alias;
     setNodeAlias(alias);
     setNodeAliasError(null);
-    // Sync workflow state into the form only after undo/redo — not on live edits.
+    // Sync workflow state into the form after undo/redo or when configData changes externally (e.g., import).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyRevision]);
+  }, [historyRevision, configData]);
 
   useEffect(() => {
     if (prevHistoryRevisionRef.current === historyRevision) return;

@@ -474,7 +474,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     updateWorkflowVisibility,
   } = useWorkflows();
 
-  const { nodes: availableNodes, customNodes } = useNodes();
+  const { 
+    nodes: availableNodes, 
+    customNodes,
+    fetchNodes,
+    fetchCategories,
+    fetchCustomNodes
+  } = useNodes();
+
+  // Load all node metadata on canvas mount to ensure registry is available for import/load
+  useEffect(() => {
+    fetchNodes();
+    fetchCategories();
+    fetchCustomNodes();
+  }, [fetchNodes, fetchCategories, fetchCustomNodes]);
 
   // Smart suggestions integration
   const { setLastAddedNode, updateRecommendations } = useSmartSuggestions();
@@ -764,27 +777,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
   }, [currentWorkflow?.id, clearAllChats, setCurrentExecutionForWorkflow, setActiveChatflowId]);
 
-  // Initialize nodes from store when loaded for the first time
-  useEffect(() => {
-    if (!workflowId && availableNodes.length > 0 && nodes.length === 0 && !currentWorkflow && !hasInitializedEmptyCanvas.current) {
-      // Sadece start node'u ekle
-      const startNodeMeta = availableNodes.find((n) => n.name === "StartNode");
-      if (startNodeMeta) {
-        const startNode = {
-          id: "StartNode__" + crypto.randomUUID(),
-          type: "StartNode",
-          position: { x: 100, y: 100 },
-          data: {
-            name: "Start",
-            metadata: startNodeMeta,
-          },
-        };
-        setNodes([startNode]);
-        hasInitializedEmptyCanvas.current = true;
-        resetHistory([startNode], []);
-      }
-    }
-  }, [workflowId, availableNodes, currentWorkflow, nodes.length, setNodes, resetHistory]);
+
 
   useEffect(() => {
     // If currentWorkflow is null and we had a loaded workflow, reset the canvas
@@ -2012,7 +2005,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         lastAutoSave={lastAutoSave}
         onAutoSaveSettings={handleAutoSaveSettings}
         updateWorkflowVisibility={updateWorkflowVisibility}
-        onImportStart={() => { isImportingRef.current = true; }}
+        onImportStart={() => { isImportingRef.current = true; loadedWorkflowIdRef.current = null; }}
         onWorkflowImported={(importedNodes, importedEdges) => {
           resetHistory(importedNodes, importedEdges);
         }}
