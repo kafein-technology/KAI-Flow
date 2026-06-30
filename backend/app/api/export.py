@@ -19,6 +19,7 @@ from app.models.workflow import Workflow
 from app.models.user_credential import UserCredential
 from app.models.user import User
 from app.auth.dependencies import get_current_user
+from scripts.workflow_bundle_utils import collect_missing_error_workflow_warnings
 
 
 router = APIRouter(prefix="/export", tags=["export"])
@@ -215,11 +216,15 @@ async def export_workflows(
             "name": workflow.name,
             "description": workflow.description or "",
             "is_public": workflow.is_public,
+            "error_workflow": str(workflow.error_workflow) if workflow.error_workflow else None,
             "flow_file": flow_filename
         })
     
     if not config["workflows"]:
         raise HTTPException(status_code=404, detail="No workflows found to export")
+
+    for warning in collect_missing_error_workflow_warnings(config["workflows"]):
+        logger.warning(warning)
     
     # Add credentials to config
     for cred_info in seen_credentials.values():

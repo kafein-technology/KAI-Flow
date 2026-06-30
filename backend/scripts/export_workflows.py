@@ -34,6 +34,8 @@ from app.models.user import User
 from sqlalchemy import select
 import logging
 
+from scripts.workflow_bundle_utils import collect_missing_error_workflow_warnings
+
 logger = logging.getLogger(__name__)
 
 def get_empty_secret_from_credential(credential: UserCredential) -> Dict[str, Any]:
@@ -188,6 +190,7 @@ async def export_workflows(
                 "name": workflow.name,
                 "description": workflow.description or "",
                 "is_public": workflow.is_public,
+                "error_workflow": str(workflow.error_workflow) if workflow.error_workflow else None,
                 "flow_file": flow_file
             })
             
@@ -196,6 +199,9 @@ async def export_workflows(
         # Add all found credentials to config
         for cred_info in seen_credentials.values():
             config["credentials"].append(cred_info)
+
+        for warning in collect_missing_error_workflow_warnings(config["workflows"]):
+            logger.warning(warning)
     
     # Write YAML config
     yaml_content = yaml.dump(
