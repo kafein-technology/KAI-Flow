@@ -45,9 +45,10 @@ interface NavbarProps {
   canUndo?: boolean;
   canRedo?: boolean;
   executionLoading?: boolean;
+  isManualExecutionRunning?: boolean;
   activeExecutionId?: string | null;
   currentExecution?: any;
-  onCancelExecution?: (executionId: string) => Promise<void>;
+  onCancelExecution?: (executionId?: string | null) => Promise<void>;
   hasUnsavedChanges?: boolean;
 }
 
@@ -73,6 +74,7 @@ const Navbar: React.FC<NavbarProps> = ({
   canUndo = false,
   canRedo = false,
   executionLoading,
+  isManualExecutionRunning,
   activeExecutionId,
   currentExecution,
   onCancelExecution,
@@ -292,7 +294,15 @@ const Navbar: React.FC<NavbarProps> = ({
 
   const showExecutionStatus =
     executionLoading ||
+    isManualExecutionRunning ||
     !!activeExecutionId ||
+    (currentExecution &&
+      (currentExecution.status === "running" ||
+        currentExecution.status === "pending"));
+
+  const canCancelExecution =
+    !!activeExecutionId ||
+    isManualExecutionRunning ||
     (currentExecution &&
       (currentExecution.status === "running" ||
         currentExecution.status === "pending"));
@@ -336,8 +346,17 @@ const Navbar: React.FC<NavbarProps> = ({
                   {onCancelExecution && (
                     <button
                       onClick={async () => {
-                        const runId = activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending") ? currentExecution.id : null);
-                        if (runId && confirm("Are you sure you want to cancel this execution?")) {
+                        const runId =
+                          activeExecutionId ||
+                          (currentExecution &&
+                          (currentExecution.status === "running" ||
+                            currentExecution.status === "pending")
+                            ? currentExecution.id
+                            : null);
+                        if (
+                          (runId || isManualExecutionRunning) &&
+                          confirm("Are you sure you want to cancel this execution?")
+                        ) {
                           try {
                             await onCancelExecution(runId);
                             enqueueSnackbar("Workflow execution cancel requested.", { variant: "info" });
@@ -347,13 +366,13 @@ const Navbar: React.FC<NavbarProps> = ({
                           }
                         }
                       }}
-                      className={`px-2 py-0.5 text-[11px] text-red-500 hover:text-red-400 border border-red-500/30 hover:border-red-500/50 rounded transition-colors cursor-pointer shrink-0 ${activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending"))
+                      className={`px-2 py-0.5 text-[11px] text-red-500 hover:text-red-400 border border-red-500/30 hover:border-red-500/50 rounded transition-colors cursor-pointer shrink-0 ${canCancelExecution
                           ? "visible"
                           : "invisible pointer-events-none"
                         }`}
                       title="Cancel Execution"
-                      aria-hidden={!(activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending")))}
-                      tabIndex={activeExecutionId || (currentExecution && (currentExecution.status === "running" || currentExecution.status === "pending")) ? 0 : -1}
+                      aria-hidden={!canCancelExecution}
+                      tabIndex={canCancelExecution ? 0 : -1}
                     >
                       Cancel
                     </button>

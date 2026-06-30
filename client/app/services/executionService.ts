@@ -52,6 +52,10 @@ export const deleteExecution = async (execution_id: string) => {
 
 export const cancelExecution = async (execution_id: string) => {
   return apiClient.post<WorkflowExecution>(`/executions/${execution_id}/cancel`);
+};
+
+export const cancelWorkflowExecutions = async (workflow_id: string) => {
+  return apiClient.post<WorkflowExecution[]>(`/executions/workflows/${workflow_id}/cancel`);
 }; 
 
 export const exportExecutionsCSV = async (params: {
