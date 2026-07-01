@@ -11,17 +11,16 @@ import {
   Cloud,
   Settings,
 } from "lucide-react";
-import { testUserCredential, testCredentialRaw, getUserCredentialById, getCredentialWorkflows } from "~/services/userCredentialService";
+import { testUserCredential, testCredentialRaw, getUserCredentialById } from "~/services/userCredentialService";
 import React, { useState, useEffect } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useUserCredentialStore } from "../stores/userCredential";
-import type { CredentialCreateRequest, UserCredential, CredentialWorkflowUsageResponse } from "../types/api";
+import type { CredentialCreateRequest, UserCredential } from "../types/api";
 import Loading from "~/components/Loading";
 import AuthGuard from "~/components/AuthGuard";
 import ServiceSelectionModal from "../components/credentials/ServiceSelectionModal";
 import DynamicCredentialForm from "../components/credentials/DynamicCredentialForm";
 import CredentialCard from "../components/credentials/CredentialCard";
-import CredentialWorkflowUsage from "../components/credentials/CredentialWorkflowUsage";
 import {
   type ServiceDefinition,
   getServicesByCategory,
@@ -50,17 +49,10 @@ function CredentialsLayout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [editingInitialValues, setEditingInitialValues] = useState<Record<string, any>>({});
-  const [workflowUsage, setWorkflowUsage] = useState<CredentialWorkflowUsageResponse | null>(null);
-  const [workflowUsageLoading, setWorkflowUsageLoading] = useState(false);
-  const [workflowUsageError, setWorkflowUsageError] = useState<string | null>(null);
-
   const resetCredentialModal = () => {
     setSelectedService(null);
     setEditingCredential(null);
     setEditingInitialValues({});
-    setWorkflowUsage(null);
-    setWorkflowUsageLoading(false);
-    setWorkflowUsageError(null);
   };
 
   const servicesByCategory = getServicesByCategory();
@@ -129,9 +121,6 @@ function CredentialsLayout() {
 
   const handleEditCredential = async (credential: UserCredential) => {
     setEditingCredential(credential);
-    setWorkflowUsage(null);
-    setWorkflowUsageError(null);
-    setWorkflowUsageLoading(true);
 
     const servicesByCategory = getServicesByCategory();
     const allServices = Object.values(servicesByCategory).flat();
@@ -142,32 +131,17 @@ function CredentialsLayout() {
       setSelectedService(serviceDef);
     }
 
-    const [detailResult, usageResult] = await Promise.allSettled([
-      getUserCredentialById(credential.id),
-      getCredentialWorkflows(credential.id),
-    ]);
-
-    if (detailResult.status === "fulfilled") {
-      const detail = detailResult.value;
+    try {
+      const detail = await getUserCredentialById(credential.id);
       if (detail?.secret && typeof detail.secret === "object") {
         setEditingInitialValues(detail.secret);
       } else {
         setEditingInitialValues({});
       }
-    } else {
-      console.error("Failed to fetch credential secret for editing:", detailResult.reason);
+    } catch (e) {
+      console.error("Failed to fetch credential secret for editing:", e);
       setEditingInitialValues({});
     }
-
-    if (usageResult.status === "fulfilled") {
-      setWorkflowUsage(usageResult.value);
-      setWorkflowUsageError(null);
-    } else {
-      console.error("Failed to fetch credential workflow usage:", usageResult.reason);
-      setWorkflowUsage(null);
-      setWorkflowUsageError("Could not load workflow usage.");
-    }
-    setWorkflowUsageLoading(false);
   };
 
   const handleUpdateCredential = async (values: Record<string, any>) => {
@@ -432,16 +406,6 @@ function CredentialsLayout() {
                   </svg>
                 </button>
               </div>
-
-              {editingCredential && (
-                <div className="mb-6">
-                  <CredentialWorkflowUsage
-                    usage={workflowUsage}
-                    isLoading={workflowUsageLoading}
-                    error={workflowUsageError}
-                  />
-                </div>
-              )}
 
               <DynamicCredentialForm
                 service={selectedService}

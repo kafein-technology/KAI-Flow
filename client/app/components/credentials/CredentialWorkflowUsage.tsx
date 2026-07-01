@@ -1,6 +1,6 @@
 import React from "react";
 import { ExternalLink, GitBranch, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { timeAgo } from "~/lib/dateFormatter";
 import type { CredentialWorkflowUsageResponse } from "~/types/api";
 

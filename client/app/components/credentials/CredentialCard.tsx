@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Check, Loader2, Pencil, Trash, Zap, X as XIcon } from "lucide-react";
 import { timeAgo } from "~/lib/dateFormatter";
 import { resolveIconPath } from "~/lib/iconUtils";
 import { getServiceDefinition } from "~/types/credentials";
-import type { UserCredential } from "~/types/api";
+import { getCredentialWorkflows } from "~/services/userCredentialService";
+import type { CredentialWorkflowUsageResponse, UserCredential } from "~/types/api";
+import CredentialWorkflowUsage from "./CredentialWorkflowUsage";
 
 interface CredentialCardProps {
   credential: UserCredential;
@@ -25,6 +27,38 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
   const [iconFailed, setIconFailed] = useState(false);
   const [testState, setTestState] = useState<TestState>("idle");
   const [testMessage, setTestMessage] = useState<string>("");
+  const [workflowUsage, setWorkflowUsage] = useState<CredentialWorkflowUsageResponse | null>(null);
+  const [workflowUsageLoading, setWorkflowUsageLoading] = useState(true);
+  const [workflowUsageError, setWorkflowUsageError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadWorkflowUsage = async () => {
+      setWorkflowUsageLoading(true);
+      setWorkflowUsageError(null);
+      try {
+        const usage = await getCredentialWorkflows(credential.id);
+        if (!cancelled) {
+          setWorkflowUsage(usage);
+        }
+      } catch {
+        if (!cancelled) {
+          setWorkflowUsage(null);
+          setWorkflowUsageError("Could not load workflow usage.");
+        }
+      } finally {
+        if (!cancelled) {
+          setWorkflowUsageLoading(false);
+        }
+      }
+    };
+
+    loadWorkflowUsage();
+    return () => {
+      cancelled = true;
+    };
+  }, [credential.id]);
 
   const handleTest = async () => {
     setTestState("loading");
@@ -92,6 +126,14 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
       <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
         <span>Created: {timeAgo(credential.created_at)}</span>
         <span>Updated: {timeAgo(credential.updated_at)}</span>
+      </div>
+
+      <div className="mb-3">
+        <CredentialWorkflowUsage
+          usage={workflowUsage}
+          isLoading={workflowUsageLoading}
+          error={workflowUsageError}
+        />
       </div>
 
       {/* Test result message */}
