@@ -42,6 +42,7 @@ interface ChatComponentProps {
   onFlowGenerated?: (flowData: any) => void;
   currentNodes?: any[];
   currentEdges?: any[];
+  style?: React.CSSProperties;
 }
 
 export default function ChatComponent({
@@ -61,6 +62,7 @@ export default function ChatComponent({
   onFlowGenerated,
   currentNodes = [],
   currentEdges = [],
+  style,
 }: ChatComponentProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -483,7 +485,8 @@ export default function ChatComponent({
 
   return (
     <div
-      className={`fixed bottom-20 right-4 bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700 transition-all duration-300 ${isExpanded
+      style={style}
+      className={`fixed bottom-20 right-4 bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700 transition-[opacity,transform,width,height] duration-200 ${isExpanded
           ? "w-[calc(100vw-2rem)] h-[calc(100vh-6rem)] left-4"
           : "w-148 h-[600px]"
         }`}

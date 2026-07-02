@@ -52,6 +52,7 @@ from app.api.timers import router as timers_router
 from app.api.external_workflows import router as external_workflows_router
 from app.api.export import router as export_router
 from app.nodes.triggers.kafka_trigger import kafka_router as kafka_trigger_router
+from app.api.logs import router as logs_router
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +213,7 @@ app.include_router(node_registry_router, prefix=f"/{API_START}/{API_VERSION}/nod
 app.include_router(documents_router, prefix=f"/{API_START}/{API_VERSION}/documents", tags=["Documents"])
 app.include_router(scheduled_jobs_router, prefix=f"/{API_START}/{API_VERSION}/jobs/scheduled", tags=["Scheduled Jobs"])
 app.include_router(vectors_router, prefix=f"/{API_START}/{API_VERSION}/vectors", tags=["Vector Storage"])
+app.include_router(logs_router, prefix=f"/{API_START}/{API_VERSION}/logs", tags=["Logs"])
 
 # Include Timers router (both versioned and unversioned to match frontend API calls)
 app.include_router(timers_router, prefix=f"/{API_START}/timers", tags=["Timers"])
