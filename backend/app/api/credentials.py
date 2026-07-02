@@ -18,6 +18,7 @@ from app.schemas.user_credential import (
     CredentialUpdateRequest,
     CredentialDetailResponse,
     CredentialDeleteResponse,
+    CredentialWorkflowUsageResponse,
     UserCredentialCreate,
 )
 
@@ -115,6 +116,44 @@ async def get_credential_by_id(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve credential"
         )
+
+
+@router.get("/{credential_id}/workflows", response_model=CredentialWorkflowUsageResponse)
+async def get_credential_workflows(
+    credential_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    credential_service: CredentialService = Depends(get_credential_service_dep),
+):
+    """
+    List workflows that use the given credential in node configuration.
+
+    Returns minimal workflow metadata and node usage details (no full flow_data).
+    """
+    user_id = current_user.id
+
+    try:
+        usage = await credential_service.get_workflows_using_credential(
+            db, user_id, credential_id
+        )
+        if not usage:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Credential not found",
+            )
+        return usage
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Error retrieving workflow usage for credential {credential_id} "
+            f"and user {user_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve credential workflow usage",
+        )
+
 
 @router.post("", response_model=CredentialDetailResponse)
 async def create_credential(
