@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { Check, Loader2, Pencil, Trash, Zap, X as XIcon } from "lucide-react";
+import { Check, Loader2, Pencil, Trash, Zap, Link2, X as XIcon } from "lucide-react";
 import { timeAgo } from "~/lib/dateFormatter";
 import { resolveIconPath } from "~/lib/iconUtils";
 import { getServiceDefinition } from "~/types/credentials";
-import type { UserCredential } from "~/types/api";
+import { getCredentialWorkflows } from "~/services/userCredentialService";
+import type { CredentialWorkflowUsageResponse, UserCredential } from "~/types/api";
+import CredentialWorkflowUsage from "./CredentialWorkflowUsage";
 
 interface CredentialCardProps {
   credential: UserCredential;
@@ -25,6 +27,40 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
   const [iconFailed, setIconFailed] = useState(false);
   const [testState, setTestState] = useState<TestState>("idle");
   const [testMessage, setTestMessage] = useState<string>("");
+  const [isUsageOpen, setIsUsageOpen] = useState(false);
+  const [workflowUsage, setWorkflowUsage] = useState<CredentialWorkflowUsageResponse | null>(null);
+  const [workflowUsageLoading, setWorkflowUsageLoading] = useState(false);
+  const [workflowUsageError, setWorkflowUsageError] = useState<string | null>(null);
+  const [hasLoadedUsage, setHasLoadedUsage] = useState(false);
+
+  const loadUsageData = async () => {
+    if (hasLoadedUsage) return;
+    setWorkflowUsageLoading(true);
+    setWorkflowUsageError(null);
+    try {
+      const usage = await getCredentialWorkflows(credential.id);
+      setWorkflowUsage(usage);
+      setHasLoadedUsage(true);
+    } catch {
+      setWorkflowUsage(null);
+      setWorkflowUsageError("Could not load workflow usage.");
+    } finally {
+      setWorkflowUsageLoading(false);
+    }
+  };
+
+  const handleToggleUsage = () => {
+    const nextState = !isUsageOpen;
+    setIsUsageOpen(nextState);
+    if (nextState) {
+      loadUsageData();
+    }
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+    loadUsageData();
+  };
 
   const handleTest = async () => {
     setTestState("loading");
@@ -88,10 +124,35 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
         </div>
       </div>
 
-      {/* Metadata */}
-      <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+      {/* Metadata & Usage Trigger */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 mb-3">
         <span>Created: {timeAgo(credential.created_at)}</span>
+        <span>·</span>
         <span>Updated: {timeAgo(credential.updated_at)}</span>
+        <span>·</span>
+        <button
+          type="button"
+          onClick={handleToggleUsage}
+          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors cursor-pointer"
+        >
+          {workflowUsageLoading ? (
+            <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+          ) : (
+            <Link2 className="w-3 h-3" />
+          )}
+          {workflowUsageLoading ? (
+            <span>Loading...</span>
+          ) : !hasLoadedUsage ? (
+            <span>Show usage</span>
+          ) : workflowUsage && workflowUsage.workflow_count > 0 ? (
+            <span>
+              Used in {workflowUsage.workflow_count} workflow
+              {workflowUsage.workflow_count === 1 ? "" : "s"}
+            </span>
+          ) : (
+            <span>Not used</span>
+          )}
+        </button>
       </div>
 
       {/* Test result message */}
@@ -129,7 +190,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
         </button>
 
         <button
-          onClick={() => setShowDeleteConfirm(true)}
+          onClick={handleDeleteClick}
           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all duration-200"
           title="Delete credential"
         >
@@ -137,28 +198,74 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
         </button>
       </div>
 
+      {/* Expanded workflow list (expands under the card actions) */}
+      <CredentialWorkflowUsage
+        usage={workflowUsage}
+        isLoading={workflowUsageLoading}
+        error={workflowUsageError}
+        isOpen={isUsageOpen}
+      />
+
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-5 max-w-sm mx-4">
-            <h3 className="text-base font-bold mb-3">Delete Credential</h3>
-            <p className="text-gray-600 mb-5 text-sm">
-              Are you sure you want to delete <strong>{credential.name}</strong>
-              ? This action cannot be undone.
-            </p>
-            <div className="flex gap-2 justify-end">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold mb-3 text-red-600">Delete Credential</h3>
+            
+            {workflowUsageLoading ? (
+              <div className="flex items-center gap-2 py-4 justify-center text-sm text-gray-500">
+                <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+                Checking workflow usage safety...
+              </div>
+            ) : workflowUsage && workflowUsage.workflow_count > 0 ? (
+              <div className="space-y-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+                  <p className="font-semibold mb-1">
+                    Warning: This credential is in use!
+                  </p>
+                  <p className="text-xs">
+                    Deleting <strong>{credential.name}</strong> will break the configurations of <strong>{workflowUsage.workflow_count}</strong> active workflow{workflowUsage.workflow_count === 1 ? "" : "s"}. These workflows will fail during execution!
+                  </p>
+                </div>
+                
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                    Affected Workflows:
+                  </h4>
+                  <ul className="space-y-1.5 max-h-32 overflow-y-auto pr-1 border border-gray-200 rounded-md p-2 bg-gray-50 scrollbar-thin text-xs">
+                    {workflowUsage.workflows.map((workflow) => (
+                      <li key={workflow.id} className="text-gray-700 font-medium truncate">
+                        • {workflow.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <p className="text-xs text-gray-500">
+                  Are you absolutely sure you want to proceed? This action is highly disruptive and cannot be undone.
+                </p>
+              </div>
+            ) : (
+              <p className="text-gray-600 mb-5 text-sm">
+                Are you sure you want to delete <strong>{credential.name}</strong>? This action cannot be undone.
+              </p>
+            )}
+
+            <div className="flex gap-2.5 justify-end mt-6">
               <button
+                type="button"
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-3 py-1.5 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 text-sm"
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium transition-all duration-200"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => {
                   onDelete(credential.id);
                   setShowDeleteConfirm(false);
                 }}
-                className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-all duration-200 shadow-sm hover:shadow"
               >
                 Delete
               </button>

@@ -11,15 +11,13 @@ import {
   Cloud,
   Settings,
 } from "lucide-react";
-import { testUserCredential, testCredentialRaw } from "~/services/userCredentialService";
+import { testUserCredential, testCredentialRaw, getUserCredentialById } from "~/services/userCredentialService";
 import React, { useState, useEffect } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useUserCredentialStore } from "../stores/userCredential";
 import type { CredentialCreateRequest, UserCredential } from "../types/api";
 import Loading from "~/components/Loading";
 import AuthGuard from "~/components/AuthGuard";
-import { apiClient } from "../lib/api-client";
-import { getUserCredentialById } from "~/services/userCredentialService";
 import ServiceSelectionModal from "../components/credentials/ServiceSelectionModal";
 import DynamicCredentialForm from "../components/credentials/DynamicCredentialForm";
 import CredentialCard from "../components/credentials/CredentialCard";
@@ -51,6 +49,11 @@ function CredentialsLayout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [editingInitialValues, setEditingInitialValues] = useState<Record<string, any>>({});
+  const resetCredentialModal = () => {
+    setSelectedService(null);
+    setEditingCredential(null);
+    setEditingInitialValues({});
+  };
 
   const servicesByCategory = getServicesByCategory();
   const categories = Object.keys(servicesByCategory);
@@ -127,6 +130,7 @@ function CredentialsLayout() {
     if (serviceDef) {
       setSelectedService(serviceDef);
     }
+
     try {
       const detail = await getUserCredentialById(credential.id);
       if (detail?.secret && typeof detail.secret === "object") {
@@ -161,9 +165,7 @@ function CredentialsLayout() {
       };
 
       await updateCredential(editingCredential.id, payload);
-      setEditingCredential(null);
-      setSelectedService(null);
-      setEditingInitialValues({});
+      resetCredentialModal();
     } catch (e: any) {
       console.error("Failed to update credential:", e);
     } finally {
@@ -386,11 +388,7 @@ function CredentialsLayout() {
                     : "Connect to " + selectedService.name}
                 </h2>
                 <button
-                  onClick={() => {
-                    setSelectedService(null);
-                    setEditingCredential(null);
-                    setEditingInitialValues({});
-                  }}
+                  onClick={resetCredentialModal}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <svg
@@ -416,11 +414,7 @@ function CredentialsLayout() {
                     ? handleUpdateCredential
                     : handleCredentialSubmit
                 }
-                onCancel={() => {
-                  setSelectedService(null);
-                  setEditingCredential(null);
-                  setEditingInitialValues({});
-                }}
+                onCancel={resetCredentialModal}
                 onTest={async (values) => {
                   const { name, ...data } = values;
                   return await testCredentialRaw(selectedService.id, data);

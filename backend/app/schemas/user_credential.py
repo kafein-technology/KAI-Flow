@@ -1,6 +1,6 @@
 import uuid
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 # Base schema with common fields
@@ -53,4 +53,23 @@ class CredentialDetailResponse(BaseModel):
 # Schema for API responses with success message
 class CredentialDeleteResponse(BaseModel):
     message: str
-    deleted_id: uuid.UUID 
+    deleted_id: uuid.UUID
+
+
+class CredentialWorkflowNodeUsage(BaseModel):
+    node_id: str
+    node_type: str
+    field: str
+
+
+class CredentialWorkflowUsageItem(BaseModel):
+    id: uuid.UUID
+    name: str
+    updated_at: datetime
+    using_nodes: List[CredentialWorkflowNodeUsage]
+
+
+class CredentialWorkflowUsageResponse(BaseModel):
+    credential_id: uuid.UUID
+    workflow_count: int
+    workflows: List[CredentialWorkflowUsageItem] 

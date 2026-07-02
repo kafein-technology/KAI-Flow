@@ -694,7 +694,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   );
 
   const [workflowName, setWorkflowName] = useState(
-    currentWorkflow?.name || "isimsiz dosya"
+    currentWorkflow?.name || "Untitled Workflow"
   );
 
   const {
@@ -771,7 +771,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setCurrentWorkflow(null);
       setNodes([]);
       setEdges([]);
-      setWorkflowName("isimsiz dosya");
+      setWorkflowName("Untitled Workflow");
       clearAllChats(); // Clear chats for new workflow
       hasInitializedEmptyCanvas.current = false;
     }
@@ -781,7 +781,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     if (currentWorkflow?.name) {
       setWorkflowName(currentWorkflow.name);
     } else {
-      setWorkflowName("isimsiz dosya");
+      setWorkflowName("Untitled Workflow");
     }
   }, [currentWorkflow?.name]);
 
