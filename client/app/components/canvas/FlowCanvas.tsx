@@ -37,7 +37,7 @@ import type {
 
 type NodeStatus = "success" | "failed" | "pending";
 
-import { Loader, Plus, BookOpen, ZoomIn, ZoomOut, Maximize } from "lucide-react";
+import { Loader, Plus, BookOpen, ZoomIn, ZoomOut, Maximize, Terminal } from "lucide-react";
 import ChatComponent from "./ChatComponent";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
@@ -50,6 +50,7 @@ import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
 import FullscreenNodeModal from "../common/FullscreenNodeModal";
 import { TutorialButton } from "../tutorial";
+import LogPanel from "./LogPanel";
 import { executeWorkflowStream, getExecution } from "~/services/executionService";
 import GenericNode from "../node";
 
@@ -322,6 +323,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
+  const [logPanelHeight, setLogPanelHeight] = useState(280);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
   const [activeNodes, setActiveNodes] = useState<string[]>([]);
   const [nodeStatus, setNodeStatus] = useState<
@@ -2069,10 +2072,23 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             </button>
           </div>
 
-          {/* Bottom section: Tutorial */}
+          {/* Bottom section: Logs and Tutorial */}
           <div className="flex flex-col items-center gap-4 w-full mt-auto">
             {/* Divider */}
             <div className="w-8 h-[1px] bg-gray-800"></div>
+
+            {/* Log Button */}
+            <button
+              onClick={() => setIsLogPanelOpen(!isLogPanelOpen)}
+              className={`p-3 rounded-xl transition-all duration-200 border ${
+                isLogPanelOpen
+                  ? "bg-blue-600/10 text-blue-400 border-blue-500/20"
+                  : "text-white border-transparent hover:bg-gray-800"
+              }`}
+              title="Toggle Backend Logs"
+            >
+              <Terminal className="w-5 h-5" />
+            </button>
 
             {/* Tutorial Button */}
             <button
@@ -2122,7 +2138,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           />
 
           {/* Horizontal Canvas Controls */}
-          <div className="absolute left-20 bottom-4 z-10 flex items-center gap-1 bg-[#18181B] border border-gray-800/80 p-1.5 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] select-none">
+          <div
+            style={isLogPanelOpen ? { bottom: `${logPanelHeight + 16}px` } : undefined}
+            className="absolute left-20 bottom-4 z-10 flex items-center gap-1 bg-[#18181B] border border-gray-800/80 p-1.5 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] select-none"
+          >
             {/* Zoom In Button */}
             <button
               onClick={() => zoomIn({ duration: 300 })}
@@ -2164,7 +2183,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
           {/* Chat Toggle Button */}
           <button
-            className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-300 backdrop-blur-sm border ${chatOpen
+            style={isLogPanelOpen ? { bottom: `${logPanelHeight + 20}px` } : undefined}
+            className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-[background-color,border-color,color,box-shadow] duration-150 backdrop-blur-sm border ${chatOpen
               ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-400/30 shadow-blue-500/25"
               : "bg-gray-900/80 text-gray-300 border-gray-700/50 hover:bg-gray-800/90 hover:border-gray-600/50 hover:text-white"
               }`}
@@ -2216,6 +2236,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             onFlowGenerated={handleFlowGenerated}
             currentNodes={nodes}
             currentEdges={edges}
+            style={isLogPanelOpen ? { bottom: `${logPanelHeight + 16}px` } : undefined}
           />
         </div>
       </div>
@@ -2223,6 +2244,12 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         isOpen={isTutorialOpen}
         onClose={() => setIsTutorialOpen(false)}
         showTriggerButton={false}
+      />
+      <LogPanel
+        isOpen={isLogPanelOpen}
+        onClose={() => setIsLogPanelOpen(false)}
+        height={logPanelHeight}
+        onHeightChange={setLogPanelHeight}
       />
 
       {/* Unsaved Changes Modal */}

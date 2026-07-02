@@ -223,6 +223,85 @@ def create_enhanced_workflow_handler(
     return handler
 
 
+from collections import deque
+import sys
+import logging
+
+# Deque to store recent logs in memory for fast retrieval when UI opens
+MAX_HISTORY = 200
+log_history = deque(maxlen=MAX_HISTORY)
+
+# Set to store connected subscribers' (queue, loop) tuples
+log_subscribers = set()
+
+class UIStreamWrapper:
+    """Wrapper around stdout and stderr that captures everything written to the terminal
+    and broadcasts it to connected UI clients.
+    """
+    def __init__(self, original_stream):
+        self.original_stream = original_stream
+
+    def write(self, data):
+        self.original_stream.write(data)
+        if data.strip():
+            msg = data.strip()
+            log_history.append(msg)
+            for queue, loop in list(log_subscribers):
+                try:
+                    loop.call_soon_threadsafe(queue.put_nowait, msg)
+                except Exception:
+                    pass
+
+    def flush(self):
+        self.original_stream.flush()
+
+    def __getattr__(self, name):
+        return getattr(self.original_stream, name)
+
+
+class GlobalLogHandler(logging.Handler):
+    """Custom logging handler to buffer recent logs and stream them to connected UI clients."""
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            log_history.append(msg)
+            for queue, loop in list(log_subscribers):
+                try:
+                    loop.call_soon_threadsafe(queue.put_nowait, msg)
+                except Exception:
+                    pass
+        except Exception:
+            self.handleError(record)
+
+
+# Track original streams
+_original_stdout = sys.stdout
+_original_stderr = sys.stderr
+
+def enable_ui_stream_capture():
+    # 1. Wrap stdout/stderr to capture print statements
+    if not isinstance(sys.stdout, UIStreamWrapper):
+        sys.stdout = UIStreamWrapper(_original_stdout)
+    if not isinstance(sys.stderr, UIStreamWrapper):
+        sys.stderr = UIStreamWrapper(_original_stderr)
+
+    # 2. Setup standard logging handler for all registered loggers
+    global_handler = GlobalLogHandler()
+    global_handler.setFormatter(logging.Formatter('%(asctime)s | %(levelname)-8s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+    global_handler.setLevel(logging.DEBUG)
+
+    # Root logger
+    root_logger = logging.getLogger()
+    if not any(isinstance(h, GlobalLogHandler) for h in root_logger.handlers):
+        root_logger.addHandler(global_handler)
+
+    # Specific system loggers (even if they set propagate=False)
+    for name in list(logging.root.manager.loggerDict.keys()) + ["uvicorn", "uvicorn.access", "uvicorn.error", "sqlalchemy.engine", "langsmith.client"]:
+        log = logging.getLogger(name)
+        if not any(isinstance(h, GlobalLogHandler) for h in log.handlers):
+            log.addHandler(global_handler)
+
+
 def setup_enhanced_workflow_logging(
     enable_file_logging: bool = False,
     workflow_log_level: str = "INFO",
@@ -308,7 +387,6 @@ def setup_enhanced_workflow_logging(
         )
         error_handler.setLevel(logging.WARNING)
         root_logger.addHandler(error_handler)
-    
     # Configure third-party loggers to reduce noise
     configure_third_party_loggers()
     
@@ -479,6 +557,7 @@ def auto_configure_enhanced_logging():
         trace_components=settings.trace_components
     )
     integrate_with_tracing()
+    enable_ui_stream_capture()
 
 
 # Utility functions for existing code migration
