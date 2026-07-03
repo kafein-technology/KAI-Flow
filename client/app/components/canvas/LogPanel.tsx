@@ -31,6 +31,13 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
   const containerRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
 
+  // Autoscroll logic
+  const scrollToBottom = useCallback(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  }, []);
+
   // Drag-to-resize implementation
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     isResizing.current = true;
@@ -125,8 +132,13 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
       }
     } else {
       setCurrentMatchIndex(-1);
+      // BUG FIX: When search is cleared, reset scroll offset and autoScroll state
+      if (searchTerm === '' && autoScroll) {
+        setUserScrolledUp(false);
+        scrollToBottom();
+      }
     }
-  }, [matches]);
+  }, [matches, searchTerm, autoScroll, scrollToBottom]);
 
   // Scroll current match to the center of the terminal screen
   useEffect(() => {
@@ -139,24 +151,28 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
     }
   }, [currentMatchIndex, matches]);
 
-  // Autoscroll logic
-  const scrollToBottom = useCallback(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
-  }, []);
-
   useEffect(() => {
     if (autoScroll && !userScrolledUp) {
       scrollToBottom();
     }
   }, [filteredLogs, autoScroll, userScrolledUp, scrollToBottom]);
 
+  // BUG FIX: Scroll to bottom when log panel first opens to ensure we don't start at scroll 0
+  useEffect(() => {
+    if (isOpen && autoScroll && !userScrolledUp) {
+      const timer = setTimeout(() => {
+        scrollToBottom();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, autoScroll, userScrolledUp, scrollToBottom]);
+
   // Detect user scroll up
   const handleScroll = () => {
     if (!containerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 30;
+    // BUG FIX: Use a tighter threshold (8px instead of 30px) to prevent scroll-fighting when user scrolls up slightly
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 8;
     if (isAtBottom) {
       setUserScrolledUp(false);
     } else {

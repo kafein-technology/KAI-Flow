@@ -170,7 +170,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
           className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-all duration-200
             ${testState === "success" ? "text-green-600 bg-green-50" :
               testState === "error" ? "text-red-500 bg-red-50" :
-                "text-gray-400 hover:text-purple-600 hover:bg-purple-50"}
+                "text-gray-400 hover:text-blue-600 hover:bg-blue-50"}
             disabled:opacity-50 disabled:cursor-not-allowed`}
           title="Test connection"
         >
@@ -208,13 +208,13 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-bold mb-3 text-red-600">Delete Credential</h3>
             
             {workflowUsageLoading ? (
               <div className="flex items-center gap-2 py-4 justify-center text-sm text-gray-500">
-                <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
                 Checking workflow usage safety...
               </div>
             ) : workflowUsage && workflowUsage.workflow_count > 0 ? (
