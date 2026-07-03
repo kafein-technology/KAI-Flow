@@ -2185,7 +2185,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           <button
             style={isLogPanelOpen ? { bottom: `${logPanelHeight + 20}px` } : undefined}
             className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-[background-color,border-color,color,box-shadow] duration-150 backdrop-blur-sm border ${chatOpen
-              ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-400/30 shadow-blue-500/25"
+              ? "bg-blue-600 text-white border-blue-400/30 shadow-blue-500/25"
               : "bg-gray-900/80 text-gray-300 border-gray-700/50 hover:bg-gray-800/90 hover:border-gray-600/50 hover:text-white"
               }`}
             onClick={() => setChatOpen((v) => !v)}

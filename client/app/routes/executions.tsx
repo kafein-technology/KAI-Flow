@@ -444,7 +444,7 @@ function ExecutionsPage() {
             <div className="mb-8">
               <div className="flex flex-row items-center justify-between gap-6">
                 <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <h1 className="text-4xl font-bold text-blue-600">
                     Executions
                   </h1>
                   <p className="text-gray-600">
@@ -460,7 +460,7 @@ function ExecutionsPage() {
                     <input
                       type="text"
                       placeholder="Search executions..."
-                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
+                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
                       value={filters.searchTerm}
                       onChange={(e) =>
                         handleFilterChange("searchTerm", e.target.value)
@@ -471,7 +471,7 @@ function ExecutionsPage() {
                   {/* Status Filter */}
                   <div className="relative">
                     <select
-                      className="pl-4 pr-10 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
+                      className="pl-4 pr-10 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
                       value={filters.status}
                       onChange={(e) =>
                         handleFilterChange("status", e.target.value)
@@ -489,7 +489,7 @@ function ExecutionsPage() {
                   {/* Workflow Filter */}
                   <div className="relative">
                     <select
-                      className="pl-4 pr-10 py-2 w-48 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
+                      className="pl-4 pr-10 py-2 w-48 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
                       value={filters.workflowId}
                       onChange={(e) =>
                         handleFilterChange("workflowId", e.target.value)
@@ -508,7 +508,7 @@ function ExecutionsPage() {
                   {/* Date Range Filter */}
                   <div className="relative">
                     <select
-                      className="pl-4 pr-10 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
+                      className="pl-4 pr-10 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none"
                       value={filters.dateRange}
                       onChange={(e) =>
                         handleFilterChange("dateRange", e.target.value)
@@ -526,7 +526,7 @@ function ExecutionsPage() {
                   <button
                     onClick={handleExportCSV}
                     disabled={isExporting || filteredExecutions.length === 0}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg transition-all duration-200 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-200 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Export filtered executions as CSV"
                   >
                     {isExporting ? (
@@ -558,8 +558,8 @@ function ExecutionsPage() {
 
               {/* Bulk Actions */}
               {selectedCount > 0 && (
-                <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <span className="text-sm text-purple-700">
+                <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <span className="text-sm text-blue-700">
                     {selectedCount} execution{selectedCount > 1 ? "s" : ""}{" "}
                     selected
                   </span>
@@ -664,7 +664,7 @@ function ExecutionsPage() {
                               onChange={(e) =>
                                 handleSelectAll(e.target.checked)
                               }
-                              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                           </th>
                           {(
@@ -683,7 +683,7 @@ function ExecutionsPage() {
                             >
                               {label}
                               <div
-                                className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-purple-400 active:bg-purple-500 transition-colors"
+                                className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400 active:bg-blue-500 transition-colors"
                                 onMouseDown={(e) => {
                                   e.preventDefault();
                                   handleColumnResize(
@@ -713,12 +713,12 @@ function ExecutionsPage() {
                                     e.target.checked
                                   )
                                 }
-                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mt-0.5"
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-0.5"
                               />
                             </td>
                             <td className="px-3 py-4 align-top">
                               <div className="flex items-start">
-                                <Play className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0 mt-0.5" />
+                                <Play className="w-4 h-4 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
                                 <div className="min-w-0 flex-1">
                                   <div
                                     className="text-sm font-medium text-gray-900 line-clamp-2 h-10"
@@ -772,7 +772,7 @@ function ExecutionsPage() {
                               </div>
                             </td>
                             <td
-                              className="px-3 py-4 text-sm text-gray-900 cursor-pointer hover:text-purple-600 transition-colors align-top"
+                              className="px-3 py-4 text-sm text-gray-900 cursor-pointer hover:text-blue-600 transition-colors align-top"
                               title={formatDataForDisplay(getInputData(execution))}
                               onClick={() => handleViewClick("Input Data", getInputData(execution))}
                             >
@@ -781,7 +781,7 @@ function ExecutionsPage() {
                               </div>
                             </td>
                             <td
-                              className="px-3 py-4 text-sm text-gray-900 cursor-pointer hover:text-purple-600 transition-colors align-top"
+                              className="px-3 py-4 text-sm text-gray-900 cursor-pointer hover:text-blue-600 transition-colors align-top"
                               title={formatDataForDisplay(getOutputData(execution))}
                               onClick={() => handleViewClick("Output Data", getOutputData(execution))}
                             >
@@ -856,7 +856,7 @@ function ExecutionsPage() {
                             key={page}
                             onClick={() => setCurrentPage(page)}
                             className={`px-3 py-1 rounded text-sm ${page === effectivePage
-                              ? "bg-purple-600 text-white"
+                              ? "bg-blue-600 text-white"
                               : "text-gray-700 hover:bg-gray-100"
                               }`}
                           >

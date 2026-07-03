@@ -409,27 +409,27 @@ export default function KaiChatWidget({
 
                           // Başlıklar - modern hiyerarşi (Daha kompakt)
                           h1: ({ children }: any) => (
-                            <h1 className="text-lg font-bold mb-2 text-gray-900 pb-2 border-b-2 border-gradient-to-r from-blue-500 to-purple-600 relative">
-                              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            <h1 className="text-lg font-bold mb-2 text-gray-900 pb-2 border-b-2 border-blue-500 relative">
+                              <span className="text-blue-600">
                                 {children}
                               </span>
                             </h1>
                           ),
                           h2: ({ children }: any) => (
                             <h2 className="text-base font-bold mb-2 text-gray-900 mt-4 flex items-center gap-2">
-                              <span className="w-1 h-5 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></span>
+                              <span className="w-1 h-5 bg-blue-500 rounded-full"></span>
                               {children}
                             </h2>
                           ),
                           h3: ({ children }: any) => (
                             <h3 className="text-sm font-semibold mb-2 text-gray-800 mt-3 flex items-center gap-2">
-                              <span className="w-1 h-4 bg-gradient-to-b from-blue-400 to-purple-500 rounded-full"></span>
+                              <span className="w-1 h-4 bg-blue-400 rounded-full"></span>
                               {children}
                             </h3>
                           ),
                           h4: ({ children }: any) => (
                             <h4 className="text-xs font-semibold mb-1 text-gray-700 mt-2 flex items-center gap-2">
-                              <span className="w-0.5 h-3 bg-gradient-to-b from-blue-400 to-purple-500 rounded-full"></span>
+                              <span className="w-0.5 h-3 bg-blue-400 rounded-full"></span>
                               {children}
                             </h4>
                           ),
@@ -456,7 +456,7 @@ export default function KaiChatWidget({
                                 className={`flex items-start gap-2 pl-1 leading-relaxed ${!msg.isBot ? "text-white" : "text-gray-700"
                                   }`}
                               >
-                                <span className="flex-shrink-0 w-5 h-5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 shadow-sm counter-increment">
+                                <span className="flex-shrink-0 w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 shadow-sm counter-increment">
                                   •
                                 </span>
                                 <div className="flex-1 pt-0.5 text-left">
@@ -468,7 +468,7 @@ export default function KaiChatWidget({
                                 className={`flex items-start gap-2 pl-1 leading-relaxed ${!msg.isBot ? "text-white" : "text-gray-700"
                                   }`}
                               >
-                                <span className="flex-shrink-0 w-1.5 h-1.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mt-2 shadow-sm"></span>
+                                <span className="flex-shrink-0 w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 shadow-sm"></span>
                                 <div className="flex-1 text-left">
                                   {children}
                                 </div>

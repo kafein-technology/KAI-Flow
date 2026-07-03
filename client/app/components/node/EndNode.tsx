@@ -245,7 +245,7 @@ function EndNode({ data, id, onExecute, validationStatus }: EndNodeProps) {
         {/* Completion Speed Indicator */}
         {data?.completion_speed && (
           <div className="absolute bottom-1 left-1 z-10">
-            <div className="w-3 h-3 bg-purple-400 rounded-full shadow-lg animate-pulse"></div>
+            <div className="w-3 h-3 bg-blue-400 rounded-full shadow-lg animate-pulse"></div>
           </div>
         )}
 
@@ -259,7 +259,7 @@ function EndNode({ data, id, onExecute, validationStatus }: EndNodeProps) {
         {/* Auto Complete Indicator */}
         {data?.auto_complete && (
           <div className="absolute top-1 left-1 z-10">
-            <div className="w-4 h-4 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
+            <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-sky-500 rounded-full flex items-center justify-center shadow-lg">
               <Zap className="w-2 h-2 text-white" />
             </div>
           </div>

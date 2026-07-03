@@ -57,7 +57,7 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
 
           {isLoading ? (
             <div className="flex justify-center items-center py-8">
-              <RefreshCw className="w-6 h-6 animate-spin text-purple-600" />
+              <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
             </div>
           ) : errorWorkflows.length === 0 ? (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
@@ -72,8 +72,8 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
             <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
               <div
                 className={`p-3 rounded-lg border cursor-pointer transition-colors flex items-center justify-between ${localSelectedId === null
-                    ? "border-purple-500 bg-purple-50"
-                    : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                   }`}
                 onClick={() => setLocalSelectedId(null)}
               >
@@ -81,15 +81,15 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
                   <div className="font-medium text-gray-900">None</div>
                   <div className="text-xs text-gray-500">Do not run a workflow on error</div>
                 </div>
-                {localSelectedId === null && <Check className="w-5 h-5 text-purple-600" />}
+                {localSelectedId === null && <Check className="w-5 h-5 text-blue-600" />}
               </div>
 
               {errorWorkflows.map((wf) => (
                 <div
                   key={wf.id}
                   className={`p-3 rounded-lg border cursor-pointer transition-colors flex items-center justify-between ${localSelectedId === wf.id
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                     }`}
                   onClick={() => setLocalSelectedId(wf.id)}
                 >
@@ -99,7 +99,7 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
                       {wf.description || "No description"}
                     </div>
                   </div>
-                  {localSelectedId === wf.id && <Check className="w-5 h-5 text-purple-600" />}
+                  {localSelectedId === wf.id && <Check className="w-5 h-5 text-blue-600" />}
                 </div>
               ))}
             </div>
@@ -115,7 +115,7 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
             </button>
             <button
               type="button"
-              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 shadow-md flex items-center gap-2"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md flex items-center gap-2"
               onClick={handleConfirm}
             >
               <Check className="w-4 h-4" />

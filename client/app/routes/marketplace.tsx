@@ -188,7 +188,7 @@ function MarketplaceLayout() {
             <div className="mb-8">
               <div className="flex flex-row items-end justify-between gap-6 mb-6">
                 <div className="flex flex-col gap-1">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <h1 className="text-4xl font-bold text-blue-600">
                     Marketplace
                   </h1>
                   <p className="text-gray-600 text-lg">
@@ -212,7 +212,7 @@ function MarketplaceLayout() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type="search"
-                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       placeholder="Search workflows..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -225,7 +225,7 @@ function MarketplaceLayout() {
                       <button
                         onClick={() => setViewMode("grid")}
                         className={`p-1.5 rounded-md transition-all duration-200 ${viewMode === "grid"
-                          ? "bg-white shadow-sm text-purple-600"
+                          ? "bg-white shadow-sm text-blue-600"
                           : "text-gray-600 hover:text-gray-800"
                           }`}
                       >
@@ -234,7 +234,7 @@ function MarketplaceLayout() {
                       <button
                         onClick={() => setViewMode("list")}
                         className={`p-1.5 rounded-md transition-all duration-200 ${viewMode === "list"
-                          ? "bg-white shadow-sm text-purple-600"
+                          ? "bg-white shadow-sm text-blue-600"
                           : "text-gray-600 hover:text-gray-800"
                           }`}
                       >
@@ -245,7 +245,7 @@ function MarketplaceLayout() {
                     {/* Refresh Button */}
                     <button
                       onClick={fetchPublicWorkflows}
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                     >
                       <RefreshCw
                         className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
@@ -267,7 +267,7 @@ function MarketplaceLayout() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="all">All Categories</option>
                     <option value="automation">Automation</option>
@@ -280,7 +280,7 @@ function MarketplaceLayout() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="newest">Newest First</option>
                     <option value="oldest">Oldest First</option>
@@ -316,7 +316,7 @@ function MarketplaceLayout() {
             <div className="mb-10">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                     <Star className="w-4 h-4 text-white" />
                   </div>
                   <div>
@@ -328,7 +328,7 @@ function MarketplaceLayout() {
                     </p>
                   </div>
                 </div>
-                <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
                   {prebuiltTemplates.length} Templates
                 </span>
               </div>
@@ -337,7 +337,7 @@ function MarketplaceLayout() {
                 {prebuiltTemplates.map((tpl) => (
                   <div
                     key={tpl.id}
-                    className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 hover:border-purple-200 hover:-translate-y-1"
+                    className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 hover:border-blue-200 hover:-translate-y-1"
                   >
                     {/* Background Pattern */}
                     <div className="absolute top-0 right-0 w-24 h-24 opacity-5">
@@ -362,7 +362,7 @@ function MarketplaceLayout() {
                       </div>
 
                       {/* Content */}
-                      <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-700 transition-colors">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-700 transition-colors">
                         {tpl.name}
                       </h3>
                       <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">
@@ -381,7 +381,7 @@ function MarketplaceLayout() {
 
                       {/* Action Button */}
                       <button
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl group-hover:scale-105"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl group-hover:scale-105"
                         onClick={() => handleUseTemplate(tpl.id)}
                       >
                         <Download className="w-4 h-4" />
@@ -677,7 +677,7 @@ function MarketplaceLayout() {
                           key={p}
                           onClick={() => setPage(p)}
                           className={`px-4 py-2 rounded-lg text-sm border ${p === page
-                            ? "bg-purple-600 text-white"
+                            ? "bg-blue-600 text-white"
                             : "bg-white text-gray-700 border-gray-300"
                             }`}
                         >

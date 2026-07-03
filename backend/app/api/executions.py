@@ -254,7 +254,7 @@ async def cancel_workflow_execution(
     """
     Cancel a running workflow execution.
     """
-    if current_user.email == "master@kai-fusion.ai":
+    if current_user.email == "master@kai-flow.com":
         execution = await execution_service.get(db, execution_id)
     else:
         execution = await execution_service.get_execution(
@@ -295,7 +295,7 @@ async def cancel_workflow_execution(
         pass
             
     # Fetch updated execution
-    if current_user.email == "master@kai-fusion.ai":
+    if current_user.email == "master@kai-flow.com":
         updated_execution = await execution_service.get(db, execution_id)
     else:
         updated_execution = await execution_service.get_execution(
@@ -312,7 +312,7 @@ async def _cancel_executions_for_workflows(
 ) -> List[Any]:
     from app.models.execution import WorkflowExecution
     # Find all active (pending/running) executions for the given workflow IDs
-    if current_user.email == "master@kai-fusion.ai":
+    if current_user.email == "master@kai-flow.com":
         stmt = select(WorkflowExecution).where(
             WorkflowExecution.workflow_id.in_(workflow_ids),
             WorkflowExecution.status.in_(["pending", "running"])
@@ -350,7 +350,7 @@ async def _cancel_executions_for_workflows(
             pass
             
         # 4. Retrieve the updated execution
-        if current_user.email == "master@kai-fusion.ai":
+        if current_user.email == "master@kai-flow.com":
             updated = await execution_service.get(db, execution.id)
         else:
             updated = await execution_service.get_execution(
@@ -389,7 +389,7 @@ async def cancel_active_executions_by_workflow(
         # Try parsing as UUID
         workflow_id = uuid.UUID(workflow_id_or_name)
         # Verify workflow exists
-        if current_user.email == "master@kai-fusion.ai":
+        if current_user.email == "master@kai-flow.com":
             stmt = select(Workflow.id).where(Workflow.id == workflow_id)
         else:
             stmt = select(Workflow.id).where(
@@ -402,7 +402,7 @@ async def cancel_active_executions_by_workflow(
             target_workflow_ids.append(workflow_id)
     except ValueError:
         # If not a UUID, treat it as a workflow name and use slug/normalization match
-        if current_user.email == "master@kai-fusion.ai":
+        if current_user.email == "master@kai-flow.com":
             stmt = select(Workflow.id, Workflow.name)
         else:
             stmt = select(Workflow.id, Workflow.name).where(Workflow.user_id == current_user.id)

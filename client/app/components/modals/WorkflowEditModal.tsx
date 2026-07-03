@@ -65,8 +65,8 @@ export default function WorkflowEditModal({
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-xl">
-                <Pencil className="w-5 h-5 text-purple-600" />
+              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-xl">
+                <Pencil className="w-5 h-5 text-blue-600" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Edit Workflow</h3>
@@ -115,7 +115,7 @@ export default function WorkflowEditModal({
                       name="name"
                       type="text"
                       placeholder="Enter workflow name"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
                     />
                     <ErrorMessage
                       name="name"
@@ -136,7 +136,7 @@ export default function WorkflowEditModal({
                       as="textarea"
                       rows={3}
                       placeholder="Enter workflow description"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm resize-none"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm resize-none"
                     />
                     <div className="mt-1 flex justify-between">
                       <ErrorMessage
@@ -163,7 +163,7 @@ export default function WorkflowEditModal({
                     <button
                       type="submit"
                       disabled={isSubmitting || isLoading}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                     >
                       {isSubmitting ? (
                         <>

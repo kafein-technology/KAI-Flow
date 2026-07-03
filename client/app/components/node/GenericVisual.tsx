@@ -310,7 +310,7 @@ function GenericVisual({
         onCopyToClipboard && (
           <button
             className="absolute -bottom-3 -left-3 w-8 h-8 
-                bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-500
+                bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500
                 text-white rounded-full border border-white/30 shadow-xl 
                 transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
                 backdrop-blur-sm"

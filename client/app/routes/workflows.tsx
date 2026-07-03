@@ -66,7 +66,7 @@ const ErrorMessageBlock = ({
       <p className="text-gray-600 mb-4">{error}</p>
       <button
         onClick={onRetry}
-        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
+        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
       >
         <RefreshCw className="h-4 w-4 mr-2" />
         Try again
@@ -94,7 +94,7 @@ const EmptyState = () => (
     <div className="mt-6">
       <Link
         to="/canvas"
-        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
+        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
       >
         <Plus className="h-4 w-4 mr-2" />
         Create Workflow
@@ -512,7 +512,7 @@ function WorkflowsLayout() {
               <div className="flex flex-col gap-6">
                 {/* Title and Description */}
                 <div className="flex flex-col gap-2">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <h1 className="text-4xl font-bold text-blue-600">
                     Workflows
                   </h1>
                   <p className="text-gray-600 text-lg">
@@ -603,7 +603,7 @@ function WorkflowsLayout() {
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <input
                         type="search"
-                        className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                        className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                         placeholder="Search workflows..."
                         value={searchQuery}
                         onChange={(e) => {
@@ -616,7 +616,7 @@ function WorkflowsLayout() {
                     {/* Create Workflow Button */}
                     <Link
                       to="/canvas"
-                      className="flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-auto"
+                      className="flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-auto"
                     >
                       <Plus className="w-5 h-5" />
                       Create Workflow
@@ -691,7 +691,7 @@ function WorkflowsLayout() {
                     {pagedWorkflows.map((workflow) => (
                         <div
                           key={workflow.id}
-                          className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group relative overflow-hidden flex flex-col h-[320px]"
+                          className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-blue-200 group relative overflow-hidden flex flex-col h-[320px]"
                         >
                           {/* Status Indicator Bar */}
                           <div
@@ -713,7 +713,7 @@ function WorkflowsLayout() {
                                 />
                                 <Link
                                   to={`/canvas?workflow=${workflow.id}`}
-                                  className="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors group-hover:text-purple-600 block truncate"
+                                  className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors group-hover:text-blue-600 block truncate"
                                 >
                                   {workflow.name}
                                 </Link>
@@ -813,7 +813,7 @@ function WorkflowsLayout() {
                           <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                             <Link
                               to={`/canvas?workflow=${workflow.id}`}
-                              className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium hover:bg-purple-50 px-3 py-2 rounded-lg transition-all duration-200"
+                              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium hover:bg-blue-50 px-3 py-2 rounded-lg transition-all duration-200"
                             >
                               <Play className="w-4 h-4" />
                               Open Workflow
@@ -870,7 +870,7 @@ function WorkflowsLayout() {
                             key={p}
                             onClick={() => setPage(p)}
                             className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${p === page
-                              ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
+                              ? "bg-blue-600 text-white border-transparent shadow-lg"
                               : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
                               }`}
                           >
@@ -923,7 +923,7 @@ function WorkflowsLayout() {
                       <p className="text-gray-600 mb-4">{externalError}</p>
                       <button
                         onClick={fetchExternalWorkflows}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                       >
                         <RefreshCw className="h-4 w-4" />
                         Retry
@@ -1012,7 +1012,7 @@ function WorkflowsLayout() {
                               </span>
                             )}
                             {workflow.capabilities?.memory && (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-sky-100 text-sky-800 rounded-full">
                                 <Clock className="w-3 h-3" />
                                 Memory
                               </span>
@@ -1230,7 +1230,7 @@ function WorkflowsLayout() {
 
       { Add External Workflow Modal }
       {showAddExternalModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
               Add External Workflow
@@ -1344,7 +1344,7 @@ function WorkflowsLayout() {
 
       { External Workflow Chat Modal }
       {showExternalChatModal && selectedExternalWorkflow && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl w-full max-w-2xl mx-4 h-[600px] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-xl font-bold text-gray-900">
