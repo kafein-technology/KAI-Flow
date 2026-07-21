@@ -438,13 +438,19 @@ async def _test_cohere(secret: Dict[str, Any]) -> CredentialTestResponse:
 
 
 async def _test_tavily(secret: Dict[str, Any]) -> CredentialTestResponse:
-    try:
-        from tavily import AsyncTavilyClient
+    api_key = str(secret.get("api_key", "")).strip()
+    if not api_key:
+        return CredentialTestResponse(success=False, message="API key is required.")
 
-        client = AsyncTavilyClient(api_key=secret.get("api_key", ""))
-        await asyncio.wait_for(client.search("test"), timeout=10)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                "https://api.tavily.com/search",
+                json={"api_key": api_key, "query": "ping", "max_results": 1},
+            )
+            response.raise_for_status()
         return CredentialTestResponse(success=True, message="Connected to Tavily successfully.")
-    except asyncio.TimeoutError:
+    except (asyncio.TimeoutError, httpx.TimeoutException):
         return CredentialTestResponse(success=False, message="Connection timed out.")
     except Exception as e:
         return CredentialTestResponse(success=False, message=str(e))
