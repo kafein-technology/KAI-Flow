@@ -69,10 +69,15 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
   fetchPublicWorkflows: async () => {
     set({ isLoading: true, error: null });
     try {
-      const publicWorkflows = await WorkflowService.getPublicWorkflows();
-      set({ publicWorkflows, isLoading: false });
+      // Fetch a large page so Marketplace is not silently capped at the API default (100)
+      const publicWorkflows = await WorkflowService.getPublicWorkflows({
+        skip: 0,
+        limit: 1000,
+      });
+      set({ publicWorkflows, isLoading: false, error: null });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
+      throw error;
     }
   },
   fetchWorkflow: async (id: string) => {
