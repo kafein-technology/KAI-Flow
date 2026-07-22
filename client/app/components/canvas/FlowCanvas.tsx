@@ -1744,9 +1744,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           EndNode: (props: any) => (
             <EndNode {...props} isActive={activeNodes.includes(props.id)} />
           ),
-          StickyNoteNode: (props: any) => (
-            <StickyNoteNode {...props} />
-          ),
+          StickyNoteNode,
         } as Record<string, React.ComponentType<any> | null>
       ),
     [nodes, handleStartNodeExecution, executionLoading, activeNodes]
