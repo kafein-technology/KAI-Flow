@@ -411,6 +411,19 @@ async def _test_tavily(secret: Dict[str, Any]) -> CredentialTestResponse:
         return CredentialTestResponse(success=False, message=str(e))
 
 
+async def _test_serpdive(secret: Dict[str, Any]) -> CredentialTestResponse:
+    try:
+        from serpdive import AsyncSerpDive
+
+        async with AsyncSerpDive(api_key=secret.get("api_key", "")) as client:
+            await asyncio.wait_for(client.search("test", max_results=1), timeout=10)
+        return CredentialTestResponse(success=True, message="Connected to SERPdive successfully.")
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="Connection timed out.")
+    except Exception as e:
+        return CredentialTestResponse(success=False, message=str(e))
+
+
 async def _test_postgresql(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
         import psycopg2
@@ -537,6 +550,8 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_cohere(secret)
     elif service_type == "tavily_search":
         return await _test_tavily(secret)
+    elif service_type == "serpdive_search":
+        return await _test_serpdive(secret)
     elif service_type == "postgresql_vectorstore":
         return await _test_postgresql(secret)
     elif service_type == "kafka":

@@ -246,6 +246,9 @@ class PackageAnalyzer:
             "TavilyWebSearchNode": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
             "TavilySearch": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
             "TavilyNode": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
+            "SerpdiveSearch": ["serpdive>=0.1.1"],
+            "SerpdiveSearchNode": ["serpdive>=0.1.1"],
+            "SerpdiveNode": ["serpdive>=0.1.1"],
             "WebScraper": ["requests>=2.31.0", "beautifulsoup4>=4.12.0", "lxml>=4.9.0", "selenium>=4.15.0"],
             "WebScraperNode": ["requests>=2.31.0", "beautifulsoup4>=4.12.0", "lxml>=4.9.0", "selenium>=4.15.0"],
             

@@ -192,6 +192,27 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     ]
   },
   {
+    id: 'serpdive_search',
+    name: 'SERPdive Search',
+    description: 'SERPdive web search API returning extracted, answer-ready page content',
+    icon: 'serpdive_search.svg',
+    category: 'api',
+    color: 'from-teal-500 to-cyan-600',
+    fields: [
+      {
+        name: 'api_key',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'sd_live_...',
+        description: 'Your SERPdive API key from https://serpdive.com/dashboard/keys',
+        validation: {
+          minLength: 20
+        }
+      }
+    ]
+  },
+  {
     id: 'basic_auth',
     name: 'Basic Auth',
     description: 'Basic authentication credentials for webhook endpoints (username and password)',
