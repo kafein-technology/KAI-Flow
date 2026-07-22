@@ -228,7 +228,16 @@ const Navbar: React.FC<NavbarProps> = ({
       id: currentWorkflow.id,
       user_id: currentWorkflow.user_id,
       name: currentWorkflow.name,
-      description: currentWorkflow.description,
+      description: currentWorkflow.description || "",
+      category: (currentWorkflow.flow_data as any)?.category || (currentWorkflow as any).category || "automation",
+      created_at: currentWorkflow.created_at || new Date().toISOString(),
+      colorFrom: (currentWorkflow.flow_data as any)?.colorFrom || (currentWorkflow as any).colorFrom || "from-blue-500",
+      colorTo: (currentWorkflow.flow_data as any)?.colorTo || (currentWorkflow as any).colorTo || "to-indigo-600",
+      icon: (currentWorkflow.flow_data as any)?.icon || (currentWorkflow as any).icon || {
+        name: "workflow",
+        path: null,
+        alt: "Workflow Icon",
+      },
       is_public: currentWorkflow.is_public,
       flow_data: {
         nodes: (currentWorkflow.flow_data?.nodes || []).map((node: any) => {

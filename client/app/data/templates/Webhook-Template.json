@@ -1,5 +1,7 @@
 {
   "id": "webhook-template",
+  "category": "integration",
+  "created_at": "2025-02-20T00:00:00.000Z",
   "name": "Webhook Template",
   "description": "The data we provide as input is passed to the agent via the Webhook URL link provided with the Webhook Node. Based on the agent's output, the Code Node receives this output and returns a response to us.",
   "colorFrom": "from-green-500",

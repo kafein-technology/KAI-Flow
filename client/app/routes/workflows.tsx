@@ -108,6 +108,7 @@ function WorkflowsLayout() {
   interface WorkflowFormValues {
     name: string;
     description: string;
+    category?: string;
     is_public: boolean;
   }
 
@@ -206,12 +207,21 @@ function WorkflowsLayout() {
   };
 
   const handleDownload = (workflow: Workflow) => {
-    // Clean up the workflow data for export (same logic as Navbar's handleExport)
+    // Clean up the workflow data and attach marketplace metadata for export
     const cleanWorkflow = {
       id: workflow.id,
       user_id: workflow.user_id,
       name: workflow.name,
-      description: workflow.description,
+      description: workflow.description || "",
+      category: (workflow.flow_data as any)?.category || (workflow as any).category || "automation",
+      created_at: workflow.created_at || new Date().toISOString(),
+      colorFrom: (workflow.flow_data as any)?.colorFrom || (workflow as any).colorFrom || "from-blue-500",
+      colorTo: (workflow.flow_data as any)?.colorTo || (workflow as any).colorTo || "to-indigo-600",
+      icon: (workflow.flow_data as any)?.icon || (workflow as any).icon || {
+        name: "workflow",
+        path: null,
+        alt: "Workflow Icon",
+      },
       is_public: workflow.is_public,
       flow_data: {
         nodes: (workflow.flow_data?.nodes || []).map((node: any) => {
@@ -483,12 +493,23 @@ function WorkflowsLayout() {
   const handleWorkflowEditSubmit = async (values: WorkflowFormValues) => {
     if (!editWorkflow) return;
 
+    // Save category inside flow_data so it persists in the PostgreSQL JSONB column
+    const updatedFlowData = {
+      ...(editWorkflow.flow_data || {}),
+      category: values.category || "automation",
+    };
+
     const payload: WorkflowUpdateRequest = {
       name: values.name,
       description: values.description,
+      category: values.category || "automation",
       is_public: values.is_public,
-      flow_data: editWorkflow.flow_data, // flow_data'yı koru
+      flow_data: updatedFlowData,
     };
+
+    // Update local state temporarily so it reflects instantly
+    (editWorkflow as any).category = values.category || "automation";
+    editWorkflow.flow_data = updatedFlowData;
 
     try {
       await updateWorkflow(editWorkflow.id, payload);
