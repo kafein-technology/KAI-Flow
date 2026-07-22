@@ -9,9 +9,7 @@ from app.services.dependencies import get_credential_service_dep
 from app.core.database import get_db_session_context, SessionLocal
 from app.models.user_credential import UserCredential
 import base64
-# ------------------------------------------------------------------
-# Legacy Supabase dependency – replaced by SQLAlchemy layer.
-# ------------------------------------------------------------------
+# Credential management via SQLAlchemy + CredentialService layer.
 logger = logging.getLogger(__name__)
 
 class CredentialProvider:

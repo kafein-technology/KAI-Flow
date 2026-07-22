@@ -1,6 +1,6 @@
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
 from sqlalchemy import (
@@ -87,18 +87,18 @@ class WebhookEndpoint(Base):
     
     def update_trigger_stats(self, response_time_ms: int, success: bool = True):
         """Update trigger statistics."""
-        self.trigger_count += 1
-        self.last_triggered = datetime.utcnow()
+        self.trigger_count = (self.trigger_count or 0) + 1
+        self.last_triggered = datetime.now(timezone.utc)
         
         # Update average response time
-        if self.avg_response_time_ms == 0:
+        if not self.avg_response_time_ms:
             self.avg_response_time_ms = response_time_ms
         else:
             self.avg_response_time_ms = (self.avg_response_time_ms + response_time_ms) // 2
         
         # Update error count
         if not success:
-            self.error_count += 1
+            self.error_count = (self.error_count or 0) + 1
     
     def is_rate_limited(self) -> bool:
         """Check if webhook is currently rate limited."""
@@ -106,7 +106,12 @@ class WebhookEndpoint(Base):
             return False
         
         rate_limit = self.config.get('rate_limit_per_minute', 60)
-        time_diff = (datetime.utcnow() - self.last_triggered).total_seconds()
+        now = datetime.now(timezone.utc)
+        last_trig = self.last_triggered
+        if last_trig.tzinfo is None:
+            last_trig = last_trig.replace(tzinfo=timezone.utc)
+            
+        time_diff = (now - last_trig).total_seconds()
         
         return time_diff < (60 / rate_limit)
 
