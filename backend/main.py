@@ -4,6 +4,7 @@ load_dotenv(find_dotenv())
 
 import asyncio
 import logging
+from datetime import datetime, timezone
 from app.core.enhanced_logging import auto_configure_enhanced_logging
 import os
 from contextlib import asynccontextmanager
@@ -257,12 +258,12 @@ async def health_check():
         try:
             db_health = await check_database_health()
             db_status.update({
-                'status': 'healthy' if db_health['healthy'] else 'error',
-                'response_time_ms': db_health['response_time_ms'],
-                'connection_test': db_health['connection_test'],
-                'query_test': db_health['query_test'],
-                'connected': db_health['healthy']
+                'status': 'healthy' if db_health.get('healthy') else 'error',
+                'response_time_ms': db_health.get('response_time_ms', 0),
+                'connected': db_health.get('healthy', False)
             })
+            if 'error' in db_health:
+                db_status['error'] = db_health['error']
             
             # Add database statistics
             db_stats = get_database_stats()
@@ -280,7 +281,7 @@ async def health_check():
         return {
             "status": "healthy" if overall_healthy else "degraded",
             "version": "2.0.0",
-            "timestamp": "2025-01-21T12:00:00Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "components": {
                 "node_registry": {
                     "status": "healthy" if nodes_healthy else "error",
