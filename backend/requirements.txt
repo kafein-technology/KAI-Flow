@@ -35,6 +35,7 @@ langchain-core==1.3.3
 langchain-community==0.4.1
 langchain-openai==1.2.1
 langchain-tavily==0.2.18
+serpdive==0.1.1
 langchain-text-splitters==1.1.2
 langchain-cohere==0.5.1
 langchain-postgres==0.0.17
