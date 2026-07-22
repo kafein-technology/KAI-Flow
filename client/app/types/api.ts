@@ -68,6 +68,7 @@ export interface Workflow {
   id: string;
   name: string;
   description?: string;
+  category?: string;
   flow_data: WorkflowData;
   user_id: string;
   user?: UserInfo;
@@ -82,6 +83,7 @@ export interface Workflow {
 export interface WorkflowCreateRequest {
   name: string;
   description?: string;
+  category?: string;
   flow_data: WorkflowData;
   is_public?: boolean;
   error_workflow?: string | null;
@@ -91,6 +93,7 @@ export interface WorkflowCreateRequest {
 export interface WorkflowUpdateRequest {
   name?: string;
   description?: string;
+  category?: string;
   flow_data?: WorkflowData;
   is_public?: boolean;
   error_workflow?: string | null;

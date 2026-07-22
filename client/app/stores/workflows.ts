@@ -69,8 +69,11 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
   fetchPublicWorkflows: async () => {
     set({ isLoading: true, error: null });
     try {
-      const publicWorkflows = await WorkflowService.getPublicWorkflows();
-      set({ publicWorkflows, isLoading: false });
+      const publicWorkflows = await WorkflowService.getPublicWorkflows({
+        skip: 0,
+        limit: 100,
+      });
+      set({ publicWorkflows, isLoading: false, error: null });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }

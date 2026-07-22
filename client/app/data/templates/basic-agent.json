@@ -1,5 +1,7 @@
 {
   "id": "basic-agent",
+  "category": "ai-ml",
+  "created_at": "2025-01-15T00:00:00.000Z",
   "name": "Basic Agent",
   "description": "AI Agent with OpenAI LLM for intelligent conversations and task execution. Includes StartNode → OpenAI Chat → Agent → EndNode workflow.",
   "colorFrom": "from-blue-500",

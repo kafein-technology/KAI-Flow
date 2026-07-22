@@ -4,6 +4,7 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 
 interface WorkflowFormValues {
   name: string;
+  category?: string;
   description: string;
   is_public: boolean;
 }
@@ -12,6 +13,7 @@ interface Workflow {
   id: string;
   name: string;
   description?: string;
+  category?: string;
   is_public: boolean;
   flow_data?: any;
 }
@@ -88,6 +90,7 @@ export default function WorkflowEditModal({
               enableReinitialize
               initialValues={{
                 name: workflow.name || "",
+                category: workflow.flow_data?.category || workflow.category || "automation",
                 description: workflow.description || "",
                 is_public: workflow.is_public || false,
               }}
@@ -119,6 +122,25 @@ export default function WorkflowEditModal({
                     />
                     <ErrorMessage
                       name="name"
+                      component="p"
+                      className="mt-1 text-xs text-red-600"
+                    />
+                  </div>
+
+                  {/* Category Field */}
+                  <div>
+                    <label htmlFor="category" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                      <FileText className="w-4 h-4" />
+                      Category
+                    </label>
+                    <Field
+                      name="category"
+                      type="text"
+                      placeholder="Enter category"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
+                    />
+                    <ErrorMessage
+                      name="category"
                       component="p"
                       className="mt-1 text-xs text-red-600"
                     />
