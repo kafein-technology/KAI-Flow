@@ -199,7 +199,7 @@ class CredentialProvider:
                 credential = credentials[0] if credentials else None
             
             if credential:
-                return await self.get_credential(credential.id, context_id=context_id, user_id=user_id)
+                return await self.get_credential(credential.id, user_id=user_id)
             
             return None
             
