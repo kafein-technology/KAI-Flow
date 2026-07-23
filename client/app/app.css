@@ -15,6 +15,22 @@ html {
     animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  .animate-modal-backdrop-in {
+    animation: modal-backdrop-in 0.2s ease-out both;
+  }
+
+  .animate-modal-content-in {
+    animation: modal-content-in 0.3s ease-out both;
+  }
+
+  .animate-modal-backdrop-out {
+    animation: modal-backdrop-out 0.2s ease-in both;
+  }
+
+  .animate-modal-content-out {
+    animation: modal-content-out 0.2s ease-in both;
+  }
+
   @keyframes slide-up {
     from {
       transform: translateY(100%);
@@ -24,6 +40,59 @@ html {
     to {
       transform: translateY(0);
       opacity: 1;
+    }
+  }
+
+  @keyframes modal-backdrop-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes modal-content-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem) scale(0.95);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes modal-backdrop-out {
+    from {
+      opacity: 1;
+    }
+
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes modal-content-out {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    to {
+      opacity: 0;
+      transform: translateY(0.5rem) scale(0.95);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-modal-backdrop-in,
+    .animate-modal-content-in,
+    .animate-modal-backdrop-out,
+    .animate-modal-content-out {
+      animation: none;
     }
   }
 

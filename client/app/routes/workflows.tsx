@@ -49,6 +49,7 @@ import PinnedItemsSection from "~/components/common/PinnedItemsSection";
 import PinButton from "~/components/common/PinButton";
 import WorkflowEditModal from "~/components/modals/WorkflowEditModal";
 import WorkflowExportModal from "~/components/modals/WorkflowExportModal";
+import DeleteConfirmationModal from "~/components/modals/DeleteConfirmationModal";
 
 const ErrorMessageBlock = ({
   error,
@@ -1196,29 +1197,14 @@ function WorkflowsLayout() {
         </div>
       </main>
 
-      {/* Delete Confirm Modal */}
-      <dialog
-        open={showDeleteConfirm}
-        className="modal modal-bottom sm:modal-middle"
-      >
-        <div className="modal-box">
-          <h3 className="font-bold text-lg">Delete Workflow</h3>
-          <p className="py-4">
-            Are you sure you want to delete "{workflowToDelete?.name}"?
-          </p>
-          <div className="modal-action">
-            <button className="btn btn-outline" onClick={handleCancelDelete}>
-              Cancel
-            </button>
-            <button
-              className="btn btn-error"
-              onClick={handleFinalDeleteConfirm}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </dialog>
+      <DeleteConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={handleCancelDelete}
+        onConfirm={handleFinalDeleteConfirm}
+        title="Delete Workflow"
+        message={`Are you sure you want to delete "${workflowToDelete?.name}"?`}
+        isLoading={isDeleting === workflowToDelete?.id}
+      />
 
       {/* DISABLED Modals
       { Remove External Workflow Confirm Modal }
