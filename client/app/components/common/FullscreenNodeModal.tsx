@@ -117,7 +117,7 @@ export default function FullscreenNodeModal({
   const pendingConfigValuesRef = useRef<Record<string, unknown> | null>(null);
   const prevHistoryRevisionRef = useRef(historyRevision);
   const nodeAliasRef = useRef(
-    configData?.name || nodeMetadata.display_name || nodeMetadata.name
+    configData?.name ?? nodeMetadata.display_name ?? nodeMetadata.name
   );
   const [nodeAlias, setNodeAlias] = useState(nodeAliasRef.current);
   const [nodeAliasError, setNodeAliasError] = useState<string | null>(null);
@@ -648,10 +648,10 @@ export default function FullscreenNodeModal({
   useEffect(() => {
     setConfigValues(configData);
     const alias =
-      configData?.name || nodeMetadata.display_name || nodeMetadata.name;
+      configData?.name ?? nodeMetadata.display_name ?? nodeMetadata.name;
     nodeAliasRef.current = alias;
     setNodeAlias(alias);
-    setNodeAliasError(null);
+    setNodeAliasError(validateNodeAlias(alias));
     // Sync workflow state into the form after undo/redo or when configData changes externally (e.g., import).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyRevision, configData]);
