@@ -866,6 +866,94 @@ class GraphBuilder:
     # Execution methods - preserved for backward compatibility
     # ---------------------------------------------------------------------
 
+    async def execute_node(
+        self,
+        node_id: str,
+        inputs: Dict[str, Any],
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        owner_id: Optional[str] = None,
+        workflow_id: Optional[str] = None,
+        node_outputs: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Execute one node directly without running the compiled workflow graph."""
+        if node_id not in self.nodes:
+            raise ValueError(f"Node '{node_id}' not found in workflow.")
+
+        initial_input = inputs.get("input", "")
+        init_state = FlowState(
+            current_input=initial_input,
+            last_output=initial_input,
+            session_id=session_id or str(uuid.uuid4()),
+            user_id=user_id,
+            owner_id=owner_id,
+            workflow_id=workflow_id,
+            variables=inputs,
+            node_outputs=node_outputs or {},
+        )
+
+        from app.core.templating import register_global_registry, unregister_global_registry
+        register_global_registry(init_state.session_id, self.nodes)
+
+        gnode = self.nodes[node_id]
+        node_name = (
+            gnode.user_data.get("name")
+            or gnode.node_instance.metadata.display_name
+            or gnode.type
+        )
+
+        try:
+            def run_node() -> Dict[str, Any]:
+                connections = getattr(gnode.node_instance, "_input_connections", {})
+                for connection in connections.values():
+                    connection_items = connection if isinstance(connection, list) else [connection]
+                    for connection_item in connection_items:
+                        source_id = connection_item.get("source_node_id") if isinstance(connection_item, dict) else None
+                        source_node = self.nodes.get(source_id) if source_id else None
+                        if (
+                            source_node
+                            and source_node.node_instance.metadata.node_type.value == "processor"
+                            and source_id not in init_state.node_outputs
+                        ):
+                            init_state.node_outputs[source_id] = {}
+
+                gnode.node_instance.user_data.update(gnode.user_data)
+                self.node_executor.setup_node_session(gnode, init_state, node_id)
+                if gnode.node_instance.metadata.node_type.value in ("processor", "terminator"):
+                    return self.node_executor.execute_processor_node(gnode, init_state, node_id)
+                return self.node_executor.execute_standard_node(gnode, init_state, node_id)
+
+            result = await asyncio.to_thread(run_node)
+            node_output = init_state.node_outputs.get(node_id)
+            if node_output is None and isinstance(result, dict):
+                node_output = result.get(f"output_{node_id}", result)
+
+            return {
+                "success": True,
+                "node_id": node_id,
+                "output": node_output,
+                "node_outputs": {node_id: node_output},
+                "executed_nodes": [node_id],
+                "session_id": init_state.session_id,
+            }
+        except Exception as exc:
+            error_message = f"Node '{node_name}' ({node_id}) failed: {exc}"
+            node_output = init_state.node_outputs.get(node_id) or {
+                "success": False,
+                "error": {"message": error_message},
+            }
+            return {
+                "success": False,
+                "node_id": node_id,
+                "error": error_message,
+                "output": node_output,
+                "node_outputs": {node_id: node_output},
+                "executed_nodes": [node_id],
+                "session_id": init_state.session_id,
+            }
+        finally:
+            unregister_global_registry(init_state.session_id)
+
     async def execute(
         self,
         inputs: Dict[str, Any],

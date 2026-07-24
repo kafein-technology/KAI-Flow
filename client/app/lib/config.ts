@@ -95,6 +95,7 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/workflows/${id}`,
     VALIDATE: '/workflows/validate',
     EXECUTE: '/workflows/execute',
+    EXECUTE_NODE: '/workflows/execute-node',
     PUBLIC: '/workflows/public/',
     SEARCH: '/workflows/search/',
     DUPLICATE: (id: string) => `/workflows/${id}/duplicate`,
