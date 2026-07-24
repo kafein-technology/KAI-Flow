@@ -86,17 +86,17 @@ export const TUTORIAL_WORKFLOWS: TutorialWorkflow[] = [
       {
         id: 'step-4',
         title: 'Add a Tool',
-        description: 'Give your agent the ability to search the web or call external APIs',
+        description: 'Give your agent the ability to search the web',
         instructions: [
-          'Drag a Tavily Web Search node (or HTTP Client) to the left of the Agent node',
+          'Drag a Tavily Web Search node to the left of the Agent node',
           'Click the node and configure your API key and search parameters',
           'Connect the tool\'s output to the Agent node\'s tools handle',
           'Optionally write a system prompt in the Agent node to guide when the tool should be used'
         ],
         tips: [
           'Tavily Web Search lets the agent look up real-time information from the internet',
-          'HTTP Client is more flexible — use it to call any REST API',
-          'You can connect multiple tools to the same Agent; it will decide which one to use based on the query'
+          'Only nodes with a tool output can connect to the Agent\'s tools handle',
+          'You can connect multiple compatible tools to the same Agent; it will decide which one to use based on the query'
         ],
         expectedOutcome: 'Tool node connected — the agent can now access external data when needed',
         completed: false
@@ -291,20 +291,20 @@ export const TUTORIAL_WORKFLOWS: TutorialWorkflow[] = [
       },
       {
         id: 'step-3',
-        title: 'Add External API Calls',
-        description: 'Give the agent tools to call external services based on webhook data',
+        title: 'Add an External API Call',
+        description: 'Send the processed webhook data to an external service',
         instructions: [
-          'Drag an HTTP Client node onto the canvas',
+          'Drag an HTTP Client node to the right of the Agent node',
           'Click it and set the URL, HTTP Method, and Content Type for the target API',
           'Configure authentication (Bearer Token, Basic Auth, or API Key) in the Auth tab',
-          'Connect the HTTP Client\'s tool output to the Agent\'s tools handle'
+          'Connect the Agent\'s output to the HTTP Client\'s input so the request runs after processing'
         ],
         tips: [
           'Enable Templates in the Advanced tab to use Jinja2 variables in URLs and request bodies',
           'The HTTP Client supports automatic retries (default 3) with configurable delay — great for unreliable APIs',
-          'You can add multiple HTTP Client nodes as tools — the agent will decide which one to call'
+          'HTTP Client is a workflow processor, not an agent tool, so connect it through the normal data flow'
         ],
-        expectedOutcome: 'HTTP Client configured as an agent tool for making external API calls',
+        expectedOutcome: 'HTTP Client configured to run after the agent and call the external API',
         completed: false
       },
       {
@@ -313,12 +313,12 @@ export const TUTORIAL_WORKFLOWS: TutorialWorkflow[] = [
         description: 'Send a custom HTTP response back to the service that triggered the webhook',
         instructions: [
           'Drag a Respond to Webhook node onto the canvas (it replaces the End node)',
-          'Connect the Agent\'s output → Respond to Webhook input',
+          'Connect the HTTP Client\'s response output → Respond to Webhook input',
           'Set the HTTP Status Code (200 OK for success, 201 Created, etc.)',
           'Choose a Response Config: "All Incoming Items" to forward agent output, or "JSON" to write a custom body'
         ],
         tips: [
-          'Use "All Incoming Items" to automatically return whatever the agent produced — no manual formatting needed',
+          'Use "All Incoming Items" to automatically return the HTTP Client response — no manual formatting needed',
           'The Response Body field supports templating with ${{variable}} for dynamic responses',
           'Set Content-Type to application/json for API integrations, or text/plain for simple acknowledgments'
         ],
@@ -402,7 +402,7 @@ export const TUTORIAL_WORKFLOWS: TutorialWorkflow[] = [
           'Configure authentication in the Auth tab (Bearer Token for most APIs, API Key for services like Stripe)'
         ],
         tips: [
-          'Add multiple HTTP Client nodes for different data sources — they can run in sequence through the agent',
+          'Add multiple HTTP Client nodes for different data sources and connect their outputs through the normal workflow data flow',
           'Enable retry logic (default 3 retries) in the Advanced tab for APIs that occasionally timeout',
           'Use Jinja2 templates in the URL to include dynamic dates: /api/reports?date={{today}}'
         ],
@@ -415,14 +415,14 @@ export const TUTORIAL_WORKFLOWS: TutorialWorkflow[] = [
         description: 'Use an AI agent to analyze data and generate formatted report content',
         instructions: [
           'Drag an Agent node onto the canvas',
-          'Connect the HTTP Client tool(s) to the Agent\'s tools handle',
+          'Connect each HTTP Client\'s content or response output to the Agent\'s input',
           'Drag an OpenAI GPT node and connect it to the Agent\'s LLM handle',
-          'Write a system prompt like: "You are a report analyst. Fetch data from the available tools and generate a summary report with key metrics, trends, and actionable insights"'
+          'Write a system prompt like: "You are a report analyst. Analyze the incoming data and generate a summary report with key metrics, trends, and actionable insights"'
         ],
         tips: [
           'Use gpt-4o for complex analysis, gpt-4o-mini for simple summary reports to save costs',
           'Include the desired output format in your prompt (markdown table, bullet points, or structured JSON)',
-          'The agent can call multiple HTTP Client tools to gather data before generating the report'
+          'HTTP Client nodes run before the agent and pass their fetched data into it for analysis'
         ],
         expectedOutcome: 'Agent configured to analyze fetched data and produce formatted reports',
         completed: false
@@ -433,13 +433,13 @@ export const TUTORIAL_WORKFLOWS: TutorialWorkflow[] = [
         description: 'Deliver the generated report via Slack, email, or other channels',
         instructions: [
           'Drag another HTTP Client node for distribution (e.g. Slack webhook, SendGrid API, Teams connector)',
-          'Connect it as a second tool on the Agent\'s tools handle',
+          'Connect the Agent\'s output to the distribution HTTP Client\'s input',
           'Configure the URL and Content Type for your distribution channel',
-          'Update the agent\'s system prompt to include: "After generating the report, send it to the distribution channel"'
+          'Configure the body in the HTTP Client node or use templating to pass the Agent\'s report output into the request'
         ],
         tips: [
           'For Slack: use an Incoming Webhook URL with Content-Type application/json and a body like {"text": "report content"}',
-          'You can add multiple distribution channels as separate HTTP Client tools — the agent will send to all of them',
+          'You can branch the Agent output to separate HTTP Client nodes for multiple distribution channels',
           'Set different report formats per channel: markdown for Slack, HTML for email, JSON for dashboards'
         ],
         expectedOutcome: 'Distribution channels configured to deliver reports automatically',
