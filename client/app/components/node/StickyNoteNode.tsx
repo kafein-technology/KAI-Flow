@@ -74,26 +74,28 @@ function StickyNoteNode({ id, data, selected }: StickyNoteNodeProps) {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
+    const nextText = e.target.value;
+    setText(nextText);
+
+    // Keep the React Flow node data current while editing. Auto-save reads from
+    // the canvas state, so waiting for blur can otherwise persist stale text.
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                text: nextText,
+              },
+            }
+          : node
+      )
+    );
   };
 
   const handleBlur = () => {
     setIsEditing(false);
-    // Auto-save the text to the node's data so it persists
-    setNodes((nodes) =>
-      nodes.map((n) => {
-        if (n.id === id) {
-          return {
-            ...n,
-            data: {
-              ...n.data,
-              text: text,
-            },
-          };
-        }
-        return n;
-      })
-    );
   };
 
   return (

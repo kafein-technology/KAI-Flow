@@ -71,7 +71,7 @@ function DashboardLayout() {
             <div className="mb-8">
               <div className="flex flex-row items-center justify-between gap-6">
                 <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <h1 className="text-4xl font-bold text-blue-600">
                     Dashboard
                   </h1>
                   <p className="text-gray-600 text-lg">
@@ -83,7 +83,7 @@ function DashboardLayout() {
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <select
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
                       value={selectedPeriod}
                       onChange={(e) => setSelectedPeriod(e.target.value)}
                     >
@@ -196,8 +196,8 @@ function DashboardLayout() {
                           })()}
                         </p>
                       </div>
-                      <div className="p-3 bg-purple-100 rounded-xl">
-                        <Calendar className="w-6 h-6 text-purple-600" />
+                      <div className="p-3 bg-blue-100 rounded-xl">
+                        <Calendar className="w-6 h-6 text-blue-600" />
                       </div>
                     </div>
                   </div>

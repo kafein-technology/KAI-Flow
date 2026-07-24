@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Copy,
   RefreshCw,
@@ -49,6 +49,25 @@ function MarketplaceLayout() {
   const [sortBy, setSortBy] = useState("newest");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>();
+    prebuiltTemplates.forEach((t) => {
+      if (t.category) cats.add(t.category);
+    });
+    publicWorkflows.forEach((w: any) => {
+      if (w.category) cats.add(w.category);
+    });
+    return Array.from(cats).sort();
+  }, [publicWorkflows]);
+
+  const formatCategoryLabel = (cat: string) => {
+    if (cat === "ai-ml") return "AI & ML";
+    return cat
+      .split(/[-_]/)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
   const filteredWorkflows = publicWorkflows
     .filter((workflow) => {
       // Search filter
@@ -89,11 +108,31 @@ function MarketplaceLayout() {
           );
         case "alphabetical":
           return a.name.localeCompare(b.name);
-        case "popular":
-          // For now, sort by created date as we don't have popularity metrics
-          return (
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+        default:
+          return 0;
+      }
+    });
+
+  const filteredTemplates = prebuiltTemplates
+    .filter((tpl) => {
+      const matchesSearch =
+        searchQuery === "" ||
+        tpl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tpl.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesCategory =
+        category === "all" || tpl.category === category;
+
+      return matchesSearch && matchesCategory;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        case "oldest":
+          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+        case "alphabetical":
+          return a.name.localeCompare(b.name);
         default:
           return 0;
       }
@@ -188,7 +227,7 @@ function MarketplaceLayout() {
             <div className="mb-8">
               <div className="flex flex-row items-end justify-between gap-6 mb-6">
                 <div className="flex flex-col gap-1">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <h1 className="text-4xl font-bold text-blue-600">
                     Marketplace
                   </h1>
                   <p className="text-gray-600 text-lg">
@@ -212,7 +251,7 @@ function MarketplaceLayout() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type="search"
-                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       placeholder="Search workflows..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -225,7 +264,7 @@ function MarketplaceLayout() {
                       <button
                         onClick={() => setViewMode("grid")}
                         className={`p-1.5 rounded-md transition-all duration-200 ${viewMode === "grid"
-                          ? "bg-white shadow-sm text-purple-600"
+                          ? "bg-white shadow-sm text-blue-600"
                           : "text-gray-600 hover:text-gray-800"
                           }`}
                       >
@@ -234,7 +273,7 @@ function MarketplaceLayout() {
                       <button
                         onClick={() => setViewMode("list")}
                         className={`p-1.5 rounded-md transition-all duration-200 ${viewMode === "list"
-                          ? "bg-white shadow-sm text-purple-600"
+                          ? "bg-white shadow-sm text-blue-600"
                           : "text-gray-600 hover:text-gray-800"
                           }`}
                       >
@@ -245,7 +284,7 @@ function MarketplaceLayout() {
                     {/* Refresh Button */}
                     <button
                       onClick={fetchPublicWorkflows}
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                     >
                       <RefreshCw
                         className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
@@ -267,24 +306,24 @@ function MarketplaceLayout() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="all">All Categories</option>
-                    <option value="automation">Automation</option>
-                    <option value="data-processing">Data Processing</option>
-                    <option value="ai-ml">AI & ML</option>
-                    <option value="integration">Integration</option>
+                    {availableCategories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {formatCategoryLabel(cat)}
+                      </option>
+                    ))}
                   </select>
 
                   {/* Sort Filter */}
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="newest">Newest First</option>
                     <option value="oldest">Oldest First</option>
-                    <option value="popular">Most Popular</option>
                     <option value="alphabetical">A-Z</option>
                   </select>
 
@@ -307,91 +346,134 @@ function MarketplaceLayout() {
 
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Filter className="w-4 h-4" />
-                  {filteredWorkflows.length} results
+                  {filteredWorkflows.length + filteredTemplates.length} results
                 </div>
               </div>
             </div>
 
             {/* Pre-built Templates */}
-            <div className="mb-10">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                    <Star className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      ⚡ Quick Start Templates
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                      Ready-to-use templates to get you started instantly
-                    </p>
-                  </div>
-                </div>
-                <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-                  {prebuiltTemplates.length} Templates
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {prebuiltTemplates.map((tpl) => (
-                  <div
-                    key={tpl.id}
-                    className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 hover:border-purple-200 hover:-translate-y-1"
-                  >
-                    {/* Background Pattern */}
-                    <div className="absolute top-0 right-0 w-24 h-24 opacity-5">
-                      <div
-                        className={`w-full h-full bg-gradient-to-br ${tpl.colorFrom} ${tpl.colorTo} rounded-full transform translate-x-8 -translate-y-8`}
-                      />
+            {filteredTemplates.length > 0 && (
+              <div className="mb-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                      <Star className="w-4 h-4 text-white" />
                     </div>
-
-                    <div className="relative p-6">
-                      {/* Icon */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div
-                          className={`flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${tpl.colorFrom} ${tpl.colorTo} shadow-lg group-hover:scale-110 transition-transform duration-300`}
-                        >
-                          {React.createElement(getIconComponent(tpl.icon), {
-                            className: "w-6 h-6 text-white",
-                          })}
-                        </div>
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
-                          Template
-                        </span>
-                      </div>
-
-                      {/* Content */}
-                      <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-700 transition-colors">
-                        {tpl.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">
-                        {tpl.description}
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        ⚡ Quick Start Templates
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        Ready-to-use templates to get you started instantly
                       </p>
-
-                      {/* Tags */}
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
-                          Ready-to-use
-                        </span>
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
-                          Free
-                        </span>
-                      </div>
-
-                      {/* Action Button */}
-                      <button
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl group-hover:scale-105"
-                        onClick={() => handleUseTemplate(tpl.id)}
-                      >
-                        <Download className="w-4 h-4" />
-                        Use Template
-                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                    {filteredTemplates.length} Templates
+                  </span>
+                </div>
+
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {filteredTemplates.map((tpl) => (
+                      <div
+                        key={tpl.id}
+                        className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white hover:border-blue-300 transition-colors"
+                      >
+                        <div className="relative p-6">
+                          {/* Icon */}
+                          <div className="flex items-center justify-between mb-4">
+                            <div
+                              className={`flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${tpl.colorFrom} ${tpl.colorTo}`}
+                            >
+                              {React.createElement(getIconComponent(tpl.icon), {
+                                className: "w-6 h-6 text-white",
+                              })}
+                            </div>
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
+                              Template
+                            </span>
+                          </div>
+
+                          {/* Content */}
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-700 transition-colors">
+                            {tpl.name}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">
+                            {tpl.description}
+                          </p>
+
+                          {/* Tags */}
+                          <div className="flex flex-wrap gap-1 mb-4">
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
+                              Ready-to-use
+                            </span>
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
+                              Free
+                            </span>
+                          </div>
+
+                          {/* Action Button */}
+                          <button
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            onClick={() => handleUseTemplate(tpl.id)}
+                          >
+                            <Download className="w-4 h-4" />
+                            Use Template
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredTemplates.map((tpl) => (
+                      <div
+                        key={tpl.id}
+                        className="group flex items-center gap-6 p-6 bg-white border border-gray-200 rounded-2xl hover:border-blue-300 transition-colors"
+                      >
+                        {/* Icon */}
+                        <div className="flex-shrink-0">
+                          <div
+                            className={`flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${tpl.colorFrom} ${tpl.colorTo}`}
+                          >
+                            {React.createElement(getIconComponent(tpl.icon), {
+                              className: "w-6 h-6 text-white",
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
+                              {tpl.name}
+                            </h3>
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
+                              Template
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 line-clamp-2">
+                            {tpl.description}
+                          </p>
+                        </div>
+
+                        {/* Action */}
+                        <div className="flex-shrink-0">
+                          <button
+                            className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            onClick={() => handleUseTemplate(tpl.id)}
+                          >
+                            <Download className="w-4 h-4" />
+                            Use Template
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
             </div>
+          )}
 
             {/* Pinned Workflows Section */}
             {(() => {
@@ -503,23 +585,18 @@ function MarketplaceLayout() {
                       {pagedWorkflows.map((wf) => (
                         <div
                           key={wf.id}
-                          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 hover:border-blue-200 hover:-translate-y-1"
+                          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white hover:border-blue-300 transition-colors"
                         >
-                          {/* Background Pattern */}
-                          <div className="absolute top-0 right-0 w-24 h-24 opacity-5">
-                            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-green-500 rounded-full transform translate-x-8 -translate-y-8" />
-                          </div>
-
                           <div className="relative p-6">
                             {/* Header */}
                             <div className="flex items-start justify-between mb-4">
                               <div className="flex items-center gap-3">
-                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-green-600 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-green-600">
                                   <Users className="w-5 h-5 text-white" />
                                 </div>
                                 <div className="flex flex-col">
                                   <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium w-fit">
-                                    Public
+                                    Active
                                   </span>
                                 </div>
                               </div>
@@ -529,7 +606,7 @@ function MarketplaceLayout() {
                                 title={wf.name}
                                 description={wf.description}
                                 metadata={{
-                                  status: "Public",
+                                  status: "Active",
                                   lastActivity: wf.created_at,
                                 }}
                                 size="sm"
@@ -561,7 +638,7 @@ function MarketplaceLayout() {
 
                             {/* Action Button */}
                             <button
-                              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-green-600 text-white hover:from-blue-700 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl group-hover:scale-105"
+                              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-green-600 text-white hover:from-blue-700 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                               onClick={() => handleDuplicate(wf.id)}
                               disabled={duplicating === wf.id}
                             >
@@ -582,11 +659,11 @@ function MarketplaceLayout() {
                       {pagedWorkflows.map((wf) => (
                         <div
                           key={wf.id}
-                          className="group flex items-center gap-6 p-6 bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:border-blue-200 transition-all duration-300"
+                          className="group flex items-center gap-6 p-6 bg-white border border-gray-200 rounded-2xl hover:border-blue-300 transition-colors"
                         >
                           {/* Icon */}
                           <div className="flex-shrink-0">
-                            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-green-600 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-green-600">
                               <Users className="w-6 h-6 text-white" />
                             </div>
                           </div>
@@ -599,7 +676,7 @@ function MarketplaceLayout() {
                                   {wf.name}
                                 </h3>
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                                  Public
+                                  Active
                                 </span>
                               </div>
                               <PinButton
@@ -608,7 +685,7 @@ function MarketplaceLayout() {
                                 title={wf.name}
                                 description={wf.description}
                                 metadata={{
-                                  status: "Public",
+                                  status: "Active",
                                   lastActivity: wf.created_at,
                                 }}
                                 size="sm"
@@ -677,7 +754,7 @@ function MarketplaceLayout() {
                           key={p}
                           onClick={() => setPage(p)}
                           className={`px-4 py-2 rounded-lg text-sm border ${p === page
-                            ? "bg-purple-600 text-white"
+                            ? "bg-blue-600 text-white"
                             : "bg-white text-gray-700 border-gray-300"
                             }`}
                         >

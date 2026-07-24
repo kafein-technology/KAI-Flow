@@ -4,6 +4,7 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 
 interface WorkflowFormValues {
   name: string;
+  category?: string;
   description: string;
   is_public: boolean;
 }
@@ -12,6 +13,7 @@ interface Workflow {
   id: string;
   name: string;
   description?: string;
+  category?: string;
   is_public: boolean;
   flow_data?: any;
 }
@@ -65,8 +67,8 @@ export default function WorkflowEditModal({
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-xl">
-                <Pencil className="w-5 h-5 text-purple-600" />
+              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-xl">
+                <Pencil className="w-5 h-5 text-blue-600" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Edit Workflow</h3>
@@ -88,6 +90,7 @@ export default function WorkflowEditModal({
               enableReinitialize
               initialValues={{
                 name: workflow.name || "",
+                category: workflow.flow_data?.category || workflow.category || "automation",
                 description: workflow.description || "",
                 is_public: workflow.is_public || false,
               }}
@@ -115,10 +118,29 @@ export default function WorkflowEditModal({
                       name="name"
                       type="text"
                       placeholder="Enter workflow name"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
                     />
                     <ErrorMessage
                       name="name"
+                      component="p"
+                      className="mt-1 text-xs text-red-600"
+                    />
+                  </div>
+
+                  {/* Category Field */}
+                  <div>
+                    <label htmlFor="category" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                      <FileText className="w-4 h-4" />
+                      Category
+                    </label>
+                    <Field
+                      name="category"
+                      type="text"
+                      placeholder="Enter category"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
+                    />
+                    <ErrorMessage
+                      name="category"
                       component="p"
                       className="mt-1 text-xs text-red-600"
                     />
@@ -136,7 +158,7 @@ export default function WorkflowEditModal({
                       as="textarea"
                       rows={3}
                       placeholder="Enter workflow description"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm resize-none"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm resize-none"
                     />
                     <div className="mt-1 flex justify-between">
                       <ErrorMessage
@@ -163,7 +185,7 @@ export default function WorkflowEditModal({
                     <button
                       type="submit"
                       disabled={isSubmitting || isLoading}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                     >
                       {isSubmitting ? (
                         <>

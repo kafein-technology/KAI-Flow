@@ -97,8 +97,8 @@ export default function WorkflowExportModal({
                     {/* Header */}
                     <div className="flex items-center justify-between p-6 border-b border-gray-200">
                         <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-xl">
-                                <Package className="w-5 h-5 text-purple-600" />
+                            <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-xl">
+                                <Package className="w-5 h-5 text-blue-600" />
                             </div>
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900">
@@ -135,7 +135,7 @@ export default function WorkflowExportModal({
                                 }}
                                 onBlur={() => setExportNameTouched(true)}
                                 placeholder="e.g. my_project"
-                                className={`w-full px-3 py-2 border rounded-lg text-sm transition-all duration-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                                className={`w-full px-3 py-2 border rounded-lg text-sm transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                                     exportNameError
                                         ? "border-red-300 bg-red-50"
                                         : "border-gray-300 bg-white hover:border-gray-400"
@@ -155,10 +155,10 @@ export default function WorkflowExportModal({
                         {/* Select All */}
                         <button
                             onClick={handleSelectAll}
-                            className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-purple-600 mb-4 transition-colors"
+                            className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600 mb-4 transition-colors"
                         >
                             {allSelected ? (
-                                <CheckSquare className="w-4 h-4 text-purple-600" />
+                                <CheckSquare className="w-4 h-4 text-blue-600" />
                             ) : (
                                 <Square className="w-4 h-4" />
                             )}
@@ -177,13 +177,13 @@ export default function WorkflowExportModal({
                                         key={workflow.id}
                                         onClick={() => handleToggle(workflow.id)}
                                         className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 text-left ${selectedIds.has(workflow.id)
-                                                ? "border-purple-500 bg-purple-50"
+                                                ? "border-blue-500 bg-blue-50"
                                                 : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                                             }`}
                                     >
                                         <div
                                             className={`flex-shrink-0 w-5 h-5 rounded flex items-center justify-center ${selectedIds.has(workflow.id)
-                                                    ? "bg-purple-600"
+                                                    ? "bg-blue-600"
                                                     : "border-2 border-gray-300"
                                                 }`}
                                         >
@@ -238,7 +238,7 @@ export default function WorkflowExportModal({
                             <button
                                 onClick={handleExport}
                                 disabled={isExportDisabled}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                             >
                                 {isExporting ? (
                                     <>

@@ -1,5 +1,7 @@
 {
   "id": "kafka-template",
+  "category": "automation",
+  "created_at": "2025-04-01T00:00:00.000Z",
   "name": "Kafka Template",
   "description": "Automated Data Security (DLP) review pipeline. Listens to Kafka for column classification requests (REVIEW/SUSPECT), uses AI to validate sample data against security rules, and publishes the final decision back to Kafka.",
   "colorFrom": "from-rose-400",

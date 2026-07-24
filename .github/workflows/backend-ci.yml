@@ -1,4 +1,4 @@
-name: Backend CI/CD
+name: Backend CI
 
 on:
   push:
@@ -12,97 +12,90 @@ on:
 
 jobs:
   lint-and-test:
+    name: Lint, Type Check & Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12"]
-    
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: kai_test
+          POSTGRES_USER: kai
+          POSTGRES_PASSWORD: kai
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Set up Python ${{ matrix.python-version }}
+
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.11'
           cache: 'pip'
-      
+          cache-dependency-path: backend/requirements.txt
+
       - name: Install dependencies
         run: |
           cd backend
           pip install --upgrade pip
           pip install -r requirements.txt
-      
+          pip install ruff mypy pytest-cov
+
       - name: Lint with Ruff
         run: |
           cd backend
-          ruff check . --output-format=github || echo "Ruff linting completed with warnings"
-          ruff format --check . || echo "Ruff formatting check completed"
+          ruff check . --output-format=github || echo "::warning::Ruff linting completed with warnings"
+          ruff format --check . || echo "::warning::Ruff formatting check completed with warnings"
         continue-on-error: true
-      
+
       - name: Type check with MyPy
         run: |
           cd backend
-          mypy . --config-file=mypy.ini || echo "MyPy type checking completed with warnings"
+          mypy app/ --ignore-missing-imports || echo "::warning::MyPy type checking completed with warnings"
         continue-on-error: true
-      
+
       - name: Run tests with coverage
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://test.supabase.co' }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || 'test-key' }}
-          SECRET_KEY: test-secret-key-for-ci-32-chars-long
-          DEBUG: true
-          DATABASE_URL: sqlite:///test.db
+          SECRET_KEY: test-secret-key-for-ci-minimum-32-chars
+          CREDENTIAL_MASTER_KEY: ${{ secrets.CREDENTIAL_MASTER_KEY || 'dGVzdC1jcmVkZW50aWFsLW1hc3Rlci1rZXktZm9yLWNp' }}
+          DATABASE_URL: postgresql://kai:kai@localhost:5432/kai_test
+          ASYNC_DATABASE_URL: postgresql+asyncpg://kai:kai@localhost:5432/kai_test
+          ENVIRONMENT: testing
+          DEBUG: 'true'
+          DISABLE_DATABASE: 'false'
         run: |
           cd backend
-          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing || echo "Tests completed"
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing || echo "::warning::Tests completed with failures"
         continue-on-error: true
-      
+
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        if: success()
+        uses: codecov/codecov-action@v4
+        if: always()
         with:
           file: backend/coverage.xml
           flags: backend
           name: backend-coverage
-
-  docker-build:
-    needs: lint-and-test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository_owner == github.actor
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/flowise-fastapi-backend:latest
-            ${{ secrets.DOCKER_USERNAME }}/flowise-fastapi-backend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          fail_ci_if_error: false
 
   security-scan:
+    name: Security Scan
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      security-events: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -111,9 +104,41 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
         continue-on-error: true
-      
+
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v2
-        if: success()
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          sarif_file: 'trivy-results.sarif' 
+          sarif_file: 'trivy-results.sarif'
+
+  docker-build:
+    name: Docker Build & Push
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/kai-flow-backend:latest
+            ${{ secrets.DOCKER_USERNAME }}/kai-flow-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

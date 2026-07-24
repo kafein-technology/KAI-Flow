@@ -117,7 +117,7 @@ export default function FullscreenNodeModal({
   const pendingConfigValuesRef = useRef<Record<string, unknown> | null>(null);
   const prevHistoryRevisionRef = useRef(historyRevision);
   const nodeAliasRef = useRef(
-    configData?.name || nodeMetadata.display_name || nodeMetadata.name
+    configData?.name ?? nodeMetadata.display_name ?? nodeMetadata.name
   );
   const [nodeAlias, setNodeAlias] = useState(nodeAliasRef.current);
   const [nodeAliasError, setNodeAliasError] = useState<string | null>(null);
@@ -648,10 +648,10 @@ export default function FullscreenNodeModal({
   useEffect(() => {
     setConfigValues(configData);
     const alias =
-      configData?.name || nodeMetadata.display_name || nodeMetadata.name;
+      configData?.name ?? nodeMetadata.display_name ?? nodeMetadata.name;
     nodeAliasRef.current = alias;
     setNodeAlias(alias);
-    setNodeAliasError(null);
+    setNodeAliasError(validateNodeAlias(alias));
     // Sync workflow state into the form after undo/redo or when configData changes externally (e.g., import).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyRevision, configData]);
@@ -745,7 +745,7 @@ export default function FullscreenNodeModal({
                   {nodeMetadata.icon && (() => {
                     const iconObj = nodeMetadata.icon as any;
                     return (
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
                         {iconObj.path ? (
                           <img
                             src={resolveIconPath(iconObj.path)}
@@ -774,7 +774,7 @@ export default function FullscreenNodeModal({
                     {nodeMetadata.display_name || nodeMetadata.name}
                   </h1>
                 </div>
-                <div className="mt-2">
+                <div className="mt-2 relative">
                   <label className="block text-xs text-gray-400 mb-1">
                     Specify the node name for using node output.
                   </label>
@@ -790,11 +790,11 @@ export default function FullscreenNodeModal({
                     }
                   />
                   {nodeAliasError && (
-                      <div className="mt-1 text-xs text-yellow-400">
-                        {nodeAliasError}
-                      </div>
-                    )}
-                  </div>
+                    <div className="absolute top-full left-0 mt-0.5 text-xs text-yellow-400 whitespace-nowrap z-10">
+                      {nodeAliasError}
+                    </div>
+                  )}
+                </div>
                 </div>
               </div>
 
@@ -914,7 +914,7 @@ export default function FullscreenNodeModal({
             >
               <div className="p-4">
                 <div className="flex items-center gap-3 mb-6">
-                  <ArrowLeft className="w-5 h-5 text-purple-400" />
+                  <ArrowLeft className="w-5 h-5 text-blue-400" />
                   <h2 className="text-lg font-semibold text-white">
                     Output Data
                   </h2>
@@ -925,10 +925,10 @@ export default function FullscreenNodeModal({
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm mb-4">
                       <div className={`w-2 h-2 rounded-full animate-pulse ${
-                        executionData.outputs.success === false ? "bg-red-500" : "bg-purple-500"
+                        executionData.outputs.success === false ? "bg-red-500" : "bg-blue-500"
                       }`}></div>
                       <span className={`${
-                        executionData.outputs.success === false ? "text-red-400" : "text-purple-300"
+                        executionData.outputs.success === false ? "text-red-400" : "text-blue-300"
                       } font-medium`}>
                         {executionData.outputs.success === false ? "Execution Failed" : "Standardized JSON Output"}
                       </span>
@@ -947,9 +947,9 @@ export default function FullscreenNodeModal({
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-full flex items-center justify-center border border-purple-500/30">
-                      <ArrowLeft className="w-8 h-8 text-purple-400" />
-                    </div>
+                     <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-full flex items-center justify-center border border-blue-500/30">
+                       <ArrowLeft className="w-8 h-8 text-blue-400" />
+                     </div>
                     <div className="text-lg font-medium text-white mb-2">
                       {executionData?.status === "running"
                         ? "Processing..."

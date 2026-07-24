@@ -1,5 +1,7 @@
 {
   "id": "rag-usage-flow",
+  "category": "ai-ml",
+  "created_at": "2025-03-10T00:00:00.000Z",
   "name": "RAG Usage Flow",
   "description": "Complete RAG architecture with OpenAI LLM, embeddings, vector retrieval, and intelligent agent for document-based Q&A.",
   "colorFrom": "from-indigo-500",

@@ -15,7 +15,7 @@ import SmartSuggestionsSettingsModal from "../modals/SmartSuggestionsSettingsMod
 // Loading Component
 const LoadingNodes = () => (
   <div className="p-4 text-center">
-    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto mb-2"></div>
+    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
     <p className="text-sm text-gray-300">Loading nodes...</p>
   </div>
 );
@@ -33,7 +33,7 @@ const ErrorNodes = ({
     <p className="text-sm text-gray-300 mb-2">{error}</p>
     <button
       onClick={onRetry}
-      className="text-sm text-purple-400 hover:text-purple-300 flex items-center mx-auto"
+      className="text-sm text-blue-400 hover:text-blue-300 flex items-center mx-auto"
     >
       <RefreshCw className="h-3 w-3 mr-1" />
       Retry
@@ -166,7 +166,7 @@ function Sidebar({ onClose }: SidebarProps) {
         </div>
 
         {/* Search Input */}
-        <label className="input w-full rounded-2xl bg-transparent text-gray-100 border border-gray-600 flex items-center gap-2 px-2 py-1 mb-3 focus-within:border-purple-400">
+        <label className="input w-full rounded-2xl bg-transparent text-gray-100 border border-gray-600 flex items-center gap-2 px-2 py-1 mb-3 focus-within:border-blue-400">
           <Search className="h-4 w-4 text-gray-400" />
           <input
             type="search"

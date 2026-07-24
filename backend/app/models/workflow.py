@@ -13,6 +13,7 @@ class Workflow(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
+    category = Column(String(100), nullable=True)
     is_public = Column(Boolean, default=False, index=True)
     version = Column(Integer, default=1)
     error_workflow = Column(

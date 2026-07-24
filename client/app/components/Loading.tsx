@@ -26,7 +26,7 @@ export default function Loading({
     <div
       className={`flex flex-col items-center justify-center gap-2 ${className}`}
     >
-      <Loader2 className={`${spinnerSize} animate-spin text-purple-600`} />
+      <Loader2 className={`${spinnerSize} animate-spin text-blue-600`} />
       {message && <p className="text-gray-500 text-sm">{message}</p>}
     </div>
   );

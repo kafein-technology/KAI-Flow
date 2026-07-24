@@ -1,7 +1,12 @@
 // User Credential Service Template
 import { apiClient } from '~/lib/api-client';
 import { API_ENDPOINTS } from '~/lib/config';
-import type { UserCredential, CredentialDetailResponse, CredentialCreateRequest } from '~/types/api';
+import type {
+  UserCredential,
+  CredentialDetailResponse,
+  CredentialCreateRequest,
+  CredentialWorkflowUsageResponse,
+} from '~/types/api';
 
 export const getUserCredentials = async (): Promise<UserCredential[]> => {
   return await apiClient.get<UserCredential[]>(API_ENDPOINTS.CREDENTIALS.LIST);
@@ -34,5 +39,13 @@ export const testCredentialRaw = async (
   return await apiClient.post<{ success: boolean; message: string }>(
     API_ENDPOINTS.CREDENTIALS.TEST_RAW,
     { service_type: serviceType, data }
+  );
+};
+
+export const getCredentialWorkflows = async (
+  id: string
+): Promise<CredentialWorkflowUsageResponse> => {
+  return await apiClient.get<CredentialWorkflowUsageResponse>(
+    API_ENDPOINTS.CREDENTIALS.WORKFLOWS(id)
   );
 };

@@ -147,7 +147,7 @@ export default function ChatHistorySidebar({
   return (
     <div className="fixed inset-0 z-50 flex">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
 
       {/* Sidebar */}
       <div className="relative w-80 h-full bg-gray-900 border-r border-gray-700 flex flex-col">

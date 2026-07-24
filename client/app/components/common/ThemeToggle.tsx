@@ -24,7 +24,7 @@ export function ThemeToggle() {
             transition-all duration-500
             ${
               mode === "dark"
-                ? "bg-gradient-to-r from-indigo-900/30 to-purple-900/30"
+                ? "bg-gradient-to-r from-indigo-900/30 to-blue-900/30"
                 : "bg-gradient-to-r from-yellow-100/60 to-yellow-300/60"
             }
           `}

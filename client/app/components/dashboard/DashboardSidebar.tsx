@@ -252,11 +252,11 @@ const Sidebar = () => {
         {/* Logo */}
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300">
               <img src={resolveIconPath("logo.png")} alt="logo" className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
                 KAI Flow
               </h1>
               <p className="text-xs text-slate-400">AI Workflow Platform</p>
@@ -313,7 +313,7 @@ const Sidebar = () => {
                                 ? "bg-green-500/20 text-green-300"
                                 : result.type === "credential"
                                   ? "bg-orange-500/20 text-orange-300"
-                                  : "bg-purple-500/20 text-purple-300"
+                                  : "bg-sky-500/20 text-sky-300"
                             }`}
                         >
                           {result.type}
@@ -438,7 +438,7 @@ const Sidebar = () => {
         >
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-lg group-hover:shadow-blue-500/20 transition-all duration-200">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-lg group-hover:shadow-blue-500/20 transition-all duration-200">
                 <User className="w-5 h-5 text-white" />
               </div>
               <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-slate-800" />
@@ -486,8 +486,8 @@ function SidebarLink({
   const getVariantStyles = () => {
     if (variant === "action") {
       return active
-        ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-300 border border-blue-500/30"
-        : "text-slate-300 hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-purple-500/10 hover:text-blue-300";
+        ? "bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-300 border border-blue-500/30"
+        : "text-slate-300 hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-blue-600/10 hover:text-blue-300";
     }
 
     return active
@@ -525,7 +525,7 @@ function SidebarLink({
 
       {/* Active indicator */}
       {active && (
-        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-blue-400 to-purple-400 rounded-r-full" />
+        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-blue-400 to-blue-600 rounded-r-full" />
       )}
     </Link>
   );

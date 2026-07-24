@@ -11,15 +11,13 @@ import {
   Cloud,
   Settings,
 } from "lucide-react";
-import { testUserCredential, testCredentialRaw } from "~/services/userCredentialService";
+import { testUserCredential, testCredentialRaw, getUserCredentialById } from "~/services/userCredentialService";
 import React, { useState, useEffect } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useUserCredentialStore } from "../stores/userCredential";
 import type { CredentialCreateRequest, UserCredential } from "../types/api";
 import Loading from "~/components/Loading";
 import AuthGuard from "~/components/AuthGuard";
-import { apiClient } from "../lib/api-client";
-import { getUserCredentialById } from "~/services/userCredentialService";
 import ServiceSelectionModal from "../components/credentials/ServiceSelectionModal";
 import DynamicCredentialForm from "../components/credentials/DynamicCredentialForm";
 import CredentialCard from "../components/credentials/CredentialCard";
@@ -51,6 +49,11 @@ function CredentialsLayout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [editingInitialValues, setEditingInitialValues] = useState<Record<string, any>>({});
+  const resetCredentialModal = () => {
+    setSelectedService(null);
+    setEditingCredential(null);
+    setEditingInitialValues({});
+  };
 
   const servicesByCategory = getServicesByCategory();
   const categories = Object.keys(servicesByCategory);
@@ -127,6 +130,7 @@ function CredentialsLayout() {
     if (serviceDef) {
       setSelectedService(serviceDef);
     }
+
     try {
       const detail = await getUserCredentialById(credential.id);
       if (detail?.secret && typeof detail.secret === "object") {
@@ -161,9 +165,7 @@ function CredentialsLayout() {
       };
 
       await updateCredential(editingCredential.id, payload);
-      setEditingCredential(null);
-      setSelectedService(null);
-      setEditingInitialValues({});
+      resetCredentialModal();
     } catch (e: any) {
       console.error("Failed to update credential:", e);
     } finally {
@@ -208,7 +210,7 @@ function CredentialsLayout() {
               <div className="flex flex-col gap-6">
                 {/* Title and Description */}
                 <div className="flex flex-col gap-2">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <h1 className="text-4xl font-bold text-blue-600">
                     Credentials
                   </h1>
                   <p className="text-gray-600 text-lg">
@@ -223,7 +225,7 @@ function CredentialsLayout() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type="search"
-                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                       placeholder="Search credentials..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -232,7 +234,7 @@ function CredentialsLayout() {
 
                   {/* Connect Service Button */}
                   <button
-                    className="flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-auto"
+                    className="flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-auto"
                     onClick={() => setShowServiceSelection(true)}
                   >
                     <Plus className="w-5 h-5" />
@@ -286,8 +288,8 @@ function CredentialsLayout() {
               </div>
             ) : userCredentials.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-4 py-10">
-                <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center">
-                  <Shield className="w-12 h-12 text-purple-600" />
+                <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Shield className="w-12 h-12 text-blue-600" />
                 </div>
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-gray-900 mb-1">
@@ -298,7 +300,7 @@ function CredentialsLayout() {
                   </p>
                   <button
                     onClick={() => setShowServiceSelection(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 text-sm"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm"
                   >
                     Connect Your First Service
                   </button>
@@ -338,7 +340,7 @@ function CredentialsLayout() {
                           key={p}
                           onClick={() => setPage(p)}
                           className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-all duration-200 ${p === page
-                            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
+                            ? "bg-blue-600 text-white border-transparent shadow-lg"
                             : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
                             }`}
                         >
@@ -376,7 +378,7 @@ function CredentialsLayout() {
 
       {/* Dynamic Credential Form Modal */}
       {selectedService && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -386,11 +388,7 @@ function CredentialsLayout() {
                     : "Connect to " + selectedService.name}
                 </h2>
                 <button
-                  onClick={() => {
-                    setSelectedService(null);
-                    setEditingCredential(null);
-                    setEditingInitialValues({});
-                  }}
+                  onClick={resetCredentialModal}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <svg
@@ -416,11 +414,7 @@ function CredentialsLayout() {
                     ? handleUpdateCredential
                     : handleCredentialSubmit
                 }
-                onCancel={() => {
-                  setSelectedService(null);
-                  setEditingCredential(null);
-                  setEditingInitialValues({});
-                }}
+                onCancel={resetCredentialModal}
                 onTest={async (values) => {
                   const { name, ...data } = values;
                   return await testCredentialRaw(selectedService.id, data);

@@ -28,7 +28,7 @@ def setup_logging():
 
 def setup_langsmith():
     """Setup LangSmith tracing if enabled"""
-    if LANGCHAIN_TRACING_V2:
+    if str(LANGCHAIN_TRACING_V2).lower() in ("true", "1", "t"):
         os.environ["LANGCHAIN_TRACING_V2"] = "true"
         if LANGCHAIN_ENDPOINT:
             os.environ["LANGCHAIN_ENDPOINT"] = LANGCHAIN_ENDPOINT
