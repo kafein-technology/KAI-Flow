@@ -338,14 +338,18 @@ function WorkflowsLayout() {
       enqueueSnackbar(errorMessage, { variant: "error" });
     } finally {
       setIsDeleting(null);
-      setWorkflowToDelete(null);
       setShowDeleteConfirm(false);
+      setTimeout(() => {
+        setWorkflowToDelete(null);
+      }, 200);
     }
   };
 
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
-    setWorkflowToDelete(null);
+    setTimeout(() => {
+      setWorkflowToDelete(null);
+    }, 200);
   };
 
   const handleRetry = () => {
@@ -1197,11 +1201,10 @@ function WorkflowsLayout() {
       </main>
 
       {/* Delete Confirm Modal */}
-      <dialog
-        open={showDeleteConfirm}
-        className="modal modal-bottom sm:modal-middle"
+      <div
+        className={`modal modal-bottom sm:modal-middle ${showDeleteConfirm ? "!pointer-events-auto !visible !opacity-100 !bg-black/40" : ""}`}
       >
-        <div className="modal-box">
+        <div className={`modal-box ${showDeleteConfirm ? "!opacity-100 !translate-y-0 !scale-100" : ""}`}>
           <h3 className="font-bold text-lg">Delete Workflow</h3>
           <p className="py-4">
             Are you sure you want to delete "{workflowToDelete?.name}"?
@@ -1218,7 +1221,7 @@ function WorkflowsLayout() {
             </button>
           </div>
         </div>
-      </dialog>
+      </div>
 
       {/* DISABLED Modals
       { Remove External Workflow Confirm Modal }
