@@ -13,8 +13,10 @@ logger = logging.getLogger(__name__)
 # ================================================================================
 # SERPdive returns extracted, answer-ready page content instead of a list of
 # links, so the agent reads the sentences that answer the query rather than
-# fetching and cleaning pages itself. Two models: "mako" (fast, key sentences)
-# and "moby" (full readable page text). Mirrors the TavilySearchNode shape.
+# fetching and cleaning pages itself. Three models: "mako" (fast, key
+# sentences), "krill" (the free tier: unlimited under fair use, a smaller set of
+# them, one request at a time, at low priority) and "moby" (full readable page
+# text). Mirrors the TavilySearchNode shape.
 
 
 class SerpdiveSearchNode(ProviderNode):
@@ -30,7 +32,7 @@ class SerpdiveSearchNode(ProviderNode):
             "colors": ["teal-500", "cyan-600"],
             "inputs": [
                 NodeInput(name="max_results", type="int", default=5, description="The maximum number of results to return (1-10)."),
-                NodeInput(name="model", type="str", default="mako", choices=["mako", "moby"], description="Retrieval depth: 'mako' (fast, key sentences) or 'moby' (full page text)."),
+                NodeInput(name="model", type="str", default="mako", choices=["mako", "krill", "moby"], description="Retrieval depth: 'mako' (fast, key sentences), 'krill' (free and unlimited under fair use, smaller payload, low priority) or 'moby' (full page text)."),
                 NodeInput(name="answer", type="bool", default=True, description="Whether to include a written answer built from the sources."),
             ],
             "outputs": [
@@ -57,7 +59,7 @@ class SerpdiveSearchNode(ProviderNode):
                     displayName="Model",
                     type=NodePropertyType.SELECT,
                     default="mako",
-                    options=[{"label": "Mako (fast, key sentences)", "value": "mako"}, {"label": "Moby (full page text)", "value": "moby"}],
+                    options=[{"label": "Mako (fast, key sentences)", "value": "mako"}, {"label": "Krill (free, unlimited)", "value": "krill"}, {"label": "Moby (full page text)", "value": "moby"}],
                     required=True,
                 ),
                 NodeProperty(
@@ -211,7 +213,7 @@ SEARCH SUMMARY:
                     "SEARCH SUMMARY:",
                     f"- These web search results are the most relevant for the query '{query}'",
                     "- Search Engine: SERPdive API",
-                    f"- Model: {search_config['model']} (mako = key sentences, moby = full page text)",
+                    f"- Model: {search_config['model']} (mako = key sentences, krill = free tier, moby = full page text)",
                     "- Content is extracted, answer-ready page text, not just links",
                 ])
 
