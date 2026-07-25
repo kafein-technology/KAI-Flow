@@ -217,6 +217,7 @@ class DynamicTypeDetector:
             'Provider': NodeType.PROVIDER,
             'OpenAINode': NodeType.PROVIDER,
             'TavilySearchNode': NodeType.PROVIDER,
+            'SerpdiveSearchNode': NodeType.PROVIDER,
             'OpenAIChat': NodeType.PROVIDER,
             'OpenAIEmbeddingsProvider': NodeType.PROVIDER,
             
