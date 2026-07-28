@@ -1257,6 +1257,27 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     [setNodes, enqueueSnackbar]
   );
 
+  const removeNodeConnections = useCallback(
+    (nodeId: string) => {
+      const hasConnections = edges.some(
+        (edge) => edge.source === nodeId || edge.target === nodeId
+      );
+
+      if (!hasConnections) {
+        enqueueSnackbar("No connections to remove", { variant: "warning", autoHideDuration: 2000 });
+        setContextMenu(null);
+        return;
+      }
+
+      setEdges((currentEdges) =>
+        currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+      );
+      enqueueSnackbar("Node connections removed", { variant: "info", autoHideDuration: 2000 });
+      setContextMenu(null);
+    },
+    [edges, setEdges, enqueueSnackbar]
+  );
+
   // Auto-save function
   const handleAutoSave = useCallback(async () => {
     if (!autoSaveEnabled || !hasUnsavedChanges || !currentWorkflow) {
@@ -2175,6 +2196,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               y={contextMenu.y}
               nodeId={contextMenu.nodeId}
               onDuplicate={duplicateNode}
+              onRemoveConnections={removeNodeConnections}
               onClose={() => setContextMenu(null)}
             />
           )}
