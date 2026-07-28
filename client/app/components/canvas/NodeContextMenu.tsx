@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from "react";
-import { Copy } from "lucide-react";
+import { Copy, Unlink } from "lucide-react";
 
 interface NodeContextMenuProps {
     x: number;
     y: number;
     nodeId: string;
     onDuplicate: (nodeId: string) => void;
+    onRemoveConnections: (nodeId: string) => void;
     onClose: () => void;
 }
 
@@ -14,6 +15,7 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
     y,
     nodeId,
     onDuplicate,
+    onRemoveConnections,
     onClose,
 }) => {
     const menuRef = useRef<HTMLDivElement>(null);
@@ -51,6 +53,16 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
                 >
                     <Copy size={16} className="text-cyan-400" />
                     <span className="font-medium">Clone Node</span>
+                </button>
+                <button
+                    onClick={() => {
+                        onRemoveConnections(nodeId);
+                        onClose();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-cyan-50 hover:bg-white/10 transition-colors bg-transparent border-none cursor-pointer text-left focus:outline-none"
+                >
+                    <Unlink size={16} className="text-cyan-400" />
+                    <span className="font-medium">Remove Connections</span>
                 </button>
             </div>
         </div>
