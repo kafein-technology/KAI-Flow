@@ -67,7 +67,7 @@ interface FullscreenNodeModalProps {
   onConfigChange?: (values: any) => void;
   historyRevision?: number;
   configFlushRef?: React.MutableRefObject<(() => void) | null>;
-  onExecute?: () => void; // New execute function
+  onExecute?: (values: any) => void; // New execute function
   ConfigComponent: React.ComponentType<{
     configData: any;
     onSave: (values: any) => void;
@@ -804,12 +804,12 @@ export default function FullscreenNodeModal({
               </div>
               {onExecute && nodeMetadata.node_type === "processor" && (
                 <button
-                  onClick={onExecute}
+                  onClick={() => onExecute({ ...(pendingConfigValuesRef.current ?? configValues), name: nodeAliasRef.current })}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
-                  title="Execute this processor node"
+                  title="Run only this processor node"
                 >
                   <Play className="w-4 h-4" />
-                  Execute
+                  Run Node
                 </button>
               )}
               <button

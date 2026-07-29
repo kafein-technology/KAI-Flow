@@ -46,6 +46,16 @@ export const executeWorkflow = async (workflow_id: string, executionData: {
   return response;
 };
 
+export const executeNode = async (executionData: {
+  workflow_id: string;
+  flow_data: any;
+  node_id: string;
+  input_text?: string;
+  node_outputs?: Record<string, any>;
+}) => {
+  return apiClient.post<any>(API_ENDPOINTS.WORKFLOWS.EXECUTE_NODE, executionData);
+};
+
 export const deleteExecution = async (execution_id: string) => {
   return apiClient.delete(`/executions/${execution_id}`);
 };
