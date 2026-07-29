@@ -51,7 +51,7 @@ import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
 import FullscreenNodeModal from "../common/FullscreenNodeModal";
 import { TutorialButton } from "../tutorial";
 import LogPanel from "./LogPanel";
-import { executeWorkflowStream, getExecution } from "~/services/executionService";
+import { executeNode, executeWorkflowStream, getExecution } from "~/services/executionService";
 import GenericNode from "../node";
 
 // Import config components
@@ -1679,6 +1679,78 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     ]
   );
 
+  const handleSelectedNodeExecution = useCallback(
+    async (nodeId: string, configValues: Record<string, unknown>) => {
+      if (!currentWorkflow) {
+        enqueueSnackbar("No workflow selected", { variant: "error" });
+        return;
+      }
+
+      const selectedNode = nodes.find((node) => node.id === nodeId);
+      if (!selectedNode) {
+        enqueueSnackbar("Selected node not found", { variant: "error" });
+        return;
+      }
+      const nodeName = String(selectedNode.data?.name || selectedNode.type || nodeId);
+
+      const executionNodes = nodes.map((node) =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, ...configValues } }
+          : node
+      );
+
+      setNodeStatus((status) => ({ ...status, [nodeId]: "pending" }));
+      enqueueSnackbar("Executing node...", { variant: "info" });
+
+      try {
+        const result = await executeNode({
+          workflow_id: currentWorkflow.id,
+          flow_data: {
+            nodes: executionNodes as WorkflowNode[],
+            edges: edges as WorkflowEdge[],
+            settings: currentWorkflow.flow_data?.settings,
+          },
+          node_id: nodeId,
+          node_outputs: currentExecution?.result?.node_outputs,
+        });
+        const completedAt = new Date().toISOString();
+
+        setCurrentExecutionForWorkflow(currentWorkflow.id, {
+          id: `node-${nodeId}-${Date.now()}`,
+          workflow_id: currentWorkflow.id,
+          status: result.success ? "completed" : "failed",
+          started_at: completedAt,
+          completed_at: completedAt,
+          result: {
+            result: result.output,
+            executed_nodes: [nodeId],
+            node_outputs: {
+              ...(currentExecution?.result?.node_outputs || {}),
+              ...(result.node_outputs || { [nodeId]: result.output }),
+            },
+            session_id: result.session_id,
+            status: result.success ? "completed" : "failed",
+          },
+        } as any);
+        setNodeStatus((status) => ({
+          ...status,
+          [nodeId]: result.success ? "success" : "failed",
+        }));
+        enqueueSnackbar(
+          result.success
+            ? "Node executed successfully"
+            : result.error || `Could not run "${nodeName}" (${nodeId}). No error details were returned.`,
+          { variant: result.success ? "success" : "error" }
+        );
+      } catch (error: any) {
+        setNodeStatus((status) => ({ ...status, [nodeId]: "failed" }));
+        const errorMessage = error?.message || "Check the node configuration and required connections.";
+        enqueueSnackbar(`Could not run "${nodeName}" (${nodeId}): ${errorMessage}`, { variant: "error" });
+      }
+    },
+    [currentExecution, currentWorkflow, edges, enqueueSnackbar, nodes, setCurrentExecutionForWorkflow]
+  );
+
   // Error handling functions
   const handleErrorRetry = useCallback(() => {
     if (errorNodeId && currentWorkflow) {
@@ -2304,8 +2376,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             onConfigChange={handleNodeConfigChange}
             historyRevision={historyRevision}
             configFlushRef={configFlushRef}
-            onExecute={() =>
-              handleStartNodeExecution(fullscreenModal.nodeData?.id || "")
+            onExecute={(values) =>
+              handleSelectedNodeExecution(fullscreenModal.nodeData?.id || "", values)
             }
             ConfigComponent={fullscreenModal.configComponent}
             executionData={{

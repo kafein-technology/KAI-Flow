@@ -579,6 +579,8 @@ class AdhocExecuteRequest(BaseModel):
     session_id: Optional[str] = None
     chatflow_id: Optional[str] = None  # Yeni eklenen alan
     workflow_id: Optional[str] = None  # Execution kaydı için workflow_id
+    node_id: Optional[str] = None
+    node_outputs: Optional[Dict[str, Any]] = None
 
 
 # Use centralized JSON serialization utility
@@ -665,6 +667,58 @@ async def get_dashboard_stats(
             for day in sorted(day_stats.keys())
         ]
     return stats
+
+@router.post("/execute-node")
+async def execute_node(
+    req: AdhocExecuteRequest,
+    current_user: User = Depends(get_current_user_or_master_api_key),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Execute only the selected node without creating a workflow execution."""
+    if not req.workflow_id or not req.flow_data or not req.node_id:
+        raise HTTPException(status_code=400, detail="Workflow ID, flow data and node ID are required")
+
+    try:
+        workflow_id = uuid.UUID(req.workflow_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid workflow ID")
+
+    workflow_result = await db.execute(select(Workflow).filter(Workflow.id == workflow_id))
+    workflow = workflow_result.scalar_one_or_none()
+    if not workflow:
+        raise HTTPException(status_code=404, detail=f"Workflow {req.workflow_id} not found")
+    if workflow.user_id != current_user.id and not workflow.is_public:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    executor = get_workflow_executor()
+    session_id = executor.get_canvas_session_id(current_user.id, workflow_id)
+    user_context = executor.prepare_user_context(
+        user=current_user,
+        session_id=session_id,
+        workflow_id=workflow_id,
+        owner_id=workflow.user_id,
+    )
+
+    try:
+        build_result = executor.workflow_enhancer.enhanced_build(
+            flow_data=req.flow_data,
+            user_context=user_context,
+        )
+        engine = build_result[2]
+        result = await engine.base_builder.execute_node(
+            node_id=req.node_id,
+            inputs={"input": req.input_text},
+            session_id=session_id,
+            user_id=user_context["user_id"],
+            owner_id=user_context["owner_id"],
+            workflow_id=req.workflow_id,
+            node_outputs=req.node_outputs,
+        )
+        return make_json_serializable(result)
+    except Exception as exc:
+        logger.error(f"Node execution failed: {exc}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Failed to run node: {exc}")
+
 
 @router.post("/execute")
 async def execute_adhoc_workflow(

@@ -234,6 +234,18 @@ log_history = deque(maxlen=MAX_HISTORY)
 # Set to store connected subscribers' (queue, loop) tuples
 log_subscribers = set()
 
+def _push_log_to_subscriber(queue, msg):
+    """Safely push log message to subscriber queue, dropping oldest if full to avoid QueueFull exceptions."""
+    try:
+        if queue.full():
+            try:
+                queue.get_nowait()
+            except Exception:
+                pass
+        queue.put_nowait(msg)
+    except Exception:
+        pass
+
 class UIStreamWrapper:
     """Wrapper around stdout and stderr that captures everything written to the terminal
     and broadcasts it to connected UI clients.
@@ -248,7 +260,7 @@ class UIStreamWrapper:
             log_history.append(msg)
             for queue, loop in list(log_subscribers):
                 try:
-                    loop.call_soon_threadsafe(queue.put_nowait, msg)
+                    loop.call_soon_threadsafe(_push_log_to_subscriber, queue, msg)
                 except Exception:
                     pass
 
@@ -267,7 +279,7 @@ class GlobalLogHandler(logging.Handler):
             log_history.append(msg)
             for queue, loop in list(log_subscribers):
                 try:
-                    loop.call_soon_threadsafe(queue.put_nowait, msg)
+                    loop.call_soon_threadsafe(_push_log_to_subscriber, queue, msg)
                 except Exception:
                     pass
         except Exception:
