@@ -1,0 +1,101 @@
+{
+  "id": "mysql-crud-lifecycle",
+  "category": "integration",
+  "created_at": "2026-07-28T00:00:00.000Z",
+  "name": "MySQL Customer CRUD Lifecycle",
+  "description": "Insert, upsert, update, and select a demo customer in the local MySQL database. Select the same MySQL credential on each database node before running.",
+  "colorFrom": "from-cyan-600",
+  "colorTo": "to-blue-800",
+  "icon": { "name": "mysql", "path": "icons/mysql.svg", "alt": "MySQL" },
+  "flow_data": {
+    "nodes": [
+      {
+        "id": "StartNode__mysql_crud_start",
+        "data": { "name": "start_mysql_crud" },
+        "type": "StartNode",
+        "position": { "x": 80, "y": 260 }
+      },
+      {
+        "id": "MySQL__insert_demo_customer",
+        "data": {
+          "name": "insert_demo_customer",
+          "credential_id": "",
+          "operation": "insert",
+          "table": "customers",
+          "data_mode": "manual",
+          "values": "{\"email\":\"workflow-demo@example.com\",\"full_name\":\"Workflow Demo\",\"status\":\"lead\",\"country_code\":\"TR\",\"lifetime_value\":0}",
+          "query_batching": "single",
+          "skip_on_conflict": true,
+          "_active_optional_fields": ["skip_on_conflict"]
+        },
+        "type": "MySQL",
+        "position": { "x": 330, "y": 260 }
+      },
+      {
+        "id": "MySQL__upsert_demo_customer",
+        "data": {
+          "name": "upsert_demo_customer",
+          "credential_id": "",
+          "operation": "upsert",
+          "table": "customers",
+          "data_mode": "manual",
+          "match_column": "email",
+          "match_value": "workflow-demo@example.com",
+          "values": "{\"full_name\":\"Workflow Demo Customer\",\"status\":\"active\",\"country_code\":\"TR\",\"lifetime_value\":125.50}",
+          "query_batching": "transaction",
+          "_active_optional_fields": ["query_batching"]
+        },
+        "type": "MySQL",
+        "position": { "x": 590, "y": 260 }
+      },
+      {
+        "id": "MySQL__update_demo_customer",
+        "data": {
+          "name": "update_demo_customer",
+          "credential_id": "",
+          "operation": "update",
+          "table": "customers",
+          "data_mode": "manual",
+          "match_column": "email",
+          "match_value": "workflow-demo@example.com",
+          "values": "{\"lifetime_value\":249.90,\"status\":\"active\"}",
+          "query_batching": "independent",
+          "_active_optional_fields": ["query_batching"]
+        },
+        "type": "MySQL",
+        "position": { "x": 850, "y": 260 }
+      },
+      {
+        "id": "MySQL__select_demo_customer",
+        "data": {
+          "name": "select_demo_customer",
+          "credential_id": "",
+          "operation": "select",
+          "table": "customers",
+          "where": "[{\"column\":\"email\",\"condition\":\"=\",\"value\":\"workflow-demo@example.com\"}]",
+          "combine_conditions": "AND",
+          "return_all": false,
+          "limit": 10,
+          "output_columns": "id,email,full_name,status,country_code,lifetime_value,updated_at",
+          "sort": "[{\"column\":\"updated_at\",\"direction\":\"DESC\"}]",
+          "_active_optional_fields": []
+        },
+        "type": "MySQL",
+        "position": { "x": 1110, "y": 260 }
+      },
+      {
+        "id": "EndNode__mysql_crud_end",
+        "data": { "name": "mysql_crud_result" },
+        "type": "EndNode",
+        "position": { "x": 1370, "y": 260 }
+      }
+    ],
+    "edges": [
+      { "id": "mysql-crud-edge-1", "type": "custom", "source": "StartNode__mysql_crud_start", "target": "MySQL__insert_demo_customer", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-crud-edge-2", "type": "custom", "source": "MySQL__insert_demo_customer", "target": "MySQL__upsert_demo_customer", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-crud-edge-3", "type": "custom", "source": "MySQL__upsert_demo_customer", "target": "MySQL__update_demo_customer", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-crud-edge-4", "type": "custom", "source": "MySQL__update_demo_customer", "target": "MySQL__select_demo_customer", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-crud-edge-5", "type": "custom", "source": "MySQL__select_demo_customer", "target": "EndNode__mysql_crud_end", "sourceHandle": "output", "targetHandle": "target" }
+    ]
+  }
+}

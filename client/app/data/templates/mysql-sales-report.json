@@ -1,0 +1,47 @@
+{
+  "id": "mysql-sales-report",
+  "category": "integration",
+  "created_at": "2026-07-28T00:00:00.000Z",
+  "name": "MySQL Parameterized Sales Report",
+  "description": "Run a safe parameterized SQL report across customers and orders with detailed query output.",
+  "colorFrom": "from-sky-600",
+  "colorTo": "to-cyan-800",
+  "icon": { "name": "mysql", "path": "icons/mysql.svg", "alt": "MySQL" },
+  "flow_data": {
+    "nodes": [
+      {
+        "id": "StartNode__mysql_report_start",
+        "data": { "name": "start_mysql_report" },
+        "type": "StartNode",
+        "position": { "x": 260, "y": 320 }
+      },
+      {
+        "id": "MySQL__sales_report",
+        "data": {
+          "name": "mysql_sales_report",
+          "credential_id": "",
+          "operation": "execute_query",
+          "query": "SELECT c.email, c.full_name, COUNT(o.id) AS order_count, COALESCE(SUM(o.total_amount), 0) AS total_value FROM customers c LEFT JOIN orders o ON o.customer_id = c.id AND o.ordered_at >= $1 WHERE c.status = $2 GROUP BY c.id, c.email, c.full_name ORDER BY total_value DESC;",
+          "query_parameters": "[\"2026-01-01 00:00:00\",\"active\"]",
+          "query_batching": "single",
+          "large_numbers_output": "text",
+          "decimal_numbers": false,
+          "detailed_output": true,
+          "_active_optional_fields": ["query_batching", "large_numbers_output", "decimal_numbers", "detailed_output"]
+        },
+        "type": "MySQL",
+        "position": { "x": 560, "y": 320 }
+      },
+      {
+        "id": "EndNode__mysql_report_end",
+        "data": { "name": "mysql_report_result" },
+        "type": "EndNode",
+        "position": { "x": 860, "y": 320 }
+      }
+    ],
+    "edges": [
+      { "id": "mysql-report-edge-1", "type": "custom", "source": "StartNode__mysql_report_start", "target": "MySQL__sales_report", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-report-edge-2", "type": "custom", "source": "MySQL__sales_report", "target": "EndNode__mysql_report_end", "sourceHandle": "output", "targetHandle": "target" }
+    ]
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "id": "mysql-test-03-delete-commands",
+  "category": "integration",
+  "created_at": "2026-07-29T00:00:00.000Z",
+  "name": "MySQL Test 03 - Delete Commands",
+  "description": "Tests filtered DELETE with combined conditions, TRUNCATE, DROP, multi-statement setup, detailed output, verification queries, and cleanup using disposable mysql_test_* tables.",
+  "colorFrom": "from-red-600",
+  "colorTo": "to-cyan-800",
+  "icon": { "name": "mysql", "path": "icons/mysql.svg", "alt": "MySQL" },
+  "flow_data": {
+    "nodes": [
+      { "id": "StartNode__mysql_test_03_start", "data": { "name": "start_mysql_test_03" }, "type": "StartNode", "position": { "x": 40, "y": 300 } },
+      {
+        "id": "MySQL__mysql_test_03_setup",
+        "data": {
+          "name": "mysql_test_03_setup",
+          "credential_id": "",
+          "operation": "execute_query",
+          "query": "CREATE TABLE IF NOT EXISTS mysql_test_delete_rows (id INT PRIMARY KEY, status VARCHAR(20), amount DECIMAL(10,2)); CREATE TABLE IF NOT EXISTS mysql_test_truncate (id INT PRIMARY KEY); CREATE TABLE IF NOT EXISTS mysql_test_drop (id INT PRIMARY KEY); DELETE FROM mysql_test_delete_rows; DELETE FROM mysql_test_truncate; DELETE FROM mysql_test_drop; INSERT INTO mysql_test_delete_rows VALUES (1,'temporary',10),(2,'temporary',200),(3,'keep',300); INSERT INTO mysql_test_truncate VALUES (1),(2); INSERT INTO mysql_test_drop VALUES (1);",
+          "query_parameters": "[]",
+          "query_batching": "transaction",
+          "detailed_output": true,
+          "_active_optional_fields": ["query_batching", "detailed_output"]
+        },
+        "type": "MySQL",
+        "position": { "x": 260, "y": 300 }
+      },
+      {
+        "id": "MySQL__mysql_test_03_delete",
+        "data": {
+          "name": "mysql_test_03_filtered_delete",
+          "credential_id": "",
+          "operation": "delete_table",
+          "table": "mysql_test_delete_rows",
+          "delete_command": "delete",
+          "where": "[{\"column\":\"status\",\"condition\":\"=\",\"value\":\"temporary\"},{\"column\":\"amount\",\"condition\":\"<\",\"value\":\"100\"}]",
+          "combine_conditions": "AND",
+          "detailed_output": true,
+          "_active_optional_fields": ["detailed_output"]
+        },
+        "type": "MySQL",
+        "position": { "x": 490, "y": 300 }
+      },
+      {
+        "id": "MySQL__mysql_test_03_truncate",
+        "data": {
+          "name": "mysql_test_03_truncate",
+          "credential_id": "",
+          "operation": "delete_table",
+          "table": "mysql_test_truncate",
+          "delete_command": "truncate",
+          "where": "[]",
+          "combine_conditions": "AND",
+          "detailed_output": true,
+          "_active_optional_fields": ["detailed_output"]
+        },
+        "type": "MySQL",
+        "position": { "x": 720, "y": 300 }
+      },
+      {
+        "id": "MySQL__mysql_test_03_drop",
+        "data": {
+          "name": "mysql_test_03_drop",
+          "credential_id": "",
+          "operation": "delete_table",
+          "table": "mysql_test_drop",
+          "delete_command": "drop",
+          "where": "[]",
+          "combine_conditions": "AND",
+          "detailed_output": true,
+          "_active_optional_fields": ["detailed_output"]
+        },
+        "type": "MySQL",
+        "position": { "x": 950, "y": 300 }
+      },
+      {
+        "id": "MySQL__mysql_test_03_verify",
+        "data": {
+          "name": "mysql_test_03_verify",
+          "credential_id": "",
+          "operation": "execute_query",
+          "query": "SELECT COUNT(*) AS delete_rows_remaining FROM mysql_test_delete_rows; SELECT COUNT(*) AS truncate_rows_remaining FROM mysql_test_truncate; SHOW TABLES LIKE 'mysql_test_drop';",
+          "query_parameters": "[]",
+          "query_batching": "single",
+          "detailed_output": true,
+          "_active_optional_fields": ["query_batching", "detailed_output"]
+        },
+        "type": "MySQL",
+        "position": { "x": 1180, "y": 300 }
+      },
+      {
+        "id": "MySQL__mysql_test_03_cleanup",
+        "data": {
+          "name": "mysql_test_03_cleanup",
+          "credential_id": "",
+          "operation": "execute_query",
+          "query": "DROP TABLE IF EXISTS mysql_test_delete_rows; DROP TABLE IF EXISTS mysql_test_truncate; DROP TABLE IF EXISTS mysql_test_drop;",
+          "query_parameters": "[]",
+          "query_batching": "transaction",
+          "detailed_output": true,
+          "_active_optional_fields": ["query_batching", "detailed_output"]
+        },
+        "type": "MySQL",
+        "position": { "x": 1410, "y": 300 }
+      },
+      { "id": "EndNode__mysql_test_03_end", "data": { "name": "mysql_test_03_result" }, "type": "EndNode", "position": { "x": 1640, "y": 300 } }
+    ],
+    "edges": [
+      { "id": "mysql-test-03-edge-1", "type": "custom", "source": "StartNode__mysql_test_03_start", "target": "MySQL__mysql_test_03_setup", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-test-03-edge-2", "type": "custom", "source": "MySQL__mysql_test_03_setup", "target": "MySQL__mysql_test_03_delete", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-test-03-edge-3", "type": "custom", "source": "MySQL__mysql_test_03_delete", "target": "MySQL__mysql_test_03_truncate", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-test-03-edge-4", "type": "custom", "source": "MySQL__mysql_test_03_truncate", "target": "MySQL__mysql_test_03_drop", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-test-03-edge-5", "type": "custom", "source": "MySQL__mysql_test_03_drop", "target": "MySQL__mysql_test_03_verify", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-test-03-edge-6", "type": "custom", "source": "MySQL__mysql_test_03_verify", "target": "MySQL__mysql_test_03_cleanup", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-test-03-edge-7", "type": "custom", "source": "MySQL__mysql_test_03_cleanup", "target": "EndNode__mysql_test_03_end", "sourceHandle": "output", "targetHandle": "target" }
+    ]
+  }
+}

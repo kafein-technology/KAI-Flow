@@ -1,0 +1,46 @@
+{
+  "id": "mysql-safe-cleanup",
+  "category": "integration",
+  "created_at": "2026-07-28T00:00:00.000Z",
+  "name": "MySQL Filtered Event Cleanup",
+  "description": "Delete only disposable demo workflow events with combined filters. The template demonstrates the Delete Rows action without dropping or truncating a table.",
+  "colorFrom": "from-cyan-700",
+  "colorTo": "to-slate-800",
+  "icon": { "name": "mysql", "path": "icons/mysql.svg", "alt": "MySQL" },
+  "flow_data": {
+    "nodes": [
+      {
+        "id": "StartNode__mysql_cleanup_start",
+        "data": { "name": "start_mysql_cleanup" },
+        "type": "StartNode",
+        "position": { "x": 260, "y": 320 }
+      },
+      {
+        "id": "MySQL__cleanup_demo_events",
+        "data": {
+          "name": "cleanup_demo_events",
+          "credential_id": "",
+          "operation": "delete_table",
+          "table": "workflow_events",
+          "delete_command": "delete",
+          "where": "[{\"column\":\"event_key\",\"condition\":\"LIKE\",\"value\":\"demo-temp-%\"},{\"column\":\"processed\",\"condition\":\"=\",\"value\":true}]",
+          "combine_conditions": "AND",
+          "detailed_output": true,
+          "_active_optional_fields": ["detailed_output"]
+        },
+        "type": "MySQL",
+        "position": { "x": 560, "y": 320 }
+      },
+      {
+        "id": "EndNode__mysql_cleanup_end",
+        "data": { "name": "mysql_cleanup_result" },
+        "type": "EndNode",
+        "position": { "x": 860, "y": 320 }
+      }
+    ],
+    "edges": [
+      { "id": "mysql-cleanup-edge-1", "type": "custom", "source": "StartNode__mysql_cleanup_start", "target": "MySQL__cleanup_demo_events", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-cleanup-edge-2", "type": "custom", "source": "MySQL__cleanup_demo_events", "target": "EndNode__mysql_cleanup_end", "sourceHandle": "output", "targetHandle": "target" }
+    ]
+  }
+}

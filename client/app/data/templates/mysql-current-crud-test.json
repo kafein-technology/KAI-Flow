@@ -1,0 +1,179 @@
+{
+  "id": "mysql-current-crud-test",
+  "category": "integration",
+  "created_at": "2026-07-30T00:00:00.000Z",
+  "name": "MySQL Current Version - CRUD Test",
+  "description": "Tests the current normal MySQL node with setup, insert, upsert, update, filtered select, JSON-compatible output, and cleanup. Select the same MySQL credential on every MySQL node before execution.",
+  "colorFrom": "from-cyan-600",
+  "colorTo": "to-blue-800",
+  "icon": { "name": "mysql", "path": "icons/mysql.svg", "alt": "MySQL" },
+  "flow_data": {
+    "nodes": [
+      {
+        "id": "StickyNoteNode__mysql_current_crud_overview",
+        "type": "StickyNoteNode",
+        "position": { "x": 40, "y": 40 },
+        "width": 390,
+        "height": 190,
+        "style": { "width": 390, "height": 190 },
+        "data": {
+          "name": "mysql_crud_overview_note",
+          "colorIndex": 0,
+          "text": "# MySQL CRUD Testi\n\nBu workflow normal **MySQL** node'unun güncel sürümünü test eder. Sırasıyla test tablosu oluşturur, kayıt ekler, upsert ve update yapar, sonucu seçer ve test kaydını temizler."
+        }
+      },
+      {
+        "id": "StickyNoteNode__mysql_current_crud_credentials",
+        "type": "StickyNoteNode",
+        "position": { "x": 470, "y": 40 },
+        "width": 400,
+        "height": 190,
+        "style": { "width": 400, "height": 190 },
+        "data": {
+          "name": "mysql_crud_credentials_note",
+          "colorIndex": 6,
+          "text": "# Çalıştırmadan Önce\n\nHer MySQL node'unda aynı credential'ı seçin. Docker örneğini kullanıyorsanız database adı **kai_demo** olmalıdır. Credential UUID'si şablona bilerek eklenmemiştir."
+        }
+      },
+      {
+        "id": "StickyNoteNode__mysql_current_crud_result",
+        "type": "StickyNoteNode",
+        "position": { "x": 1210, "y": 40 },
+        "width": 470,
+        "height": 190,
+        "style": { "width": 470, "height": 190 },
+        "data": {
+          "name": "mysql_crud_result_note",
+          "colorIndex": 2,
+          "text": "# Beklenen Sonuç\n\n**Select Test Row** node'u `mysql-current-test@example.com` kaydını JSON uyumlu bir dizi içinde göstermelidir. `full_name` değeri **Current Version Upserted**, `status` değeri **active**, `score` değeri **150.75** olmalıdır. Sonraki node yalnız test kaydını siler."
+        }
+      },
+      {
+        "id": "StartNode__mysql_current_crud_start",
+        "type": "StartNode",
+        "position": { "x": 40, "y": 360 },
+        "data": { "name": "start_mysql_current_crud" }
+      },
+      {
+        "id": "MySQL__mysql_current_crud_setup",
+        "type": "MySQL",
+        "position": { "x": 250, "y": 360 },
+        "data": {
+          "name": "mysql_current_setup_table",
+          "credential_id": "",
+          "operation": "execute_query",
+          "query": "CREATE TABLE IF NOT EXISTS mysql_current_version_test (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, email VARCHAR(255) NOT NULL UNIQUE, full_name VARCHAR(160) NOT NULL, status VARCHAR(32) NOT NULL DEFAULT 'new', score DECIMAL(10,2) NOT NULL DEFAULT 0, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP); DELETE FROM mysql_current_version_test WHERE email = 'mysql-current-test@example.com';",
+          "query_parameters": "[]",
+          "query_batching": "transaction",
+          "detailed_output": true,
+          "_active_optional_fields": ["query_batching", "detailed_output"]
+        }
+      },
+      {
+        "id": "MySQL__mysql_current_crud_insert",
+        "type": "MySQL",
+        "position": { "x": 510, "y": 360 },
+        "data": {
+          "name": "mysql_current_insert_row",
+          "credential_id": "",
+          "operation": "insert",
+          "table": "mysql_current_version_test",
+          "data_mode": "manual",
+          "values": "{\"email\":\"mysql-current-test@example.com\",\"full_name\":\"Current Version Inserted\",\"status\":\"lead\",\"score\":25.5}",
+          "query_batching": "single",
+          "detailed_output": true,
+          "_active_optional_fields": ["query_batching", "detailed_output"]
+        }
+      },
+      {
+        "id": "MySQL__mysql_current_crud_upsert",
+        "type": "MySQL",
+        "position": { "x": 770, "y": 360 },
+        "data": {
+          "name": "mysql_current_upsert_row",
+          "credential_id": "",
+          "operation": "upsert",
+          "table": "mysql_current_version_test",
+          "data_mode": "manual",
+          "values": "{\"full_name\":\"Current Version Upserted\",\"status\":\"pending\",\"score\":100.25}",
+          "match_column": "email",
+          "match_value": "mysql-current-test@example.com",
+          "query_batching": "transaction",
+          "detailed_output": true,
+          "_active_optional_fields": ["query_batching", "detailed_output"]
+        }
+      },
+      {
+        "id": "MySQL__mysql_current_crud_update",
+        "type": "MySQL",
+        "position": { "x": 1030, "y": 360 },
+        "data": {
+          "name": "mysql_current_update_row",
+          "credential_id": "",
+          "operation": "update",
+          "table": "mysql_current_version_test",
+          "data_mode": "manual",
+          "values": "{\"status\":\"active\",\"score\":150.75}",
+          "match_column": "email",
+          "match_value": "mysql-current-test@example.com",
+          "query_batching": "single",
+          "detailed_output": true,
+          "_active_optional_fields": ["query_batching", "detailed_output"]
+        }
+      },
+      {
+        "id": "MySQL__mysql_current_crud_select",
+        "type": "MySQL",
+        "position": { "x": 1290, "y": 360 },
+        "data": {
+          "name": "mysql_current_select_test_row",
+          "credential_id": "",
+          "operation": "select",
+          "table": "mysql_current_version_test",
+          "where": "[{\"column\":\"email\",\"condition\":\"=\",\"value\":\"mysql-current-test@example.com\"},{\"column\":\"status\",\"condition\":\"=\",\"value\":\"active\"}]",
+          "combine_conditions": "AND",
+          "return_all": false,
+          "limit": 10,
+          "output_columns": "id,email,full_name,status,score,created_at",
+          "sort": "[{\"column\":\"id\",\"direction\":\"ASC\"}]",
+          "select_distinct": false,
+          "large_numbers_output": "text",
+          "decimal_numbers": true,
+          "detailed_output": false,
+          "_active_optional_fields": ["large_numbers_output", "decimal_numbers"]
+        }
+      },
+      {
+        "id": "MySQL__mysql_current_crud_cleanup",
+        "type": "MySQL",
+        "position": { "x": 1550, "y": 360 },
+        "data": {
+          "name": "mysql_current_cleanup_test_row",
+          "credential_id": "",
+          "operation": "delete_table",
+          "table": "mysql_current_version_test",
+          "delete_command": "delete",
+          "where": "[{\"column\":\"email\",\"condition\":\"=\",\"value\":\"mysql-current-test@example.com\"}]",
+          "combine_conditions": "AND",
+          "detailed_output": true,
+          "_active_optional_fields": ["detailed_output"]
+        }
+      },
+      {
+        "id": "EndNode__mysql_current_crud_end",
+        "type": "EndNode",
+        "position": { "x": 1810, "y": 360 },
+        "data": { "name": "mysql_current_crud_finished" }
+      }
+    ],
+    "edges": [
+      { "id": "mysql-current-crud-edge-1", "type": "custom", "source": "StartNode__mysql_current_crud_start", "target": "MySQL__mysql_current_crud_setup", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-current-crud-edge-2", "type": "custom", "source": "MySQL__mysql_current_crud_setup", "target": "MySQL__mysql_current_crud_insert", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-current-crud-edge-3", "type": "custom", "source": "MySQL__mysql_current_crud_insert", "target": "MySQL__mysql_current_crud_upsert", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-current-crud-edge-4", "type": "custom", "source": "MySQL__mysql_current_crud_upsert", "target": "MySQL__mysql_current_crud_update", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-current-crud-edge-5", "type": "custom", "source": "MySQL__mysql_current_crud_update", "target": "MySQL__mysql_current_crud_select", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-current-crud-edge-6", "type": "custom", "source": "MySQL__mysql_current_crud_select", "target": "MySQL__mysql_current_crud_cleanup", "sourceHandle": "output", "targetHandle": "input" },
+      { "id": "mysql-current-crud-edge-7", "type": "custom", "source": "MySQL__mysql_current_crud_cleanup", "target": "EndNode__mysql_current_crud_end", "sourceHandle": "output", "targetHandle": "target" }
+    ]
+  }
+}
