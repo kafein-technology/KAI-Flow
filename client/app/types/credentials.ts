@@ -1,3 +1,8 @@
+export interface FieldCondition {
+  field: string;
+  values: string[];
+}
+
 export interface ServiceField {
   name: string;
   label: string;
@@ -6,11 +11,10 @@ export interface ServiceField {
   placeholder?: string;
   default?: any;
   options?: { value: string; label: string }[];
+  showEmptyOption?: boolean;
   description?: string;
-  dependsOn?: {
-    field: string;
-    values: string[];
-  };
+  /** A single condition, or several that must all hold for the field to render. */
+  dependsOn?: FieldCondition | FieldCondition[];
   validation?: {
     minLength?: number;
     maxLength?: number;
@@ -377,6 +381,39 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         default: false,
         helpText: 'Toggle on if your endpoint requires HTTPS'
       }
+    ]
+  }
+  ,
+  {
+    id: 'mysql',
+    name: 'MySQL',
+    description: 'Connect to a MySQL database for workflow actions and permission-scoped Agent tools',
+    icon: 'mysql.svg',
+    category: 'database',
+    color: 'from-cyan-600 to-blue-700',
+    fields: [
+      { name: 'host', label: 'Host', type: 'text', required: false, default: 'localhost', placeholder: 'localhost', description: 'MySQL server hostname or IP address' },
+      { name: 'database', label: 'Database', type: 'text', required: false, placeholder: 'kai', description: 'Default database used by the connection' },
+      { name: 'username', label: 'User', type: 'text', required: false, placeholder: 'kai', description: 'MySQL account username' },
+      { name: 'password', label: 'Password', type: 'password', required: false, placeholder: '••••••••', description: 'MySQL account password' },
+      { name: 'port', label: 'Port', type: 'text', required: false, default: '3306', placeholder: '3306', description: 'MySQL TCP port' },
+      { name: 'connect_timeout', label: 'Connect Timeout (ms)', type: 'text', required: false, default: '10000', description: 'Maximum time allowed for the initial connection' },
+      { name: 'ssl', label: 'SSL', type: 'checkbox', required: false, default: false, description: 'Encrypt the MySQL connection with TLS' },
+      { name: 'ca_certificate', label: 'CA Certificate', type: 'textarea', required: false, dependsOn: { field: 'ssl', values: ['true'] }, description: 'Optional PEM certificate authority' },
+      { name: 'client_certificate', label: 'Client Certificate', type: 'textarea', required: false, dependsOn: { field: 'ssl', values: ['true'] }, description: 'Optional PEM client certificate' },
+      { name: 'client_private_key', label: 'Client Private Key', type: 'textarea', required: false, dependsOn: { field: 'ssl', values: ['true'] }, description: 'Optional PEM client private key' },
+      { name: 'ssh_tunnel', label: 'SSH Tunnel', type: 'checkbox', required: false, default: false, description: 'Reach MySQL through an SSH bastion host' },
+      { name: 'ssh_host', label: 'SSH Host', type: 'text', required: false, dependsOn: { field: 'ssh_tunnel', values: ['true'] }, description: 'SSH bastion hostname or IP' },
+      { name: 'ssh_port', label: 'SSH Port', type: 'text', required: false, default: '22', dependsOn: { field: 'ssh_tunnel', values: ['true'] } },
+      { name: 'ssh_username', label: 'SSH Username', type: 'text', required: false, dependsOn: { field: 'ssh_tunnel', values: ['true'] } },
+      {
+        name: 'ssh_authenticate_with', label: 'SSH Authenticate With', type: 'select', required: false,
+        default: 'password', showEmptyOption: false, dependsOn: { field: 'ssh_tunnel', values: ['true'] },
+        options: [{ value: 'password', label: 'Password' }, { value: 'private_key', label: 'Private Key' }]
+      },
+      { name: 'ssh_password', label: 'SSH Password', type: 'password', required: false, dependsOn: [{ field: 'ssh_tunnel', values: ['true'] }, { field: 'ssh_authenticate_with', values: ['password'] }] },
+      { name: 'ssh_private_key', label: 'SSH Private Key', type: 'textarea', required: false, dependsOn: [{ field: 'ssh_tunnel', values: ['true'] }, { field: 'ssh_authenticate_with', values: ['private_key'] }] },
+      { name: 'ssh_passphrase', label: 'SSH Key Passphrase', type: 'password', required: false, dependsOn: [{ field: 'ssh_tunnel', values: ['true'] }, { field: 'ssh_authenticate_with', values: ['private_key'] }] }
     ]
   }
 ];

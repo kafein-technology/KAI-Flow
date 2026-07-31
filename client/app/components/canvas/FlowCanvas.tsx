@@ -57,6 +57,7 @@ import GenericNode from "../node";
 // Import config components
 import { config } from "../../lib/config";
 import { GenericNodeForm } from "../node";
+import MySQLNodeForm from "../node/mysql/MySQLNodeForm";
 import { useWorkflowHistory, isEditableKeyboardTarget } from "../../lib/useWorkflowHistory";
 
 interface FlowCanvasProps {
@@ -344,6 +345,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         if (!acc[nodeType]) {
           if (nodeType === "StartNode" || nodeType === "EndNode") {
             acc[nodeType] = null;
+          } else if (nodeType === "MySQL") {
+            acc[nodeType] = MySQLNodeForm as React.ComponentType<any>;
           } else {
             acc[nodeType] = GenericNodeForm as React.ComponentType<any>;
           }
