@@ -119,6 +119,9 @@ class NodePropertyType(str, Enum):
     DATETIME = "datetime"
     CODE_EDITOR = "code-editor"
     SESSION_ID = "session-id"
+    DYNAMIC_SELECT = "dynamic-select"
+    COLUMN_MAPPER = "column-mapper"
+    CONDITION_BUILDER = "condition-builder"
 
 
 class NodeProperty(BaseModel):
@@ -234,6 +237,22 @@ class NodeProperty(BaseModel):
     minLength: Optional[int] = Field(
         default=None,
         description="Minimum length of the input"
+    )
+    optionsMethod: Optional[str] = Field(
+        default=None,
+        description="Name of the method on the node that returns the option list",
+        alias="optionsMethod"
+    )
+
+    optionsDependsOn: Optional[List[str]] = Field(
+        default=None,
+        description="Fields that trigger a refetch of the option list when they change",
+        alias="optionsDependsOn"
+    )
+
+    multiple: Optional[bool] = Field(
+        default=None,
+        description="Allow more than one value to be selected"
     )
     
     colSpan: Optional[int] = Field(

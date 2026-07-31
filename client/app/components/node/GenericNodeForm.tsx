@@ -20,6 +20,8 @@ import { FieldLabel, getFieldHelpText } from "./fields/FieldLabel";
 import TabNavigation from "../common/TabNavigation";
 import { useState, useRef, useEffect } from "react";
 import { Settings, Plus, X, ChevronDown } from "lucide-react";
+import { NodeDynamicSelect } from "./fields/NodeDynamicSelect";
+import { NodeColumnMapper } from "./fields/NodeColumnMapper";
 
 interface GenericNodeFormProps {
   initialValues?: GenericData;
@@ -87,6 +89,8 @@ export default function GenericNodeForm({
   onChange,
 }: GenericNodeFormProps) {
   const properties = configData?.metadata?.properties || [];
+  const nodeType =
+    configData?.metadata?.name || configData?.name || configData?.type;
 
   const tabs = properties.reduce((acc: any[], property: NodeProperty) => {
     const tabId = property.tabName || "basic";
@@ -236,7 +240,26 @@ export default function GenericNodeForm({
               // Check display options
               if (property.displayOptions?.show) {
                 const shouldShow = Object.entries(property.displayOptions.show).every(
-                  ([key, value]) => values[key] === value
+                  ([key, value]) => {
+                    const matches = (name: string, expected: any) => {
+                      const current = values[name];
+                      // "*" means the field only has to be filled in.
+                      if (expected === "*") {
+                        return current !== undefined && current !== null && current !== "";
+                      }
+                      return Array.isArray(expected)
+                        ? expected.includes(current)
+                        : current === expected;
+                    };
+
+                    // "_any" holds alternatives; matching one of them is enough.
+                    if (key === "_any" && value && typeof value === "object") {
+                      return Object.entries(value).some(([name, expected]) =>
+                        matches(name, expected)
+                      );
+                    }
+                    return matches(key, value);
+                  }
                 );
                 if (!shouldShow) return null;
               }
@@ -256,6 +279,23 @@ export default function GenericNodeForm({
                     );
                   case "select":
                     return <NodeSelect property={fullWidthProperty} values={values} />;
+
+                  case "dynamic-select":
+                    return (
+                      <NodeDynamicSelect
+                        property={fullWidthProperty}
+                        values={values}
+                        nodeType={nodeType}
+                      />
+                    );
+                  case "column-mapper":
+                    return (
+                      <NodeColumnMapper
+                        property={fullWidthProperty}
+                        values={values}
+                        nodeType={nodeType}
+                      />
+                    );
                   case "credential-select":
                     return (
                       <NodeCredentialSelect
@@ -392,7 +432,14 @@ export default function GenericNodeForm({
               }
 
               return (
-                <div key={property.name} className="col-span-2 bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                  <div
+                  key={property.name}
+                  className={
+                    property.type === "title"
+                      ? "col-span-2 pt-3 pb-1"
+                      : "col-span-2 bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3"
+                  }
+                >
                   {fieldComponent}
                 </div>
               );
