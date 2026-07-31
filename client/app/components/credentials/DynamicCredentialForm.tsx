@@ -64,8 +64,10 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
     values: Record<string, any>
   ): boolean => {
     if (!field.dependsOn) return true;
-    const depValue = values[field.dependsOn.field];
-    return field.dependsOn.values.includes(depValue);
+    const conditions = Array.isArray(field.dependsOn) ? field.dependsOn : [field.dependsOn];
+    return conditions.every((condition) =>
+      condition.values.includes(String(values[condition.field]))
+    );
   };
 
   const validateForm = (
@@ -134,7 +136,9 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             name={field.name}
             className="select select-bordered w-full bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 cursor-pointer"
           >
-            <option value="">Select {field.label}</option>
+            {field.showEmptyOption !== false && (
+              <option value="">Select {field.label}</option>
+            )}
             {field.options?.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
