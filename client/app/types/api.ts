@@ -420,12 +420,12 @@ export interface ChatMessageInput {
 
 // Webhook execution event types
 export interface ExecutionEvent {
-  type: "node_start" | "node_end" | "complete" | "workflow_complete" | "error" | "token";
+  type: "node_start" | "node_end" | "node_status" | "complete" | "workflow_complete" | "error" | "token";
   node_id?: string;
   output?: any;
   result?: any;
   error?: string;
-  status?: "success" | "failed" | "error";
+  status?: "pending" | "success" | "failed" | "error";
   previous_node_id?: string;
   edge_id?: string;
   edge_ids?: string[];
@@ -437,6 +437,10 @@ export interface ExecutionEvent {
   inputs?: Record<string, any>;
   inputs_meta?: Record<string, any>;
   node_outputs?: Record<string, any>;
+  execution_role?: "workflow" | "dependency";
+  node_statuses?: Record<string, "pending" | "success" | "failed">;
+  edge_statuses?: Record<string, "pending" | "success" | "failed">;
+  execution_node_id?: string;
   executed_nodes?: string[];
   session_id?: string;
 }

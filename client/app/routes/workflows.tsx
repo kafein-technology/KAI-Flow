@@ -40,6 +40,7 @@ import type {
 // import ExternalWorkflowChat from "~/components/external/ExternalWorkflowChat";
 // import ExternalWorkflowViewer from "~/components/external/ExternalWorkflowViewer";
 import { timeAgo } from "~/lib/dateFormatter";
+import { parseWorkflowJson } from "~/lib/workflowJson";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Link } from "react-router";
 import { useSnackbar } from "notistack";
@@ -279,14 +280,14 @@ function WorkflowsLayout() {
         const file = files[i];
         try {
           const text = await file.text();
-          const workflowData = JSON.parse(text);
+          const workflowData = parseWorkflowJson(text);
 
           // Create workflow using the store
           await createWorkflow({
             name: workflowData.name || `Imported Workflow ${i + 1}`,
             description: workflowData.description || "Imported workflow",
-            is_public: workflowData.is_public || false,
-            flow_data: workflowData.flow_data || { nodes: [], edges: [] },
+            is_public: workflowData.is_public ?? false,
+            flow_data: workflowData.flow_data,
           });
 
           successCount++;

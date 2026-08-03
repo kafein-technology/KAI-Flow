@@ -41,8 +41,9 @@ export interface NodeProperty {
   serviceType?: string;
   rows?: number;
   displayOptions?: {
-    show: Record<string, any>;
-  };
+    show?: Record<string, any>;
+    [key: string]: any;
+  } | Record<string, any>;
   [key: string]: any;
 }
 

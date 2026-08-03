@@ -187,6 +187,11 @@ class OpenAIEmbeddingsProvider(ProviderNode):
             if secret:
                 openai_api_key = secret.get('api_key')
 
+        if credential_id and not openai_api_key:
+            raise ValueError(
+                "The selected OpenAI credential has no API key."
+            )
+
         model = kwargs.get("model") or self.user_data.get("model", "text-embedding-3-small")
         request_timeout = kwargs.get("request_timeout") or self.user_data.get("request_timeout", 60)
         max_retries = kwargs.get("max_retries") or self.user_data.get("max_retries", 3)

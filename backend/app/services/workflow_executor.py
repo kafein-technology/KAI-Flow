@@ -478,6 +478,32 @@ class WorkflowExecutor:
                     final_outputs: Dict[str, Any] = {}
                     execution_failed = False
                     error_msg = None
+
+                    def _capture_stream_metadata(chunk: Dict[str, Any]) -> None:
+                        reported_outputs = chunk.get("node_outputs")
+                        if isinstance(reported_outputs, dict):
+                            final_outputs["node_outputs"] = {
+                                **final_outputs.get("node_outputs", {}),
+                                **reported_outputs,
+                            }
+
+                        reported_nodes = chunk.get("executed_nodes")
+                        if isinstance(reported_nodes, list):
+                            final_outputs["executed_nodes"] = list(dict.fromkeys([
+                                *final_outputs.get("executed_nodes", []),
+                                *reported_nodes,
+                            ]))
+
+                        reported_statuses = chunk.get("node_statuses")
+                        if isinstance(reported_statuses, dict):
+                            final_outputs["node_statuses"] = {
+                                **final_outputs.get("node_statuses", {}),
+                                **reported_statuses,
+                            }
+
+                        for key in ("session_id", "errors"):
+                            if key in chunk:
+                                final_outputs[key] = chunk.get(key)
                     
                     stream_task = asyncio.current_task()
                     if stream_task and execution_id:
@@ -491,6 +517,8 @@ class WorkflowExecutor:
                                 if chunk.get("type") == "error":
                                     execution_failed = True
                                     error_msg = chunk.get("error")
+                                    final_outputs["result"] = f"ERROR: {error_msg or 'Workflow execution failed'}"
+                                    _capture_stream_metadata(chunk)
                                     logger.warning(f"Error chunk detected in stream for {execution_id}: {error_msg}")
                                 
                                 # Process completion and token data
@@ -508,9 +536,7 @@ class WorkflowExecutor:
                                             llm_output += chunk_result.get("output", "")
                                         final_outputs.update(chunk_result)
 
-                                    for key in ("node_outputs", "executed_nodes", "session_id", "errors"):
-                                        if key in chunk:
-                                            final_outputs[key] = chunk.get(key)
+                                    _capture_stream_metadata(chunk)
                             yield chunk
 
                         # Determine final status

@@ -558,6 +558,11 @@ class OpenAINode(BaseNode):
             cred = self.get_credential(credential_id)
             if cred and cred.get('secret'):
                 api_key = cred.get('secret').get('api_key')
+
+        if credential_id and not api_key:
+            raise ValueError(
+                "The selected OpenAI credential has no API key."
+            )
         
         if not api_key:
             import os

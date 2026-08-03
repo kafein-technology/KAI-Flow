@@ -27,6 +27,82 @@ from typing import Any, List, Dict, Optional, Union, Annotated
 from datetime import datetime
 import logging
 
+RUNTIME_NODE_STATUSES_KEY = "__kai_runtime_node_statuses"
+
+
+def _state_variables(state: Any) -> Dict[str, Any]:
+    """Return the mutable execution-variable bag for dict and FlowState inputs."""
+    if isinstance(state, dict):
+        variables = state.setdefault("variables", {})
+    else:
+        variables = getattr(state, "variables", None)
+        if variables is None:
+            variables = {}
+            state.variables = variables
+    return variables
+
+
+def set_runtime_node_status(state: Any, node_id: str, status: str) -> None:
+    """Record the lifecycle of a node actually attempted during this run."""
+    if not node_id:
+        return
+    variables = _state_variables(state)
+
+    # When running inside a LangGraph Runnable, surface dependency lifecycle
+    # changes immediately instead of waiting for the parent node to finish.
+    try:
+        from langchain_core.callbacks import dispatch_custom_event
+
+        dispatch_custom_event(
+            "kai_node_status",
+            {"node_id": node_id, "status": status},
+        )
+    except RuntimeError:
+        # Direct/synchronous calls may not have an active callback context.
+        pass
+    statuses = variables.setdefault(RUNTIME_NODE_STATUSES_KEY, {})
+    statuses[node_id] = status
+
+
+def get_runtime_node_statuses(state: Any) -> Dict[str, str]:
+    """Return a copy safe to place on streaming events and exceptions."""
+    variables = _state_variables(state)
+    statuses = variables.get(RUNTIME_NODE_STATUSES_KEY, {})
+    return dict(statuses) if isinstance(statuses, dict) else {}
+
+
+
+def attach_runtime_execution_context(error: Any, state: Any) -> None:
+    """Attach the latest execution data to an error crossing the graph boundary."""
+    context = getattr(error, "context", None)
+    if not isinstance(context, dict):
+        return
+
+    if isinstance(state, dict):
+        node_outputs = state.get("node_outputs", {})
+        executed_nodes = state.get("executed_nodes", [])
+    else:
+        node_outputs = getattr(state, "node_outputs", {})
+        executed_nodes = getattr(state, "executed_nodes", [])
+
+    existing_outputs = context.get("node_outputs", {})
+    context["node_outputs"] = {
+        **(node_outputs if isinstance(node_outputs, dict) else {}),
+        **(existing_outputs if isinstance(existing_outputs, dict) else {}),
+    }
+    context["executed_nodes"] = list(dict.fromkeys([
+        *(executed_nodes if isinstance(executed_nodes, list) else []),
+        *(context.get("executed_nodes", []) if isinstance(context.get("executed_nodes"), list) else []),
+    ]))
+    context["node_statuses"] = {
+        **get_runtime_node_statuses(state),
+        **(
+            context.get("node_statuses", {})
+            if isinstance(context.get("node_statuses"), dict)
+            else {}
+        ),
+    }
+
 
 def merge_node_outputs(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, Any]:
     """

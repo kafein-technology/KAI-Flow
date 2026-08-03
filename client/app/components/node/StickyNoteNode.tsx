@@ -3,6 +3,7 @@ import { NodeResizer, useReactFlow } from "@xyflow/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Trash, Palette } from "lucide-react";
+import { getExecutionStatusStyle, PendingWormRing } from "~/lib/nodeStatusUtils";
 
 const COLORS = [
   { bg: "#fff5d6", border: "#f6c036", borderUnselected: "#eede8e" }, // Varsayılan renk
@@ -143,9 +144,13 @@ function StickyNoteNode({ id, data, selected }: StickyNoteNodeProps) {
           style={{
             backgroundColor: currentColor.bg,
             border: selected ? `2px solid ${currentColor.border}` : `1px solid ${currentColor.borderUnselected}`,
+            ...getExecutionStatusStyle(data?.executionStatus),
           }}
           onDoubleClick={handleDoubleClick}
         >
+          {data?.executionStatus === "pending" && (
+            <PendingWormRing borderRadius="0.125rem" rx={4} />
+          )}
           {/* Main content area - overflow-hidden to hide scroll in view mode */}
           <div className="flex-1 w-full h-full overflow-hidden">
             {isEditing ? (
