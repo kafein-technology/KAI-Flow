@@ -281,6 +281,44 @@ class RetrieverProvider(ProviderNode):
             ],
         }
 
+    def validate_configuration(self, **inputs) -> None:
+        """Validate Retriever's own settings before resolving child providers."""
+        credential_id = inputs.get("credential_id") or self.user_data.get(
+            "credential_id"
+        )
+        if not credential_id:
+            raise ValueError(
+                "Credential selection is required for Retriever Provider. "
+                "Please select a valid database credential."
+            )
+
+        credential = self.get_credential(credential_id)
+        if not credential:
+            raise ValueError(
+                f"Selected credential with ID '{credential_id}' could not be found. "
+                "Please configure a valid credential."
+            )
+
+        secret = credential.get("secret")
+        if not secret:
+            raise ValueError(
+                "Selected credential contains no secret configuration. "
+                "Please update the credential details."
+            )
+
+        required_fields = ("host", "database", "username", "password")
+        if any(not secret.get(field) for field in required_fields):
+            raise ValueError(
+                "Missing required database credentials "
+                "(host, database, username, or password) in selected credential."
+            )
+
+        collection_name = inputs.get("collection_name") or self.user_data.get(
+            "collection_name"
+        )
+        if not collection_name:
+            raise ValueError("Collection name is required for Retriever Provider.")
+
     def execute(self, **inputs) -> Dict[str, Any]:
         """
         Create retriever tool from existing vector database.
@@ -301,11 +339,16 @@ class RetrieverProvider(ProviderNode):
             embedder = inputs.get("embedder")
             reranker = inputs.get("reranker")  # Optional
 
-            # Get credential_id and extract credential data (like VectorStoreOrchestrator)
-            credential_id = self.user_data.get("credential_id")
-            credential = self.get_credential(credential_id) if credential_id else None
-            
-            # Extract database connection from credential (with null safety)
+            # Get credential_id and extract credential data
+            credential_id = inputs.get("credential_id") or self.user_data.get("credential_id")
+            if not credential_id:
+                raise ValueError("Credential selection is required for Retriever Provider. Please select a valid database credential.")
+
+            credential = self.get_credential(credential_id)
+            if not credential:
+                raise ValueError(f"Selected credential with ID '{credential_id}' could not be found. Please configure a valid credential.")
+
+            # Extract database connection from credential
             database_connection = None
             if credential and credential.get('secret'):
                 secret = credential['secret']
@@ -317,20 +360,22 @@ class RetrieverProvider(ProviderNode):
                 username = secret.get('username')
                 password = secret.get('password')
                 
-                if database and username and password:
+                if database and username and password and host:
                     # Build connection string
                     database_connection = f"postgresql://{username}:{password}@{host}:{port}/{database}"
                     logger.info(f"Connected to vector database: {host}:{port}/{database}")
                 else:
-                    logger.warning("Missing required database credentials (database, username, or password)")
+                    raise ValueError("Missing required database credentials (host, database, username, or password) in selected credential.")
+            else:
+                raise ValueError("Selected credential contains no secret configuration. Please update the credential details.")
 
             # Validation
             if not database_connection:
-                raise ValueError("Database connection is required. Please provide database credentials.")
+                raise ValueError("Database connection is required. Please select valid database credentials.")
             if not collection_name:
-                raise ValueError("Collection name is required")
+                raise ValueError("Collection name is required for Retriever Provider.")
             if not embedder:
-                raise ValueError("Embedder service is required - connect an embeddings provider")
+                raise ValueError("Embedder service is required - please connect an embeddings provider to the Retriever Node.")
 
             # Parse metadata filter
             try:
@@ -539,19 +584,15 @@ class RetrieverProvider(ProviderNode):
 
                 return "\n".join(result_parts)
 
-            except Exception as e:
-                error_msg = str(e)
-                logger.warning(f"Search failed for collection {collection_name}: {error_msg}")
-                return f"""[SEARCH] SEARCH RESULTS - {collection_name}
-    Query: A technical issue occurred while searching for '{query}'.
-    
-    # WARNING: ERROR DETAILS:
-    {error_msg}
-    
-    SEARCH SUMMARY:
-    - Search could not be completed due to technical issues
-    - Collection: {collection_name}
-    - Please try again with different search terms"""
+            except Exception as error:
+                logger.exception(
+                    "Retriever search failed for collection %s and query %r",
+                    collection_name,
+                    query,
+                )
+                raise RuntimeError(
+                    f"Retriever search failed for collection '{collection_name}': {error}"
+                ) from error
 
         # Create tool with descriptive name
         tool_name = f"search_{collection_name}"

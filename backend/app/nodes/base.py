@@ -639,6 +639,13 @@ class BaseNode(ABC):
         meta = getattr(self, "_metadata", {})
         return meta.get("condition")
 
+    def validate_configuration(self, **inputs) -> None:
+        """Validate this node's own settings before resolving dependencies.
+
+        Dependency-aware nodes override this hook when ordering matters.
+        """
+        return None
+
     def execute(self, *args, **kwargs) -> Runnable:
         """Main execution method.
 
@@ -791,11 +798,9 @@ class BaseNode(ABC):
                     state.node_outputs = {}
                 state.node_outputs[node_id] = standard_error_output
                 
-                return {
-                    "errors": state.errors,
-                    "last_output": f"ERROR: {error_msg}",
-                    "node_outputs": state.node_outputs
-                }
+                # Recording an error is not a successful node result. Let the
+                # execution layer preserve ownership and publish a failed status.
+                raise
         
         return graph_node_function
     
@@ -818,7 +823,9 @@ class BaseNode(ABC):
                 executed_result = result.invoke(invoke_input)
                 return executed_result
             except Exception as e:
-                return f"Runnable execution error: {str(e)}"
+                raise RuntimeError(
+                    f"Runnable execution error: {str(e)}"
+                ) from e
         
         # For other types, ensure JSON-serializable
         try:

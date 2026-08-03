@@ -25,7 +25,9 @@ class ErrorTriggerNode(BaseNode):
             "name": "ErrorTrigger",
             "display_name": "Error Trigger",
             "description": "Runs when a linked workflow fails; receives injected error_data.",
-            "node_type": NodeType.PROVIDER,
+            # Error Trigger emits serializable workflow data and participates
+            # directly in control flow; it is not a lazily-resolved provider.
+            "node_type": NodeType.TERMINATOR,
             "category": "Triggers",
             "colors": ["green-500", "emerald-600"],
             "icon": {"name": "error_trigger", "path": "icons/error_trigger.svg", "alt": "Error Trigger"},

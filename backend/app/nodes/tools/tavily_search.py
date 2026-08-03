@@ -127,6 +127,11 @@ class TavilySearchNode(ProviderNode):
                 cred = self.get_credential(credential_id)
                 if cred and cred.get('secret'):
                     api_key = cred.get('secret').get('api_key')
+
+            if credential_id and not api_key:
+                raise ValueError(
+                    "The selected Tavily credential has no API key."
+                )
                         
             if not api_key:
                 api_key = os.getenv("TAVILY_API_KEY")
@@ -207,6 +212,9 @@ class TavilySearchNode(ProviderNode):
                 logger.info(f"   API Test: Success ({len(str(test_result))} chars)")
             except Exception as test_error:
                 logger.error(f"   API Test: Failed ({str(test_error)[:50]}...)")
+                raise ValueError(
+                    "Tavily credential validation failed."
+                ) from test_error
 
             # 7. Create agent-ready tool
             search_tool = self._create_search_tool(tavily_search, search_config)
@@ -338,18 +346,11 @@ SEARCH SUMMARY:
 
                 return "\n".join(result_parts)
 
-            except Exception as e:
-                error_msg = str(e)
-                return f"""WEB SEARCH RESULTS - Tavily
-Query: A technical issue occurred while searching for '{query}'.
-
-ERROR DETAILS:
-{error_msg}
-
-SEARCH SUMMARY:
-- Web search could not be completed due to technical issues
-- Search Engine: Tavily API
-- Please try again with different search terms"""
+            except Exception as error:
+                logger.exception(
+                    "Tavily search failed for query %r", query
+                )
+                raise RuntimeError(f"Tavily search failed: {error}") from error
 
         # Create tool with descriptive name and description
         return Tool(

@@ -416,6 +416,11 @@ class OpenAICompatibleNode(BaseNode):
                 cred_verify_ssl = not bool(skip_ssl)
                 logger.info(f"[DEBUG][COMPATIBLE] API key length: {len(api_key_value)}")
 
+        if credential_id and not api_key_value:
+            raise ValueError(
+                "The selected OpenAI-compatible credential has no API key."
+            )
+
         # Resolve base URL with priority: kwargs -> credential -> self.user_data
         base_url = kwargs.get("base_url") or cred_base_url or self.user_data.get("base_url")
         if not base_url:

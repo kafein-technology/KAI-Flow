@@ -21,6 +21,10 @@ import WidgetExportModal from "../modals/WidgetExportModal";
 import ErrorWorkflowModal from "../modals/ErrorWorkflowModal";
 import WorkflowService from "~/services/workflows";
 import { useNodeStore } from "~/stores/nodes";
+import {
+  getWorkflowJsonErrorMessage,
+  parseWorkflowJson,
+} from "~/lib/workflowJson";
 
 interface NavbarProps {
   workflowName: string;
@@ -141,81 +145,110 @@ const Navbar: React.FC<NavbarProps> = ({
     enqueueSnackbar("Workflow name updated", { variant: "success" });
   };
 
-  const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleLoad = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        if (setCurrentWorkflow && setNodes && setEdges) {
-          let nodeStore = useNodeStore.getState();
-          if (nodeStore.nodes.length === 0) {
-            await nodeStore.fetchNodes();
-            await nodeStore.fetchCategories();
-          }
-          if (nodeStore.customNodes.length === 0) {
-            await nodeStore.fetchCustomNodes();
-          }
-          nodeStore = useNodeStore.getState();
 
-          const allNodesMetadata = [...(nodeStore.nodes || []), ...(nodeStore.customNodes || [])];
-          const enrichedNodes = (json.flow_data?.nodes || []).map((node: any) => {
-            if (!node.data?.metadata && allNodesMetadata.length > 0) {
-              const metadata = allNodesMetadata.find(
-                m => m.name === node.type || (m as any).id === node.type
-              ) as any;
-
-              if (metadata) {
-                return {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    metadata: metadata,
-                    icon: metadata.icon,
-                    description: metadata.description,
-                    displayName: metadata.display_name,
-                    inputs: metadata.inputs,
-                    outputs: metadata.outputs,
-                  }
-                };
-              }
-            }
-            return node;
-          });
-
-          if (onImportStart) onImportStart();
-
-          if (currentWorkflow && setCurrentWorkflow) {
-            setCurrentWorkflow({
-              ...currentWorkflow,
-              name: json.name || currentWorkflow.name,
-              flow_data: {
-                ...currentWorkflow.flow_data,
-                nodes: enrichedNodes,
-                edges: json.flow_data?.edges || []
-              }
-            });
-          } else if (setCurrentWorkflow) {
-            setCurrentWorkflow(null);
-          }
-
-          setNodes(enrichedNodes);
-          setEdges(json.flow_data?.edges || []);
-          onWorkflowImported?.(enrichedNodes, json.flow_data?.edges || []);
-          if (json.name) {
-            setWorkflowName(json.name);
-          }
-          enqueueSnackbar("Workflow loaded successfully!", { variant: "success" });
-        }
-      } catch (err) {
-        console.error("Load error:", err);
-        enqueueSnackbar("Invalid JSON file!", { variant: "error" });
-      }
-    };
-    reader.readAsText(file);
     setIsDropdownOpen(false);
-    e.target.value = "";
+    input.value = "";
+
+    let importedWorkflow;
+    try {
+      importedWorkflow = parseWorkflowJson(await file.text());
+    } catch (error) {
+      console.error("Workflow JSON parse error:", error);
+      enqueueSnackbar(getWorkflowJsonErrorMessage(error), { variant: "error" });
+      return;
+    }
+
+    if (!setCurrentWorkflow || !setNodes || !setEdges) {
+      enqueueSnackbar("Canvas import is not available in this view.", {
+        variant: "error",
+      });
+      return;
+    }
+
+    try {
+      let nodeStore = useNodeStore.getState();
+      const metadataLoads: Promise<void>[] = [];
+      if (nodeStore.nodes.length === 0) {
+        metadataLoads.push(nodeStore.fetchNodes());
+      }
+      if (nodeStore.customNodes.length === 0) {
+        metadataLoads.push(nodeStore.fetchCustomNodes());
+      }
+
+      if (metadataLoads.length > 0) {
+        const metadataResults = await Promise.allSettled(metadataLoads);
+        metadataResults.forEach((result) => {
+          if (result.status === "rejected") {
+            console.warn(
+              "Node metadata could not be refreshed; importing raw workflow nodes.",
+              result.reason,
+            );
+          }
+        });
+      }
+      nodeStore = useNodeStore.getState();
+
+      const allNodesMetadata = [
+        ...(nodeStore.nodes || []),
+        ...(nodeStore.customNodes || []),
+      ];
+      const importedNodes = importedWorkflow.flow_data.nodes;
+      const importedEdges = importedWorkflow.flow_data.edges;
+      const enrichedNodes = importedNodes.map((node: any) => {
+        if (!node.data?.metadata && allNodesMetadata.length > 0) {
+          const metadata = allNodesMetadata.find(
+            (candidate) =>
+              candidate.name === node.type || (candidate as any).id === node.type,
+          ) as any;
+
+          if (metadata) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                metadata,
+                icon: metadata.icon,
+                description: metadata.description,
+                displayName: metadata.display_name,
+                inputs: metadata.inputs,
+                outputs: metadata.outputs,
+              },
+            };
+          }
+        }
+        return node;
+      });
+
+      onImportStart?.();
+
+      if (currentWorkflow) {
+        setCurrentWorkflow({
+          ...currentWorkflow,
+          name: importedWorkflow.name || currentWorkflow.name,
+          flow_data: {
+            ...currentWorkflow.flow_data,
+            ...importedWorkflow.flow_data,
+            nodes: enrichedNodes,
+            edges: importedEdges,
+          },
+        });
+      }
+
+      setNodes(enrichedNodes);
+      setEdges(importedEdges);
+      onWorkflowImported?.(enrichedNodes, importedEdges);
+      if (importedWorkflow.name) {
+        setWorkflowName(importedWorkflow.name);
+      }
+      enqueueSnackbar("Workflow loaded successfully!", { variant: "success" });
+    } catch (error) {
+      console.error("Canvas workflow import error:", error);
+      enqueueSnackbar(getWorkflowJsonErrorMessage(error), { variant: "error" });
+    }
   };
 
   const handleExport = () => {

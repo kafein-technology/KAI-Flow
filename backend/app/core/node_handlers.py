@@ -21,10 +21,15 @@ import re
 import json
 import uuid
 
-from app.core.state import FlowState
+from app.core.state import (
+    FlowState,
+    attach_runtime_execution_context,
+    set_runtime_node_status,
+)
 from app.nodes.base import NodeType
 from app.core.credential_provider import credential_provider
 from app.core.templating import apply_jinja_to_inputs
+from app.core.runtime_execution import instrument_runtime_artifact
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +102,7 @@ class MemoryNodeHandler(NodeExecutionHandler):
         """Extract memory node instance with session context."""
         node_id = connection_info["source_node_id"]
         self._log_execution(node_id, "memory", "extracting")
+        set_runtime_node_status(state, node_id, "pending")
         
         try:
             # Set session_id on memory nodes before execution
@@ -111,13 +117,24 @@ class MemoryNodeHandler(NodeExecutionHandler):
             
             # Execute memory node to get instance
             node_instance = source_node_instance.execute(**memory_inputs)
+            set_runtime_node_status(state, node_id, "success")
             logger.debug(f"[DEBUG] Memory node {node_id} executed successfully: {type(node_instance).__name__}")
             
             return node_instance
             
         except Exception as e:
             logger.error(f"[ERROR] Failed to extract memory node {node_id}: {e}")
-            raise RuntimeError(f"Memory node extraction failed for {node_id}: {str(e)}")
+            set_runtime_node_status(state, node_id, "failed")
+            from app.core.graph_builder.exceptions import NodeExecutionError
+
+            node_error = NodeExecutionError(
+                node_id=node_id,
+                node_type=getattr(gnode_instance, "type", source_node_instance.__class__.__name__),
+                original_error=e,
+                node_config=getattr(source_node_instance, "user_data", {}) or {},
+            )
+            attach_runtime_execution_context(node_error, state)
+            raise node_error from e
     
     def _extract_memory_inputs(self, source_node_instance: Any, state: FlowState) -> Dict[str, Any]:
         """Extract inputs needed for memory node execution."""
@@ -171,40 +188,119 @@ class ProviderNodeHandler(NodeExecutionHandler):
         """Initialize provider node handler."""
         super().__init__()
     
-    def extract_connected_instance(self,
-                                 connection_info: Dict[str, str],
-                                 source_node_instance: Any,
-                                 gnode_instance: Any,
-                                 state: FlowState) -> Any:
-        """Extract provider node instance from user configuration and connections."""
+    def extract_connected_instance(
+        self,
+        connection_info: Dict[str, str],
+        source_node_instance: Any,
+        gnode_instance: Any,
+        state: FlowState,
+    ) -> Any:
+        """Resolve one provider while preserving the real failure owner."""
+        from app.core.graph_builder.exceptions import (
+            NodeExecutionError,
+            find_deepest_node_execution_error,
+        )
+
         node_id = connection_info["source_node_id"]
         self._log_execution(node_id, "provider", "extracting")
-        
-        try:
-            # Extract provider-specific inputs from user configuration
-            provider_inputs = self._extract_provider_inputs(source_node_instance, state)
-            provider_inputs = apply_jinja_to_inputs(provider_inputs, state, node_id, self.nodes_registry)
-            
-            # NEW: Extract connected inputs for provider nodes that need them
-            connected_inputs = self._extract_connected_inputs(source_node_instance, gnode_instance, state)
-            
-            # Merge both input types
-            all_inputs = {**provider_inputs, **connected_inputs}
-            logger.debug(f"[DEBUG] Provider node {node_id} inputs: user={list(provider_inputs.keys())}, connected={list(connected_inputs.keys())}")
+        set_runtime_node_status(state, node_id, "pending")
 
-            # Inject user_id from state into node instance before execution
+        try:
+            provider_inputs = self._extract_provider_inputs(source_node_instance, state)
+            provider_inputs = apply_jinja_to_inputs(
+                provider_inputs, state, node_id, self.nodes_registry
+            )
+
+            # Validate this provider before touching its child dependencies.
             self._inject_user_context(source_node_instance, state, node_id)
-            
-            # Execute provider node to get LangChain object
+            self._validate_required_credentials(source_node_instance, provider_inputs)
+            source_node_instance.validate_configuration(**provider_inputs)
+
+            connected_inputs = self._extract_connected_inputs(
+                source_node_instance, gnode_instance, state
+            )
+            all_inputs = {**provider_inputs, **connected_inputs}
+            logger.debug(
+                "[DEBUG] Provider node %s inputs: user=%s, connected=%s",
+                node_id,
+                list(provider_inputs.keys()),
+                list(connected_inputs.keys()),
+            )
+
             node_instance = source_node_instance.execute(**all_inputs)
-            logger.debug(f"[DEBUG] Provider node {node_id} executed successfully: {type(node_instance).__name__}")
-            
+            node_instance = instrument_runtime_artifact(
+                node_instance,
+                node_id=node_id,
+                node_type=getattr(gnode_instance, "type", type(source_node_instance).__name__),
+                state=state,
+                node_config=getattr(source_node_instance, "user_data", {}) or {},
+                input_connections=getattr(source_node_instance, "_input_connections", {}) or {},
+                output_connections=getattr(source_node_instance, "_output_connections", {}) or {},
+            )
+
+            set_runtime_node_status(state, node_id, "success")
+            logger.debug(
+                f"[DEBUG] Provider node {node_id} executed successfully: "
+                f"{type(node_instance).__name__}"
+            )
             return node_instance
-            
-        except Exception as e:
-            logger.error(f"[ERROR] Failed to extract provider node {node_id}: {e}")
-            raise RuntimeError(f"Provider node extraction failed for {node_id}: {str(e)}")
-    
+
+        except Exception as error:
+            logger.error(f"[ERROR] Failed to extract provider node {node_id}: {error}")
+            deepest_error = find_deepest_node_execution_error(error)
+
+            if deepest_error is not None and deepest_error.node_id != node_id:
+                # The provider's child failed; this provider is not the error source.
+                set_runtime_node_status(state, node_id, "success")
+                attach_runtime_execution_context(deepest_error, state)
+                raise deepest_error from error
+
+            set_runtime_node_status(state, node_id, "failed")
+            if isinstance(error, NodeExecutionError) and error.node_id == node_id:
+                attach_runtime_execution_context(error, state)
+                raise
+
+            node_error = NodeExecutionError(
+                node_id=node_id,
+                node_type=getattr(
+                    gnode_instance, "type", source_node_instance.__class__.__name__
+                ),
+                original_error=error,
+                node_config=getattr(source_node_instance, "user_data", {}) or {},
+                input_connections=getattr(
+                    source_node_instance, "_input_connections", {}
+                )
+                or {},
+                output_connections=getattr(
+                    source_node_instance, "_output_connections", {}
+                )
+                or {},
+            )
+            attach_runtime_execution_context(node_error, state)
+            raise node_error from error
+
+    def _validate_required_credentials(
+        self, source_node_instance: Any, provider_inputs: Dict[str, Any]
+    ) -> None:
+        """Fail local credential configuration before resolving child nodes."""
+        properties = getattr(source_node_instance.metadata, "properties", None) or []
+        user_data = getattr(source_node_instance, "user_data", {}) or {}
+
+        for prop in properties:
+            raw_type = getattr(prop, "type", "")
+            prop_type = getattr(raw_type, "value", raw_type)
+            if str(prop_type).lower() != "credential-select":
+                continue
+
+            value = provider_inputs.get(prop.name) or user_data.get(prop.name)
+            if getattr(prop, "required", False) and not value:
+                label = getattr(prop, "displayName", None) or prop.name
+                raise ValueError(f"{label} credential selection is required.")
+
+            if value and source_node_instance.get_credential(value) is None:
+                raise ValueError(
+                    f"Selected credential with ID '{value}' could not be found."
+                )
     def _extract_provider_inputs(self, source_node_instance: Any, state: FlowState) -> Dict[str, Any]:
         """Extract inputs needed for provider node execution."""
         provider_inputs = {}
@@ -226,72 +322,68 @@ class ProviderNodeHandler(NodeExecutionHandler):
         
         return provider_inputs
     
-    def _extract_connected_inputs(self, source_node_instance: Any, gnode_instance: Any, state: FlowState) -> Dict[str, Any]:
-        """
-        NEW: Extract connected inputs for provider nodes.
-        
-        This handles provider nodes like RetrieverProvider that need connections
-        from other nodes (e.g., embedder from OpenAIEmbeddingsProvider).
-        """
-        connected_inputs = {}
-        
-        # Check if this provider node has any connected inputs
-        if not hasattr(source_node_instance, '_input_connections'):
-            return connected_inputs
-        
-        # Import here to avoid circular imports
+    def _extract_connected_inputs(
+        self, source_node_instance: Any, gnode_instance: Any, state: FlowState
+    ) -> Dict[str, Any]:
+        """Resolve every attached dependency and collect all real failures."""
+        from app.core.graph_builder.exceptions import (
+            NodeExecutionError,
+            find_deepest_node_execution_error,
+        )
         from app.core.output_cache import NodeConnectionExtractor
-        
-        # Create a temporary extractor to handle connections
-        temp_extractor = NodeConnectionExtractor()
-        
-        # Process each connected input
-        for input_name, connection_info in source_node_instance._input_connections.items():
-            try:
-                source_node_id = connection_info["source_node_id"]
-                logger.debug(f"[DEBUG] Provider extracting connected input '{input_name}' from {source_node_id}")
-                
-                # Get source node instance from global registry (injected by GraphBuilder)
-                if hasattr(self, 'nodes_registry') and source_node_id in self.nodes_registry:
-                    source_gnode = self.nodes_registry[source_node_id]
-                    source_instance = source_gnode.node_instance
-                    source_node_type = source_instance.metadata.node_type
-                    
-                    # Handle different source node types
-                    if source_node_type.value == "provider":
-                        # Execute source provider to get its instance
-                        provider_inputs = self._extract_provider_inputs(source_instance, state)
-                        provider_inputs = apply_jinja_to_inputs(provider_inputs, state, source_node_id, self.nodes_registry)
-                        
-                        # Inject user_id if supported
-                        self._inject_user_context(source_instance, state, source_node_id)
-                        
-                        connected_result = source_instance.execute(**provider_inputs)
-                        connected_inputs[input_name] = connected_result
-                        logger.debug(f"[DEBUG] Successfully extracted provider connection: {input_name} -> {type(connected_result).__name__}")
-                        
-                    elif source_node_type.value == "processor":
-                        # Try to get cached output from processor
-                        if hasattr(state, 'node_outputs') and source_node_id in state.node_outputs:
-                            cached_result = state.node_outputs[source_node_id]
-                            connected_inputs[input_name] = cached_result
-                            logger.debug(f"[DEBUG] Successfully extracted processor connection: {input_name} -> {type(cached_result)}")
-                        else:
-                            logger.warning(f"[WARNING] No cached output for processor {source_node_id}")
-                            
-                    else:
-                        logger.warning(f"[WARNING] Unsupported connected node type for provider: {source_node_type}")
-                        
-                else:
-                    logger.warning(f"[ERROR] Source node {source_node_id} not found in registry")
-                    
-            except Exception as e:
-                logger.warning(f"[ERROR] Failed to extract connected input '{input_name}': {e}")
-                # Continue with other connections rather than failing completely
-                continue
-        
-        return connected_inputs
 
+        connected_inputs: Dict[str, Any] = {}
+        input_connections = getattr(
+            source_node_instance, "_input_connections", {}
+        ) or {}
+        if not input_connections:
+            return connected_inputs
+
+        extractor = NodeConnectionExtractor()
+        extractor.nodes_registry = self.nodes_registry
+        connection_errors = []
+
+        for input_name, connection_info in input_connections.items():
+            try:
+                result = extractor._process_connection(
+                    input_name, connection_info, state
+                )
+                if result is not None:
+                    connected_inputs[input_name] = result
+            except Exception as error:
+                logger.error(
+                    f"[ERROR] Failed to extract connected input '{input_name}': "
+                    f"{error}"
+                )
+                node_error = find_deepest_node_execution_error(error)
+                if node_error is None:
+                    source_info = (
+                        connection_info[0]
+                        if isinstance(connection_info, list) and connection_info
+                        else connection_info
+                    )
+                    source_node_id = (
+                        source_info.get("source_node_id", "unknown")
+                        if isinstance(source_info, dict)
+                        else "unknown"
+                    )
+                    failed_node = self.nodes_registry.get(source_node_id)
+                    node_error = NodeExecutionError(
+                        node_id=source_node_id,
+                        node_type=getattr(failed_node, "type", "Provider"),
+                        original_error=error,
+                    )
+                connection_errors.append(node_error)
+
+        if connection_errors:
+            primary_error = connection_errors[0]
+            attach_runtime_execution_context(primary_error, state)
+            primary_error.context["node_errors"] = [
+                error.to_dict() for error in connection_errors
+            ]
+            raise primary_error
+
+        return connected_inputs
 
 class ProcessorNodeHandler(NodeExecutionHandler):
     """

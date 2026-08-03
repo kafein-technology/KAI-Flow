@@ -8,10 +8,6 @@ import {
 } from "@xyflow/react";
 import { X } from "lucide-react";
 
-interface CustomAnimatedEdgeProps extends EdgeProps {
-  isActive?: boolean;
-}
-
 function CustomAnimatedEdge({
   id,
   sourceX,
@@ -22,12 +18,12 @@ function CustomAnimatedEdge({
   targetPosition,
   style = {},
   markerEnd,
-  isActive = false,
-}: CustomAnimatedEdgeProps) {
+}: EdgeProps) {
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = React.useState(false);
   // read status that ReactFlowCanvas injected into edge.data
   const status: 'success' | 'failed' | 'pending' | undefined = (style as any)?.__status;
+  const isActive = status === "pending";
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,

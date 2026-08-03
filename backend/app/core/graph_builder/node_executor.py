@@ -30,8 +30,12 @@ from .types import (
     PooledConnectionRegistry,
     ConnectionPoolStats
 )
-from .exceptions import NodeExecutionError
-from app.core.state import FlowState
+from .exceptions import NodeExecutionError, find_deepest_node_execution_error
+from app.core.state import (
+    FlowState,
+    attach_runtime_execution_context,
+    set_runtime_node_status,
+)
 from app.core.templating import apply_jinja_to_inputs
 from app.core.output_cache import default_connection_extractor
 from app.core.node_handlers import node_handler_registry
@@ -135,6 +139,7 @@ class NodeExecutor:
         Raises:
             NodeExecutionError: If processor execution fails
         """
+        set_runtime_node_status(state, node_id, "pending")
         try:
             logger.info(f"[PROCESSING] Executing processor node: {node_id} ({gnode.type})")
             start_time = datetime.datetime.now()
@@ -274,9 +279,22 @@ class NodeExecutor:
             logger.info(f"[SUCCESS] Processor node {node_id} completed successfully")
             logger.debug(f"Output: '{str(last_output)[:80]}...' ({len(str(last_output))} chars)")
             
+            set_runtime_node_status(state, node_id, "success")
+            result_dict["variables"] = (
+                state.get("variables", {}) if isinstance(state, dict)
+                else getattr(state, "variables", {})
+            )
             return result_dict
             
         except Exception as e:
+            nested_node_error = find_deepest_node_execution_error(e)
+            if nested_node_error is not None and nested_node_error.node_id != node_id:
+                set_runtime_node_status(state, node_id, "success")
+                attach_runtime_execution_context(nested_node_error, state)
+                raise nested_node_error from e
+
+            set_runtime_node_status(state, node_id, "failed")
+
             try:
                 execution_time_ms = round((datetime.datetime.now() - start_time).total_seconds() * 1000, 2)
                 error_details = {
@@ -311,14 +329,16 @@ class NodeExecutor:
             except Exception as formatting_err:
                 logger.warning(f"Failed to record standardized error in execute_processor_node: {formatting_err}")
 
-            raise NodeExecutionError(
+            node_error = NodeExecutionError(
                 node_id=node_id,
                 node_type=gnode.type,
                 original_error=e,
                 node_config=gnode.user_data,
                 input_connections=getattr(gnode.node_instance, '_input_connections', {}),
                 output_connections=getattr(gnode.node_instance, '_output_connections', {})
-            ) from e
+            )
+            attach_runtime_execution_context(node_error, state)
+            raise node_error from e
     
     def execute_standard_node(self, gnode: GraphNodeInstance, state: FlowState, node_id: str) -> Dict[str, Any]:
         """
@@ -335,6 +355,7 @@ class NodeExecutor:
         Raises:
             NodeExecutionError: If standard execution fails
         """
+        set_runtime_node_status(state, node_id, "pending")
         try:
             logger.info(f"[PROCESSING] Executing standard node: {node_id} ({gnode.type})")
             
@@ -370,17 +391,32 @@ class NodeExecutor:
             logger.info(f"[SUCCESS] Standard node {node_id} completed successfully")
             logger.debug(f"Node {node_id} output: {str(result)[:200]}...")
             
+            set_runtime_node_status(state, node_id, "success")
+            if isinstance(result, dict):
+                result["variables"] = (
+                    state.get("variables", {}) if isinstance(state, dict)
+                    else getattr(state, "variables", {})
+                )
             return result
             
         except Exception as e:
-            raise NodeExecutionError(
+            nested_node_error = find_deepest_node_execution_error(e)
+            if nested_node_error is not None and nested_node_error.node_id != node_id:
+                set_runtime_node_status(state, node_id, "success")
+                attach_runtime_execution_context(nested_node_error, state)
+                raise nested_node_error from e
+
+            set_runtime_node_status(state, node_id, "failed")
+            node_error = NodeExecutionError(
                 node_id=node_id,
                 node_type=gnode.type,
                 original_error=e,
                 node_config=gnode.user_data,
                 input_connections=getattr(gnode.node_instance, '_input_connections', {}),
                 output_connections=getattr(gnode.node_instance, '_output_connections', {})
-            ) from e
+            )
+            attach_runtime_execution_context(node_error, state)
+            raise node_error from e
     
     def extract_user_inputs_for_processor(self, gnode: GraphNodeInstance, state: FlowState) -> Dict[str, Any]:
         """
@@ -487,6 +523,13 @@ class NodeExecutor:
             
         except Exception as e:
             logger.error(f"Clean connection extraction failed for {gnode.id}: {e}")
+            nested_node_error = find_deepest_node_execution_error(e)
+            if nested_node_error is not None:
+                # The clean extractor reached a real connected node and that
+                # node failed. Falling back would replace the value with None,
+                # causing the consumer to emit a misleading secondary error.
+                raise nested_node_error from e
+
             if has_pool:
                 logger.info("Falling back to pool-aware legacy implementation")
             else:
@@ -580,7 +623,8 @@ class NodeExecutor:
                 logger.error(f"Failed to execute Runnable for {node_id}: {e}")
                 import traceback
                 logger.error(f"Full traceback: {traceback.format_exc()}")
-                return {"error": str(e)}
+                # Preserve the original exception chain and dependency owner.
+                raise
         
         # Keep the original result for proper data flow between nodes
         return result
