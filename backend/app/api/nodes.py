@@ -1,13 +1,19 @@
-
 import logging
 from typing import Dict, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 
 from app.core.node_registry import node_registry
+from app.auth.dependencies import get_current_user
+from app.core.credential_provider import credential_provider
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+class NodeOptionsRequest(BaseModel):
+    property_name: str
+    values: Dict[str, Any] = {}
 
 @router.get("")
 async def get_all_nodes():
@@ -260,3 +266,61 @@ async def search_nodes(query: str):
     # Sort by relevance
     results.sort(key=lambda x: x["relevance_score"], reverse=True)
     return results[:10]  # Return top 10 results
+
+@router.post("/{node_type}/options")
+async def get_node_property_options(
+    node_type: str,
+    request: NodeOptionsRequest,
+    current_user=Depends(get_current_user),
+):
+    """
+    Fill a dynamic field.
+
+    The node declares `optionsMethod` on the property; this endpoint calls that
+    method with the values currently entered in the panel and returns the list.
+    """
+    node_class = node_registry.get_node(node_type)
+    if not node_class:
+        raise HTTPException(status_code=404, detail=f"Node type '{node_type}' not found")
+
+    try:
+        instance = node_class()
+    except Exception as e:
+        logger.error(f"Could not create node {node_type}: {e}")
+        raise HTTPException(status_code=500, detail="Node could not be created")
+
+    prop = next(
+        (p for p in instance._metadata.get("properties", []) if p.name == request.property_name),
+        None,
+    )
+    if prop is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Property '{request.property_name}' not found on {node_type}",
+        )
+
+    method_name = getattr(prop, "optionsMethod", None)
+    if not method_name:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Property '{request.property_name}' does not load options dynamically",
+        )
+
+    loader = getattr(instance, method_name, None)
+    if not callable(loader):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Node {node_type} has no method named '{method_name}'",
+        )
+
+    try:
+        instance.credentials = credential_provider.get_credentials_sync(current_user.id)
+    except Exception as e:
+        logger.warning(f"Could not load credentials for options request: {e}")
+        instance.credentials = []
+
+    try:
+        return {"options": loader(request.values)}
+    except Exception as e:
+        logger.error(f"Loading options for {node_type}.{request.property_name} failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))

@@ -83,6 +83,8 @@ export function getNodeTypeIconPath(nodeType: string): string {
         PGVectorStore: "icons/postgresql_vectorstore.svg",
         VectorStoreOrchestrator: "icons/postgresql_vectorstore.svg",
         IntelligentVectorStore: "icons/postgresql_vectorstore.svg",
+        PostgresNode: "icons/postgresql_vectorstore.svg",
+        PostgresTool: "icons/postgresql_vectorstore.svg",
         MarkItDownTool: "icons/markitdown.svg",
 
         // Web & APIs
