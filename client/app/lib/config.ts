@@ -81,6 +81,11 @@ export const API_ENDPOINTS = {
     TEST_RAW: '/credentials/test-raw',
     WORKFLOWS: (id: string) => `/credentials/${id}/workflows`,
   },
+  MYSQL: {
+    SCHEMAS: '/mysql/schemas',
+    TABLES: '/mysql/tables',
+    COLUMNS: '/mysql/columns',
+  },
   API_KEYS: {
     LIST: '/api-keys',
     CREATE: '/api-keys',
