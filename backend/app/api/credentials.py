@@ -588,12 +588,32 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_kafka(secret)
     elif service_type == "minio":
         return await _test_minio(secret)
+    elif service_type == "mysql":
+        return await _test_mysql(secret)
     elif service_type in ("basic_auth", "header_auth"):
         return _test_webhook_auth(secret, service_type)
     else:
         return CredentialTestResponse(
             success=False, message=f"Test not supported for service type: {service_type}"
         )
+
+
+async def _test_mysql(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Test a MySQL credential without exposing connection details."""
+    from app.nodes.integrations.mysql_node import mysql_connection
+
+    def check_connection() -> None:
+        with mysql_connection(secret) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+
+    try:
+        await asyncio.to_thread(check_connection)
+        return CredentialTestResponse(success=True, message="MySQL connection successful.")
+    except Exception as exc:
+        logger.warning("MySQL credential test failed: %s", exc)
+        return CredentialTestResponse(success=False, message="Could not connect to MySQL. Check the connection settings.")
 
 
 @router.post("/test-raw", response_model=CredentialTestResponse)
