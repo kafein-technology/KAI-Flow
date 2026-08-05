@@ -192,6 +192,20 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     ]
   },
   {
+    id: 'sqlite',
+    name: 'SQLite',
+    description: 'Open a SQLite database file for workflow actions and permission-scoped Agent tools',
+    icon: 'sqlite.svg',
+    category: 'database',
+    color: 'from-sky-600 to-cyan-800',
+    fields: [
+      { name: 'database_path', label: 'Database Path', type: 'text', required: true, placeholder: '/data/app.sqlite', description: 'Absolute path to the SQLite database file on the backend host' },
+      { name: 'timeout_ms', label: 'Connection Timeout (ms)', type: 'text', required: false, default: '30000', description: 'How long SQLite waits for a locked database before failing' },
+      { name: 'read_only', label: 'Read Only', type: 'checkbox', required: false, default: false, description: 'Open the file in read-only mode as an additional database-level guard' },
+      { name: 'create_if_missing', label: 'Create if Missing', type: 'checkbox', required: false, default: false, dependsOn: { field: 'read_only', values: ['false'] }, description: 'Create the database file and parent directories when they do not exist' }
+    ]
+  },
+  {
     id: 'basic_auth',
     name: 'Basic Auth',
     description: 'Basic authentication credentials for webhook endpoints (username and password)',

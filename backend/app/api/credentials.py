@@ -588,11 +588,32 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_kafka(secret)
     elif service_type == "minio":
         return await _test_minio(secret)
+    elif service_type == "sqlite":
+        return await _test_sqlite(secret)
     elif service_type in ("basic_auth", "header_auth"):
         return _test_webhook_auth(secret, service_type)
     else:
         return CredentialTestResponse(
             success=False, message=f"Test not supported for service type: {service_type}"
+        )
+
+
+async def _test_sqlite(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Test a SQLite credential without exposing its filesystem path."""
+    from app.nodes.integrations.sqlite_node import sqlite_connection
+
+    def check_connection() -> None:
+        with sqlite_connection(secret) as connection:
+            connection.execute("SELECT 1").fetchone()
+
+    try:
+        await asyncio.to_thread(check_connection)
+        return CredentialTestResponse(success=True, message="SQLite connection successful.")
+    except Exception as exc:
+        logger.warning("SQLite credential test failed: %s", exc)
+        return CredentialTestResponse(
+            success=False,
+            message="Could not open the SQLite database. Check the database path and permissions.",
         )
 
 

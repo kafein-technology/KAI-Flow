@@ -81,6 +81,10 @@ export const API_ENDPOINTS = {
     TEST_RAW: '/credentials/test-raw',
     WORKFLOWS: (id: string) => `/credentials/${id}/workflows`,
   },
+  SQLITE: {
+    TABLES: '/sqlite/tables',
+    COLUMNS: '/sqlite/columns',
+  },
   API_KEYS: {
     LIST: '/api-keys',
     CREATE: '/api-keys',
