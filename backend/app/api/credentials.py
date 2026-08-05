@@ -588,11 +588,40 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_kafka(secret)
     elif service_type == "minio":
         return await _test_minio(secret)
+    elif service_type == "google_sheets":
+        return await _test_google_sheets(secret)
     elif service_type in ("basic_auth", "header_auth"):
         return _test_webhook_auth(secret, service_type)
     else:
         return CredentialTestResponse(
             success=False, message=f"Test not supported for service type: {service_type}"
+        )
+
+
+async def _test_google_sheets(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Validate Google authentication and the Drive access required by the Sheets node."""
+    from googleapiclient.discovery import build
+    from app.nodes.integrations.google_sheets_node import _google_credentials
+
+    def check_connection() -> None:
+        credentials = _google_credentials(secret)
+        drive = build("drive", "v3", credentials=credentials, cache_discovery=False)
+        drive.files().list(
+            q="mimeType='application/vnd.google-apps.spreadsheet'",
+            pageSize=1,
+            fields="files(id)",
+        ).execute()
+
+    try:
+        await asyncio.wait_for(asyncio.to_thread(check_connection), timeout=15)
+        return CredentialTestResponse(success=True, message="Connected to Google Sheets successfully.")
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="Google Sheets connection timed out.")
+    except Exception as exc:
+        logger.warning("Google Sheets credential test failed: %s", exc)
+        return CredentialTestResponse(
+            success=False,
+            message="Could not connect to Google Sheets. Check the credential and enabled Google APIs.",
         )
 
 

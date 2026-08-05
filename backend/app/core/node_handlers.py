@@ -79,7 +79,14 @@ class NodeExecutionHandler(ABC):
         # Explicitly set user_id on the node instance to allow nodes to access execution context
         if context_user_id:
             node_instance.user_id = context_user_id
-        if node_instance.user_data.get('credential_id') and context_user_id:
+        user_data = getattr(node_instance, "user_data", {}) or {}
+        inputs_group = user_data.get("inputs", {}) if isinstance(user_data, dict) else {}
+        configured_credential = (
+            inputs_group.get("credential_id")
+            if isinstance(inputs_group, dict)
+            else None
+        ) or (user_data.get("credential_id") if isinstance(user_data, dict) else None)
+        if configured_credential and context_user_id:
             node_instance.credentials = credential_provider.get_credentials_sync(user_id=context_user_id)
 
 class MemoryNodeHandler(NodeExecutionHandler):
@@ -304,6 +311,10 @@ class ProviderNodeHandler(NodeExecutionHandler):
     def _extract_provider_inputs(self, source_node_instance: Any, state: FlowState) -> Dict[str, Any]:
         """Extract inputs needed for provider node execution."""
         provider_inputs = {}
+        user_data = getattr(source_node_instance, "user_data", {}) or {}
+        inputs_group = user_data.get("inputs", {}) if isinstance(user_data, dict) else {}
+        if not isinstance(inputs_group, dict):
+            inputs_group = {}
         
         # Provider nodes work with user configuration inputs (non-connection inputs)
         for input_spec in source_node_instance.metadata.inputs:
@@ -313,8 +324,13 @@ class ProviderNodeHandler(NodeExecutionHandler):
                 if hasattr(input_name, '__call__'):
                     continue  # Skip Mock objects that aren't properly configured
                     
-                if input_name in source_node_instance.user_data:
-                    provider_inputs[input_name] = source_node_instance.user_data[input_name]
+                # The generic node form persists values under user_data["inputs"];
+                # prefer that group so configured defaults are not overwritten by
+                # metadata defaults (for example, a saved Sheets document URL).
+                if input_name in inputs_group:
+                    provider_inputs[input_name] = inputs_group[input_name]
+                elif isinstance(user_data, dict) and input_name in user_data:
+                    provider_inputs[input_name] = user_data[input_name]
                 elif input_name in state.variables:
                     provider_inputs[input_name] = state.get_variable(input_name)
                 elif input_spec.default is not None:
