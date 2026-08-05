@@ -95,6 +95,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
         RespondToWebhook: "icons/webhook.svg",
         KafkaConsumer: "icons/kafka.svg",
         KafkaProducer: "icons/kafka.svg",
+        GoogleSheets: "icons/google-sheets.svg",
 
         // RAG & QA
         RetrievalQA: "icons/book-open.svg",

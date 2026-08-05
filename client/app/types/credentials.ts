@@ -1,3 +1,8 @@
+export interface FieldCondition {
+  field: string;
+  values: string[];
+}
+
 export interface ServiceField {
   name: string;
   label: string;
@@ -6,11 +11,10 @@ export interface ServiceField {
   placeholder?: string;
   default?: any;
   options?: { value: string; label: string }[];
+  showEmptyOption?: boolean;
+  helpText?: string;
   description?: string;
-  dependsOn?: {
-    field: string;
-    values: string[];
-  };
+  dependsOn?: FieldCondition | FieldCondition[];
   validation?: {
     minLength?: number;
     maxLength?: number;
@@ -189,6 +193,32 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
           minLength: 20
         }
       }
+    ]
+  },
+  {
+    id: 'google_sheets',
+    name: 'Google Sheets',
+    description: 'OAuth2 or Service Account credentials for Google Sheets and Drive APIs',
+    icon: 'google-sheets.svg',
+    category: 'api',
+    color: 'from-green-500 to-emerald-700',
+    fields: [
+      {
+        name: 'authentication', label: 'Authentication', type: 'select', required: true,
+        default: 'oauth2', showEmptyOption: false,
+        options: [
+          { value: 'oauth2', label: 'OAuth2 (recommended)' },
+          { value: 'service_account', label: 'Service Account' }
+        ]
+      },
+      { name: 'client_id', label: 'OAuth Client ID', type: 'text', required: true, placeholder: '...apps.googleusercontent.com', dependsOn: { field: 'authentication', values: ['oauth2'] }, description: 'Client ID from a Google Cloud OAuth 2.0 web application' },
+      { name: 'client_secret', label: 'OAuth Client Secret', type: 'password', required: true, dependsOn: { field: 'authentication', values: ['oauth2'] }, description: 'Client secret from the same Google Cloud OAuth client' },
+      { name: 'refresh_token', label: 'Refresh Token', type: 'password', required: true, dependsOn: { field: 'authentication', values: ['oauth2'] }, description: 'Offline refresh token authorized for Google Sheets and Drive' },
+      { name: 'service_account_email', label: 'Service Account Email', type: 'text', required: true, placeholder: 'service-account@project.iam.gserviceaccount.com', dependsOn: { field: 'authentication', values: ['service_account'] } },
+      { name: 'private_key', label: 'Private Key', type: 'textarea', required: true, placeholder: '-----BEGIN PRIVATE KEY-----', dependsOn: { field: 'authentication', values: ['service_account'] } },
+      { name: 'delegated_user', label: 'Delegated User', type: 'text', required: false, placeholder: 'user@example.com', dependsOn: { field: 'authentication', values: ['service_account'] }, description: 'Optional Google Workspace user for domain-wide delegation' },
+      { name: 'custom_scopes', label: 'Custom Scopes', type: 'checkbox', required: false, default: false, description: 'Define custom scopes instead of the default Google scopes' },
+      { name: 'enabled_scopes', label: 'Enabled Scopes', type: 'text', required: false, default: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata', dependsOn: { field: 'custom_scopes', values: ['true'] }, description: 'Space-separated OAuth scopes' }
     ]
   },
   {
