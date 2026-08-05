@@ -48,6 +48,7 @@ from app.api.documents import router as documents_router
 from app.api.scheduled_jobs import router as scheduled_jobs_router
 from app.api.vectors import router as vectors_router
 from app.api.timers import router as timers_router
+from app.api.sqlite import sqlite_router
 
 
 from app.api.external_workflows import router as external_workflows_router
@@ -215,6 +216,7 @@ app.include_router(documents_router, prefix=f"/{API_START}/{API_VERSION}/documen
 app.include_router(scheduled_jobs_router, prefix=f"/{API_START}/{API_VERSION}/jobs/scheduled", tags=["Scheduled Jobs"])
 app.include_router(vectors_router, prefix=f"/{API_START}/{API_VERSION}/vectors", tags=["Vector Storage"])
 app.include_router(logs_router, prefix=f"/{API_START}/{API_VERSION}/logs", tags=["Logs"])
+app.include_router(sqlite_router, prefix=f"/{API_START}/{API_VERSION}")
 
 # Include Timers router (both versioned and unversioned to match frontend API calls)
 app.include_router(timers_router, prefix=f"/{API_START}/timers", tags=["Timers"])

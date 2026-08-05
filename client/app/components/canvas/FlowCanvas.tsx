@@ -57,6 +57,7 @@ import GenericNode from "../node";
 // Import config components
 import { config } from "../../lib/config";
 import { GenericNodeForm } from "../node";
+import SQLiteNodeForm from "../node/sqlite/SQLiteNodeForm";
 import { useWorkflowHistory, isEditableKeyboardTarget } from "../../lib/useWorkflowHistory";
 import {
   ensureLiveNodeFailure,
@@ -463,6 +464,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         if (!acc[nodeType]) {
           if (nodeType === "StartNode" || nodeType === "EndNode") {
             acc[nodeType] = null;
+          } else if (nodeType === "SQLite") {
+            acc[nodeType] = SQLiteNodeForm as React.ComponentType<any>;
           } else {
             acc[nodeType] = GenericNodeForm as React.ComponentType<any>;
           }

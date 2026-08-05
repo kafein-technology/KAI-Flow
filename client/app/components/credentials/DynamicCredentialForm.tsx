@@ -65,7 +65,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
   ): boolean => {
     if (!field.dependsOn) return true;
     const depValue = values[field.dependsOn.field];
-    return field.dependsOn.values.includes(depValue);
+    return field.dependsOn.values.includes(String(depValue));
   };
 
   const validateForm = (
