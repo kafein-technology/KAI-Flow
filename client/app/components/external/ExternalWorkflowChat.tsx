@@ -33,7 +33,7 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -194,6 +194,9 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
     setIsLoading(true);
 
     try {
@@ -426,20 +429,31 @@ export default function ExternalWorkflowChat({ workflow, isExported = false }: E
 
       {/* Input Form */}
       <div className="p-4 border-t bg-gray-50">
-        <form onSubmit={handleSendMessage} className="flex gap-2">
-          <input
+        <form onSubmit={handleSendMessage} className="flex gap-2 items-end">
+          <textarea
             ref={inputRef}
-            type="text"
+            rows={1}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              const el = e.target;
+              el.style.height = "auto";
+              el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
             placeholder="Type your message..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none overflow-y-auto max-h-40 min-h-[40px]"
             disabled={isLoading || workflow.connection_status !== 'online'}
           />
           <button
             type="submit"
             disabled={!input.trim() || isLoading || workflow.connection_status !== 'online'}
-            className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+            className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center shrink-0"
           >
             {isLoading ? (
               <Loader className="w-4 h-4 animate-spin" />
