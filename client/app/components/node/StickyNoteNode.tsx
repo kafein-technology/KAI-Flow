@@ -155,7 +155,9 @@ function StickyNoteNode({ id, data, selected }: StickyNoteNodeProps) {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 /* Textarea has its own scrollbar, avoiding double scrollbars */
-                className="w-full h-full resize-none bg-transparent border-none focus:outline-none focus:ring-0 text-gray-800 leading-relaxed overflow-y-auto custom-scrollbar"
+                className="nodrag nowheel w-full h-full resize-none bg-transparent border-none focus:outline-none focus:ring-0 text-gray-800 leading-relaxed overflow-y-auto custom-scrollbar"
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
                 style={{ fontSize: FONT_SIZE }}
                 placeholder="Type your markdown here..."
               />
