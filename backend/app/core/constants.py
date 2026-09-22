@@ -31,7 +31,7 @@ Production Environment:
 PRODUCTION_REQUIREMENTS = {
     "DATABASE_URL": "Required - PostgreSQL connection string",
     "SECRET_KEY": "Required - 64+ character secure random string",
-    "LANGCHAIN_API_KEY": "Required for LLM integrations",
+    "LANGCHAIN_API_KEY": "Optional legacy LangSmith tracing credential",
     "ALLOWED_ORIGINS": "Required - Specific domain whitelist",
     "DISABLE_DATABASE": "false - Database required in production"
 }
@@ -107,6 +107,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.core.env_encryption import EnvEncryption, decrypt_database_url
+from app.core.env_utils import external_tracing_enabled
 
 # Initialize environment variable decryptor
 _env_decryptor = EnvEncryption()
@@ -151,11 +152,24 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO" if ENVIRONMENT == "production" else "D
 
 # CORS Settings
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
-# LangSmith Settings
-LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "false")
-LANGCHAIN_ENDPOINT = os.getenv("LANGCHAIN_ENDPOINT")
-LANGCHAIN_API_KEY = _decrypt_env_val("LANGCHAIN_API_KEY")
-LANGCHAIN_PROJECT = os.getenv("LANGCHAIN_PROJECT")
+# LangSmith is optional observability; it is not required by LangChain or
+# LangGraph execution.  Keep legacy names for existing deployments while using
+# one real boolean internally.  Disabled tracing must not decrypt or expose an
+# otherwise unused API key.
+LANGSMITH_TRACING_ENABLED = external_tracing_enabled()
+LANGCHAIN_TRACING_V2 = LANGSMITH_TRACING_ENABLED
+LANGSMITH_ENDPOINT = os.getenv("LANGSMITH_ENDPOINT") or os.getenv("LANGCHAIN_ENDPOINT")
+LANGCHAIN_ENDPOINT = LANGSMITH_ENDPOINT
+LANGSMITH_PROJECT = os.getenv("LANGSMITH_PROJECT") or os.getenv("LANGCHAIN_PROJECT")
+LANGCHAIN_PROJECT = LANGSMITH_PROJECT
+if LANGSMITH_TRACING_ENABLED:
+    _langsmith_key_name = (
+        "LANGSMITH_API_KEY" if os.getenv("LANGSMITH_API_KEY") else "LANGCHAIN_API_KEY"
+    )
+    LANGSMITH_API_KEY = _decrypt_env_val(_langsmith_key_name)
+else:
+    LANGSMITH_API_KEY = None
+LANGCHAIN_API_KEY = LANGSMITH_API_KEY
 # Workflow Tracing
 ENABLE_WORKFLOW_TRACING = os.getenv("ENABLE_WORKFLOW_TRACING", "false").lower() in ("true", "1", "t")
 TRACE_AGENT_REASONING = os.getenv("TRACE_AGENT_REASONING", "false").lower() in ("true", "1", "t")

@@ -7,6 +7,7 @@ worker lifecycle shared by every scanner adapter.
 
 from __future__ import annotations
 
+import importlib
 import logging
 import multiprocessing
 import os
@@ -102,6 +103,54 @@ def _terminate_process(process: Any, *, started: bool) -> None:
         process.join(timeout=2)
 
 
+def _resolve_worker_target(module_name: str, qualname: str) -> Callable[..., None]:
+    """Resolve a scanner target inside the child after the process has started."""
+
+    target: Any = importlib.import_module(module_name)
+    for part in qualname.split("."):
+        if part == "<locals>":
+            raise TypeError("Scanner worker targets must be module-level callables.")
+        target = getattr(target, part)
+    if not callable(target):
+        raise TypeError("Scanner worker target is not callable.")
+    return target
+
+
+def _scanner_worker_bootstrap(
+    send_connection: Any,
+    target_module: str,
+    target_qualname: str,
+    worker_args: tuple[Any, ...],
+    artifact_path: str,
+    artifact_name: str,
+) -> None:
+    """Import and dispatch a scanner target while preserving bootstrap errors."""
+
+    try:
+        target = _resolve_worker_target(target_module, target_qualname)
+        target(send_connection, *worker_args)
+    except BaseException as exc:
+        try:
+            send_connection.send(
+                {
+                    "ok": False,
+                    "error_type": type(exc).__name__,
+                    "error_message": _safe_error_text(
+                        exc,
+                        artifact_path=artifact_path,
+                        artifact_name=artifact_name,
+                    ),
+                }
+            )
+        except BaseException:
+            pass
+    finally:
+        try:
+            send_connection.close()
+        except OSError:
+            pass
+
+
 def _run_worker_once(
     *,
     start_method: str,
@@ -116,8 +165,15 @@ def _run_worker_once(
     context = multiprocessing.get_context(start_method)
     receive_connection, send_connection = context.Pipe(duplex=False)
     process = context.Process(
-        target=target,
-        args=(send_connection, *worker_args),
+        target=_scanner_worker_bootstrap,
+        args=(
+            send_connection,
+            target.__module__,
+            target.__qualname__,
+            tuple(worker_args),
+            artifact_path,
+            artifact_name,
+        ),
         daemon=True,
     )
     started = False

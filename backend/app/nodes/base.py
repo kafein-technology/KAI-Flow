@@ -9,6 +9,7 @@ from enum import Enum
 # Import FlowState for LangGraph compatibility
 from app.core.state import FlowState
 from app.core.json_utils import make_json_serializable_with_langchain
+from app.core.env_utils import external_tracing_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -1040,10 +1041,8 @@ class BaseNode(ABC):
             RunnableLambda that executes this node
         """
         from langchain_core.runnables import RunnableLambda, RunnableConfig
-        import os
-        
         # LangSmith tracing configuration
-        ENABLE_TRACING = bool(os.getenv("LANGCHAIN_TRACING_V2", ""))
+        ENABLE_TRACING = external_tracing_enabled()
         run_config = RunnableConfig(run_name=self.__class__.__name__) if ENABLE_TRACING else None
         
         def node_runner(params):

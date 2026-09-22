@@ -14,6 +14,7 @@ import httpx
 from jinja2 import Environment, select_autoescape
 from langchain_core.documents import Document
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableConfig
+from app.core.env_utils import external_tracing_enabled
 
 from app.nodes.base import NodeProperty, ProcessorNode, NodeInput, NodeOutput, NodeType, NodePosition, NodePropertyType
 
@@ -466,7 +467,7 @@ class HttpClientNode(ProcessorNode):
     def as_runnable(self) -> Runnable:
         """Convert to LangChain Runnable for composition."""
         config = None
-        if os.getenv("LANGCHAIN_TRACING_V2"):
+        if external_tracing_enabled():
             config = RunnableConfig(
                 run_name="HttpRequest",
                 tags=["http", "api", "external"]

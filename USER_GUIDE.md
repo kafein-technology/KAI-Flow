@@ -276,9 +276,10 @@ docker compose logs -f
 ```
 
 ### LangSmith Tracing
-For detailed AI observability, configure LangSmith variables in the root `.env`:
+LangSmith is optional and disabled by default. To opt in to external AI
+observability, provide its credential through the deployment secret mechanism:
 *   `LANGCHAIN_TRACING_V2=true`
-*   `LANGCHAIN_API_KEY=<your-key>`
+*   `LANGCHAIN_API_KEY=<your-encrypted-key>`
 *   `LANGCHAIN_PROJECT=kai-Flow-workflows`
 
 This allows you to inspect every step of your agent's reasoning, tool calls, and latency usage in the LangSmith dashboard.

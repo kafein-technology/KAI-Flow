@@ -13,7 +13,6 @@ import os
 import re
 import shutil
 import stat
-import tempfile
 import threading
 import time
 import uuid
@@ -29,7 +28,10 @@ from fastapi import UploadFile
 from filelock import FileLock, Timeout as FileLockTimeout
 from sqlalchemy import func, text
 
-from app.core.constants import UPLOAD_DIR
+from app.services.model_artifact_settings import (
+    configured_model_artifact_directory,
+    configured_model_staging_directory,
+)
 from app.services.model_scan_limits import (
     DEFAULT_MANAGED_UPLOAD_MAX_BYTES,
     HARD_MANAGED_UPLOAD_MAX_BYTES,
@@ -113,11 +115,6 @@ def _positive_limit(value: Any, default: int = DEFAULT_UPLOAD_MAX_BYTES) -> int:
 
 def configured_upload_max_bytes() -> int:
     return configured_managed_upload_max_bytes()
-
-
-def configured_model_staging_directory() -> Path:
-    configured = os.getenv("KAI_MODEL_STAGING_DIR", "").strip()
-    return Path(configured or Path(tempfile.gettempdir()) / "kai-model-scan-staging").resolve()
 
 
 def _safe_display_name(value: str | None) -> str:
@@ -223,10 +220,9 @@ class ManagedModelArtifactStore:
         root: str | os.PathLike[str] | None = None,
         staging_root: str | os.PathLike[str] | None = None,
     ):
-        configured_root = os.getenv("KAI_MODEL_ARTIFACT_DIR", "").strip()
-        self.root = Path(
-            root or configured_root or Path(UPLOAD_DIR) / "model-artifacts"
-        ).resolve()
+        self.root = (
+            Path(root).resolve() if root else configured_model_artifact_directory()
+        )
         self.staging_root = Path(
             staging_root or configured_model_staging_directory()
         ).resolve()
