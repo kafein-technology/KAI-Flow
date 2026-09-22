@@ -816,7 +816,7 @@ TAVILY_API_KEY=your-tavily-api-key
 
 # LangSmith Configuration (Optional)
 LANGCHAIN_TRACING_V2=false
-LANGCHAIN_API_KEY=your-langsmith-api-key
+LANGCHAIN_API_KEY=
 LANGCHAIN_PROJECT=kai-Flow-backend
 
 # Application Configuration

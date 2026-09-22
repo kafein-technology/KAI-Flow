@@ -140,11 +140,15 @@ class EnhancedWorkflowTracer:
         """Get callback manager for LangSmith integration."""
         if LANGCHAIN_TRACING_V2:
             try:
-                from app.core.constants import LANGCHAIN_API_KEY, LANGCHAIN_PROJECT
-                if LANGCHAIN_API_KEY:
+                from app.core.config import get_langsmith_client, setup_langsmith
+                from app.core.constants import LANGCHAIN_PROJECT
+
+                client = get_langsmith_client() or setup_langsmith()
+                if client:
                     tracer = LangChainTracer(
+                        client=client,
                         project_name=LANGCHAIN_PROJECT or "kai-flow",
-                        session_id=self.session_id
+                        tags=[f"session:{self.session_id or 'default'}"],
                     )
                     return CallbackManager([tracer])
             except Exception as e:
@@ -293,15 +297,16 @@ def get_enhanced_workflow_tracer(session_id: Optional[str] = None, user_id: Opti
 
 def setup_enhanced_tracing():
     """Initialize enhanced tracing configuration."""
-    if LANGCHAIN_TRACING_V2:
-        try:
-            from app.core.config import setup_langsmith
-            setup_langsmith()
+    try:
+        from app.core.config import setup_langsmith
+
+        client = setup_langsmith()
+        if client:
             logger.info("Enhanced workflow tracing initialized with LangSmith")
-        except Exception as e:
-            logger.warning(f"LangSmith setup failed: {e}")
+        else:
             logger.info("Enhanced workflow tracing initialized (local only)")
-    else:
+    except Exception as e:
+        logger.warning(f"LangSmith setup failed: {e}")
         logger.info("Enhanced workflow tracing initialized (local only)")
 
 

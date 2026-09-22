@@ -6,6 +6,7 @@ load_dotenv(find_dotenv())
 # A single existing logging preset can be used for customer deployments that
 # must not emit application logs or external LangChain traces.
 if os.getenv("KAI_FLOW_LOGGING_PRESET", "").strip().lower() == "disabled":
+    os.environ["LANGSMITH_TRACING"] = "false"
     os.environ["LANGCHAIN_TRACING_V2"] = "false"
     os.environ["ENABLE_WORKFLOW_TRACING"] = "false"
     os.environ["TRACE_AGENT_REASONING"] = "false"

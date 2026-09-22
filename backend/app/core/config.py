@@ -4,8 +4,8 @@ Handles application settings using constants from constants.py.
 All environment variables are defined in constants.py.
 """
 
-import os
 import logging
+import os
 from typing import List
 
 # Import all constants
@@ -26,17 +26,43 @@ def setup_logging():
     
     
 
+_langsmith_client = None
+
+
 def setup_langsmith():
-    """Setup LangSmith tracing if enabled"""
-    if str(LANGCHAIN_TRACING_V2).lower() in ("true", "1", "t"):
-        os.environ["LANGCHAIN_TRACING_V2"] = "true"
-        if LANGCHAIN_ENDPOINT:
-            os.environ["LANGCHAIN_ENDPOINT"] = LANGCHAIN_ENDPOINT
-        if LANGCHAIN_API_KEY:
-            os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
-        if LANGCHAIN_PROJECT:
-            os.environ["LANGCHAIN_PROJECT"] = LANGCHAIN_PROJECT
-        logging.info("LangSmith tracing enabled")
+    """Configure optional LangSmith tracing without mutating secret env vars."""
+
+    global _langsmith_client
+    from langsmith import Client, configure
+
+    if not LANGSMITH_TRACING_ENABLED:
+        configure(client=None, enabled=False, project_name=None)
+        _langsmith_client = None
+        logging.info("LangSmith tracing disabled")
+        return None
+
+    if not LANGSMITH_API_KEY:
+        raise RuntimeError(
+            "LangSmith tracing is enabled but no LangSmith API key is configured."
+        )
+
+    _langsmith_client = Client(
+        api_url=LANGSMITH_ENDPOINT or None,
+        api_key=LANGSMITH_API_KEY,
+    )
+    configure(
+        client=_langsmith_client,
+        enabled=True,
+        project_name=LANGSMITH_PROJECT or "kai-flow",
+    )
+    logging.info("LangSmith tracing enabled")
+    return _langsmith_client
+
+
+def get_langsmith_client():
+    """Return the explicitly configured client, if external tracing is enabled."""
+
+    return _langsmith_client
 
 
 

@@ -33,6 +33,7 @@ from app.services.workflow_executor import (
     get_workflow_executor
 )
 from app.core.constants import API_START,API_VERSION
+from app.core.env_utils import external_tracing_enabled
 
 
 logger = logging.getLogger(__name__)
@@ -1609,7 +1610,7 @@ class WebhookTriggerNode(TerminatorNode):
         # Add LangSmith tracing if enabled
         runnable = WebhookRunnable(self.webhook_id)
         
-        if os.getenv("LANGCHAIN_TRACING_V2"):
+        if external_tracing_enabled():
             config = RunnableConfig(
                 run_name=f"WebhookTrigger_{self.webhook_id}",
                 tags=["webhook", "trigger"]
