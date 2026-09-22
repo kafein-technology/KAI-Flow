@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo } from "react";
+import { enqueueSnackbar } from "notistack";
 import { config } from "../../../lib/config";
 import type { NodeProperty } from "../types";
 import { getActiveSessionId } from "../../../services/chatService";
@@ -74,14 +75,31 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
     }
   }, [property.name, setFieldValue, values.session_mode, currentWorkflow?.id]);
 
-  const handleCopy = useCallback(() => {
+  const handleCopy = useCallback(async () => {
     if (!value) return;
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(value).catch(() => {
-        // Yut – sessiz failure
-      });
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error("Clipboard API is unavailable");
+      }
+
+      await navigator.clipboard.writeText(value);
+      if (property.name === "webhook_exact_url") {
+        enqueueSnackbar("Webhook URL copied!", {
+          variant: "success",
+          autoHideDuration: 1600,
+          preventDuplicate: true,
+        });
+      }
+    } catch {
+      if (property.name === "webhook_exact_url") {
+        enqueueSnackbar("Failed to copy Webhook URL.", {
+          variant: "error",
+          autoHideDuration: 1600,
+          preventDuplicate: true,
+        });
+      }
     }
-  }, [value]);
+  }, [property.name, value]);
 
   return (
     <div
