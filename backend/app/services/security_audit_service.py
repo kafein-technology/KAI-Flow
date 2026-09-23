@@ -8,6 +8,7 @@ defined here, and the policy gate combines those envelopes deterministically.
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import time
 import uuid
@@ -27,6 +28,7 @@ POLICY_VERSION = "1"
 # contract limit; scanner-side resource limits determine the normally retained set.
 MAX_FINDING_CANDIDATES = 32_768
 MAX_ARCHIVE_TESTS = 512
+MAX_DIAGNOSTICS = 128
 MAX_TEXT = 320
 
 _SAFE_LAYER_ID = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
@@ -75,7 +77,12 @@ def _safe_bool(value: Any, default: bool = False) -> bool:
 
 def _severity(value: Any) -> str:
     normalized = str(getattr(value, "name", value) or "info").lower()
-    if normalized in {"critical", "high", "overtly_malicious", "likely_overtly_malicious"}:
+    if normalized in {
+        "critical",
+        "high",
+        "overtly_malicious",
+        "likely_overtly_malicious",
+    }:
         return "critical"
     if normalized in {
         "warning",
@@ -94,14 +101,18 @@ def _bounded_findings(
     *,
     layer_id: str | None = None,
 ) -> list[dict[str, Any]]:
-    if not isinstance(findings, Sequence) or isinstance(findings, (str, bytes, bytearray)):
+    if not isinstance(findings, Sequence) or isinstance(
+        findings, (str, bytes, bytearray)
+    ):
         return []
     bounded: list[dict[str, Any]] = []
     for raw in islice(findings, MAX_FINDING_CANDIDATES):
         item = raw if isinstance(raw, Mapping) else {"message": raw}
         finding: dict[str, Any] = {
             "severity": _severity(item.get("severity")),
-            "title": _safe_text(item.get("title") or item.get("type") or "Security finding", 160),
+            "title": _safe_text(
+                item.get("title") or item.get("type") or "Security finding", 160
+            ),
             "message": _safe_text(item.get("message") or item.get("description") or ""),
         }
         for source_key, target_key, field_limit in (
@@ -119,7 +130,10 @@ def _bounded_findings(
                 finding[target_key] = _safe_text(item[source_key], field_limit)
         finding_layer_id = str(layer_id or item.get("layer_id") or "").strip().lower()
         scanner_rule_code = item.get("rule_code")
-        if finding_layer_id in {"static_analysis", "pickle_security"} and scanner_rule_code:
+        if (
+            finding_layer_id in {"static_analysis", "pickle_security"}
+            and scanner_rule_code
+        ):
             finding.update(
                 enrich_security_finding(
                     finding_layer_id,
@@ -177,11 +191,38 @@ def _bounded_target(value: Any) -> dict[str, Any]:
     return target
 
 
+def _bounded_diagnostics(value: Any) -> list[dict[str, Any]]:
+    """Normalize operational diagnostics without mixing them with vulnerabilities."""
+
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+        return []
+    result: list[dict[str, Any]] = []
+    for raw in list(value)[:MAX_DIAGNOSTICS]:
+        item = raw if isinstance(raw, Mapping) else {"message": raw}
+        diagnostic: dict[str, Any] = {
+            "code": _safe_text(item.get("code") or "scanner_diagnostic", 96)
+            .lower()
+            .replace(" ", "_"),
+            "message": _safe_text(item.get("message"), MAX_TEXT),
+        }
+        for key, limit in (("location", 240), ("severity", 32)):
+            if item.get(key) not in (None, ""):
+                diagnostic[key] = (
+                    _safe_text(item[key], limit).lower()
+                    if key == "severity"
+                    else _safe_text(item[key], limit)
+                )
+        result.append(diagnostic)
+    return result
+
+
 def _bounded_archive_files(value: Any) -> list[dict[str, Any]]:
     """Keep the per-entry results of a bounded Static model analysis ZIP scan visible."""
 
     raw_files = value.get("files") if isinstance(value, Mapping) else None
-    if not isinstance(raw_files, Sequence) or isinstance(raw_files, (str, bytes, bytearray)):
+    if not isinstance(raw_files, Sequence) or isinstance(
+        raw_files, (str, bytes, bytearray)
+    ):
         return []
     bounded: list[dict[str, Any]] = []
     for index, raw in enumerate(list(raw_files)[:512], start=1):
@@ -242,9 +283,13 @@ def _bounded_archive_info(value: Any) -> dict[str, Any]:
     if raw.get("entry_limit_reached") is not None:
         info["entry_limit_reached"] = _safe_bool(raw.get("entry_limit_reached"))
     extensions = raw.get("supported_extensions")
-    if isinstance(extensions, Sequence) and not isinstance(extensions, (str, bytes, bytearray)):
+    if isinstance(extensions, Sequence) and not isinstance(
+        extensions, (str, bytes, bytearray)
+    ):
         info["supported_extensions"] = [
-            _safe_text(extension, 64) for extension in list(extensions)[:256] if _safe_text(extension, 64)
+            _safe_text(extension, 64)
+            for extension in list(extensions)[:256]
+            if _safe_text(extension, 64)
         ]
     version = _safe_text(raw.get("scanner_version"), 64)
     if version:
@@ -286,10 +331,12 @@ def _compact_archive_files(files: Sequence[Mapping[str, Any]]) -> list[dict[str,
                 "checks": _positive_int(summary.get("checks")),
                 "tests_total": max(
                     _positive_int(raw.get("tests_total")),
-                    len(raw.get("tests") or [])
-                    if isinstance(raw.get("tests"), Sequence)
-                    and not isinstance(raw.get("tests"), (str, bytes, bytearray))
-                    else 0,
+                    (
+                        len(raw.get("tests") or [])
+                        if isinstance(raw.get("tests"), Sequence)
+                        and not isinstance(raw.get("tests"), (str, bytes, bytearray))
+                        else 0
+                    ),
                 ),
             },
         }
@@ -317,6 +364,7 @@ def make_layer_result(
     duration_ms: Any = 0,
     coverage_complete: bool | None = None,
     reason_codes: Sequence[Any] | None = None,
+    diagnostics: Any = None,
     audit_id: str | None = None,
 ) -> dict[str, Any]:
     """Create one JSON-safe scanner result with bounded details."""
@@ -374,6 +422,7 @@ def make_layer_result(
             "reason_codes": reasons,
         },
         "findings": bounded_findings,
+        "diagnostics": _bounded_diagnostics(diagnostics),
         "engine": {
             "name": _safe_text(engine_name, 96),
             "version": _safe_text(engine_version, 64),
@@ -388,7 +437,9 @@ def _layer_as_normalized(value: Mapping[str, Any]) -> dict[str, Any]:
     layer_id = str(value.get("layer_id") or "").lower()
     engine = value.get("engine") if isinstance(value.get("engine"), Mapping) else {}
     summary = value.get("summary") if isinstance(value.get("summary"), Mapping) else {}
-    coverage = value.get("coverage") if isinstance(value.get("coverage"), Mapping) else {}
+    coverage = (
+        value.get("coverage") if isinstance(value.get("coverage"), Mapping) else {}
+    )
     result = make_layer_result(
         layer_id=layer_id,
         engine_name=str(engine.get("name") or layer_id.title()),
@@ -408,6 +459,7 @@ def _layer_as_normalized(value: Mapping[str, Any]) -> dict[str, Any]:
             and not isinstance(coverage.get("reason_codes"), (str, bytes, bytearray))
             else []
         ),
+        diagnostics=value.get("diagnostics"),
         audit_id=str(value.get("audit_id") or "") or None,
     )
     files = _bounded_archive_files(value)
@@ -432,12 +484,19 @@ def _static_analysis_as_layer(value: Mapping[str, Any]) -> dict[str, Any]:
     decision = str(value.get("decision") or "error").lower()
     engine = value.get("engine") if isinstance(value.get("engine"), Mapping) else {}
     summary = value.get("summary") if isinstance(value.get("summary"), Mapping) else {}
-    artifact = value.get("artifact") if isinstance(value.get("artifact"), Mapping) else {}
+    artifact = (
+        value.get("artifact") if isinstance(value.get("artifact"), Mapping) else {}
+    )
     status = str(value.get("scan_outcome") or "").lower()
     if status not in _VALID_STATUSES:
         status = "complete" if decision in {"allow", "review", "block"} else decision
     reasons: list[str] = []
-    if value.get("analysis_incomplete"):
+    native_reasons = value.get("coverage_reason_codes")
+    if isinstance(native_reasons, Sequence) and not isinstance(
+        native_reasons, (str, bytes, bytearray)
+    ):
+        reasons.extend(str(reason) for reason in list(native_reasons)[:16])
+    if value.get("analysis_incomplete") and not reasons:
         reasons.append("analysis_incomplete")
     result = make_layer_result(
         layer_id="static_analysis",
@@ -481,7 +540,9 @@ def collect_layer_results(value: Any) -> list[dict[str, Any]]:
     def visit(candidate: Any, depth: int = 0) -> None:
         if depth > 8 or candidate is None:
             return
-        if isinstance(candidate, Sequence) and not isinstance(candidate, (str, bytes, bytearray)):
+        if isinstance(candidate, Sequence) and not isinstance(
+            candidate, (str, bytes, bytearray)
+        ):
             for item in candidate:
                 visit(item, depth + 1)
             return
@@ -518,7 +579,14 @@ def collect_layer_results(value: Any) -> list[dict[str, Any]]:
             collected.append(_static_analysis_as_layer(candidate))
             return
 
-        for key in ("audit_result", "scan_result", "audit", "output", "result", "value"):
+        for key in (
+            "audit_result",
+            "scan_result",
+            "audit",
+            "output",
+            "result",
+            "value",
+        ):
             if key in candidate:
                 visit(candidate[key], depth + 1)
                 return
@@ -527,7 +595,9 @@ def collect_layer_results(value: Any) -> list[dict[str, Any]]:
     return collected
 
 
-def parse_layer_ids(value: Any, default: Sequence[str] = ("static_analysis",)) -> list[str]:
+def parse_layer_ids(
+    value: Any, default: Sequence[str] = ("static_analysis",)
+) -> list[str]:
     parsed = value
     if value is None or value == "":
         parsed = list(default)
@@ -537,7 +607,9 @@ def parse_layer_ids(value: Any, default: Sequence[str] = ("static_analysis",)) -
             try:
                 parsed = json.loads(stripped)
             except json.JSONDecodeError as exc:
-                raise ValueError("required_layers must be a JSON array or comma-separated list.") from exc
+                raise ValueError(
+                    "required_layers must be a JSON array or comma-separated list."
+                ) from exc
         else:
             parsed = [item.strip() for item in stripped.split(",") if item.strip()]
     if not isinstance(parsed, Sequence) or isinstance(parsed, (str, bytes, bytearray)):
@@ -556,7 +628,7 @@ def _compact_target(value: Any) -> dict[str, Any]:
     bounded = _bounded_target(value)
     return {
         key: bounded[key]
-        for key in ("name", "format", "kind", "reference")
+        for key in ("name", "format", "kind", "reference", "size_bytes", "sha256")
         if key in bounded
     }
 
@@ -664,8 +736,15 @@ def _public_findings(
         recommendation = _safe_text(
             finding.get("rule_solution") or finding.get("remediation"), MAX_TEXT
         )
+        fingerprint_source = "\x1f".join(
+            str(finding.get(key) or "")
+            for key in ("layer_id", "rule_code", "location", "title", "message")
+        )
         public_finding: dict[str, Any] = {
             "id": f"finding-{index:03d}",
+            "fingerprint": hashlib.sha256(
+                fingerprint_source.encode("utf-8", errors="replace")
+            ).hexdigest()[:24],
             "scanner": _safe_text(
                 finding.get("layer_id") or default_scanner, 64
             ).lower(),
@@ -675,11 +754,14 @@ def _public_findings(
                 96,
             ),
             "title": _safe_text(finding.get("title") or "Security finding", 160),
-            "description": description,
-            "evidence": evidence,
-            "recommendation": recommendation,
         }
-        for field in ("location", "fixed_version"):
+        if description:
+            public_finding["description"] = description
+        if evidence:
+            public_finding["evidence"] = evidence
+        if recommendation:
+            public_finding["recommendation"] = recommendation
+        for field in ("location", "fixed_version", "risk_level"):
             if finding.get(field) not in (None, ""):
                 public_finding[field] = _safe_text(finding[field], 192)
         result.append(public_finding)
@@ -705,6 +787,28 @@ def _public_scanner_result(layer: Mapping[str, Any]) -> dict[str, Any]:
         "coverage_complete": _safe_bool(coverage.get("complete", False)),
         "finding_counts": {**counts, "total": sum(counts.values())},
     }
+    result["message"] = _decision_message(
+        result["decision"],
+        summary,
+        layer_id=layer_id,
+        applicable=result["applicable"],
+    )
+    reasons = [
+        _safe_text(reason, 96)
+        for reason in list(coverage.get("reason_codes") or [])[:16]
+        if _safe_text(reason, 96)
+    ]
+    if reasons:
+        result["coverage_reasons"] = reasons
+    engine = layer.get("engine") if isinstance(layer.get("engine"), Mapping) else {}
+    result["engine"] = {
+        "name": _safe_text(engine.get("name") or result["name"], 96),
+        "version": _safe_text(engine.get("version") or "unknown", 64),
+        "duration_ms": _positive_int(engine.get("duration_ms")),
+    }
+    diagnostics = _bounded_diagnostics(layer.get("diagnostics"))
+    if diagnostics:
+        result["diagnostics"] = diagnostics
     archive = _compact_archive_info(layer)
     for field in ("files_scanned", "files_skipped", "entry_limit_reached"):
         if field in archive:
@@ -719,6 +823,7 @@ def _public_summary(
     scanners_passed: int,
     scanners_total: int,
     findings_returned: int,
+    scanner_states: Mapping[str, Any] | None = None,
     archive: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     counts = {
@@ -734,6 +839,11 @@ def _public_summary(
         "scanners_passed": scanners_passed,
         "scanners_total": scanners_total,
     }
+    states = scanner_states if isinstance(scanner_states, Mapping) else {}
+    for key in ("scanners_completed", "scanners_inconclusive", "scanners_failed"):
+        if key in states:
+            result[key] = _positive_int(states.get(key))
+    result["findings_truncated"] = result["findings_total"] > findings_returned
     archive = archive if isinstance(archive, Mapping) else {}
     for field in ("files_scanned", "files_skipped"):
         if field in archive:
@@ -863,12 +973,22 @@ def compact_layer_result(
     else:
         layers = collect_layer_results(value)
         if not layers:
-            raise ValueError("Value does not contain a supported security-layer result.")
+            raise ValueError(
+                "Value does not contain a supported security-layer result."
+            )
         normalized = layers[0]
 
     layer_id = str(normalized.get("layer_id") or "security")
-    summary = normalized.get("summary") if isinstance(normalized.get("summary"), Mapping) else {}
-    coverage = normalized.get("coverage") if isinstance(normalized.get("coverage"), Mapping) else {}
+    summary = (
+        normalized.get("summary")
+        if isinstance(normalized.get("summary"), Mapping)
+        else {}
+    )
+    coverage = (
+        normalized.get("coverage")
+        if isinstance(normalized.get("coverage"), Mapping)
+        else {}
+    )
     applicable = _safe_bool(normalized.get("applicable", True), True)
     decision = str(normalized.get("decision") or "inconclusive")
     reasons = [
@@ -892,6 +1012,7 @@ def compact_layer_result(
         and str(normalized.get("status")) == "complete"
         and _safe_bool(coverage.get("complete", False))
     )
+    scanner_status = str(normalized.get("status") or "inconclusive")
     archive = _compact_archive_info(normalized)
     compact: dict[str, Any] = {
         "schema_version": PUBLIC_RESULT_SCHEMA_VERSION,
@@ -916,6 +1037,13 @@ def compact_layer_result(
             scanners_passed=scanner_passed,
             scanners_total=int(applicable),
             findings_returned=len(findings),
+            scanner_states={
+                "scanners_completed": int(scanner_status == "complete"),
+                "scanners_inconclusive": int(
+                    scanner_status in {"inconclusive", "unsupported", "timeout"}
+                ),
+                "scanners_failed": int(scanner_status == "error"),
+            },
             archive=archive,
         ),
         "scanner_results": {layer_id: scanner_result},
@@ -937,7 +1065,9 @@ def compact_audit_result(value: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError("Value is not a layered security audit.")
     summary = value.get("summary") if isinstance(value.get("summary"), Mapping) else {}
     policy = value.get("policy") if isinstance(value.get("policy"), Mapping) else {}
-    coverage = value.get("coverage") if isinstance(value.get("coverage"), Mapping) else {}
+    coverage = (
+        value.get("coverage") if isinstance(value.get("coverage"), Mapping) else {}
+    )
     layers = value.get("layers") if isinstance(value.get("layers"), list) else []
 
     normalized_decision = str(value.get("decision") or "inconclusive")
@@ -954,12 +1084,26 @@ def compact_audit_result(value: Mapping[str, Any]) -> dict[str, Any]:
         layer_id = _safe_text(layer.get("layer_id") or "security", 64).lower()
         scanner_results[layer_id] = _public_scanner_result(layer)
 
+    scanner_states = {
+        "scanners_completed": sum(
+            1
+            for result in scanner_results.values()
+            if result.get("status") == "complete"
+        ),
+        "scanners_inconclusive": sum(
+            1
+            for result in scanner_results.values()
+            if result.get("status") in {"inconclusive", "unsupported", "timeout"}
+        ),
+        "scanners_failed": sum(
+            1 for result in scanner_results.values() if result.get("status") == "error"
+        ),
+    }
+
     public_policy: dict[str, Any] = {
         "profile": _safe_text(policy.get("profile") or "balanced", 32),
         "coverage_complete": coverage_complete,
-        "required_scanners": parse_layer_ids(
-            policy.get("required_layers"), default=()
-        ),
+        "required_scanners": parse_layer_ids(policy.get("required_layers"), default=()),
     }
     issue_names = {
         "missing_required_layers": "missing_scanners",
@@ -996,10 +1140,14 @@ def compact_audit_result(value: Mapping[str, Any]) -> dict[str, Any]:
             scanners_passed=_positive_int(summary.get("layers_passed")),
             scanners_total=_positive_int(summary.get("layers_total")),
             findings_returned=len(findings),
+            scanner_states=scanner_states,
             archive=_compact_archive_info(value),
         ),
         "scanner_results": scanner_results,
         "findings": findings,
+        "limitations": [
+            "Static analysis reduces risk but cannot guarantee that a model artifact is safe at runtime."
+        ],
     }
     json.dumps(compact, ensure_ascii=False)
     return compact
@@ -1128,15 +1276,25 @@ class SecurityPolicyService:
         total_counts = {"critical": 0, "warning": 0, "info": 0}
         all_findings: list[dict[str, Any]] = []
         for layer in normalized_layers:
-            summary = layer.get("summary") if isinstance(layer.get("summary"), Mapping) else {}
+            summary = (
+                layer.get("summary")
+                if isinstance(layer.get("summary"), Mapping)
+                else {}
+            )
             for severity in total_counts:
                 total_counts[severity] += _positive_int(summary.get(severity))
             for finding in _bounded_findings(layer.get("findings")):
                 all_findings.append({"layer_id": layer.get("layer_id"), **finding})
-        all_findings.sort(key=lambda item: _SEVERITY_ORDER.get(str(item.get("severity")), 3))
+        all_findings.sort(
+            key=lambda item: _SEVERITY_ORDER.get(str(item.get("severity")), 3)
+        )
 
-        has_block = any(str(layer.get("decision")) == "block" for layer in normalized_layers)
-        has_review = any(str(layer.get("decision")) == "review" for layer in normalized_layers)
+        has_block = any(
+            str(layer.get("decision")) == "block" for layer in normalized_layers
+        )
+        has_review = any(
+            str(layer.get("decision")) == "review" for layer in normalized_layers
+        )
         advisory_failure = any(
             str(layer.get("layer_id")) not in required
             and bool(layer.get("applicable", True))
@@ -1153,7 +1311,9 @@ class SecurityPolicyService:
         else:
             decision = "allow"
 
-        applicable_layers = [layer for layer in normalized_layers if bool(layer.get("applicable", True))]
+        applicable_layers = [
+            layer for layer in normalized_layers if bool(layer.get("applicable", True))
+        ]
         passed_layers = [
             layer
             for layer in applicable_layers
@@ -1165,15 +1325,14 @@ class SecurityPolicyService:
             (
                 layer.get("target")
                 for layer in normalized_layers
-                if isinstance(layer.get("target"), Mapping) and bool(layer.get("target"))
+                if isinstance(layer.get("target"), Mapping)
+                and bool(layer.get("target"))
             ),
             {},
         )
         compact_layers = deepcopy(normalized_layers)
         for compact_layer in compact_layers:
-            compact_layer["findings"] = _bounded_findings(
-                compact_layer.get("findings")
-            )
+            compact_layer["findings"] = _bounded_findings(compact_layer.get("findings"))
 
         audit = {
             "schema_version": AUDIT_SCHEMA_VERSION,
