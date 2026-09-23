@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from copy import deepcopy
 from typing import Any
 
 from app.services.model_artifact_analysis_service import (
@@ -29,6 +30,59 @@ from app.services.security_audit_service import (
 
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_delegated_pickle_coverage(
+    static_layer: Mapping[str, Any], pickle_layer: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Complete a static Pickle coverage gap when the specialist completed it."""
+
+    static_coverage = (
+        static_layer.get("coverage")
+        if isinstance(static_layer.get("coverage"), Mapping)
+        else {}
+    )
+    pickle_coverage = (
+        pickle_layer.get("coverage")
+        if isinstance(pickle_layer.get("coverage"), Mapping)
+        else {}
+    )
+    reasons = {
+        str(reason) for reason in list(static_coverage.get("reason_codes") or [])
+    }
+    delegated_reasons = {"pickle_analysis_incomplete"}
+    specialist_completed = (
+        pickle_layer.get("applicable") is not False
+        and str(pickle_layer.get("status")) == "complete"
+        and str(pickle_layer.get("decision")) not in {"error", "inconclusive"}
+        and bool(pickle_coverage.get("complete"))
+    )
+    if (
+        not reasons
+        or not reasons.issubset(delegated_reasons)
+        or not specialist_completed
+    ):
+        return dict(static_layer)
+
+    result = deepcopy(dict(static_layer))
+    summary = (
+        result.get("summary") if isinstance(result.get("summary"), Mapping) else {}
+    )
+    if int(summary.get("critical", 0) or 0) > 0:
+        decision = "block"
+    elif int(summary.get("warning", 0) or 0) > 0:
+        decision = "review"
+    else:
+        decision = "allow"
+    result["decision"] = decision
+    result["status"] = "complete"
+    result["should_continue"] = decision == "allow"
+    result["coverage"] = {
+        "complete": True,
+        "reason_codes": ["pickle_coverage_completed_by_specialist"],
+    }
+    return result
+
 
 def _error_layer(
     layer_id: str,
@@ -106,9 +160,7 @@ class LLMModelScannerService:
                         type(exc).__name__,
                     )
                     layers.append(
-                        _error_layer(
-                            "static_analysis", "Artifact security analysis"
-                        )
+                        _error_layer("static_analysis", "Artifact security analysis")
                     )
 
                 try:
@@ -119,6 +171,9 @@ class LLMModelScannerService:
                     if pickle_layer.get("applicable") is not False:
                         routed_layer_ids.append("pickle_security")
                         layers.append(pickle_layer)
+                        layers[0] = _resolve_delegated_pickle_coverage(
+                            layers[0], pickle_layer
+                        )
                 except Exception as exc:
                     logger.error(
                         "Specialized serialization layer failed: error_type=%s",

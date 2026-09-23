@@ -151,7 +151,11 @@ def _guidance(engine: str, source_code: str) -> tuple[str, str]:
             "Reject the artifact and enforce bounded interpretation resources before retrying.",
             "Artefaktı reddedin ve yeniden denemeden önce yorumlama kaynaklarını sınırlandırın.",
         )
-    if "scannerdeactivation" in token or "unsafeimports" in token or "overtlybadeval" in token:
+    if (
+        "scannerdeactivation" in token
+        or "unsafeimports" in token
+        or "overtlybadeval" in token
+    ):
         return (
             "Reject the pickle and inspect how executable imports or calls entered the artifact.",
             "Pickle dosyasını reddedin ve çalıştırılabilir içe aktarmaların veya çağrıların artefakta nasıl girdiğini inceleyin.",
@@ -467,7 +471,8 @@ def find_security_error(
     candidates = [
         entry
         for entry in get_security_error_catalog()
-        if entry.engine == engine_name and _source_token(entry.source_code) == source_token
+        if entry.engine == engine_name
+        and _source_token(entry.source_code) == source_token
     ]
     if not candidates:
         return None
@@ -496,6 +501,7 @@ def enrich_security_finding(
         return {}
     return {
         "rule_code": definition.custom_code,
+        "risk_level": definition.risk_level,
         "rule_description": definition.english_description,
         "rule_solution": definition.guidance_en,
     }

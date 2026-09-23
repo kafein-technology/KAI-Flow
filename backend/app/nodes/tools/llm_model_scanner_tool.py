@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import Any, Dict
 
 from langchain_core.tools import StructuredTool
@@ -49,7 +48,14 @@ class LLMModelScannerToolNode(ProviderNode):
             "category": "Tool",
             "node_type": NodeType.PROVIDER,
             "version": "2.0.0",
-            "tags": ["tool", "security", "model", "artifact", "static_analysis", "pickle_security"],
+            "tags": [
+                "tool",
+                "security",
+                "model",
+                "artifact",
+                "static_analysis",
+                "pickle_security",
+            ],
             "colors": ["orange-500", "red-600"],
             "icon": {
                 "name": "llm_model_scanner_tool",
@@ -88,12 +94,7 @@ class LLMModelScannerToolNode(ProviderNode):
                 owner_id=getattr(self, "user_id", None),
                 **values,
             )
-            compact = present_security_result(detailed, include_details=False)
-            payload: dict[str, Any] = {
-                **deepcopy(compact),
-                "safety_notice": "Static security analysis is not a definitive guarantee of runtime safety.",
-            }
-            return payload
+            return present_security_result(detailed, include_details=False)
 
         tool = StructuredTool.from_function(
             name="llm_model_scanner_tool",

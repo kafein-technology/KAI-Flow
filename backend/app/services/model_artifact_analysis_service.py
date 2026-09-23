@@ -111,6 +111,22 @@ _FORMAT_BY_SUFFIX = {
     ".mar": "archive",
 }
 
+# These canonical model metadata files are declarative data, not executable
+# model containers. A successful engine result with no applicable scanner is
+# therefore a completed not-applicable file check, not a coverage failure.
+_DATA_ONLY_MODEL_FILENAMES = {
+    "added_tokens.json",
+    "adapter_config.json",
+    "config.json",
+    "generation_config.json",
+    "preprocessor_config.json",
+    "special_tokens_map.json",
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "trainer_state.json",
+    "vocab.json",
+}
+
 
 def installed_static_analysis_version() -> str:
     try:
@@ -178,6 +194,7 @@ def get_static_analysis_capabilities() -> dict[str, Any]:
         capabilities["error"] = "Static model analysis scanner registry is unavailable."
     return capabilities
 
+
 class ArtifactReferenceError(ValueError):
     """Raised when a value is not a trusted KAI-Flow artifact reference."""
 
@@ -198,7 +215,9 @@ class ModelArtifactAnalysisTimeoutError(ModelArtifactAnalysisRunnerError):
     """Raised when the isolated scanner exceeds its deadline."""
 
 
-def _ensure_staging_disk_space(path: str | os.PathLike[str], required_bytes: int = 0) -> None:
+def _ensure_staging_disk_space(
+    path: str | os.PathLike[str], required_bytes: int = 0
+) -> None:
     try:
         usage = shutil.disk_usage(path)
     except OSError as exc:
@@ -469,7 +488,9 @@ def _bounded_engine_payload(
     else:
         raw = result
     if not isinstance(raw, Mapping):
-        raise ModelArtifactAnalysisRunnerError("Static model analysis returned an invalid result contract.")
+        raise ModelArtifactAnalysisRunnerError(
+            "Static model analysis returned an invalid result contract."
+        )
 
     raw_issues = raw.get("issues")
     issues: list[Any] = raw_issues if isinstance(raw_issues, list) else []
@@ -579,9 +600,7 @@ def _execute_static_analysis(
         directory_config = dict(config)
         timeout = int(directory_config.pop("timeout", DEFAULT_TIMEOUT_SECONDS))
         max_file_size = int(directory_config.pop("max_file_size", 0))
-        max_total_size = int(
-            directory_config.pop("max_total_size", max_file_size)
-        )
+        max_total_size = int(directory_config.pop("max_total_size", max_file_size))
         scanners = directory_config.pop("scanners", None)
         # These are scan_file-only presentation/cache flags, not directory policy.
         directory_config.pop("enable_progress", None)
@@ -596,6 +615,23 @@ def _execute_static_analysis(
             **directory_config,
         )
         raw = result.model_dump(mode="json")
+        directory_reasons: list[str] = []
+        file_metadata = raw.get("file_metadata")
+        if isinstance(file_metadata, Mapping):
+            for file_result in file_metadata.values():
+                if not isinstance(file_result, Mapping):
+                    continue
+                reasons = file_result.get("scan_outcome_reasons")
+                if not isinstance(reasons, Sequence) or isinstance(
+                    reasons, (str, bytes, bytearray)
+                ):
+                    continue
+                for reason in reasons:
+                    normalized_reason = str(reason)[:96]
+                    if normalized_reason and normalized_reason not in directory_reasons:
+                        directory_reasons.append(normalized_reason)
+        if raw.get("has_errors") and not directory_reasons:
+            directory_reasons.append("directory_analysis_incomplete")
         raw["scanner"] = "directory"
         raw["metadata"] = {
             "validated_format": "directory",
@@ -608,6 +644,7 @@ def _execute_static_analysis(
                 if raw.get("success") is True and not raw.get("has_errors")
                 else "inconclusive"
             ),
+            "scan_outcome_reasons": directory_reasons,
         }
         result = raw
     else:
@@ -826,9 +863,7 @@ def _managed_artifact_from_mapping(
 ) -> ModelArtifact:
     artifact_id = str(value.get("artifact_id") or "").strip()
     try:
-        record = managed_model_artifact_store.resolve(
-            artifact_id, owner_id=owner_id
-        )
+        record = managed_model_artifact_store.resolve(artifact_id, owner_id=owner_id)
     except ManagedArtifactError as exc:
         raise ArtifactReferenceError(str(exc)) from exc
     return ModelArtifact(
@@ -927,7 +962,9 @@ def _is_link_or_reparse(path_stat: os.stat_result) -> bool:
 
 
 def _local_path_artifact_from_mapping(value: Mapping[str, Any]) -> ModelArtifact:
-    source_type = str(value.get("source_type") or value.get("storage") or "").strip().lower()
+    source_type = (
+        str(value.get("source_type") or value.get("storage") or "").strip().lower()
+    )
     if source_type not in {"path", "local_path", "direct"}:
         raise ArtifactReferenceError(
             "A local path source must explicitly use source_type='path'."
@@ -947,7 +984,9 @@ def _local_path_artifact_from_mapping(value: Mapping[str, Any]) -> ModelArtifact
         resolved = path.resolve(strict=True)
         path_stat = resolved.stat()
     except OSError as exc:
-        raise ArtifactReferenceError("Local artifact path could not be opened.") from exc
+        raise ArtifactReferenceError(
+            "Local artifact path could not be opened."
+        ) from exc
     _ensure_local_path_is_allowed(resolved)
     is_file = stat.S_ISREG(path_stat.st_mode)
     is_directory = stat.S_ISDIR(path_stat.st_mode)
@@ -992,11 +1031,15 @@ def resolve_model_artifact(
             "Use an explicit source_type='path' object for local filesystem scans."
         )
     if isinstance(candidate, Mapping):
-        if any(candidate.get(key) not in (None, "") for key in ("url", "bytes", "content")):
+        if any(
+            candidate.get(key) not in (None, "") for key in ("url", "bytes", "content")
+        ):
             raise ArtifactReferenceError(
                 "URLs and raw artifact bytes are not accepted."
             )
-        if candidate.get("path") not in (None, "") or candidate.get("local_path") not in (None, ""):
+        if candidate.get("path") not in (None, "") or candidate.get(
+            "local_path"
+        ) not in (None, ""):
             return _local_path_artifact_from_mapping(candidate)
         storage = _artifact_storage(candidate)
         if storage == "minio":
@@ -1141,9 +1184,7 @@ def _snapshot_direct_path(
 
     digest = hashlib.sha256(b"KAI-MODEL-DIRECTORY-v1\0")
     size_bytes = 0
-    snapshot: list[tuple[Any, ...]] = [
-        _stat_signature("directory", "", root_stat)
-    ]
+    snapshot: list[tuple[Any, ...]] = [_stat_signature("directory", "", root_stat)]
     for entry_path, relative_path, entry_stat, entry_type in _directory_entries(
         source_path, deadline
     ):
@@ -1193,9 +1234,7 @@ def _snapshot_direct_path(
     return size_bytes, digest.hexdigest(), "directory", verified_snapshot
 
 
-def _metadata_snapshot(
-    path: Path, deadline: float
-) -> tuple[tuple[Any, ...], ...]:
+def _metadata_snapshot(path: Path, deadline: float) -> tuple[tuple[Any, ...], ...]:
     try:
         root_stat = path.lstat()
     except OSError as exc:
@@ -1213,7 +1252,9 @@ def _metadata_snapshot(
     snapshot = [_stat_signature("directory", "", root_stat)]
     snapshot.extend(
         _stat_signature(entry_type, relative_path, entry_stat)
-        for _, relative_path, entry_stat, entry_type in _directory_entries(path, deadline)
+        for _, relative_path, entry_stat, entry_type in _directory_entries(
+            path, deadline
+        )
     )
     return tuple(snapshot)
 
@@ -1254,16 +1295,22 @@ def _safe_archive_member_name(value: Any) -> str | None:
     return "/".join(safe_parts)[:MAX_ARCHIVE_MEMBER_NAME]
 
 
-def _archive_entry_matches(
-    name: str, capabilities: Mapping[str, Any]
-) -> bool:
+def _archive_entry_matches(name: str, capabilities: Mapping[str, Any]) -> bool:
     lowered = name.lower()
     extensions = capabilities.get("extensions")
-    if isinstance(extensions, Sequence) and not isinstance(extensions, (str, bytes, bytearray)):
-        if any(lowered.endswith(str(extension).lower()) for extension in extensions if extension):
+    if isinstance(extensions, Sequence) and not isinstance(
+        extensions, (str, bytes, bytearray)
+    ):
+        if any(
+            lowered.endswith(str(extension).lower())
+            for extension in extensions
+            if extension
+        ):
             return True
     filenames = capabilities.get("filenames")
-    if isinstance(filenames, Sequence) and not isinstance(filenames, (str, bytes, bytearray)):
+    if isinstance(filenames, Sequence) and not isinstance(
+        filenames, (str, bytes, bytearray)
+    ):
         return lowered.rsplit("/", 1)[-1] in {
             str(filename).lower() for filename in filenames if filename
         }
@@ -1329,8 +1376,10 @@ def _stage_model_artifact_unleased(
     temp_dir = ""
     try:
         try:
-            staging_reservation_id = managed_model_artifact_store.reserve_staging_capacity(
-                artifact.size_bytes or maximum_bytes
+            staging_reservation_id = (
+                managed_model_artifact_store.reserve_staging_capacity(
+                    artifact.size_bytes or maximum_bytes
+                )
             )
         except ManagedArtifactInsufficientDiskError as exc:
             raise ArtifactDiskSpaceError(str(exc)) from exc
@@ -1357,7 +1406,9 @@ def _stage_model_artifact_unleased(
                 last_disk_check = 0
                 while True:
                     if time.monotonic() >= deadline:
-                        raise ModelArtifactAnalysisTimeoutError("Artifact staging timed out.")
+                        raise ModelArtifactAnalysisTimeoutError(
+                            "Artifact staging timed out."
+                        )
                     chunk = stream.read(COPY_CHUNK_BYTES)
                     if not chunk:
                         break
@@ -1533,6 +1584,7 @@ class ModelArtifactAnalysisService:
         tests_total: int | None = None,
         tests_truncated: bool = False,
         engine_version: str = STATIC_ANALYSIS_VERSION,
+        coverage_reason_codes: Sequence[Any] | None = None,
     ) -> dict[str, Any]:
         severity_counts = counts or {}
         critical = max(0, int(severity_counts.get("critical", 0)))
@@ -1547,9 +1599,11 @@ class ModelArtifactAnalysisService:
                 "format": artifact_format,
                 "size_bytes": max(0, int(size_bytes)),
                 "sha256": sha256,
-                "kind": "model_directory"
-                if artifact_format == "directory"
-                else "model_artifact",
+                "kind": (
+                    "model_directory"
+                    if artifact_format == "directory"
+                    else "model_artifact"
+                ),
             },
             "decision": decision,
             "should_continue": decision == "allow",
@@ -1563,6 +1617,11 @@ class ModelArtifactAnalysisService:
                 "checks": max(0, int(checks)),
             },
             "findings": deepcopy(findings or []),
+            "coverage_reason_codes": [
+                str(reason)[:96]
+                for reason in list(coverage_reason_codes or [])[:16]
+                if str(reason).strip()
+            ],
             "engine": {
                 "name": "Static model analysis",
                 "version": engine_version,
@@ -1625,6 +1684,15 @@ class ModelArtifactAnalysisService:
         warning = int(counts.get("warning", 0) or 0)
         scanner = str(raw.get("scanner") or "unknown").lower()
         checks = max(0, int(raw.get("checks", 0) or 0))
+        metadata_name = Path(artifact.name).name.lower()
+        data_only_metadata = (
+            raw.get("success") is True
+            and scanner in {"", "unknown", "skipped", "none"}
+            and checks == 0
+            and critical == 0
+            and warning == 0
+            and metadata_name in _DATA_ONLY_MODEL_FILENAMES
+        )
         reported_outcome = str(metadata.get("scan_outcome") or "").lower()
         validated_format = (
             metadata.get("validated_format")
@@ -1639,11 +1707,15 @@ class ModelArtifactAnalysisService:
             bool(metadata.get("analysis_incomplete"))
             or reported_outcome == "inconclusive"
         )
-        coverage_gap = coverage_gap or scanner in {"", "unknown", "skipped", "none"}
-        coverage_gap = coverage_gap or checks == 0 or artifact_format == "unknown"
-        operational_error = bool(metadata.get("operational_error")) or raw.get(
-            "success"
-        ) is not True
+        coverage_gap = coverage_gap or (
+            not data_only_metadata and scanner in {"", "unknown", "skipped", "none"}
+        )
+        coverage_gap = coverage_gap or (
+            not data_only_metadata and (checks == 0 or artifact_format == "unknown")
+        )
+        operational_error = (
+            bool(metadata.get("operational_error")) or raw.get("success") is not True
+        )
 
         if critical > 0:
             decision = "block"
@@ -1661,6 +1733,19 @@ class ModelArtifactAnalysisService:
         )
         findings = raw.get("findings") if isinstance(raw.get("findings"), list) else []
         tests = raw.get("tests") if isinstance(raw.get("tests"), list) else None
+        raw_reasons = metadata.get("scan_outcome_reasons")
+        coverage_reasons = (
+            [str(reason) for reason in raw_reasons]
+            if isinstance(raw_reasons, Sequence)
+            and not isinstance(raw_reasons, (str, bytes, bytearray))
+            else []
+        )
+        if coverage_gap and not coverage_reasons:
+            coverage_reasons.append(
+                "unsupported_or_unclassified_format"
+                if scanner in {"", "unknown", "skipped", "none"}
+                else "analysis_incomplete"
+            )
         return self._base_result(
             scan_id=scan_id,
             scanned_at=scanned_at,
@@ -1671,7 +1756,7 @@ class ModelArtifactAnalysisService:
             decision=decision,
             analysis_incomplete=coverage_gap or decision == "error",
             scan_outcome=scan_outcome,
-            scanner=scanner,
+            scanner="model_metadata" if data_only_metadata else scanner,
             duration_ms=int(raw.get("duration_ms", 0) or 0),
             findings=findings,
             counts=counts,
@@ -1680,6 +1765,7 @@ class ModelArtifactAnalysisService:
             tests_total=raw.get("tests_total") if tests is not None else None,
             tests_truncated=bool(raw.get("tests_truncated", False)),
             engine_version=str(raw.get("engine_version") or STATIC_ANALYSIS_VERSION),
+            coverage_reason_codes=coverage_reasons,
         )
 
     def _scan_single_staged(
@@ -1706,15 +1792,19 @@ class ModelArtifactAnalysisService:
                 "enable_progress": False,
                 "max_file_read_size": max(
                     1,
-                    staged.max_bytes
-                    if staged.kind == "directory"
-                    else staged.size_bytes,
+                    (
+                        staged.max_bytes
+                        if staged.kind == "directory"
+                        else staged.size_bytes
+                    ),
                 ),
                 "max_file_size": max(
                     1,
-                    staged.max_bytes
-                    if staged.kind == "directory"
-                    else staged.size_bytes,
+                    (
+                        staged.max_bytes
+                        if staged.kind == "directory"
+                        else staged.size_bytes
+                    ),
                 ),
                 "timeout": remaining,
             }
@@ -1722,9 +1812,7 @@ class ModelArtifactAnalysisService:
                 scan_config["max_total_size"] = max(1, staged.max_bytes)
             if scanners:
                 scan_config["scanners"] = scanners
-            raw = self._runner.run(
-                staged.path, scan_config, remaining, staged.name
-            )
+            raw = self._runner.run(staged.path, scan_config, remaining, staged.name)
             result = self._normalize_engine_result(
                 raw,
                 scan_id=scan_id,
@@ -1761,9 +1849,17 @@ class ModelArtifactAnalysisService:
     def _archive_file_result(
         result: Mapping[str, Any], entry_name: str, scan_order: int
     ) -> dict[str, Any]:
-        artifact = result.get("artifact") if isinstance(result.get("artifact"), Mapping) else {}
-        summary = result.get("summary") if isinstance(result.get("summary"), Mapping) else {}
-        engine = result.get("engine") if isinstance(result.get("engine"), Mapping) else {}
+        artifact = (
+            result.get("artifact")
+            if isinstance(result.get("artifact"), Mapping)
+            else {}
+        )
+        summary = (
+            result.get("summary") if isinstance(result.get("summary"), Mapping) else {}
+        )
+        engine = (
+            result.get("engine") if isinstance(result.get("engine"), Mapping) else {}
+        )
         findings = deepcopy(
             result.get("findings")[:MAX_ENGINE_FINDINGS]
             if isinstance(result.get("findings"), list)
@@ -1785,9 +1881,7 @@ class ModelArtifactAnalysisService:
                 visible_counts[severity],
             )
         tests = deepcopy(
-            result.get("tests")
-            if isinstance(result.get("tests"), list)
-            else []
+            result.get("tests") if isinstance(result.get("tests"), list) else []
         )
         tests_total = max(
             len(tests),
@@ -1817,6 +1911,9 @@ class ModelArtifactAnalysisService:
             "decision": str(result.get("decision") or "error"),
             "scan_outcome": str(result.get("scan_outcome") or "error"),
             "analysis_incomplete": bool(result.get("analysis_incomplete")),
+            "coverage_reason_codes": list(result.get("coverage_reason_codes") or [])[
+                :16
+            ],
             "summary": normalized_summary,
             "tests": tests,
             "tests_total": tests_total,
@@ -1846,6 +1943,7 @@ class ModelArtifactAnalysisService:
         capabilities = get_static_analysis_capabilities()
         entry_results: list[dict[str, Any]] = []
         skipped_files: list[str] = []
+        archive_findings: list[dict[str, Any]] = []
         temp_dir: str | None = None
         limit_reached = False
         expanded_bytes = 0
@@ -1858,14 +1956,65 @@ class ModelArtifactAnalysisService:
             with zipfile.ZipFile(staged.path) as archive:
                 infos = archive.infolist()
                 limit_reached = len(infos) > MAX_ARCHIVE_ENTRIES
+                seen_member_names: set[str] = set()
                 temp_dir = tempfile.mkdtemp(prefix="kai-static_analysis-zip-entry-")
                 os.chmod(temp_dir, 0o700)
                 for index, info in enumerate(infos[:MAX_ARCHIVE_ENTRIES]):
                     if info.is_dir():
                         continue
+                    raw_member_name = str(info.filename or "").replace("\\", "/")
+                    if raw_member_name in seen_member_names:
+                        archive_findings.append(
+                            {
+                                "severity": "warning",
+                                "title": "Duplicate archive member",
+                                "message": "Archive contains duplicate member names with ambiguous content.",
+                                "rule_code": "DUPLICATE_ARCHIVE_MEMBER",
+                                "location": raw_member_name[:MAX_ARCHIVE_MEMBER_NAME],
+                            }
+                        )
+                    seen_member_names.add(raw_member_name)
                     entry_name = _safe_archive_member_name(info.filename)
                     if not entry_name:
                         skipped_files.append("<unsafe archive entry>")
+                        archive_findings.append(
+                            {
+                                "severity": "critical",
+                                "title": "Unsafe archive member path",
+                                "message": "Archive member uses an absolute or traversal path.",
+                                "rule_code": "UNSAFE_ARCHIVE_MEMBER_PATH",
+                                "location": raw_member_name[:MAX_ARCHIVE_MEMBER_NAME],
+                            }
+                        )
+                        continue
+                    unix_mode = (int(info.external_attr) >> 16) & 0xFFFF
+                    if unix_mode and stat.S_ISLNK(unix_mode):
+                        skipped_files.append(entry_name)
+                        archive_findings.append(
+                            {
+                                "severity": "critical",
+                                "title": "Archive symbolic link",
+                                "message": "Archive contains a symbolic-link member.",
+                                "rule_code": "ARCHIVE_SYMBOLIC_LINK",
+                                "location": entry_name,
+                            }
+                        )
+                        continue
+                    if (
+                        int(info.file_size) > 1024 * 1024
+                        and int(info.compress_size) > 0
+                        and int(info.file_size) / int(info.compress_size) > 1000
+                    ):
+                        skipped_files.append(entry_name)
+                        archive_findings.append(
+                            {
+                                "severity": "critical",
+                                "title": "Suspicious archive expansion ratio",
+                                "message": "Archive member exceeds the safe compression-ratio threshold.",
+                                "rule_code": "ARCHIVE_EXPANSION_RATIO",
+                                "location": entry_name,
+                            }
+                        )
                         continue
                     if not _archive_entry_matches(entry_name, capabilities):
                         skipped_files.append(entry_name)
@@ -1892,25 +2041,33 @@ class ModelArtifactAnalysisService:
                         continue
                     if expanded_bytes + declared_size > archive_max_bytes:
                         limit_reached = True
-                        skipped_files.append(
-                            f"<archive expansion limit: {entry_name}>"
-                        )
+                        skipped_files.append(f"<archive expansion limit: {entry_name}>")
                         break
                     if time.monotonic() >= staged.deadline_monotonic:
                         limit_reached = True
                         break
 
                     _ensure_staging_disk_space(temp_dir, declared_size)
-                    entry_path = Path(temp_dir) / (
-                        f"{index}-{sanitize_artifact_name(Path(entry_name).name)}"
+                    # Several model formats (for example Hugging Face
+                    # tokenizer.json) are routed by their canonical basename.
+                    # Keep that basename intact inside a unique directory; a
+                    # numeric filename prefix silently changes scanner routing.
+                    entry_directory = Path(temp_dir) / str(index)
+                    entry_directory.mkdir(mode=0o700)
+                    entry_path = entry_directory / sanitize_artifact_name(
+                        Path(entry_name).name
                     )
                     entry_size = 0
                     entry_digest = hashlib.sha256()
                     try:
-                        with archive.open(info, "r") as source, entry_path.open("xb") as destination:
+                        with archive.open(info, "r") as source, entry_path.open(
+                            "xb"
+                        ) as destination:
                             while True:
                                 if time.monotonic() >= staged.deadline_monotonic:
-                                    raise ModelArtifactAnalysisTimeoutError("Archive entry extraction timed out.")
+                                    raise ModelArtifactAnalysisTimeoutError(
+                                        "Archive entry extraction timed out."
+                                    )
                                 chunk = source.read(COPY_CHUNK_BYTES)
                                 if not chunk:
                                     break
@@ -1922,7 +2079,9 @@ class ModelArtifactAnalysisService:
                                 entry_digest.update(chunk)
                                 destination.write(chunk)
                         if entry_size != declared_size:
-                            raise ArtifactReferenceError("Archive entry size validation failed.")
+                            raise ArtifactReferenceError(
+                                "Archive entry size validation failed."
+                            )
                         expanded_bytes += entry_size
                         entry_artifact = ModelArtifact(
                             name=entry_name,
@@ -2001,16 +2160,31 @@ class ModelArtifactAnalysisService:
             if temp_dir:
                 shutil.rmtree(temp_dir, ignore_errors=True)
 
-        counts = {"critical": 0, "warning": 0, "info": 0}
-        checks = 0
-        findings: list[dict[str, Any]] = []
-        decisions = []
+        counts = {
+            "critical": sum(
+                1 for finding in archive_findings if finding["severity"] == "critical"
+            ),
+            "warning": sum(
+                1 for finding in archive_findings if finding["severity"] == "warning"
+            ),
+            "info": 0,
+        }
+        checks = len(archive_findings)
+        findings: list[dict[str, Any]] = list(archive_findings)
+        decisions = (
+            ["block"] if counts["critical"] else ["review"] if counts["warning"] else []
+        )
+        coverage_reason_codes: list[str] = []
         for file_result in entry_results:
             decisions.append(str(file_result.get("decision") or "error"))
             summary = file_result.get("summary") or {}
             for severity in counts:
                 counts[severity] += max(0, int(summary.get(severity, 0) or 0))
             checks += max(0, int(summary.get("checks", 0) or 0))
+            for reason in list(file_result.get("coverage_reason_codes") or [])[:16]:
+                normalized_reason = str(reason)[:96]
+                if normalized_reason and normalized_reason not in coverage_reason_codes:
+                    coverage_reason_codes.append(normalized_reason)
             for finding in file_result.get("findings", [])[:MAX_ENGINE_FINDINGS]:
                 finding_copy = deepcopy(finding)
                 finding_copy.setdefault("file", file_result["path"])
@@ -2053,6 +2227,10 @@ class ModelArtifactAnalysisService:
             counts=counts,
             checks=checks,
             engine_version=str(capabilities.get("version") or STATIC_ANALYSIS_VERSION),
+            coverage_reason_codes=(
+                coverage_reason_codes
+                + (["archive_limit_reached"] if limit_reached else [])
+            ),
         )
         result["files"] = entry_results
         result["archive"] = {
@@ -2102,7 +2280,11 @@ class ModelArtifactAnalysisService:
         """Scan a path directly, expanding ZIP files into one bounded JSON result."""
 
         is_zip = _is_zip_path(staged.path)
-        if is_zip and archive_depth >= MAX_ARCHIVE_DEPTH:
+        # Only generic .zip bundles are expanded by this adapter. PyTorch,
+        # Keras, and other ZIP-based model formats must reach modelaudit as a
+        # whole container so their structure-level checks are not bypassed.
+        expand_generic_zip = is_zip and Path(staged.name).suffix.lower() == ".zip"
+        if expand_generic_zip and archive_depth >= MAX_ARCHIVE_DEPTH:
             result = self._failure_result(
                 scan_id=str(uuid.uuid4()),
                 scanned_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -2122,7 +2304,7 @@ class ModelArtifactAnalysisService:
                 "error": "Nested archive depth limit was reached.",
             }
             return result
-        if is_zip:
+        if expand_generic_zip:
             return self._scan_zip_staged(
                 staged,
                 policy_profile=policy_profile,
@@ -2263,6 +2445,7 @@ class ModelArtifactAnalysisService:
             result["artifact"]["size_bytes"],
         )
         return result
+
 
 model_artifact_analysis_service = ModelArtifactAnalysisService()
 
