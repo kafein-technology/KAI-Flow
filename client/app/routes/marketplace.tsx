@@ -43,7 +43,7 @@ function MarketplaceLayout() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [duplicating, setDuplicating] = useState<string | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(9);
+  const [itemsPerPage, setItemsPerPage] = useState(8);
   const [page, setPage] = useState(1);
   const [category, setCategory] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
@@ -585,13 +585,13 @@ function MarketplaceLayout() {
                       {pagedWorkflows.map((wf) => (
                         <div
                           key={wf.id}
-                          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white hover:border-blue-300 transition-colors"
+                          className="group relative h-full overflow-hidden rounded-2xl border border-gray-200 bg-white hover:border-blue-300 transition-colors"
                         >
-                          <div className="relative p-6">
+                          <div className="relative flex h-full flex-col p-6">
                             {/* Header */}
                             <div className="flex items-start justify-between mb-4">
                               <div className="flex items-center gap-3">
-                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-green-600">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-600">
                                   <Users className="w-5 h-5 text-white" />
                                 </div>
                                 <div className="flex flex-col">
@@ -615,7 +615,7 @@ function MarketplaceLayout() {
                             </div>
 
                             {/* Content */}
-                            <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-700 transition-colors line-clamp-2">
+                            <h3 className="mb-2 min-h-14 overflow-hidden break-words text-lg font-bold text-gray-900 transition-colors line-clamp-2 group-hover:text-blue-700 [overflow-wrap:anywhere]">
                               {wf.name}
                             </h3>
                             <p className="text-sm text-gray-600 mb-4 line-clamp-3 min-h-[60px]">
@@ -623,7 +623,7 @@ function MarketplaceLayout() {
                             </p>
 
                             {/* Metadata */}
-                            <div className="space-y-2 mb-4">
+                            <div className="mb-4 space-y-2">
                               <div className="flex items-center gap-2 text-xs text-gray-500">
                                 <Users className="w-3 h-3" />
                                 <span>
@@ -638,7 +638,7 @@ function MarketplaceLayout() {
 
                             {/* Action Button */}
                             <button
-                              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-green-600 text-white hover:from-blue-700 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               onClick={() => handleDuplicate(wf.id)}
                               disabled={duplicating === wf.id}
                             >
@@ -663,7 +663,7 @@ function MarketplaceLayout() {
                         >
                           {/* Icon */}
                           <div className="flex-shrink-0">
-                            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-green-600">
+                            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600">
                               <Users className="w-6 h-6 text-white" />
                             </div>
                           </div>
@@ -671,8 +671,8 @@ function MarketplaceLayout() {
                           {/* Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between mb-2">
-                              <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <h3 className="min-w-0 break-words text-lg font-bold text-gray-900 transition-colors line-clamp-2 group-hover:text-blue-700 [overflow-wrap:anywhere]">
                                   {wf.name}
                                 </h3>
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
@@ -712,7 +712,7 @@ function MarketplaceLayout() {
                           {/* Action */}
                           <div className="flex-shrink-0">
                             <button
-                              className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-green-600 text-white hover:from-blue-700 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                              className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               onClick={() => handleDuplicate(wf.id)}
                               disabled={duplicating === wf.id}
                             >
