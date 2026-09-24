@@ -179,6 +179,111 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
       }
     ]
   },
+
+  {
+    id: 'mongodb',
+    name: 'MongoDB',
+    description: 'Connect to MongoDB for bounded document read and write operations',
+    icon: 'mongodb.svg',
+    category: 'database',
+    color: 'from-green-500 to-emerald-600',
+    fields: [
+      {
+        name: 'configuration_type',
+        label: 'Configuration Type',
+        type: 'select',
+        required: true,
+        default: 'values',
+        options: [
+          { value: 'values', label: 'Separate Fields' },
+          { value: 'connection_string', label: 'Connection String' }
+        ],
+        description: 'Enter the connection details field by field, or paste a connection string'
+      },
+      {
+        name: 'connection_string',
+        label: 'Connection String',
+        type: 'password',
+        required: false,
+        placeholder: 'mongodb+srv://user:password@cluster.mongodb.net',
+        description: 'Paste the string your provider gave you. Atlas uses the mongodb+srv scheme.',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['connection_string']
+        }
+      },
+      {
+        name: 'host',
+        label: 'Host',
+        type: 'text',
+        required: false,
+        default: 'localhost',
+        placeholder: 'localhost',
+        description: 'MongoDB server hostname or IP address',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['values']
+        }
+      },
+      {
+        name: 'port',
+        label: 'Port',
+        type: 'text',
+        required: false,
+        default: '27017',
+        placeholder: '27017',
+        description: 'MongoDB server port',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['values']
+        }
+      },
+      {
+        name: 'username',
+        label: 'Username',
+        type: 'text',
+        required: false,
+        placeholder: 'mongo',
+        description: 'Username for authentication',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['values']
+        }
+      },
+      {
+        name: 'password',
+        label: 'Password',
+        type: 'password',
+        required: false,
+        placeholder: '••••••••',
+        description: 'Password for authentication',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['values']
+        }
+      },
+      {
+        name: 'auth_source',
+        label: 'Authentication Database',
+        type: 'text',
+        required: false,
+        placeholder: 'admin',
+        description: 'Database that holds the user account. Usually admin.',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['values']
+        }
+      },
+      {
+        name: 'database',
+        label: 'Database Name',
+        type: 'text',
+        required: true,
+        placeholder: 'mydatabase',
+        description: 'Name of the database to work in'
+      }
+    ]
+  },
   {
     id: 'tavily_search',
     name: 'Tavily Search',

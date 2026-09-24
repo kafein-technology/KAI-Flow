@@ -25,6 +25,7 @@ import { useState, useRef, useEffect } from "react";
 import { Settings, Plus, X, ChevronDown } from "lucide-react";
 import { NodeDynamicSelect } from "./fields/NodeDynamicSelect";
 import { NodeColumnMapper } from "./fields/NodeColumnMapper";
+import { NodeDocumentEditor } from "./fields/NodeDocumentEditor";
 
 interface GenericNodeFormProps {
   initialValues?: GenericData;
@@ -263,7 +264,15 @@ export default function GenericNodeForm({
                   if (!shouldShow) return null;
                 }
 
-                const fullWidthProperty = { ...property, colSpan: 2 };
+                // Visibility is resolved once above. Several field components also
+                // contain legacy displayOptions checks that only understand scalar
+                // values; passing an already-matched array condition to them can
+                // make the input disappear while its outer card remains visible.
+                const fullWidthProperty = {
+                  ...property,
+                  colSpan: 2,
+                  displayOptions: undefined,
+                };
                 const fieldComponent = (() => {
                   switch (property.type) {
                     case "textarea":
@@ -295,6 +304,14 @@ export default function GenericNodeForm({
                           values={values}
                           nodeType={nodeType}
                           sessionStore={columnMapperSessionsRef.current}
+                        />
+                      );
+                    case "document-editor":
+                      return (
+                        <NodeDocumentEditor
+                          property={fullWidthProperty}
+                          values={values}
+                          nodeType={nodeType}
                         />
                       );
                     case "credential-select":
