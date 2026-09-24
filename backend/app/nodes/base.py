@@ -123,6 +123,7 @@ class NodePropertyType(str, Enum):
     DYNAMIC_SELECT = "dynamic-select"
     COLUMN_MAPPER = "column-mapper"
     MODEL_ARTIFACT_SOURCE = "model-artifact-source"
+    DOCUMENT_EDITOR = "document-editor"
 
 
 class NodeProperty(BaseModel):

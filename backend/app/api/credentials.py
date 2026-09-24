@@ -756,6 +756,64 @@ async def _test_postgresql(secret: Dict[str, Any]) -> CredentialTestResponse:
         return CredentialTestResponse(success=False, message=str(e))
 
 
+async def _test_mongodb(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Test MongoDB in a worker thread so the async API remains responsive."""
+    from app.nodes.databases.mongo_node import MongoNode, _build_mongodb_uri
+
+    database = str(secret.get("database") or "").strip()
+    if not database:
+        return CredentialTestResponse(
+            success=False, message="MongoDB Database Name is required."
+        )
+
+    try:
+        connection_string = _build_mongodb_uri(secret)
+    except ValueError as exc:
+        return CredentialTestResponse(success=False, message=str(exc))
+
+    try:
+        from pymongo import MongoClient
+    except ImportError:
+        return CredentialTestResponse(
+            success=False,
+            message="The pymongo package is not installed on the server.",
+        )
+
+    def check_connection() -> int:
+        client = MongoClient(
+            connection_string,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=10000,
+        )
+        try:
+            client.admin.command("ping")
+            return len(client[database].list_collection_names())
+        finally:
+            client.close()
+
+    try:
+        collection_count = await asyncio.wait_for(
+            asyncio.to_thread(check_connection), timeout=15
+        )
+        return CredentialTestResponse(
+            success=True,
+            message=(
+                "MongoDB connection successful. "
+                f"The selected database has {collection_count} collection(s)."
+            ),
+        )
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(
+            success=False, message="MongoDB connection timed out."
+        )
+    except Exception as exc:
+        message = MongoNode._database_error(exc)
+        logger.warning("MongoDB credential test failed: %s", message)
+        return CredentialTestResponse(
+            success=False, message=message
+        )
+
 async def _test_kafka(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
         from confluent_kafka.admin import AdminClient
@@ -879,6 +937,8 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_tavily(secret)
     elif service_type == "postgresql_vectorstore":
         return await _test_postgresql(secret)
+    elif service_type == "mongodb":
+        return await _test_mongodb(secret)
     elif service_type == "kafka":
         return await _test_kafka(secret)
     elif service_type == "minio":
@@ -961,9 +1021,17 @@ def _detect_service_type(data: dict) -> str:
     - **data**: Dictionary containing credential data
     - **Returns**: Detected service type
     """
-    # Simple heuristics to detect service type
+    # Simple heuristics to detect service type. Ambiguous host/database/user
+    # combinations are intentionally not guessed; normal clients send the
+    # explicit service_type alongside credential data.
     if "database_path" in data:
         return "sqlite"
+
+    connection_string = data.get("connection_string")
+    if isinstance(connection_string, str) and connection_string.lower().startswith(
+        ("mongodb://", "mongodb+srv://")
+    ):
+        return "mongodb"
 
     # 1) PostgreSQL Vector Store (must be detected BEFORE generic username/password)
     if (

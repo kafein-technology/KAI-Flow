@@ -15,6 +15,7 @@ psycopg[binary]==3.3.5
 psycopg-pool==3.3.1
 pglast==8.4
 PyMySQL==1.2.0
+pymongo==4.18.1
 sqlglot==30.17.0
 PyJWT==2.13.0
 
