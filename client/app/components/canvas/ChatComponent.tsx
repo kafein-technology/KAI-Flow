@@ -178,7 +178,7 @@ export default function ChatComponent({
       fetchWorkflowBuilderChats(currentWorkflow.id)
         .then(() => {
           // If no active builder chatflow is set yet and we haven't done our initial load, auto-select the most recent
-          if (!activeBuilderChatflowId && !hasInitialLoaded.current) {
+          if (!useChatStore.getState().activeBuilderChatflowId && !hasInitialLoaded.current) {
             const currentBuilderChats = useChatStore.getState().builderChats;
             const chatEntries = Object.entries(currentBuilderChats);
             if (chatEntries.length > 0) {
@@ -198,7 +198,7 @@ export default function ChatComponent({
           console.error("Failed to load KAI Assistant chat history:", err);
         });
     }
-  }, [chatOpen, mode, currentWorkflow?.id, activeBuilderChatflowId, fetchWorkflowBuilderChats, setActiveBuilderChatflowId]);
+  }, [chatOpen, mode, currentWorkflow?.id, fetchWorkflowBuilderChats, setActiveBuilderChatflowId]);
 
   // ─── Fetch History on View Toggle ───
   useEffect(() => {
@@ -320,7 +320,7 @@ export default function ChatComponent({
         const messageIndex = chatHistory.findIndex((msg) => msg.id === messageId);
         const messagesToRemove = chatHistory
           .slice(messageIndex + 1)
-          .filter((msg) => msg.role === "assistant")
+          .filter((msg) => msg.role === "assistant" || msg.role === "error")
           .map((msg) => msg.id);
         messagesToRemove.forEach((id) => {
           removeMessage(activeChatflowId!, id);
@@ -349,7 +349,7 @@ export default function ChatComponent({
           const messageIndex = chatHistory.findIndex((msg) => msg.id === messageId);
           const messagesToRemove = chatHistory
             .slice(messageIndex + 1)
-            .filter((msg) => msg.role === "assistant")
+            .filter((msg) => msg.role === "assistant" || msg.role === "error")
             .map((msg) => msg.id);
           messagesToRemove.forEach((id) => {
             removeMessage(activeChatflowId!, id);
@@ -360,12 +360,9 @@ export default function ChatComponent({
   };
 
   // ─── Builder Handlers ───
-  const hasBuiltWorkflow = activeBuilderChatflowId
-    ? (builderChats[activeBuilderChatflowId] || []).length > 0
-    : false;
   const canvasHasWorkflow = currentNodes.length > 0;
   const isBuilderEditMode =
-    !rebuildFromScratch && (hasBuiltWorkflow || canvasHasWorkflow);
+    !rebuildFromScratch && canvasHasWorkflow;
 
   const handleBuilderGenerate = async (prompt?: string) => {
     const query = prompt || builderInput;
@@ -388,7 +385,7 @@ export default function ChatComponent({
       const assistantMsg: ChatMessage = {
         id: uuidv4(),
         chatflow_id: cfId,
-        role: "assistant",
+        role: "error",
         content: "⚠️ Please select an API Credential first. Click the ⚙️ Settings icon in the header to configure your AI provider.",
         created_at: new Date().toISOString()
       };
@@ -435,14 +432,14 @@ export default function ChatComponent({
       }
     } catch (err: any) {
       console.error(err);
-      const errorMsg =
-        err.response?.data?.detail || err.message || "Failed to generate workflow";
+      const errorDetail = err?.response?.data?.detail ?? err?.message ?? "Failed to generate workflow";
+      const errorMsg = typeof errorDetail === "string" ? errorDetail : JSON.stringify(errorDetail);
 
       const errorAssistantMsg: ChatMessage = {
         id: uuidv4(),
         chatflow_id: cfId,
-        role: "assistant",
-        content: `Error: ${errorMsg}`,
+        role: "error",
+        content: errorMsg,
         created_at: new Date().toISOString()
       };
       addBuilderMessage(cfId, errorAssistantMsg);
@@ -820,6 +817,7 @@ export default function ChatComponent({
                   message={msg.content}
                   userInitial={msg.role === "user" ? "U" : undefined}
                   isBuilder={true}
+                  isError={msg.role === "error"}
                 />
               ))}
 
@@ -837,6 +835,7 @@ export default function ChatComponent({
                     from={msg.role === "user" ? "user" : "assistant"}
                     message={msg.content}
                     userInitial={msg.role === "user" ? "U" : undefined}
+                    isError={msg.source_documents === "workflow_error" || msg.role === "error"}
                     messageId={msg.id}
                     onEdit={handleEditMessage}
                     onDelete={handleDeleteMessage}

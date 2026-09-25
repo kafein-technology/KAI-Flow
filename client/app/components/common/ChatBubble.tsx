@@ -34,6 +34,7 @@ interface ChatBubbleProps {
   onSaveEdit?: (messageId: string, newContent: string) => void;
   onCancelEdit?: () => void;
   isBuilder?: boolean;
+  isError?: boolean;
 }
 
 const ChatBubble: React.FC<ChatBubbleProps> = ({
@@ -50,11 +51,17 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   onSaveEdit,
   onCancelEdit,
   isBuilder,
+  isError = false,
 }) => {
   const { user } = useAuth();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [editContent, setEditContent] = useState(message);
   const isUser = from === "user";
+  const [isErrorExpanded, setIsErrorExpanded] = useState(false);
+  const hasLongError = isError && message.length > 320;
+  const displayedError = hasLongError && !isErrorExpanded
+    ? `${message.slice(0, 320).trimEnd()}…`
+    : message;
 
   const copyToClipboard = async (text: string) => {
     await copyWithFeedback(
@@ -130,7 +137,9 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             ? isBuilder
               ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-br-md border border-purple-400"
               : "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-md border border-blue-400"
-            : "bg-white text-gray-800 rounded-bl-md border border-gray-200"
+            : isError
+              ? "bg-red-950/90 text-red-50 rounded-bl-md border border-red-500/70 shadow-red-950/40"
+              : "bg-white text-gray-800 rounded-bl-md border border-gray-200"
         }
         relative transition-all duration-200 hover:shadow-xl group`}
       >
@@ -200,6 +209,22 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             ) : isUser ? (
               <div className="whitespace-pre-wrap break-words leading-relaxed">
                 {message}
+              </div>
+            ) : isError ? (
+              <div className="w-full">
+                <div className="whitespace-pre-wrap break-words leading-relaxed text-red-50">
+                  {displayedError}
+                </div>
+                {hasLongError && (
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-medium text-red-200 hover:text-white underline underline-offset-2"
+                    aria-expanded={isErrorExpanded}
+                    onClick={() => setIsErrorExpanded((expanded) => !expanded)}
+                  >
+                    {isErrorExpanded ? "Hide details" : "Show details"}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="prose prose-sm max-w-none prose-slate break-words">
