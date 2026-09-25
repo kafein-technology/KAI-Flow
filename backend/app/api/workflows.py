@@ -853,12 +853,37 @@ async def execute_adhoc_workflow(
         )
     except Exception as e:
         logger.error(f"Workflow execution failed: {e}", exc_info=True)
+        if not is_internal_call and chatflow_id:
+            try:
+                await chat_service.create_chat_message(
+                    ChatMessageCreate(
+                        role="assistant",
+                        content=str(e) or type(e).__name__,
+                        chatflow_id=chatflow_id,
+                        user_id=user_id,
+                        workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None,
+                        source_documents="workflow_error",
+                    )
+                )
+            except Exception as chat_error:
+                logger.warning(f"Failed to create workflow error chat message: {chat_error}")
         raise HTTPException(status_code=400, detail=f"Failed to run workflow: {e}")
     
     # Stream the results
     async def event_generator():
         llm_output = ""
+        error_output = ""
         final_outputs = {}
+
+        def error_content(value: Any) -> str:
+            if value is None:
+                return "Workflow execution failed"
+            if isinstance(value, str):
+                return value or "Workflow execution failed"
+            try:
+                return json.dumps(_make_chunk_serializable(value), ensure_ascii=False)
+            except (TypeError, ValueError):
+                return str(value)
         
         try:
             if not hasattr(result_stream, "__aiter__"):
@@ -866,6 +891,8 @@ async def execute_adhoc_workflow(
             
             async for chunk in result_stream:
                 if isinstance(chunk, dict):
+                    if chatflow_id and (chunk.get("type") or chunk.get("event")) == "error":
+                        error_output = error_content(chunk.get("error") or chunk.get("data"))
                     if chunk.get("type") == "token":
                         llm_output += chunk.get("content", "")
                     elif chunk.get("type") == "output":
@@ -887,26 +914,32 @@ async def execute_adhoc_workflow(
                 except (TypeError, ValueError) as e:
                     logger.warning(f"Non-serializable chunk: {e}")
                     safe_chunk = {"type": "error", "error": f"Serialization error: {str(e)}", "original_type": type(chunk).__name__}
+                    if chatflow_id:
+                        error_output = safe_chunk["error"]
                     yield f"data: {json.dumps(safe_chunk, ensure_ascii=False)}\n\n"
         except Exception as e:
             logger.error(f"Streaming execution error: {e}", exc_info=True)
+            if chatflow_id:
+                error_output = error_content(str(e) or type(e).__name__)
             error_data = {"event": "error", "data": str(e)}
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
         finally:
-            # Save LLM output to chat - skip for webhook calls
-            if llm_output and not is_internal_call:
+            # Save a chat error in the existing assistant message shape.
+            response_content = error_output or llm_output
+            if response_content and not is_internal_call:
                 try:
                     await chat_service.create_chat_message(
                         ChatMessageCreate(
                             role="assistant",
-                            content=llm_output,
+                            content=response_content,
                             chatflow_id=chatflow_id,
                             user_id=user_id,
-                            workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None
+                            workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None,
+                            source_documents="workflow_error" if error_output else None,
                         )
                     )
                 except Exception as chat_error:
-                    logger.warning(f"Failed to create assistant chat message: {chat_error}")
+                    logger.warning(f"Failed to create terminal chat message: {chat_error}")
                 
     return StreamingResponse(
         event_generator(), 

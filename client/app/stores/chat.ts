@@ -45,6 +45,30 @@ interface ChatStore {
   sendEditedMessage: (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => Promise<void>;
 }
 
+const getChatErrorMessage = (error: unknown): string => {
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === 'object' && error !== null && 'message' in error
+      ? String(error.message)
+      : String(error || '');
+  const responseBody = /^Failed to start streaming execution: \d+ (.*)$/s.exec(message)?.[1];
+  if (responseBody) {
+    try {
+      const detail = JSON.parse(responseBody)?.detail;
+      if (typeof detail === 'string' && detail) {
+        const workflowDetail = detail.startsWith('Failed to run workflow: ')
+          ? detail.slice('Failed to run workflow: '.length)
+          : detail;
+        return workflowDetail || 'Workflow execution failed';
+      }
+      if (detail != null) return JSON.stringify(detail);
+    } catch {
+      return message;
+    }
+  }
+  return message || 'Workflow execution failed';
+};
+
 // Helper function to execute workflow with streaming and capture execution data
 const executeWorkflowWithStreaming = async (
   flow_data: any,
@@ -61,6 +85,19 @@ const executeWorkflowWithStreaming = async (
   let liveSessionId: string | undefined = session_id;
   let lastExecutionId: string | null = null;
   let streamHadError = false;
+  let streamErrorMessage: string | null = null;
+
+  const normalizeErrorMessage = (value: unknown): string => {
+    if (typeof value === 'string' && value.trim()) return value;
+    if (value != null) {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return 'Workflow execution failed';
+  };
 
   const executionData = {
     flow_data,
@@ -206,6 +243,7 @@ const executeWorkflowWithStreaming = async (
 
             if (event === 'error') {
               streamHadError = true;
+              streamErrorMessage = normalizeErrorMessage(parsed.error ?? parsed.data);
               nodeExecutionData = mergeLiveNodeOutputMaps(
                 nodeExecutionData,
                 parsed.node_outputs
@@ -319,6 +357,7 @@ const executeWorkflowWithStreaming = async (
         }
       }
     }
+    return streamErrorMessage;
   } catch (error) {
     console.error('Chat streaming execution failed:', error);
     throw error;
@@ -561,6 +600,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       chatflow_id = uuidv4();
       get().setActiveChatflowId(chatflow_id);
     }
+    const previousMessageIds = new Set((get().chats[chatflow_id] || []).map((message) => message.id));
 
     // Immediately add user message to UI
     const userMessage: ChatMessage = {
@@ -574,11 +614,36 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       // Use chatflow_id as session_id for memory consistency - now with streaming
-      await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
+      const workflowError = await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
       // Fetch only new messages (agent responses) instead of all messages
       await get().fetchChatMessages(chatflow_id);
+      if (workflowError) {
+        set({ error: null });
+        if (!(get().chats[chatflow_id] || []).some(
+          (message) => !previousMessageIds.has(message.id) &&
+            (message.source_documents === 'workflow_error' || message.role === 'error')
+        )) {
+          get().addMessage(chatflow_id, {
+            id: uuidv4(),
+            chatflow_id,
+            role: 'assistant',
+            content: workflowError,
+            source_documents: 'workflow_error',
+            created_at: new Date().toISOString(),
+          });
+        }
+      }
     } catch (e: any) {
-      set({ error: e.message || 'Failed to start LLM conversation' });
+      const errorMessage = getChatErrorMessage(e);
+      set({ error: null });
+      get().addMessage(chatflow_id, {
+        id: uuidv4(),
+        chatflow_id,
+        role: 'assistant',
+        content: errorMessage,
+        source_documents: 'workflow_error',
+        created_at: new Date().toISOString(),
+      });
     } finally {
       set({ loading: false, thinking: false }); // Set thinking to false
     }
@@ -586,6 +651,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
     set({ loading: true, thinking: true, error: null }); // Set thinking to true
+    const previousMessageIds = new Set((get().chats[chatflow_id] || []).map((message) => message.id));
 
     // Always add new user message immediately for UI responsiveness
     const userMessage: ChatMessage = {
@@ -599,11 +665,36 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       // Use chatflow_id as session_id for memory consistency - now with streaming
-      await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
+      const workflowError = await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
       // Note: Streaming execution saves messages to backend, so fetch to get the assistant response
       await get().fetchChatMessages(chatflow_id);
+      if (workflowError) {
+        set({ error: null });
+        if (!(get().chats[chatflow_id] || []).some(
+          (message) => !previousMessageIds.has(message.id) &&
+            (message.source_documents === 'workflow_error' || message.role === 'error')
+        )) {
+          get().addMessage(chatflow_id, {
+            id: uuidv4(),
+            chatflow_id,
+            role: 'assistant',
+            content: workflowError,
+            source_documents: 'workflow_error',
+            created_at: new Date().toISOString(),
+          });
+        }
+      }
     } catch (e: any) {
-      set({ error: e.message || 'Failed to send message' });
+      const errorMessage = getChatErrorMessage(e);
+      set({ error: null });
+      get().addMessage(chatflow_id, {
+        id: uuidv4(),
+        chatflow_id,
+        role: 'assistant',
+        content: errorMessage,
+        source_documents: 'workflow_error',
+        created_at: new Date().toISOString(),
+      });
     } finally {
       set({ loading: false, thinking: false }); // Set thinking to false
     }
@@ -618,7 +709,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // Fetch only new messages (agent responses) instead of all messages
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
-      set({ error: e.message || 'Failed to send edited message' });
+      set({ error: null });
+      get().addMessage(chatflow_id, {
+        id: uuidv4(),
+        chatflow_id,
+        role: 'assistant',
+        content: getChatErrorMessage(e),
+        source_documents: 'workflow_error',
+        created_at: new Date().toISOString(),
+      });
     } finally {
       set({ loading: false, thinking: false }); // Set thinking to false
     }
