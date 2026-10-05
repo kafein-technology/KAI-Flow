@@ -398,7 +398,7 @@ class WorkflowExecutor:
                 ctx.workflow,
                 ctx.user,
                 ctx.execution_inputs,
-                clean_pending=True,
+                clean_pending=not ctx.user_context.get("preserve_active_executions", False),
                 use_workflow_owner=is_webhook,
             )
             execution_id = execution.id

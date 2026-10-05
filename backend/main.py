@@ -174,7 +174,7 @@ async def lifespan(app: FastAPI):
         from app.nodes.triggers.kafka_trigger import KafkaListenerService
         all_listeners = KafkaListenerService.get_all_listeners()
         for listener in all_listeners:
-            if listener and listener.get("status") == "running":
+            if listener and listener.get("status") in ("starting", "running"):
                 await KafkaListenerService.stop_listener(listener["listener_id"])
         logger.info("All Kafka listeners stopped")
     except Exception as e:

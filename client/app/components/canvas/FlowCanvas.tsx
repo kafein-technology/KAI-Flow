@@ -3633,6 +3633,7 @@ function useKafkaExecutionListener(
       executedNodes: string[];
       sessionId?: string;
       result?: any;
+      inputText: string;
       startedAt: string;
       completedAt?: string;
     }>();
@@ -3692,7 +3693,6 @@ function useKafkaExecutionListener(
           try {
             const currentNodes = nodesRef.current || [];
             const currentEdges = edgesRef.current || [];
-            console.log("[KafkaListener] Received raw message:", event.data);
             const data = JSON.parse(event.data);
             if (data.type === "connected" || data.type === "ping") {
               console.log("[KafkaListener] Connected or ping event received:", data.type);
@@ -3721,6 +3721,7 @@ function useKafkaExecutionListener(
                 executionId,
                 nodeOutputs: {},
                 executedNodes: [],
+                inputText: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
                 startedAt: data.timestamp || new Date().toISOString(),
               });
 
@@ -3729,7 +3730,7 @@ function useKafkaExecutionListener(
                 setCurrentExecutionForWorkflow(currentWorkflowId, {
                   id: executionId,
                   workflow_id: currentWorkflowId,
-                  input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                  input_text: executionData.get(executionId)?.inputText || "",
                   result: {
                     result: "",
                     executed_nodes: [],
@@ -3743,6 +3744,9 @@ function useKafkaExecutionListener(
             }
 
             const execData = executionData.get(executionId)!;
+            if (data.kafka_payload && !execData.inputText) {
+              execData.inputText = JSON.stringify(data.kafka_payload);
+            }
 
             if (eventType === "node_status") {
               applyRuntimeNodeStatusEvent(
@@ -3829,7 +3833,7 @@ function useKafkaExecutionListener(
                   setCurrentExecutionForWorkflow(currentWorkflowId, {
                     id: executionId,
                     workflow_id: currentWorkflowId,
-                    input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                    input_text: execData.inputText,
                     result: {
                       result: execData.result || "",
                       executed_nodes: execData.executedNodes,
@@ -3856,7 +3860,7 @@ function useKafkaExecutionListener(
                       setCurrentExecutionForWorkflow(currentWorkflowId, {
                         id: executionId,
                         workflow_id: currentWorkflowId,
-                        input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                        input_text: execData.inputText,
                         result: {
                           result: execData.result || "Completed via fallback",
                           executed_nodes: execData.executedNodes,
@@ -3918,7 +3922,7 @@ function useKafkaExecutionListener(
                 setCurrentExecutionForWorkflow(currentWorkflowId, {
                   id: executionId,
                   workflow_id: currentWorkflowId,
-                  input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                  input_text: execData.inputText,
                   result: {
                     result: `ERROR: ${ev.error || "Workflow execution failed"}`,
                     executed_nodes: execData.executedNodes,
@@ -3967,7 +3971,7 @@ function useKafkaExecutionListener(
                 setCurrentExecutionForWorkflow(currentWorkflowId, {
                   id: executionId,
                   workflow_id: currentWorkflowId,
-                  input_text: data.kafka_payload ? JSON.stringify(data.kafka_payload) : "",
+                  input_text: execData.inputText,
                   result: {
                     result: execData.result,
                     executed_nodes: execData.executedNodes,

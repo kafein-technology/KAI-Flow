@@ -475,9 +475,14 @@ class NodeExecutor:
             properties = gnode.node_instance.metadata.properties
             if properties is not None:  # Fix: properties can be None
                 for prop in properties:
-                    if prop.name in gnode.user_data:
+                    if prop.name in gnode.user_data and (
+                        gnode.user_data[prop.name] or prop.name not in ("credential", "topic", "group_id")
+                    ):
                         user_inputs[prop.name] = gnode.user_data[prop.name]
                         logger.debug(f"Found property {prop.name} in user_data")
+                    elif isinstance(inputs_group, dict) and prop.name in inputs_group:
+                        user_inputs[prop.name] = inputs_group[prop.name]
+                        logger.debug("Found property %s in user_data['inputs']", prop.name)
 
         logger.debug("Processor %s resolved user inputs: %s", gnode.id, list(user_inputs.keys()))
         return user_inputs

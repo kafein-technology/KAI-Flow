@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -9,7 +10,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from confluent_kafka import Consumer, KafkaError, KafkaException
+from confluent_kafka import Consumer, KafkaError, KafkaException, Producer, TopicPartition
 
 from app.core.database import get_db_session
 from app.auth.dependencies import get_current_user
@@ -17,7 +18,7 @@ from app.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.nodes.base import BaseNode, NodeType, NodeMetadata, NodeProperty, NodeInput, NodeOutput, NodePropertyType
-from app.core.kafka_utils import get_kafka_config
+from app.core.kafka_utils import get_kafka_config, get_kafka_node_value
 from app.core.constants import API_START, API_VERSION
 
 logger = logging.getLogger(__name__)
@@ -113,6 +114,64 @@ class KafkaListenerService:
     """
 
     _listeners: Dict[str, Dict[str, Any]] = {}
+    _workflow_slots = asyncio.Semaphore(max(1, min(64, int(os.getenv("KAFKA_MAX_ACTIVE_WORKFLOWS", "4")))))
+
+    @staticmethod
+    def _source_id(listener_id: str, group_id: str, msg) -> uuid.UUID:
+        source = f"{listener_id}:{group_id}:{msg.topic()}:{msg.partition()}:{msg.offset()}"
+        return uuid.uuid5(uuid.NAMESPACE_URL, f"kai-flow:kafka:{source}")
+
+    @staticmethod
+    def _publish_dead_letter(config: dict, msg, error: Exception, attempts: int) -> None:
+        topic = config["options"].get("dead_letter_topic") or f"{config['topic']}.dlq"
+        producer_config = get_kafka_config(config["credential_data"])
+        producer_config.update({"enable.idempotence": True, "acks": "all", "message.timeout.ms": 30000})
+        producer = Producer(producer_config)
+        delivery = {}
+
+        def on_delivery(err, _message):
+            delivery["error" if err else "ok"] = str(err) if err else True
+
+        headers = list(msg.headers() or [])
+        headers.extend([
+            ("kai-source-topic", msg.topic().encode()),
+            ("kai-source-partition", str(msg.partition()).encode()),
+            ("kai-source-offset", str(msg.offset()).encode()),
+            ("kai-attempts", str(attempts).encode()),
+            ("kai-error", str(error)[:500].encode("utf-8", errors="replace")),
+        ])
+        producer.produce(topic, key=msg.key(), value=msg.value(), headers=headers, callback=on_delivery)
+        remaining = producer.flush(30)
+        if remaining or not delivery.get("ok"):
+            raise RuntimeError(f"Dead-letter delivery failed: {delivery.get('error', 'timeout')}")
+
+    @classmethod
+    async def _run_message(cls, listener_id: str, config: dict, msg) -> None:
+        opts = config["options"]
+        attempts = max(1, min(10, int(opts.get("max_workflow_attempts") or 3)))
+        retry_delay = max(0.0, min(60.0, float(opts.get("retry_delay_on_error", 1000)) / 1000.0))
+        source_id = cls._source_id(listener_id, config["group_id"], msg)
+        for attempt in range(1, attempts + 1):
+            try:
+                message_data = cls._parse_message(msg, opts)
+                async with cls._workflow_slots:
+                    await cls._trigger_workflow(listener_id, message_data, source_id=source_id)
+                return True
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning(
+                    "Kafka workflow failed: listener=%s topic=%s partition=%s offset=%s attempt=%s/%s: %s",
+                    listener_id, msg.topic(), msg.partition(), msg.offset(), attempt, attempts, exc,
+                )
+                if attempt < attempts:
+                    await asyncio.sleep(min(60.0, retry_delay * (2 ** (attempt - 1))))
+                    continue
+                await asyncio.to_thread(cls._publish_dead_letter, config, msg, exc, attempts)
+                cls._listeners[listener_id]["stats"]["dead_lettered"] += 1
+                cls._listeners[listener_id]["stats"]["last_error"] = str(exc)[:500]
+                logger.error("Kafka message moved to dead-letter topic: listener=%s offset=%s", listener_id, msg.offset())
+                return False
 
     @classmethod
     async def start_listener(
@@ -129,7 +188,7 @@ class KafkaListenerService:
 
         if listener_id in cls._listeners:
             existing = cls._listeners[listener_id]
-            if existing.get("status") == "running":
+            if existing.get("status") in ("starting", "running"):
                 return {
                     "status": "already_running",
                     "listener_id": listener_id,
@@ -156,6 +215,9 @@ class KafkaListenerService:
             "stats": {
                 "messages_received": 0,
                 "workflows_triggered": 0,
+                "dead_lettered": 0,
+                "consecutive_failures": 0,
+                "active_workflows": 0,
                 "errors": 0,
                 "last_message_at": None,
                 "last_error": None,
@@ -166,9 +228,8 @@ class KafkaListenerService:
         # Start the background task
         task = asyncio.create_task(cls._consumer_loop(listener_id))
         cls._listeners[listener_id]["task"] = task
-        cls._listeners[listener_id]["status"] = "running"
 
-        logger.info(f"Kafka listener started: {listener_id} topic={topic} group={group_id}")
+        logger.info(f"Kafka listener starting: {listener_id} topic={topic} group={group_id}")
 
         return {
             "status": "started",
@@ -190,7 +251,8 @@ class KafkaListenerService:
         task = entry.get("task")
         if task and not task.done():
             try:
-                await asyncio.wait_for(task, timeout=5.0)
+                grace_seconds = max(1, min(300, int(os.getenv("KAFKA_SHUTDOWN_GRACE_SECONDS", "120"))))
+                await asyncio.wait_for(task, timeout=grace_seconds)
             except asyncio.TimeoutError:
                 logger.warning(f"Consumer {listener_id} It wasn't shut down on time; it's being forcibly cancelled.")
                 task.cancel()
@@ -285,20 +347,8 @@ class KafkaListenerService:
         # rebalance_timeout_ms: consumer group rebalance timeout
         kafka_conf["max.poll.interval.ms"] = opts.get("rebalance_timeout_ms", 300000)
 
-        # auto_commit_threshold: perform a manual commit after N messages
-        # threshold <= 1: automatic commits (default behavior)
-        # threshold > 1: disable automatic commits and commit every N messages
-        commit_threshold = opts.get("auto_commit_threshold", 1)
-        if commit_threshold and commit_threshold > 1:
-            kafka_conf["enable.auto.commit"] = False
-            logger.info(f"Manual commits enabled every {commit_threshold} messages (listener={listener_id})")
-        else:
-            kafka_conf["enable.auto.commit"] = True
-            kafka_conf["auto.commit.interval.ms"] = opts.get("auto_commit_interval_ms", 5000)
-            commit_threshold = 0  # Manual commits are disabled
-
-        # max_poll_records: maximum number of messages processed per loop iteration
-        max_poll_records = opts.get("max_poll_records", 500)
+        # Each partition is committed only after its workflow or dead-letter delivery succeeds.
+        kafka_conf["enable.auto.commit"] = False
 
         # Read-from-beginning setting
         if opts.get("read_messages_from_beginning", False):
@@ -310,7 +360,7 @@ class KafkaListenerService:
         logger.debug("Kafka consumer config keys: %s", sorted(kafka_conf.keys()))
 
         consumer = None
-        retry_delay = opts.get("retry_delay_on_error", 1000) / 1000.0  # ms → s
+        retry_delay = max(0.0, min(60.0, float(opts.get("retry_delay_on_error", 1000)) / 1000.0))
 
         try:
             # Consumer() and subscribe() are blocking C library calls.
@@ -320,75 +370,114 @@ class KafkaListenerService:
             await asyncio.to_thread(consumer.subscribe, [config["topic"]])
             logger.info(f"Kafka consumer subscribed to topic: {config['topic']} (listener={listener_id})")
 
-            # Manual commit counter
-            _commit_counter = 0
+            max_concurrent = max(1, min(16, int(opts.get("max_concurrent_workflows") or 4)))
+            inflight: Dict[tuple, tuple] = {}
+            deferred_offsets: Dict[tuple, int] = {}
+            paused_keys = set()
 
-            while entry["status"] == "running":
+            async def sync_pauses():
+                nonlocal paused_keys
+                assigned = await asyncio.to_thread(consumer.assignment)
+                assigned_by_key = {(part.topic, part.partition): part for part in assigned}
+                should_pause = set(assigned_by_key) if len(inflight) >= max_concurrent or entry["status"] != "running" else set(inflight)
+                should_pause &= set(assigned_by_key)
+                new_pauses = should_pause - paused_keys
+                new_resumes = (paused_keys - should_pause) & set(assigned_by_key)
+                if new_pauses:
+                    await asyncio.to_thread(consumer.pause, [assigned_by_key[key] for key in new_pauses])
+                if new_resumes:
+                    await asyncio.to_thread(consumer.resume, [assigned_by_key[key] for key in new_resumes])
+                paused_keys = should_pause
+
+            while entry["status"] in ("starting", "running") or inflight:
                 try:
-                    # Run the blocking poll call in the thread pool
-                    msg = await asyncio.to_thread(consumer.poll, 1.0)
+                    # Poll even while all workers are occupied to service group rebalances.
+                    msg = await asyncio.to_thread(consumer.poll, 0.25)
+                    if entry["status"] == "starting":
+                        assignment = await asyncio.to_thread(consumer.assignment)
+                        if assignment:
+                            entry["status"] = "running"
+                            logger.info("Kafka listener ready: listener=%s partitions=%s", listener_id, len(assignment))
 
-                    if msg is None:
-                        continue
-
-                    if msg.error():
+                    if msg is not None and msg.error():
                         error_code = msg.error().code()
                         if error_code == KafkaError._PARTITION_EOF:
                             logger.debug(f"Partition EOF: {msg.topic()}[{msg.partition()}]")
-                            continue
                         else:
                             error_str = str(msg.error())
                             logger.error(f"Kafka error: {error_str}")
                             stats["errors"] += 1
                             stats["last_error"] = error_str
                             await asyncio.sleep(retry_delay)
+                        msg = None
+
+                    if msg is not None:
+                        key = (msg.topic(), msg.partition())
+                        if key in inflight or len(inflight) >= max_concurrent or entry["status"] != "running":
+                            deferred_offsets[key] = min(deferred_offsets.get(key, msg.offset()), msg.offset())
+                        else:
+                            stats["messages_received"] += 1
+                            stats["last_message_at"] = datetime.now(timezone.utc).isoformat()
+                            inflight[key] = (msg, asyncio.create_task(cls._run_message(listener_id, config, msg)))
+                            stats["active_workflows"] = len(inflight)
+                            await sync_pauses()
+
+                    for key, (processed_msg, task) in list(inflight.items()):
+                        if not task.done():
                             continue
+                        try:
+                            workflow_succeeded = await task
+                            assigned = await asyncio.to_thread(consumer.assignment)
+                            assigned_keys = {(part.topic, part.partition) for part in assigned}
+                            if key in assigned_keys:
+                                await asyncio.to_thread(
+                                    consumer.commit,
+                                    offsets=[TopicPartition(key[0], key[1], processed_msg.offset() + 1)],
+                                    asynchronous=False,
+                                )
+                                if workflow_succeeded:
+                                    stats["workflows_triggered"] += 1
+                                    stats["consecutive_failures"] = 0
+                                else:
+                                    stats["consecutive_failures"] += 1
+                                    failure_limit = max(1, min(100, int(opts.get("max_consecutive_failures") or 5)))
+                                    if stats["consecutive_failures"] >= failure_limit:
+                                        logger.error("Kafka listener blocked after %s consecutive dead-lettered messages: %s", failure_limit, listener_id)
+                                        entry["status"] = "blocked"
+                                if key in deferred_offsets:
+                                    await asyncio.to_thread(consumer.seek, TopicPartition(key[0], key[1], deferred_offsets.pop(key)))
+                        except Exception as e:
+                            logger.error("Kafka message could not be acknowledged: listener=%s offset=%s: %s", listener_id, processed_msg.offset(), e, exc_info=True)
+                            stats["errors"] += 1
+                            stats["last_error"] = str(e)
+                            entry["status"] = "blocked"
+                        finally:
+                            del inflight[key]
+                            stats["active_workflows"] = len(inflight)
+                            if entry["status"] == "running":
+                                assigned = await asyncio.to_thread(consumer.assignment)
+                                assigned_keys = {(part.topic, part.partition) for part in assigned}
+                                for deferred_key, offset in list(deferred_offsets.items()):
+                                    if deferred_key not in inflight and deferred_key in assigned_keys:
+                                        await asyncio.to_thread(consumer.seek, TopicPartition(*deferred_key, offset))
+                                        del deferred_offsets[deferred_key]
+                                await sync_pauses()
 
-                    # Message received successfully
-                    stats["messages_received"] += 1
-                    stats["last_message_at"] = datetime.now(timezone.utc).isoformat()
-
-                    # Prepare message data
-                    message_data = cls._parse_message(msg, opts)
-
-                    logger.info(
-                        f"Kafka message received: topic={msg.topic()} "
-                        f"partition={msg.partition()} offset={msg.offset()} "
-                        f"(listener={listener_id})"
-                    )
-
-                    # Trigger the workflow
-                    try:
-                        await cls._trigger_workflow(listener_id, message_data)
-                        stats["workflows_triggered"] += 1
-                    except Exception as e:
-                        logger.error(f"Error while triggering workflow: {e}", exc_info=True)
-                        stats["errors"] += 1
-                        stats["last_error"] = str(e)
-
-                    # auto_commit_threshold: perform a manual commit every N messages
-                    if commit_threshold > 1:
-                        _commit_counter += 1
-                        if _commit_counter >= commit_threshold:
-                            try:
-                                await asyncio.to_thread(consumer.commit, asynchronous=False)
-                                logger.debug(f"Manual commit completed for {_commit_counter} messages (listener={listener_id})")
-                            except Exception as ce:
-                                logger.warning(f"Manual commit failed: {ce}")
-                            _commit_counter = 0
-
-                    # max_poll_records: message limit per loop iteration
-                    if stats["messages_received"] % max_poll_records == 0:
-                        await asyncio.sleep(0)  # Yield control to the event loop
+                    if msg is None and not inflight and entry["status"] not in ("starting", "running"):
+                        break
 
                 except asyncio.CancelledError:
                     logger.info(f"Kafka consumer cancelled: {listener_id}")
+                    for _msg, task in inflight.values():
+                        task.cancel()
+                    await asyncio.gather(*(task for _msg, task in inflight.values()), return_exceptions=True)
                     break
                 except Exception as e:
                     logger.error(f"Consumer loop error: {e}", exc_info=True)
                     stats["errors"] += 1
                     stats["last_error"] = str(e)
-                    await asyncio.sleep(retry_delay)
+                    entry["status"] = "error"
+                    break
 
         except asyncio.CancelledError:
             logger.info(f"Kafka consumer task cancelled: {listener_id}")
@@ -403,6 +492,10 @@ class KafkaListenerService:
             stats["last_error"] = str(e)
             entry["status"] = "error"
         finally:
+            if "inflight" in locals() and inflight:
+                for _msg, task in inflight.values():
+                    task.cancel()
+                await asyncio.gather(*(task for _msg, task in inflight.values()), return_exceptions=True)
             if consumer:
                 try:
                     await asyncio.to_thread(consumer.close)
@@ -410,7 +503,7 @@ class KafkaListenerService:
                 except Exception as e:
                     logger.warning(f"Error while closing consumer: {e}")
 
-            if entry["status"] == "running":
+            if entry["status"] in ("starting", "running"):
                 entry["status"] = "stopped"
 
     @staticmethod
@@ -473,7 +566,7 @@ class KafkaListenerService:
         return data
 
     @classmethod
-    async def _trigger_workflow(cls, listener_id: str, message_data: dict):
+    async def _trigger_workflow(cls, listener_id: str, message_data: dict, source_id: Optional[uuid.UUID] = None):
         """
         Run the related workflow when a Kafka message arrives.
         The Kafka trigger is an independent node, not a webhook.
@@ -483,19 +576,18 @@ class KafkaListenerService:
         from app.services.workflow_executor import WorkflowExecutor
         from app.models.workflow import Workflow
         from app.models.user import User
+        from app.models.execution import WorkflowExecution
         from sqlalchemy import select
 
         entry = cls._listeners.get(listener_id)
         if not entry:
-            logger.error(f"Listener not found: {listener_id}")
-            return
+            raise RuntimeError(f"Listener not found: {listener_id}")
 
         config = entry["config"]
         workflow_id = config.get("workflow_id")
 
         if not workflow_id:
-            logger.error(f"workflow_id is missing from listener config: {listener_id}")
-            return
+            raise RuntimeError(f"workflow_id is missing from listener config: {listener_id}")
 
         logger.info(f"Kafka trigger: loading workflow workflow_id={workflow_id}, listener={listener_id}")
 
@@ -506,8 +598,7 @@ class KafkaListenerService:
             workflow = result.scalar_one_or_none()
 
             if not workflow:
-                logger.error(f"Workflow not found: workflow_id={workflow_id}, listener={listener_id}")
-                return
+                raise RuntimeError(f"Workflow not found: workflow_id={workflow_id}, listener={listener_id}")
 
             # Load the workflow owner for credential access
             user_stmt = select(User).where(User.id == workflow.user_id)
@@ -515,8 +606,7 @@ class KafkaListenerService:
             owner = user_result.scalar_one_or_none()
 
             if not owner:
-                logger.error(f"Workflow owner not found: user_id={workflow.user_id}, workflow={workflow_id}")
-                return
+                raise RuntimeError(f"Workflow owner not found: user_id={workflow.user_id}, workflow={workflow_id}")
 
             logger.info(f"Kafka trigger: workflow found {workflow.name} (id={workflow.id}, owner={owner.email})")
 
@@ -541,6 +631,26 @@ class KafkaListenerService:
                 "listener_id": listener_id,
                 "triggered_at": datetime.now(timezone.utc).isoformat(),
             }
+            if source_id:
+                execution_inputs["kafka_source_id"] = str(source_id)
+                existing_execution = await db.get(WorkflowExecution, source_id)
+                if existing_execution and existing_execution.status == "completed":
+                    logger.info("Skipping completed Kafka execution: source_id=%s", source_id)
+                    return {"success": True, "deduplicated": True}
+                if not existing_execution:
+                    db.add(WorkflowExecution(
+                        id=source_id,
+                        workflow_id=workflow.id,
+                        user_id=workflow.user_id,
+                        status="pending",
+                        inputs=execution_inputs,
+                    ))
+                    await db.commit()
+                else:
+                    existing_execution.status = "pending"
+                    existing_execution.outputs = None
+                    existing_execution.error_message = None
+                    await db.commit()
 
             logger.info(f"Kafka trigger: executing workflow inputs={list(execution_inputs.keys())}")
 
@@ -554,6 +664,9 @@ class KafkaListenerService:
                 user=owner,            # Workflow owner
                 is_webhook=False,      # Kafka trigger is not a webhook
             )
+            ctx.user_context["preserve_active_executions"] = True
+            if source_id:
+                ctx.execution_id = source_id
 
             result_stream = await executor.execute_workflow(
                 ctx=ctx,
@@ -562,10 +675,16 @@ class KafkaListenerService:
             )
 
             result = None
+            stream_error = None
+            payload_sent = False
+            saw_complete = False
             if hasattr(result_stream, "__aiter__"):
                 async for event_chunk in result_stream:
                     if isinstance(event_chunk, dict):
+                        if event_chunk.get("type") in ("error", "workflow_error"):
+                            stream_error = event_chunk.get("error") or "Workflow execution failed"
                         if event_chunk.get("type") in ("complete", "workflow_complete"):
+                            saw_complete = True
                             result = event_chunk
 
                         ui_event = {
@@ -574,16 +693,20 @@ class KafkaListenerService:
                             "workflow_id": str(workflow.id),
                             "execution_id": str(ctx.execution_id) if ctx.execution_id else None,
                             "event": event_chunk,
-                            "kafka_payload": message_data,
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         }
+                        if not payload_sent or event_chunk.get("type") in ("complete", "workflow_complete", "error", "workflow_error"):
+                            ui_event["kafka_payload"] = message_data
+                            payload_sent = True
                         await broadcast_kafka_execution_event(listener_id, ui_event)
             else:
                 result = result_stream
 
             # Check execution result for errors
-            if isinstance(result, dict) and result.get("success") is False:
-                error_msg = result.get("error", "Unknown workflow error")
+            if hasattr(result_stream, "__aiter__") and not saw_complete and not stream_error:
+                raise RuntimeError("Kafka-triggered workflow stream ended without a completion event")
+            if stream_error or (isinstance(result, dict) and result.get("success") is False):
+                error_msg = stream_error or result.get("error", "Unknown workflow error")
                 logger.error(
                     f"Kafka-triggered workflow completed with an error: "
                     f"workflow={workflow.id} listener={listener_id} "
@@ -607,12 +730,12 @@ class KafkaListenerService:
 import hashlib
 
 
-def _compute_config_hash(topic: str, credential_id: str, group_id: str) -> str:
+def _compute_config_hash(topic: str, credential_id: str, group_id: str, options: Optional[Dict[str, Any]] = None) -> str:
     """
     Generate a hash from topic, credential_id, and group_id.
     Used to detect configuration changes.
     """
-    raw = f"{topic}|{credential_id}|{group_id}"
+    raw = json.dumps([topic, credential_id, group_id, options or {}], sort_keys=True, default=str)
     return hashlib.md5(raw.encode()).hexdigest()
 
 
@@ -660,24 +783,9 @@ async def _build_desired_state(db) -> Dict[str, Dict[str, Any]]:
             node_data = node.get("data", {})
 
             # Read configuration directly from node.data
-            credential_id = node_data.get("credential")
-            topic = node_data.get("topic")
-            group_id = node_data.get("group_id")
-
-            # Fallback to metadata.properties
-            if not topic or not credential_id:
-                metadata_props = node_data.get("metadata", {}).get("properties", [])
-                if isinstance(metadata_props, list):
-                    for prop in metadata_props:
-                        if isinstance(prop, dict) and "name" in prop:
-                            prop_name = prop["name"]
-                            prop_value = prop.get("value", prop.get("default"))
-                            if prop_name == "topic" and not topic and prop_value:
-                                topic = prop_value
-                            elif prop_name == "credential" and not credential_id and prop_value:
-                                credential_id = prop_value
-                            elif prop_name == "group_id" and not group_id and prop_value:
-                                group_id = prop_value
+            credential_id = get_kafka_node_value(node_data, "credential")
+            topic = get_kafka_node_value(node_data, "topic")
+            group_id = get_kafka_node_value(node_data, "group_id")
 
             if not topic or not credential_id:
                 continue
@@ -697,12 +805,15 @@ async def _build_desired_state(db) -> Dict[str, Dict[str, Any]]:
                 # Additional parameters
                 "allow_auto_create_topics", "auto_commit_threshold", "batch_size",
                 "max_poll_records", "rebalance_timeout_ms",
+                "max_concurrent_workflows", "max_workflow_attempts", "dead_letter_topic",
+                "max_consecutive_failures",
             ]
             for key in optional_keys:
-                if key in node_data:
-                    options[key] = node_data[key]
+                value = get_kafka_node_value(node_data, key)
+                if value is not None:
+                    options[key] = value
 
-            config_hash = _compute_config_hash(topic, str(credential_id), group_id)
+            config_hash = _compute_config_hash(topic, str(credential_id), group_id, options)
 
             desired[node_id] = {
                 "workflow_id": str(workflow.id),
@@ -733,6 +844,7 @@ def _build_actual_state() -> Dict[str, Dict[str, Any]]:
             config.get("topic", ""),
             str(config.get("credential_data", {}).get("credential_id", "")),
             config.get("group_id", ""),
+            config.get("options", {}),
         )
 
         actual[lid] = {
@@ -1014,10 +1126,8 @@ async def debug_kafka_single_message(
             detail=f"Configuration for node {node_id} was not found",
         )
 
-    topic = node_config.get("topic")
-    credential_id = node_config.get("credential")
-    group_id = node_config.get("group_id", f"kai-debug-{uuid.uuid4().hex[:8]}")
-
+    topic = get_kafka_node_value(node_config, "topic")
+    credential_id = get_kafka_node_value(node_config, "credential")
     if not topic or not credential_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1370,6 +1480,37 @@ class KafkaTriggerNode(BaseNode):
                 type=NodePropertyType.NUMBER,
                 description="Delay before retrying after error",
                 default=1000,
+                required=False
+            ),
+            NodeProperty(
+                name="max_concurrent_workflows",
+                displayName="Parallel Partitions",
+                type=NodePropertyType.NUMBER,
+                description="Maximum concurrent workflows across Kafka partitions (1-16); ordering within each partition is preserved",
+                default=4,
+                required=False
+            ),
+            NodeProperty(
+                name="max_workflow_attempts",
+                displayName="Workflow Attempts",
+                type=NodePropertyType.NUMBER,
+                description="Total attempts before sending a failed message to the dead-letter topic (1-10)",
+                default=3,
+                required=False
+            ),
+            NodeProperty(
+                name="dead_letter_topic",
+                displayName="Dead-Letter Topic",
+                type=NodePropertyType.TEXT,
+                description="Failed-message topic; defaults to the input topic plus .dlq. It must exist or broker auto-creation must be enabled.",
+                required=False
+            ),
+            NodeProperty(
+                name="max_consecutive_failures",
+                displayName="Failure Circuit Limit",
+                type=NodePropertyType.NUMBER,
+                description="Stop this listener after N consecutive dead-lettered messages (1-100); default 5",
+                default=5,
                 required=False
             ),
         ]

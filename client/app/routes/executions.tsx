@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
   Play,
   Clock,
@@ -19,40 +19,32 @@ import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
 import DeleteConfirmationModal from "~/components/modals/DeleteConfirmationModal";
 import DataViewModal from "~/components/modals/DataViewModal";
-import { useExecutionsStore } from "~/stores/executions";
-import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
-import { exportExecutionsCSV } from "~/services/executionService";
+import {
+  cancelExecution, deleteExecution, exportExecutionsCSV, getExecutionDetail,
+  getExecutionPage, getExecutionWorkflowOptions,
+  type ExecutionSummary,
+} from "~/services/executionService";
 
-interface Execution {
-  id: string;
-  workflow_id: string;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled";
-  input_text?: string;
-  output_text?: string;
-  started_at: string;
-  completed_at?: string;
-  error_message?: string;
-}
-
-const getInputData = (execution: any) => {
-  return execution.inputs || "{}";
-};
-
-const getOutputData = (execution: any) => {
-  return execution.outputs || "{}";
-};
-
-const formatDataForDisplay = (data: any) => {
-  if (typeof data === "object" && data !== null) {
-    return JSON.stringify(data);
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+    return error.message;
   }
-  return String(data).replace(/[\r\n]+/g, " ");
+  return fallback;
 };
 
 function ExecutionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
+  const [total, setTotal] = useState(0);
+  const [workflows, setWorkflows] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isMutating, setIsMutating] = useState(false);
+  const requestController = useRef<AbortController | null>(null);
+  const detailRequestId = useRef(0);
+  const countedFilters = useRef<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     executionId: string | null;
@@ -68,23 +60,48 @@ function ExecutionsPage() {
     searchTerm: "",
     dateRange: "all", // all, today, week, month
   });
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(filters.searchTerm), 400);
+    return () => clearTimeout(timer);
+  }, [filters.searchTerm]);
+
+  const startedAfter = useMemo(() => {
+    if (filters.dateRange === "all") return undefined;
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    if (filters.dateRange === "week") date.setDate(date.getDate() - 7);
+    if (filters.dateRange === "month") date.setTime(date.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return date.toISOString();
+  }, [filters.dateRange]);
 
   const [viewModal, setViewModal] = useState<{
     isOpen: boolean;
     title: string;
-    data: any;
+    data: string | object | null;
   }>({
     isOpen: false,
     title: "",
     data: null,
   });
 
-  const handleViewClick = (title: string, data: any) => {
-    setViewModal({
-      isOpen: true,
-      title,
-      data,
-    });
+  const handleViewClick = async (executionId: string, field: "inputs" | "outputs") => {
+    const requestId = ++detailRequestId.current;
+    const title = field === "inputs" ? "Input Data" : "Output Data";
+    setViewModal({ isOpen: true, title, data: "Loading..." });
+    try {
+      const detail = await getExecutionDetail(executionId);
+      if (requestId === detailRequestId.current) {
+        const value = detail[field];
+        const data = typeof value === "object" && value !== null ? value : String(value ?? "No data");
+        setViewModal({ isOpen: true, title, data });
+      }
+    } catch (e: unknown) {
+      if (requestId === detailRequestId.current) {
+        setViewModal({ isOpen: true, title, data: getErrorMessage(e, "Failed to load execution data") });
+      }
+    }
   };
 
   // Column resize state
@@ -123,38 +140,94 @@ function ExecutionsPage() {
     new Set()
   );
 
-  const { executions, loading, error, fetchAllExecutions, deleteExecution, cancelExecution } =
-    useExecutionsStore();
-  const { workflows, fetchWorkflows } = useWorkflows();
-
   const getWorkflowName = (workflowId: string) => {
     const workflow = workflows.find((w) => w.id === workflowId);
     return workflow ? workflow.name : "Unknown Workflow";
   };
 
   useEffect(() => {
-    fetchWorkflows();
-    fetchAllExecutions(); // Fetch all executions
-  }, [fetchWorkflows, fetchAllExecutions]);
+    let mounted = true;
+    getExecutionWorkflowOptions()
+      .then((options) => { if (mounted) setWorkflows(options); })
+      .catch((e: unknown) => { if (mounted) setError(getErrorMessage(e, "Failed to load workflows")); });
+    return () => { mounted = false; };
+  }, []);
 
-  // Smart Polling (automatic refresh with smart intervals)
+  const loadPage = useCallback(async (silent = false, includeTotal?: boolean) => {
+    if (silent && (document.hidden || requestController.current)) return;
+    requestController.current?.abort();
+    const controller = new AbortController();
+    requestController.current = controller;
+    const filterKey = JSON.stringify([filters.workflowId, filters.status, startedAfter, debouncedSearch.trim()]);
+    const shouldCount = includeTotal ?? countedFilters.current !== filterKey;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+      setExecutions([]);
+    }
+    try {
+      const result = await getExecutionPage({
+        page: currentPage,
+        workflow_id: filters.workflowId !== "all" ? filters.workflowId : undefined,
+        status_filter: filters.status !== "all" ? filters.status : undefined,
+        started_after: startedAfter,
+        search: debouncedSearch.trim() || undefined,
+        include_total: shouldCount,
+      }, controller.signal);
+      if (controller.signal.aborted) return;
+      if (result.total !== null && currentPage > Math.max(1, Math.ceil(result.total / itemsPerPage))) {
+        setTotal(result.total);
+        setCurrentPage(Math.max(1, Math.ceil(result.total / itemsPerPage)));
+        return;
+      }
+      setExecutions(result.items);
+      if (result.total !== null) {
+        setTotal(result.total);
+        countedFilters.current = filterKey;
+      }
+    } catch (e: unknown) {
+      if (!controller.signal.aborted) setError(getErrorMessage(e, "Failed to load executions"));
+    } finally {
+      if (requestController.current === controller) {
+        requestController.current = null;
+        setLoading(false);
+      }
+    }
+  }, [currentPage, filters.workflowId, filters.status, startedAfter, debouncedSearch]);
+
   useEffect(() => {
-    // Check if there is any active execution (running or pending) in the list
-    const hasActiveExecution = executions.some(
-      (ex) => ex.status === "running" || ex.status === "pending"
-    );
-
-    // Update every 2 seconds if there is an active execution, otherwise every 3 seconds
-    const intervalTime = hasActiveExecution ? 2000 : 3000;
-
-    const timer = setInterval(() => {
-      fetchAllExecutions(true); // silent = true: silently refresh without displaying loading indicators in the UI
-    }, intervalTime);
-
+    if (filters.searchTerm !== debouncedSearch) return;
+    let active = true;
+    queueMicrotask(() => { if (active) void loadPage(); });
     return () => {
-      clearInterval(timer);
+      active = false;
+      const controller = requestController.current;
+      requestController.current = null;
+      controller?.abort();
     };
-  }, [executions, fetchAllExecutions]);
+  }, [loadPage, filters.searchTerm, debouncedSearch]);
+
+  useEffect(() => {
+    const timer = setInterval(() => { void loadPage(true, true); }, 30000);
+    return () => clearInterval(timer);
+  }, [loadPage]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) void loadPage(true, true);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [loadPage]);
+
+  const hasActiveExecution = executions.some(
+    (ex) => ex.status === "running" || ex.status === "pending"
+  );
+  useEffect(() => {
+    if (!hasActiveExecution) return;
+    const timer = setInterval(() => { void loadPage(true, filters.status !== "all"); }, 5000);
+    return () => clearInterval(timer);
+  }, [hasActiveExecution, loadPage, filters.status]);
 
   // Listen for executions started from other tabs or widgets dynamically
   useEffect(() => {
@@ -163,13 +236,13 @@ function ExecutionsPage() {
     const channel = new BroadcastChannel("kai-flow-executions");
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === "EXECUTION_STARTED") {
-        fetchAllExecutions(true);
+        void loadPage(true, true);
       }
     };
     channel.addEventListener("message", handleMessage);
 
     const handleLocalMessage = () => {
-      fetchAllExecutions(true);
+      void loadPage(true, true);
     };
     window.addEventListener("kai-flow-execution-started", handleLocalMessage);
 
@@ -178,90 +251,23 @@ function ExecutionsPage() {
       channel.close();
       window.removeEventListener("kai-flow-execution-started", handleLocalMessage);
     };
-  }, [fetchAllExecutions]);
+  }, [loadPage]);
 
-  // Filter executions
-  const filteredExecutions = useMemo(() => {
-    return executions.filter((execution) => {
-      // Status filter
-      if (filters.status !== "all" && execution.status !== filters.status) {
-        return false;
-      }
-
-      // Workflow filter
-      if (
-        filters.workflowId !== "all" &&
-        execution.workflow_id !== filters.workflowId
-      ) {
-        return false;
-      }
-
-      // Date range filter
-      if (filters.dateRange !== "all" && execution.started_at) {
-        const executionDate = new Date(execution.started_at);
-        const now = new Date();
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-
-        switch (filters.dateRange) {
-          case "today":
-            if (executionDate < today) return false;
-            break;
-          case "week":
-            const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-            if (executionDate < weekAgo) return false;
-            break;
-          case "month":
-            const monthAgo = new Date(
-              today.getTime() - 30 * 24 * 60 * 60 * 1000
-            );
-            if (executionDate < monthAgo) return false;
-            break;
-        }
-      }
-
-      // Search filter
-      if (filters.searchTerm) {
-        const searchLower = filters.searchTerm.toLowerCase();
-        const inputData = formatDataForDisplay(getInputData(execution)).toLowerCase();
-        const workflowName = getWorkflowName(
-          execution.workflow_id
-        ).toLowerCase();
-
-        if (
-          !inputData.includes(searchLower) &&
-          !workflowName.includes(searchLower)
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [executions, filters, workflows]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredExecutions.length / itemsPerPage));
-  const effectivePage = Math.min(currentPage, totalPages);
-  const startIndex = (effectivePage - 1) * itemsPerPage;
-  const currentExecutions = filteredExecutions.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+  const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentExecutions = executions;
+  const visiblePages = useMemo(() => {
+    const pages = new Set([1, totalPages]);
+    for (let page = Math.max(1, currentPage - 2); page <= Math.min(totalPages, currentPage + 2); page++) {
+      pages.add(page);
     }
-  }, [totalPages, currentPage]);
+    return [...pages].sort((a, b) => a - b);
+  }, [currentPage, totalPages]);
 
-  // Reset page and selections when filters change
-  useEffect(() => {
-    setCurrentPage(1);
+  const changePage = (page: number) => {
     setSelectedExecutions(new Set());
-  }, [filters]);
+    setCurrentPage(page);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -282,7 +288,7 @@ function ExecutionsPage() {
 
 
 
-  const formatDuration = (startedAt: string, completedAt?: string) => {
+  const formatDuration = (startedAt: string | null, completedAt?: string | null) => {
     if (!startedAt) return "-";
     if (!completedAt) return "Running...";
 
@@ -319,22 +325,36 @@ function ExecutionsPage() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (deleteModal.executionId === "bulk") {
-      // Bulk delete
-      const executionIds = Array.from(selectedExecutions);
-      for (const id of executionIds) {
-        await deleteExecution(id);
+    setIsMutating(true);
+    try {
+      if (deleteModal.executionId === "bulk") {
+        for (const id of selectedExecutions) {
+          await deleteExecution(id);
+        }
+      } else if (deleteModal.executionId) {
+        await deleteExecution(deleteModal.executionId);
       }
       setSelectedExecutions(new Set());
-    } else if (deleteModal.executionId) {
-      // Single delete
-      await deleteExecution(deleteModal.executionId);
+      setDeleteModal({ isOpen: false, executionId: null });
+      await loadPage(false, true);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, "Failed to delete execution"));
+    } finally {
+      setIsMutating(false);
     }
+  };
 
-    setDeleteModal({
-      isOpen: false,
-      executionId: null,
-    });
+  const handleCancelExecution = async (executionId: string) => {
+    if (!confirm("Are you sure you want to cancel this execution?")) return;
+    setIsMutating(true);
+    try {
+      await cancelExecution(executionId);
+      await loadPage(false, true);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, "Failed to cancel execution"));
+    } finally {
+      setIsMutating(false);
+    }
   };
 
   const handleDeleteCancel = () => {
@@ -345,6 +365,8 @@ function ExecutionsPage() {
   };
 
   const handleFilterChange = (key: string, value: string) => {
+    setCurrentPage(1);
+    setSelectedExecutions(new Set());
     setFilters((prev) => ({
       ...prev,
       [key]: value,
@@ -352,6 +374,8 @@ function ExecutionsPage() {
   };
 
   const clearFilters = () => {
+    setCurrentPage(1);
+    setSelectedExecutions(new Set());
     setFilters({
       status: "all",
       workflowId: "all",
@@ -375,6 +399,8 @@ function ExecutionsPage() {
         date_range: filters.dateRange !== "all" ? filters.dateRange : undefined,
         // Always pass filter info for filename (even when checkbox is used)
         workflow_name: filters.workflowId !== "all" ? getWorkflowName(filters.workflowId) : undefined,
+        search: filters.searchTerm.trim() || undefined,
+        started_after: startedAfter,
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -419,30 +445,19 @@ function ExecutionsPage() {
 
   const selectedCount = selectedExecutions.size;
   const isAllSelected =
-    selectedCount > 0 && selectedCount === currentExecutions.length;
+    currentExecutions.length > 0 && currentExecutions.every((ex) => selectedExecutions.has(ex.id));
   const isPartiallySelected =
-    selectedCount > 0 && selectedCount < currentExecutions.length;
-
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-background text-foreground">
-        <DashboardSidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <Loading size="lg" />
-        </main>
-      </div>
-    );
-  }
+    currentExecutions.some((ex) => selectedExecutions.has(ex.id)) && !isAllSelected;
 
   return (
     <div className="flex h-screen bg-background text-foreground">
       <DashboardSidebar />
       <main className="flex-1 overflow-hidden">
-        <div className="h-full overflow-y-auto p-6">
+        <div className="h-full overflow-y-auto [scrollbar-gutter:stable] p-6">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
-              <div className="flex flex-row items-center justify-between gap-6">
+              <div className="flex flex-col gap-4">
                 <div>
                   <h1 className="text-4xl font-bold text-blue-600">
                     Executions
@@ -453,13 +468,14 @@ function ExecutionsPage() {
                 </div>
 
                 {/* Filter Controls */}
-                <div className="flex flex-row items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   {/* Search */}
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type="text"
                       placeholder="Search executions..."
+                      maxLength={200}
                       className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
                       value={filters.searchTerm}
                       onChange={(e) =>
@@ -525,7 +541,7 @@ function ExecutionsPage() {
                   {/* Export CSV */}
                   <button
                     onClick={handleExportCSV}
-                    disabled={isExporting || filteredExecutions.length === 0}
+                    disabled={isExporting || total === 0}
                     className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-200 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Export filtered executions as CSV"
                   >
@@ -543,16 +559,17 @@ function ExecutionsPage() {
                   </button>
 
                   {/* Clear Filters */}
-                  {hasActiveFilters && (
-                    <button
-                      onClick={clearFilters}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200 whitespace-nowrap"
-                      title="Clear all filters"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      Clear
-                    </button>
-                  )}
+                  <button
+                    onClick={clearFilters}
+                    disabled={!hasActiveFilters}
+                    aria-hidden={!hasActiveFilters}
+                    tabIndex={hasActiveFilters ? 0 : -1}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200 whitespace-nowrap ${hasActiveFilters ? "" : "invisible"}`}
+                    title="Clear all filters"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Clear
+                  </button>
                 </div>
               </div>
 
@@ -590,8 +607,7 @@ function ExecutionsPage() {
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-700">
                   <Filter className="inline w-4 h-4 mr-1" />
-                  Showing {filteredExecutions.length} of {executions.length}{" "}
-                  executions
+                  {total} matching executions
                   {filters.status !== "all" && (
                     <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
                       Status: {filters.status}
@@ -604,7 +620,7 @@ function ExecutionsPage() {
                   )}
                   {filters.searchTerm && (
                     <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
-                      Search: "{filters.searchTerm}"
+                      Search: &quot;{filters.searchTerm}&quot;
                     </span>
                   )}
                   {filters.dateRange !== "all" && (
@@ -622,16 +638,20 @@ function ExecutionsPage() {
             )}
 
             {/* Empty State */}
-            {filteredExecutions.length === 0 && !loading ? (
+            {loading ? (
+              <div className="flex min-h-[240px] items-center justify-center" role="status" aria-label="Loading executions">
+                <Loading size="lg" />
+              </div>
+            ) : executions.length === 0 && !error ? (
               <div className="text-center py-12">
                 <Play className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-600 mb-2">
-                  {executions.length === 0
+                  {total === 0 && !hasActiveFilters
                     ? "No executions yet"
                     : "No results found"}
                 </h3>
                 <p className="text-gray-500">
-                  {executions.length === 0
+                  {total === 0 && !hasActiveFilters
                     ? "Run a workflow to see execution history here"
                     : "Try adjusting your filters to see more results"}
                 </p>
@@ -722,9 +742,9 @@ function ExecutionsPage() {
                                 <div className="min-w-0 flex-1">
                                   <div
                                     className="text-sm font-medium text-gray-900 line-clamp-2 h-10"
-                                    title={getWorkflowName(execution.workflow_id)}
+                                    title={execution.workflow_name}
                                   >
-                                    {getWorkflowName(execution.workflow_id)}
+                                    {execution.workflow_name}
                                   </div>
                                   <div className="text-xs text-gray-500">
                                     #{execution.id.slice(0, 8)}
@@ -771,33 +791,22 @@ function ExecutionsPage() {
                                 )}
                               </div>
                             </td>
-                            <td
-                              className="px-3 py-4 text-sm text-gray-900 cursor-pointer hover:text-blue-600 transition-colors align-top"
-                              title={formatDataForDisplay(getInputData(execution))}
-                              onClick={() => handleViewClick("Input Data", getInputData(execution))}
-                            >
-                              <div className="truncate pt-0.5">
-                                {formatDataForDisplay(getInputData(execution))}
-                              </div>
+                            <td className="px-3 py-4 text-sm align-top">
+                              {execution.has_inputs ? (
+                                <button className="text-blue-600 hover:underline" onClick={() => handleViewClick(execution.id, "inputs")}>View input</button>
+                              ) : "-"}
                             </td>
-                            <td
-                              className="px-3 py-4 text-sm text-gray-900 cursor-pointer hover:text-blue-600 transition-colors align-top"
-                              title={formatDataForDisplay(getOutputData(execution))}
-                              onClick={() => handleViewClick("Output Data", getOutputData(execution))}
-                            >
-                              <div className="truncate pt-0.5">
-                                {formatDataForDisplay(getOutputData(execution))}
-                              </div>
+                            <td className="px-3 py-4 text-sm align-top">
+                              {execution.has_outputs ? (
+                                <button className="text-blue-600 hover:underline" onClick={() => handleViewClick(execution.id, "outputs")}>View output</button>
+                              ) : "-"}
                             </td>
                             <td className="px-3 py-4 text-center align-top">
                               <div className="flex justify-center items-start gap-2.5 pt-0.5">
                                 {(execution.status === "running" || execution.status === "pending") && (
                                   <button
-                                    onClick={async () => {
-                                      if (confirm("Are you sure you want to cancel this execution?")) {
-                                        await cancelExecution(execution.id);
-                                      }
-                                    }}
+                                    onClick={() => handleCancelExecution(execution.id)}
+                                    disabled={isMutating}
                                     className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-all duration-200"
                                     title="Cancel execution"
                                   >
@@ -806,6 +815,7 @@ function ExecutionsPage() {
                                 )}
                                 <button
                                   onClick={() => handleDeleteClick(execution.id)}
+                                  disabled={isMutating}
                                   className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
                                   title="Delete execution"
                                 >
@@ -825,54 +835,40 @@ function ExecutionsPage() {
                   <div className="flex items-center justify-between mt-6">
                     <div className="text-sm text-gray-700">
                       Showing {startIndex + 1} to{" "}
-                      {Math.min(
-                        startIndex + itemsPerPage,
-                        filteredExecutions.length
-                      )}{" "}
-                      of {filteredExecutions.length} executions
-                      {hasActiveFilters && (
-                        <span className="text-gray-500 ml-1">
-                          (filtered from {executions.length} total)
-                        </span>
-                      )}
+                      {Math.min(startIndex + currentExecutions.length, total)} of {total} executions
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() =>
-                          setCurrentPage((prev) => Math.max(prev - 1, 1))
-                        }
-                        disabled={effectivePage === 1}
+                        onClick={() => changePage(Math.max(currentPage - 1, 1))}
+                        disabled={currentPage === 1}
                         className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Previous page"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
  
                       <div className="flex gap-1">
-                        {Array.from(
-                          { length: totalPages },
-                          (_, i) => i + 1
-                        ).map((page) => (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`px-3 py-1 rounded text-sm ${page === effectivePage
-                              ? "bg-blue-600 text-white"
-                              : "text-gray-700 hover:bg-gray-100"
-                              }`}
-                          >
-                            {page}
-                          </button>
+                        {visiblePages.map((page, index) => (
+                          <React.Fragment key={page}>
+                            {index > 0 && page - visiblePages[index - 1] > 1 && <span className="px-1 text-gray-500">...</span>}
+                            <button
+                              onClick={() => changePage(page)}
+                              className={`px-3 py-1 rounded text-sm ${page === currentPage
+                                ? "bg-blue-600 text-white"
+                                : "text-gray-700 hover:bg-gray-100"
+                                }`}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
                         ))}
                       </div>
  
                       <button
-                        onClick={() =>
-                          setCurrentPage((prev) =>
-                            Math.min(prev + 1, totalPages)
-                          )
-                        }
-                        disabled={effectivePage === totalPages}
+                        onClick={() => changePage(Math.min(currentPage + 1, totalPages))}
+                        disabled={currentPage === totalPages}
                         className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Next page"
                       >
                         <ChevronRight className="w-5 h-5" />
                       </button>
@@ -890,7 +886,7 @@ function ExecutionsPage() {
         isOpen={deleteModal.isOpen}
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
-        isLoading={loading}
+        isLoading={isMutating}
         title={
           deleteModal.executionId === "bulk"
             ? "Delete Multiple Executions"
@@ -912,7 +908,10 @@ function ExecutionsPage() {
       {/* Data View Modal */}
       <DataViewModal
         isOpen={viewModal.isOpen}
-        onClose={() => setViewModal({ ...viewModal, isOpen: false })}
+        onClose={() => {
+          detailRequestId.current += 1;
+          setViewModal((current) => ({ ...current, isOpen: false }));
+        }}
         title={viewModal.title}
         data={viewModal.data}
       />
