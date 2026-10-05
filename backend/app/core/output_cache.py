@@ -326,9 +326,10 @@ class NodeConnectionExtractor:
                         if isinstance(source_info, dict)
                         else "unknown"
                     )
+                    source_node = self.nodes_registry.get(source_node_id)
                     node_error = NodeExecutionError(
                         node_id=source_node_id,
-                        node_type="connected_node",
+                        node_type=getattr(source_node, "type", "connected_node"),
                         original_error=error,
                     )
                 connection_errors.append(node_error)
@@ -461,9 +462,11 @@ class NodeConnectionExtractor:
 
                 node_error = find_deepest_node_execution_error(error)
                 if node_error is None:
+                    source_node_id = connection_info.get("source_node_id", "unknown")
+                    source_node = self.nodes_registry.get(source_node_id)
                     node_error = NodeExecutionError(
-                        node_id=connection_info.get("source_node_id", "unknown"),
-                        node_type="connected_node",
+                        node_id=source_node_id,
+                        node_type=getattr(source_node, "type", "connected_node"),
                         original_error=error,
                     )
                 connection_errors.append(node_error)

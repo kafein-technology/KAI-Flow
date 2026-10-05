@@ -416,6 +416,10 @@ class ProcessorNodeHandler(NodeExecutionHandler):
                 logger.debug(f"[DEBUG] Using cached output for processor {node_id}")
                 return cached_result
             
+            # Kafka sends are side effects and must not be retried by connection resolution.
+            if getattr(source_node_instance.metadata, "name", None) == "KafkaProducer":
+                raise RuntimeError(f"Kafka Producer {node_id} has no recorded output")
+
             # 2. If no cache, need to re-execute processor node
             logger.debug(f"[DEBUG] No cached output found for {node_id}, performing re-execution")
             
@@ -437,10 +441,11 @@ class ProcessorNodeHandler(NodeExecutionHandler):
         2. Common fallbacks (documents, output)
         3. Full stored result
         """
-        if not (hasattr(state, 'node_outputs') and node_id in state.node_outputs):
+        node_outputs = state.get("node_outputs") if isinstance(state, dict) else getattr(state, "node_outputs", None)
+        if not isinstance(node_outputs, dict) or node_id not in node_outputs:
             return None
         
-        stored_result = state.node_outputs[node_id]
+        stored_result = node_outputs[node_id]
         logger.debug(f"[DEBUG] Found stored result for {node_id}: {type(stored_result)}")
         
         # Try specific input_name first
