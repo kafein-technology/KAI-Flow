@@ -2,6 +2,43 @@ import { apiClient } from '../lib/api-client';
 import { API_ENDPOINTS } from '../lib/config';
 import type { WorkflowExecution } from '../types/api';
 
+export interface ExecutionSummary {
+  id: string;
+  workflow_id: string;
+  workflow_name: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string | null;
+  has_inputs: boolean;
+  has_outputs: boolean;
+}
+
+export interface ExecutionPage {
+  items: ExecutionSummary[];
+  total: number | null;
+  page: number;
+  page_size: number;
+}
+
+export interface ExecutionPageParams {
+  page: number;
+  workflow_id?: string;
+  status_filter?: string;
+  started_after?: string;
+  search?: string;
+  include_total?: boolean;
+}
+
+export const getExecutionPage = (params: ExecutionPageParams, signal?: AbortSignal) =>
+  apiClient.get<ExecutionPage>(API_ENDPOINTS.EXECUTIONS.PAGE, { params, signal });
+
+export const getExecutionWorkflowOptions = () =>
+  apiClient.get<{ id: string; name: string }[]>(API_ENDPOINTS.EXECUTIONS.WORKFLOW_OPTIONS);
+
+export const getExecutionDetail = (executionId: string) =>
+  apiClient.get<{ inputs: unknown; outputs: unknown }>(API_ENDPOINTS.EXECUTIONS.GET(executionId));
+
 export const broadcastExecutionStarted = () => {
   if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
     try {
@@ -74,6 +111,8 @@ export const exportExecutionsCSV = async (params: {
   date_range?: string;
   workflow_name?: string;
   execution_ids?: string[];
+  search?: string;
+  started_after?: string;
 }): Promise<{ blob: Blob; filename: string }> => {
   // Filter out undefined/empty params
   const queryParams: Record<string, string> = {};
@@ -83,6 +122,8 @@ export const exportExecutionsCSV = async (params: {
     if (params.status_filter) queryParams.status_filter = params.status_filter;
     if (params.workflow_id) queryParams.workflow_id = params.workflow_id;
     if (params.date_range) queryParams.date_range = params.date_range;
+    if (params.search) queryParams.search = params.search;
+    if (params.started_after) queryParams.started_after = params.started_after;
   }
 
   // apiClient.get returns response.data directly (not full response),

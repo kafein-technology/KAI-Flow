@@ -4,7 +4,7 @@ import logging
 from typing import Any, Dict, Optional
 from confluent_kafka import Producer
 from app.nodes.base import BaseNode, NodeType, NodeMetadata, NodeProperty, NodeInput, NodeOutput, NodePropertyType
-from app.core.kafka_utils import get_kafka_config
+from app.core.kafka_utils import get_kafka_config, get_kafka_node_value
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,13 @@ class KafkaProducerNode(BaseNode):
         Executes the Kafka Producer logic.
         """
         try:
+            inputs = dict(inputs)
+            for prop in self.metadata.properties:
+                if prop.name not in inputs or (prop.name in ("credential", "topic") and not inputs[prop.name]):
+                    saved_value = get_kafka_node_value(self.user_data, prop.name)
+                    if saved_value is not None:
+                        inputs[prop.name] = saved_value
+
             # 1. Configuration
             credential_id = inputs.get("credential")
             if not credential_id:
@@ -145,8 +152,14 @@ class KafkaProducerNode(BaseNode):
             # Extract actual secret if it's wrapped in the standard credential dict
             if isinstance(credential_data, dict) and "secret" in credential_data:
                 credential_data = credential_data["secret"]
+            if isinstance(credential_data, str):
+                credential_data = json.loads(credential_data)
+            if not isinstance(credential_data, dict):
+                raise ValueError("Kafka credential data is invalid. Please update the selected credential.")
 
             producer_config = get_kafka_config(credential_data)
+            producer_config["acks"] = "all"
+            producer_config["enable.idempotence"] = True
             
             if not producer_config.get("bootstrap.servers"):
                 logger.error(f"Kafka Producer: No bootstrap.servers found in credential data.")
@@ -155,7 +168,9 @@ class KafkaProducerNode(BaseNode):
             # Optional settings
             acks = inputs.get("acks")
             if acks:
-                producer_config["acks"] = "all" if acks is True else str(acks)
+                configured_acks = "all" if acks is True else str(acks)
+                if configured_acks not in ("all", "-1"):
+                    raise ValueError("Kafka Producer requires all broker acknowledgements for reliable delivery.")
             
             compression = inputs.get("compression_type")
             if compression is True:
@@ -193,10 +208,10 @@ class KafkaProducerNode(BaseNode):
             value_bytes = None
             if message is not None:
                 if isinstance(message, (dict, list)):
-                    value_bytes = json.dumps(message).encode('utf-8')
+                    value_bytes = json.dumps(message, ensure_ascii=False).encode('utf-8')
                 elif json_encode:
                     # Force JSON encoding (e.g. string "Hello" -> b'"Hello"')
-                    value_bytes = json.dumps(message).encode('utf-8')
+                    value_bytes = json.dumps(message, ensure_ascii=False).encode('utf-8')
                 elif isinstance(message, str):
                     value_bytes = message.encode('utf-8')
                 else:
@@ -232,10 +247,12 @@ class KafkaProducerNode(BaseNode):
             
             # 6. Flush (Blocking wait for delivery)
             # This makes the node synchronous (Processor behavior)
-            producer.flush(timeout=producer_config["message.timeout.ms"] / 1000)
+            remaining = producer.flush(timeout=producer_config["message.timeout.ms"] / 1000)
             
             if "error" in error_container:
                 raise Exception(f"Kafka Error: {error_container['error']}")
+            if remaining or not delivery_report:
+                raise TimeoutError("Kafka delivery was not acknowledged before the configured timeout.")
             
             logger.info(f"Kafka message sent to {topic} [{delivery_report.get('partition')}] @ {delivery_report.get('offset')}")
 
@@ -245,7 +262,6 @@ class KafkaProducerNode(BaseNode):
                 "key": key,
                 "topic": topic,
                 "headers": headers,
-                "inputs": inputs
             }
 
         except Exception as e:

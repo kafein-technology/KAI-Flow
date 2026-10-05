@@ -137,6 +137,8 @@ export const API_ENDPOINTS = {
   },
   EXECUTIONS: {
     LIST: '/executions',
+    PAGE: '/executions/page',
+    WORKFLOW_OPTIONS: '/executions/workflow-options',
     CREATE: '/executions',
     GET: (id: string) => `/executions/${id}`,
     EXPORT_CSV: '/executions/export/csv',

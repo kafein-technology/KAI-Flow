@@ -159,7 +159,10 @@ class GraphBuilder:
             }
             
             logger.info(f"Workflow build completed successfully in {build_duration:.3f}s")
-            logger.info(f"Build metrics: {self._build_metrics}")
+            logger.debug(
+                "Build metrics: duration=%.3fs nodes=%s connections=%s",
+                build_duration, len(self.nodes), len(self.connections),
+            )
             
             return compiled_graph
             

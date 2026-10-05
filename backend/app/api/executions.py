@@ -4,7 +4,7 @@ import json
 import uuid
 from typing import List, Any, Optional
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -16,6 +16,8 @@ from app.models.workflow import Workflow
 from app.schemas.execution import (
     WorkflowExecutionCreate,
     WorkflowExecutionResponse,
+    WorkflowExecutionPageResponse,
+    ExecutionWorkflowOption,
     WorkflowExecutionUpdate,
 )
 from app.services.execution_service import ExecutionService
@@ -30,6 +32,8 @@ async def export_executions_csv(
     workflow_id: Optional[uuid.UUID] = None,
     date_range: Optional[str] = None,
     execution_ids: Optional[str] = None,
+    search: Optional[str] = None,
+    started_after: Optional[datetime] = None,
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     execution_service: ExecutionService = Depends(),
@@ -46,34 +50,34 @@ async def export_executions_csv(
             if execution:
                 executions.append(execution)
     else:
-        # No checkbox selection — use filters (same as list_executions page)
-        if workflow_id:
-            executions = await execution_service.get_workflow_executions(
-                db, workflow_id=workflow_id, user_id=current_user.id,
-                skip=0, limit=10000,
-            )
-        else:
-            executions = await execution_service.get_all_user_executions(
-                db, user_id=current_user.id,
-                skip=0, limit=10000,
-            )
+        # Preserve the existing date-range query for other callers.
+        if not started_after and date_range:
+            now = datetime.now(timezone.utc)
+            today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            if date_range == "today":
+                started_after = today
+            elif date_range == "week":
+                started_after = today - timedelta(days=7)
+            elif date_range == "month":
+                started_after = today - timedelta(days=30)
+        executions = await execution_service.get_filtered_executions_for_export(
+            db, user_id=current_user.id, workflow_id=workflow_id,
+            status_filter=status_filter, started_after=started_after, search=search,
+        )
 
-    # Apply status filter (same logic as frontend does client-side)
-    if status_filter:
+    if execution_ids and status_filter:
         executions = [e for e in executions if e.status == status_filter]
-
-    # Apply date_range filter
-    if date_range:
-        now = datetime.now(timezone.utc)
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        if date_range == "today":
-            cutoff = today
-        elif date_range == "week":
-            cutoff = today - timedelta(days=7)
-        elif date_range == "month":
-            cutoff = today - timedelta(days=30)
-        else:
-            cutoff = None
+    if execution_ids and (started_after or date_range):
+        cutoff = started_after
+        if cutoff is None:
+            now = datetime.now(timezone.utc)
+            today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            if date_range == "today":
+                cutoff = today
+            elif date_range == "week":
+                cutoff = today - timedelta(days=7)
+            elif date_range == "month":
+                cutoff = today - timedelta(days=30)
         if cutoff:
             executions = [
                 e for e in executions
@@ -200,6 +204,39 @@ async def list_executions(
             db, user_id=current_user.id, skip=skip, limit=limit
         )
     return executions
+
+
+@router.get("/page", response_model=WorkflowExecutionPageResponse)
+async def list_execution_page(
+    page: int = Query(1, ge=1),
+    workflow_id: Optional[uuid.UUID] = None,
+    status_filter: Optional[str] = None,
+    started_after: Optional[datetime] = None,
+    search: Optional[str] = Query(None, max_length=200),
+    include_total: bool = True,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    execution_service: ExecutionService = Depends(),
+):
+    items, total = await execution_service.get_execution_page(
+        db, user_id=current_user.id, page=page, workflow_id=workflow_id,
+        status_filter=status_filter, started_after=started_after,
+        search=search.strip() if search else None, include_total=include_total,
+    )
+    return {"items": items, "total": total, "page": page, "page_size": 10}
+
+
+@router.get("/workflow-options", response_model=List[ExecutionWorkflowOption])
+async def list_execution_workflow_options(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Workflow.id, Workflow.name)
+        .where(Workflow.user_id == current_user.id)
+        .order_by(Workflow.name)
+    )
+    return [dict(row._mapping) for row in result.all()]
 
 
 @router.get("/{execution_id}", response_model=WorkflowExecutionResponse)

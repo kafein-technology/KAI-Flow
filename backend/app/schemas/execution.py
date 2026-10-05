@@ -1,6 +1,6 @@
 import uuid
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 
 # --- Workflow Execution Schemas ---
@@ -35,6 +35,30 @@ class WorkflowExecutionResponse(WorkflowExecutionBase):
     class Config:
         from_attributes = True
 
+
+class WorkflowExecutionSummary(BaseModel):
+    id: uuid.UUID
+    workflow_id: uuid.UUID
+    workflow_name: str
+    status: str
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    has_inputs: bool
+    has_outputs: bool
+
+
+class WorkflowExecutionPageResponse(BaseModel):
+    items: List[WorkflowExecutionSummary]
+    total: Optional[int] = None
+    page: int
+    page_size: int
+
+
+class ExecutionWorkflowOption(BaseModel):
+    id: uuid.UUID
+    name: str
+
 # --- Execution Checkpoint Schemas ---
 
 class ExecutionCheckpointBase(BaseModel):
@@ -49,4 +73,4 @@ class ExecutionCheckpointResponse(ExecutionCheckpointBase):
     updated_at: datetime
 
     class Config:
-        from_attributes = True 
+        from_attributes = True

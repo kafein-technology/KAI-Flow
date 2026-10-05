@@ -81,7 +81,7 @@ class StartNode(TerminatorNode):
         if not initial_input:
             initial_input = "Workflow started"
         
-        logger.info(f"Starting workflow with input: {initial_input}")
+        logger.info("Starting workflow with input type=%s length=%s", type(initial_input).__name__, len(initial_input) if hasattr(initial_input, "__len__") else "unknown")
         
         return {
             "output": initial_input,
