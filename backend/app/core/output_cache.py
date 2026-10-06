@@ -402,6 +402,70 @@ class NodeConnectionExtractor:
         logger.debug(f"[DEBUG] Single connection result for {input_name} from {source_node_id}: {type(result)}")
         return result
 
+    def _is_unselected_branch(self, node_id: str, state: FlowState, visited=None) -> bool:
+        """Prove that a missing source is downstream of an unselected condition."""
+        from app.core.state import get_runtime_node_statuses
+
+        visited = visited or frozenset()
+        if node_id in visited:
+            return False
+
+        node_outputs = state.get("node_outputs", {}) if isinstance(state, dict) else getattr(state, "node_outputs", {})
+        executed_nodes = state.get("executed_nodes", []) if isinstance(state, dict) else getattr(state, "executed_nodes", [])
+        if not isinstance(node_outputs, dict):
+            node_outputs = {}
+        if not isinstance(executed_nodes, list):
+            executed_nodes = []
+        if (
+            node_id in node_outputs
+            or node_id in executed_nodes
+            or node_id in get_runtime_node_statuses(state)
+        ):
+            return False
+
+        gnode = self.nodes_registry.get(node_id)
+        if gnode is None:
+            return False
+
+        incoming = getattr(gnode.node_instance, "_input_connections", {}) or {}
+        flow_connections = []
+        for connection in incoming.values():
+            for item in connection if isinstance(connection, list) else [connection]:
+                if not isinstance(item, dict):
+                    continue
+                parent = self.nodes_registry.get(item.get("source_node_id"))
+                if parent is None:
+                    continue
+                metadata = getattr(parent.node_instance, "metadata", None)
+                raw_type = getattr(metadata, "node_type", None)
+                parent_type = getattr(raw_type, "value", raw_type)
+                if parent_type in {"provider", "memory"} and "trigger" not in str(parent.type).lower():
+                    continue
+                flow_connections.append(item)
+
+        if not flow_connections:
+            return False
+
+        next_visited = visited | {node_id}
+        for connection in flow_connections:
+            parent_id = connection["source_node_id"]
+            parent = self.nodes_registry[parent_id]
+            handle = connection.get("source_handle")
+            if parent.type == "ConditionNode" and handle in {"true_output", "false_output"}:
+                condition_output = node_outputs.get(parent_id, {})
+                if isinstance(condition_output, dict):
+                    condition_result = condition_output.get("condition_result")
+                    if condition_result is None and isinstance(condition_output.get("output"), dict):
+                        condition_result = condition_output["output"].get("condition_result")
+                    if isinstance(condition_result, bool):
+                        if (handle == "true_output") != condition_result:
+                            continue
+                        return False
+            if not self._is_unselected_branch(parent_id, state, next_visited):
+                return False
+
+        return True
+
     def _extract_many_connections(self,
                                  input_name: str,
                                  connection_list: List[Dict[str, str]],
@@ -428,6 +492,7 @@ class NodeConnectionExtractor:
         # Extract results from each connection
         results = []
         connection_errors = []
+        skipped_branches = []
         for i, connection_info in enumerate(connection_list):
             try:
                 if not isinstance(connection_info, dict):
@@ -440,6 +505,11 @@ class NodeConnectionExtractor:
                     continue
 
                 logger.debug(f"[DEBUG] Processing connection {i + 1}/{len(connection_list)}: {source_node_id}")
+
+                if self._is_unselected_branch(source_node_id, state):
+                    skipped_branches.append(source_node_id)
+                    logger.debug("Skipping unselected conditional branch %s", source_node_id)
+                    continue
 
                 # Extract single connection result
                 result = self._extract_single_connection(input_name, connection_info, state)
@@ -482,6 +552,10 @@ class NodeConnectionExtractor:
 
         
         if not results:
+            if skipped_branches:
+                raise RuntimeError(
+                    f"No active upstream output is available for connection {input_name}"
+                )
             logger.debug(f"No successful connections for {input_name}")
             return None
         
