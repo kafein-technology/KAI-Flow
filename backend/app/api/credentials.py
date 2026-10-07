@@ -947,6 +947,8 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_mysql(secret)
     elif service_type == "sqlite":
         return await _test_sqlite(secret)
+    elif service_type == "google_sheets":
+        return await _test_google_sheets(secret)
     elif service_type in ("basic_auth", "header_auth"):
         return _test_webhook_auth(secret, service_type)
     else:
@@ -975,6 +977,35 @@ async def _test_sqlite(secret: Dict[str, Any]) -> CredentialTestResponse:
             success=False,
             message=message,
         )
+
+
+async def _test_google_sheets(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Validate Google credentials without requiring access to a specific spreadsheet."""
+    from google.auth.transport.requests import Request
+    from app.nodes.integrations.google_sheets_node import (
+        _google_credentials,
+        _google_error,
+    )
+
+    def authenticate() -> None:
+        credentials = _google_credentials(secret)
+        credentials.refresh(Request())
+
+    try:
+        await asyncio.wait_for(asyncio.to_thread(authenticate), timeout=15)
+        return CredentialTestResponse(
+            success=True,
+            message="Google Sheets authentication successful.",
+        )
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(
+            success=False,
+            message="Google Sheets authentication timed out.",
+        )
+    except Exception as exc:
+        message = _google_error(exc)
+        logger.warning("Google Sheets credential test failed: %s", message)
+        return CredentialTestResponse(success=False, message=message)
 
 
 @router.post("/test-raw", response_model=CredentialTestResponse)
