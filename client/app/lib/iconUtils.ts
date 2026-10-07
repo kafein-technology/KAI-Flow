@@ -87,6 +87,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
         PostgresTool: "icons/postgresql_vectorstore.svg",
         MongoNode: "icons/mongodb.svg",
         MongoTool: "icons/mongodb.svg",
+        GmailNode: "icons/gmail.svg",
         MarkItDownTool: "icons/markitdown.svg",
         MySQLNode: "icons/mysql.svg",
         MySQLTool: "icons/mysql.svg",

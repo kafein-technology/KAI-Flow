@@ -285,6 +285,38 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     ]
   },
   {
+    id: 'gmail',
+    name: 'Gmail',
+    description: 'Read, send, and organize mail with a Google OAuth2 credential',
+    icon: 'gmail.svg',
+    category: 'api',
+    color: 'from-red-600 to-red-800',
+    fields: [
+      {
+        name: 'client_id',
+        label: 'OAuth Client ID',
+        type: 'text',
+        required: true,
+        placeholder: '...apps.googleusercontent.com',
+        description: 'Client ID from the Google Cloud OAuth 2.0 application'
+      },
+      {
+        name: 'client_secret',
+        label: 'OAuth Client Secret',
+        type: 'password',
+        required: true,
+        description: 'Client Secret belonging to the OAuth Client ID'
+      },
+      {
+        name: 'refresh_token',
+        label: 'Refresh Token',
+        type: 'password',
+        required: true,
+        description: 'Offline refresh token authorized with the Gmail modify scope'
+      }
+    ]
+  },
+  {
     id: 'tavily_search',
     name: 'Tavily Search',
     description: 'Tavily AI search API for web search capabilities',
