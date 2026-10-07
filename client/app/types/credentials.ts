@@ -5,7 +5,7 @@ export interface ServiceField {
   helpText?: string;
   required: boolean;
   placeholder?: string;
-  default?: any;
+  default?: string | number | boolean;
   options?: { value: string; label: string }[];
   description?: string;
   dependsOn?: {
@@ -16,7 +16,7 @@ export interface ServiceField {
     minLength?: number;
     maxLength?: number;
     pattern?: string;
-    custom?: (value: any) => string | undefined;
+    custom?: (value: string) => string | undefined;
   };
 }
 
@@ -344,6 +344,100 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         required: false,
         default: false,
         description: 'Create the database file when it does not exist; the parent directory must already exist'
+      }
+    ]
+  },
+  {
+    id: 'google_sheets',
+    name: 'Google Sheets',
+    description: 'Connect with OAuth2 or a Google service account',
+    icon: 'google-sheets.svg',
+    category: 'api',
+    color: 'from-green-600 to-emerald-800',
+    fields: [
+      {
+        name: 'authentication',
+        label: 'Authentication',
+        type: 'select',
+        required: true,
+        default: 'oauth2',
+        options: [
+          { value: 'oauth2', label: 'OAuth2' },
+          { value: 'service_account', label: 'Service Account' }
+        ]
+      },
+      {
+        name: 'client_id',
+        label: 'OAuth Client ID',
+        type: 'text',
+        required: true,
+        placeholder: '...apps.googleusercontent.com',
+        description: 'Client ID from a Google Cloud OAuth 2.0 application',
+        dependsOn: { field: 'authentication', values: ['oauth2'] }
+      },
+      {
+        name: 'client_secret',
+        label: 'OAuth Client Secret',
+        type: 'password',
+        required: true,
+        dependsOn: { field: 'authentication', values: ['oauth2'] }
+      },
+      {
+        name: 'refresh_token',
+        label: 'Refresh Token',
+        type: 'password',
+        required: true,
+        description: 'Offline refresh token authorized for Google Sheets',
+        dependsOn: { field: 'authentication', values: ['oauth2'] }
+      },
+      {
+        name: 'project_id',
+        label: 'Project ID',
+        type: 'text',
+        required: false,
+        dependsOn: { field: 'authentication', values: ['service_account'] }
+      },
+      {
+        name: 'service_account_email',
+        label: 'Service Account Email',
+        type: 'text',
+        required: true,
+        placeholder: 'service-account@project.iam.gserviceaccount.com',
+        dependsOn: { field: 'authentication', values: ['service_account'] }
+      },
+      {
+        name: 'private_key',
+        label: 'Private Key',
+        type: 'textarea',
+        required: true,
+        placeholder: '-----BEGIN PRIVATE KEY-----',
+        dependsOn: { field: 'authentication', values: ['service_account'] }
+      },
+      {
+        name: 'delegated_user',
+        label: 'Delegated User',
+        type: 'text',
+        required: false,
+        placeholder: 'user@example.com',
+        description: 'Optional Google Workspace user for domain-wide delegation',
+        dependsOn: { field: 'authentication', values: ['service_account'] }
+      },
+      {
+        name: 'custom_scopes',
+        label: 'Custom Scopes',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        description: 'Override the default Sheets and Drive File scopes'
+      },
+      {
+        name: 'enabled_scopes',
+        label: 'Enabled Scopes',
+        type: 'textarea',
+        required: true,
+        default: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+        description: 'Space- or comma-separated Google OAuth scopes',
+        dependsOn: { field: 'custom_scopes', values: [true] }
       }
     ]
   },
