@@ -847,7 +847,6 @@ async def _test_minio(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
         from app.services.minio_service import minio_service
         import asyncio
-        import boto3
         from botocore.exceptions import ClientError, EndpointConnectionError
         
         endpoint = secret.get("endpoint", "").strip()
@@ -939,6 +938,8 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_postgresql(secret)
     elif service_type == "mongodb":
         return await _test_mongodb(secret)
+    elif service_type == "gmail":
+        return await _test_gmail(secret)
     elif service_type == "kafka":
         return await _test_kafka(secret)
     elif service_type == "minio":
@@ -1097,3 +1098,46 @@ def _detect_service_type(data: dict) -> str:
         return "certificate"
     else:
         return "custom"
+
+
+async def _test_gmail(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Validate the refresh token, Gmail API access, and granted scope."""
+    from app.core import google_oauth
+
+    try:
+        token = await asyncio.wait_for(
+            asyncio.to_thread(google_oauth.access_token_for, secret), timeout=20
+        )
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.get(
+                "https://gmail.googleapis.com/gmail/v1/users/me/profile",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if response.status_code != 200:
+            try:
+                provider_message = (
+                    response.json().get("error", {}).get("message") or ""
+                )
+            except ValueError:
+                provider_message = ""
+            detail = provider_message[:300] or f"HTTP {response.status_code}"
+            return CredentialTestResponse(
+                success=False,
+                message=f"Gmail API access failed: {detail}",
+            )
+
+        email = response.json().get("emailAddress") or secret.get("email")
+        return CredentialTestResponse(
+            success=True,
+            message=(
+                f"Connected to Gmail as {email}." if email else "Connected to Gmail."
+            ),
+        )
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="Gmail connection timed out.")
+    except httpx.TimeoutException:
+        return CredentialTestResponse(success=False, message="Gmail API request timed out.")
+    except google_oauth.GoogleOAuthError as exc:
+        return CredentialTestResponse(success=False, message=str(exc))
+    except Exception as exc:
+        return CredentialTestResponse(success=False, message=f"Could not connect: {exc}")
