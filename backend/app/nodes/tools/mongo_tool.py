@@ -1183,8 +1183,4 @@ class MongoToolNode(ProviderNode):
             }
         }
 
-    def get_required_packages(self) -> List[str]:
-        return ["pymongo==4.18.1", "langchain-core==1.6.1"]
-
-
 __all__ = ["MongoToolNode"]

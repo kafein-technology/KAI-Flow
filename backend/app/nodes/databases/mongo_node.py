@@ -1815,9 +1815,4 @@ class MongoNode(ProcessorNode):
         parts = raw if isinstance(raw, (list, tuple)) else str(raw).split(",")
         return [str(part).strip() for part in parts if str(part).strip()]
 
-    def get_required_packages(self) -> List[str]:
-        """Packages this node needs."""
-        return ["pymongo==4.18.1"]
-
-
 __all__ = ["MongoNode"]
