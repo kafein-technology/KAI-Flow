@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Search,
   AlertCircle,
@@ -66,6 +66,7 @@ function Sidebar({ onClose }: SidebarProps) {
 
   const [localSearchQuery, setLocalSearchQuery] = useState("");
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const nodeListRef = useRef<HTMLDivElement>(null);
 
   // Fetch nodes and categories on component mount
   useEffect(() => {
@@ -93,6 +94,13 @@ function Sidebar({ onClose }: SidebarProps) {
     clearError();
     fetchNodes();
     fetchCategories();
+  };
+
+  const handleSearchChange = (value: string) => {
+    setLocalSearchQuery(value);
+    if (nodeListRef.current) {
+      nodeListRef.current.scrollTop = 0;
+    }
   };
 
   // Convert backend node metadata to draggable node format
@@ -130,7 +138,7 @@ function Sidebar({ onClose }: SidebarProps) {
   }, {} as Record<string, any[]>);
 
   return (
-    <div className="fixed top-16 left-16 h-[calc(100vh-4rem)] w-95 bg-[#18181B] border-r border-gray-800/80 overflow-y-auto overflow-x-hidden z-20 shadow-[5px_0_25px_rgba(0,0,0,0.5)] custom-scrollbar">
+    <div className="fixed top-16 left-16 flex h-[calc(100vh-4rem)] w-95 flex-col overflow-hidden bg-[#18181B] border-r border-gray-800/80 z-20 shadow-[5px_0_25px_rgba(0,0,0,0.5)]">
       {/* Header */}
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
@@ -173,13 +181,13 @@ function Sidebar({ onClose }: SidebarProps) {
             className="grow bg-transparent text-gray-100 placeholder-gray-400 focus:outline-none"
             placeholder="Search nodes..."
             value={localSearchQuery}
-            onChange={(e) => setLocalSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
         </label>
       </div>
 
       {/* Content */}
-      <div className="p-3">
+      <div ref={nodeListRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3 custom-scrollbar">
         {error ? (
           <ErrorNodes error={error} onRetry={handleRetry} />
         ) : isLoading && nodes.length === 0 ? (
