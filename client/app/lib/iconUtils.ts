@@ -69,6 +69,8 @@ export function getNodeTypeIconPath(nodeType: string): string {
 
         // AI & Embedding
         Agent: "icons/bot.svg",
+        AgentTeam: "icons/users-round.svg",
+        AgentTool: "icons/bot.svg",
         CohereEmbeddings: "icons/cohere.svg",
         OpenAIEmbedder: "icons/openai.svg",
 

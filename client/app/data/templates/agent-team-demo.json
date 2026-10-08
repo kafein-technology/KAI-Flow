@@ -1,0 +1,172 @@
+{
+  "id": "agent-team-demo",
+  "category": "automation",
+  "created_at": "2026-10-08T12:28:19.789143Z",
+  "name": "Multi-Agent Template",
+  "description": "A supervisor delegates a fictional semifinal decision to statistics, medical, and opposition specialists, asks a critical reviewer to challenge their reports, and produces one defensible match plan. Select an OpenAI Compatible credential with a tool-calling model.",
+  "colorFrom": "from-blue-500",
+  "colorTo": "to-indigo-600",
+  "icon": { "name": "users-round", "path": "icons/users-round.svg", "alt": "Agent Team" },
+  "flow_data": {
+    "nodes": [
+      {
+        "id": "StartNode__agent_team_demo_start",
+        "type": "StartNode",
+        "position": { "x": 78.02545320309238, "y": 103.97994831905646 },
+        "data": { "name": "start" }
+      },
+      {
+        "id": "AgentTeam__agent_team_demo_team",
+        "type": "AgentTeam",
+        "position": { "x": 454.0763596092771, "y": 103.97994831905646 },
+        "data": {
+          "name": "match_plan_supervisor",
+          "supervisor_prompt": "You lead the match-planning team for fictional Harbor City. Answer in English. Do not invent facts, player data, or rules beyond S1-S6. Delegate one distinct, relevant task to EACH of stats_analyst, medical_advisor, and opposition_scout, referencing the appropriate S facts. After receiving all three reports, send those reports and your draft plan to critical_reviewer and request a challenge. Call each specialist only once; do not give a final answer before all four reports arrive or repeat a delegation. In separate sections, explain your starting formation and rationale, starting striker, conditional substitution plan respecting Efe's medical limit including possible extra time, tactical adjustment for the opponent, strongest reviewer objection, and remaining uncertainty. Distinguish specialist judgment from stated facts. Never propose a plan that violates the doctor's no-start rule or 30-minute limit.",
+          "user_prompt_template": "FICTIONAL FOOTBALL SCENARIO — Harbor City faces Coast United in a single-match cup semifinal. Build a match plan using only S1-S6 below.\nS1: Regulation lasts 90 minutes. If tied, two 15-minute extra-time periods follow. The score state is unknown in advance.\nS2: In Harbor City's last six matches, it scored 6 and conceded 5 in three 4-3-3 matches; it scored 4 and conceded 2 in three 4-2-3-1 matches. Opponent strength differed, so this small sample does not prove either formation is superior.\nS3: Striker Efe is returning from injury. The team doctor rules out a start and limits Efe to at most 30 total minutes on the field, including extra time. Only the doctor may revise this decision on match day.\nS4: Striker Bora started the last three matches and scored twice. No medical restriction is reported. These facts do not guarantee a goal in the next match.\nS5: In Coast United's two observed matches, it pressed high for the first 20 minutes and left space behind its right back when he advanced. Two observations do not establish a certain game plan.\nS6: Harbor City conceded three goals after central turnovers in its last five matches. The formations involved are unknown.\nDelegate by specialty, then give one defensible final recommendation covering the starting formation, Bora and Efe, a minute-by-minute substitution condition that works even with extra time, and different score states.",
+          "max_delegations": 5,
+          "execution_mode": "supervisor"
+        }
+      },
+      {
+        "id": "AgentTool__agent_team_demo_evidence",
+        "type": "AgentTool",
+        "position": { "x": 6.910913789176689, "y": 501.9745467969076 },
+        "data": {
+          "name": "stats_analyst_agent",
+          "tool_name": "stats_analyst",
+          "tool_description": "Compare S2 and S6, account for the small sample and unequal opponents, and assess attacking and defensive tradeoffs between formations. Do not make medical or opposition-scouting decisions.",
+          "system_prompt": "You are the football statistics analyst. Answer briefly in English using only the supplied S facts, especially S2 and S6. Compare 4-3-3 and 4-2-3-1 accurately; explain the uncertainty from three matches per formation and unequal opponents. Give a conditional formation preference and a counterargument. Do not claim a guaranteed result, make medical decisions, or invent opponent behavior. Leave the final team decision to the supervisor.",
+          "max_steps": 5
+        }
+      },
+      {
+        "id": "AgentTool__agent_team_demo_security",
+        "type": "AgentTool",
+        "position": { "x": 222.86540890514073, "y": 498.0254532030924 },
+        "data": {
+          "name": "medical_advisor_agent",
+          "tool_name": "medical_advisor",
+          "tool_description": "Apply Efe's no-start rule and 30-minute total limit, including extra time, using S1, S3, and S4; propose safe conditional player usage.",
+          "system_prompt": "You advise on player health and workload. Answer briefly in English. The doctor's S3 decision is binding: Efe cannot start and may play at most 30 minutes in total, including extra time. Account for S1: bringing him on in minute 70 could exceed that limit if the match goes to extra time. Do not invent medical facts about Bora beyond S4. Offer conditional usage for different score and extra-time scenarios; leave the final tactical choice to the supervisor.",
+          "max_steps": 5
+        }
+      },
+      {
+        "id": "AgentTool__agent_team_demo_operations",
+        "type": "AgentTool",
+        "position": { "x": 651.0836846886745, "y": 502.9618201953615 },
+        "data": {
+          "name": "opposition_scout_agent",
+          "tool_name": "opposition_scout",
+          "tool_description": "Turn S5's limited observation of an early press and space behind the right back into conditional tactical options.",
+          "system_prompt": "You scout the opponent. Answer briefly in English. Do not treat S5's two observed matches as certainty. Offer actionable but conditional responses to the early press and the space behind the advancing right back. Consider the S6 risk from central turnovers. Do not decide Efe's medical usage or claim a statistically proven formation advantage; leave the final choice to the supervisor.",
+          "max_steps": 5
+        }
+      },
+      {
+        "id": "AgentTool__agent_team_demo_challenger",
+        "type": "AgentTool",
+        "position": { "x": 851.2418054293777, "y": 500.9872733984538 },
+        "data": {
+          "name": "critical_reviewer_agent",
+          "tool_name": "critical_reviewer",
+          "tool_description": "Challenge the three actual specialist reports and the supervisor's draft plan, especially small-sample claims and medical-minute contradictions.",
+          "system_prompt": "You are the critical reviewer. Answer briefly in English. Compare the actual statistics, medical, and opposition reports sent by the supervisor. Identify a missing report only if it really is missing. Do not invent facts beyond S1-S6. Check especially whether a minute-70 Efe substitution could exceed 30 minutes in extra time, whether three matches prove a formation advantage, and whether two opponent observations are treated as guaranteed behavior. Give the strongest objection and a concrete correction. Leave the final decision to the supervisor.",
+          "max_steps": 5
+        }
+      },
+      {
+        "id": "OpenAICompatibleNode__agent_team_demo_model",
+        "type": "OpenAICompatibleNode",
+        "position": { "x": 431.3922319410866, "y": 756.320856073571 },
+        "data": {
+          "name": "match_plan_model",
+          "credential_id": "",
+          "max_tokens": 1400,
+          "temperature": 0.2,
+          "_active_optional_fields": []
+        }
+      },
+      {
+        "id": "EndNode__agent_team_demo_end",
+        "type": "EndNode",
+        "position": { "x": 793.5981502726708, "y": 103.97994831905643 },
+        "data": { "name": "end" }
+      },
+      {
+        "id": "BufferMemory__4280ac2c-2807-4617-89fa-517c8d38d762",
+        "type": "BufferMemory",
+        "position": { "x": 555.2773014150368, "y": 242.86718421905698 },
+        "data": {
+          "name": "buffer_memory_persistent",
+          "colors": ["blue-500", "indigo-600"]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "agent-team-demo-start-team", "type": "custom",
+        "source": "StartNode__agent_team_demo_start", "sourceHandle": "output",
+        "target": "AgentTeam__agent_team_demo_team", "targetHandle": "input"
+      },
+      {
+        "id": "agent-team-demo-model-team", "type": "custom",
+        "source": "OpenAICompatibleNode__agent_team_demo_model", "sourceHandle": "llm",
+        "target": "AgentTeam__agent_team_demo_team", "targetHandle": "llm"
+      },
+      {
+        "id": "agent-team-demo-model-evidence", "type": "custom",
+        "source": "OpenAICompatibleNode__agent_team_demo_model", "sourceHandle": "llm",
+        "target": "AgentTool__agent_team_demo_evidence", "targetHandle": "llm"
+      },
+      {
+        "id": "agent-team-demo-model-security", "type": "custom",
+        "source": "OpenAICompatibleNode__agent_team_demo_model", "sourceHandle": "llm",
+        "target": "AgentTool__agent_team_demo_security", "targetHandle": "llm"
+      },
+      {
+        "id": "agent-team-demo-model-operations", "type": "custom",
+        "source": "OpenAICompatibleNode__agent_team_demo_model", "sourceHandle": "llm",
+        "target": "AgentTool__agent_team_demo_operations", "targetHandle": "llm"
+      },
+      {
+        "id": "agent-team-demo-model-challenger", "type": "custom",
+        "source": "OpenAICompatibleNode__agent_team_demo_model", "sourceHandle": "llm",
+        "target": "AgentTool__agent_team_demo_challenger", "targetHandle": "llm"
+      },
+      {
+        "id": "agent-team-demo-evidence-team", "type": "custom",
+        "source": "AgentTool__agent_team_demo_evidence", "sourceHandle": "tool",
+        "target": "AgentTeam__agent_team_demo_team", "targetHandle": "tools"
+      },
+      {
+        "id": "agent-team-demo-security-team", "type": "custom",
+        "source": "AgentTool__agent_team_demo_security", "sourceHandle": "tool",
+        "target": "AgentTeam__agent_team_demo_team", "targetHandle": "tools"
+      },
+      {
+        "id": "agent-team-demo-operations-team", "type": "custom",
+        "source": "AgentTool__agent_team_demo_operations", "sourceHandle": "tool",
+        "target": "AgentTeam__agent_team_demo_team", "targetHandle": "tools"
+      },
+      {
+        "id": "agent-team-demo-challenger-team", "type": "custom",
+        "source": "AgentTool__agent_team_demo_challenger", "sourceHandle": "tool",
+        "target": "AgentTeam__agent_team_demo_team", "targetHandle": "tools"
+      },
+      {
+        "id": "agent-team-demo-team-end", "type": "custom",
+        "source": "AgentTeam__agent_team_demo_team", "sourceHandle": "output",
+        "target": "EndNode__agent_team_demo_end", "targetHandle": "target"
+      },
+      {
+        "id": "xy-edge__BufferMemory__4280ac2c-2807-4617-89fa-517c8d38d762memory-AgentTeam__agent_team_demo_teammemory",
+        "type": "custom",
+        "source": "BufferMemory__4280ac2c-2807-4617-89fa-517c8d38d762",
+        "sourceHandle": "memory",
+        "target": "AgentTeam__agent_team_demo_team",
+        "targetHandle": "memory"
+      }
+    ]
+  }
+}

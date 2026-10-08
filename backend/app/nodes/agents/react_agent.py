@@ -9,6 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_classic.schema.memory import BaseMemory
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.prebuilt import create_react_agent
+from langgraph.errors import GraphRecursionError
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.state import CompiledStateGraph
 import re
@@ -409,7 +410,7 @@ class ReactAgentNode(ProcessorNode):
         return NodeInput(
             name="max_iterations",
             type="int",
-            default=10,
+            default=5,
             description="The maximum number of iterations the agent can perform."
         )
 
@@ -473,12 +474,27 @@ class ReactAgentNode(ProcessorNode):
             # The templating has already been applied to the 'inputs' parameter by node_executor.py
             user_input = self._extract_user_input_from_templated_inputs(runtime_inputs, inputs)
 
+            raw_max_iterations = inputs.get("max_iterations", 5)
+            if isinstance(raw_max_iterations, bool) or (
+                isinstance(raw_max_iterations, float) and not raw_max_iterations.is_integer()
+            ):
+                raise ValueError("Max Iterations must be a whole number between 1 and 20.")
+            try:
+                max_iterations = int(raw_max_iterations)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Max Iterations must be a whole number between 1 and 20.") from exc
+            if not 1 <= max_iterations <= 20:
+                raise ValueError("Max Iterations must be between 1 and 20.")
+
             # Create agent graph using new API
             agent_graph = self._create_agent(llm, tools_list, memory, inputs)
 
             # Prepare final input and execute
             final_input = self._prepare_final_input_for_graph(user_input, memory)
-            return self._execute_graph_with_error_handling(agent_graph, final_input, memory, user_input=user_input)
+            return self._execute_graph_with_error_handling(
+                agent_graph, final_input, memory,
+                user_input=user_input, max_iterations=max_iterations,
+            )
 
         return RunnableLambda(agent_executor_lambda)
 
@@ -717,11 +733,21 @@ class ReactAgentNode(ProcessorNode):
 
         return ""
 
-    def _execute_graph_with_error_handling(self, agent_graph: CompiledStateGraph, final_input: Dict[str, Any], memory: Any, user_input: str = None) -> Dict[str, Any]:
+    def _execute_graph_with_error_handling(
+        self,
+        agent_graph: CompiledStateGraph,
+        final_input: Dict[str, Any],
+        memory: Any,
+        user_input: str = None,
+        max_iterations: int = 5,
+    ) -> Dict[str, Any]:
         """Execute the agent graph with comprehensive error handling."""
         try:
 
-            result = agent_graph.invoke(final_input)
+            # Each tool round trip traverses the agent and tools graph nodes.
+            result = agent_graph.invoke(
+                final_input, config={"recursion_limit": 2 * max_iterations + 2}
+            )
             
             # Extract the final message content from the result
             if 'messages' in result and result['messages']:
@@ -762,6 +788,12 @@ class ReactAgentNode(ProcessorNode):
             print(f"[ERROR] Unicode encoding error: {unicode_error}")
             return self._handle_unicode_error(unicode_error)
 
+        except GraphRecursionError as exc:
+            raise RuntimeError(
+                f"Agent reached Max Iterations ({max_iterations}) without producing a final answer. "
+                "Check for repeated tool calls or increase the limit if the task needs more steps."
+            ) from exc
+
         except Exception as e:
             error_msg = f"Agent graph execution failed: {str(e)}"
             print(f"[ERROR] {error_msg}")
@@ -782,42 +814,31 @@ class ReactAgentNode(ProcessorNode):
         """Universal tool preparation using auto-discovery."""
         if not tools_to_process:
             return []
-        
-        tools_list = []
-        tools_dict = tools_to_process
-        
-        # Handle non-dict formats
-        if not isinstance(tools_to_process, dict):
-            tools_dict = dict((key, d[key]) for d in tools_to_process for key in d)
 
-        for tool_key in tools_dict:
-            tool_value = tools_dict[tool_key]
-            
-            # Case 1: Value is already a BaseTool (aggregated format)
-            if isinstance(tool_value, BaseTool):
-                tools_list.append(tool_value)
-                print(f"[TOOL] Added tool directly: {tool_value.name}")
-            
-            # Case 2: Value is a dict with 'tool' key (nested format)
-            elif isinstance(tool_value, dict) and 'tool' in tool_value:
-                tool = tool_value['tool']
-                if isinstance(tool, BaseTool):
-                    tools_list.append(tool)
-                    print(f"[TOOL] Added tool from nested dict: {tool.name}")
+        tools_list: list[BaseTool] = []
+
+        def collect(value: Any) -> None:
+            if isinstance(value, BaseTool):
+                tools_list.append(value)
+            elif isinstance(value, dict):
+                if "tool" in value or "tools" in value:
+                    collect(value.get("tool", value.get("tools")))
+                elif any(isinstance(nested, (BaseTool, dict, list, tuple)) for nested in value.values()):
+                    for nested in value.values():
+                        collect(nested)
                 else:
-                    # Try auto-conversion
-                    converted_tool = self.auto_tool_manager.converter.convert_to_tool(tool)
-                    if converted_tool:
-                        tools_list.append(converted_tool)
-                        print(f"[TOOL] Auto-converted nested tool: {converted_tool.name}")
-            
-            # Case 3: Try auto-discovery
+                    converted = self.auto_tool_manager.converter.convert_to_tool(value)
+                    if converted:
+                        tools_list.append(converted)
+            elif isinstance(value, (list, tuple)):
+                for nested in value:
+                    collect(nested)
             else:
-                converted_tool = self.auto_tool_manager.converter.convert_to_tool(tool_value)
-                if converted_tool:
-                    tools_list.append(converted_tool)
-                    print(f"[TOOL] Auto-converted {type(tool_value).__name__} to tool: {converted_tool.name}")
-        
+                converted = self.auto_tool_manager.converter.convert_to_tool(value)
+                if converted:
+                    tools_list.append(converted)
+
+        collect(tools_to_process)
         return tools_list
 
     def _create_prompt(self, tools: list[BaseTool]) -> ChatPromptTemplate:
