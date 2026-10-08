@@ -9,6 +9,8 @@ from .llms.openai_node import OpenAINode, OpenAIChatNode
 
 # Agent Nodes
 from .agents.react_agent import ReactAgentNode, ToolAgentNode
+from .agents.agent_team import AgentTeamNode
+from .agents.agent_tool import AgentToolNode
 
 # Embedding Nodes
 from .embeddings.openai_embeddings_provider import OpenAIEmbeddingsProvider
@@ -89,7 +91,7 @@ __all__ = [
     "OpenAINode", "OpenAIChatNode",
     
     # Agents
-    "ReactAgentNode", "ToolAgentNode",
+    "ReactAgentNode", "ToolAgentNode", "AgentTeamNode", "AgentToolNode",
     
     # Embeddings
     "OpenAIEmbeddingsProvider",

@@ -30,15 +30,17 @@ from ..base import (
     ProviderNode,
 )
 
+SCRAPLING_IMPORT_ERROR: ImportError | None = None
 try:
     # Deliberately HTTP-only. Do not replace this with a browser fetcher.
     from scrapling.fetchers import Fetcher, FetcherSession
 
     SCRAPLING_AVAILABLE = True
-except ImportError:  # pragma: no cover - exercised when optional dependency is absent
+except ImportError as exc:  # pragma: no cover - exercised when optional dependency is absent
     Fetcher = None  # type: ignore[assignment]
     FetcherSession = None  # type: ignore[assignment]
     SCRAPLING_AVAILABLE = False
+    SCRAPLING_IMPORT_ERROR = exc
 
 
 logger = logging.getLogger(__name__)
@@ -875,10 +877,10 @@ class ScraplingToolNode(ProviderNode):
         """Create the LangChain tool; no network request happens at node creation."""
         if not SCRAPLING_AVAILABLE:
             raise ImportError(
-                "Scrapling HTTP Fetcher is not installed. Install scrapling==0.4.14, "
-                "curl-cffi==0.16.0, browserforge==1.2.4, and playwright==1.62.0. "
-                "Do not run 'scrapling install'; this node does not need browser binaries."
-            )
+                "Scrapling HTTP Fetcher could not be imported: "
+                f"{SCRAPLING_IMPORT_ERROR}. Install backend/requirements.txt in the "
+                "backend Python environment. Browser binaries are not required."
+            ) from SCRAPLING_IMPORT_ERROR
         values = {**self.user_data, **kwargs}
         settings = self._settings(values)
         if settings.default_url:

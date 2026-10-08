@@ -343,7 +343,7 @@ DEFAULT_POOL_ENABLED = False
 POOL_FEATURE_FLAG = "connection_pool_enabled"
 
 # Node type categories
-PROCESSOR_NODE_TYPES = {'ReactAgent', 'ToolAgentNode', 'Agent', 'LLMRedTeam'}
+PROCESSOR_NODE_TYPES = {'ReactAgent', 'ToolAgentNode', 'Agent', 'AgentTeam', 'LLMRedTeam'}
 MEMORY_NODE_TYPES = {'BufferMemory', 'Memory'}
 PROVIDER_NODE_TYPES = {'Provider', 'OpenAINode', 'TavilySearchNode'}
 CONTROL_FLOW_NODE_TYPES = {'ConditionalNode', 'LoopNode', 'ParallelNode'}
