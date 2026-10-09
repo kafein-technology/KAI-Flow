@@ -129,7 +129,7 @@ class CredentialProvider:
                 
             return self._process_credential_data(credential)
         except Exception as e:
-            print(f"Error fetching credential sync {credential_id}: {e}")
+            logger.error("Error fetching credential synchronously (id=%s): %s", credential_id, e)
             return None
         finally:
             session.close()
@@ -284,4 +284,4 @@ def set_workflow_context(context_id: str, user_id: str):
 
 def clear_workflow_context(context_id: str):
     """Clear workflow context"""
-    credential_provider.clear_user_context(context_id) 
+    credential_provider.clear_user_context(context_id)

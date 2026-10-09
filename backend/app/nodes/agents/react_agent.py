@@ -9,6 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_classic.schema.memory import BaseMemory
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.prebuilt import create_react_agent
+from langgraph.errors import GraphRecursionError
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.state import CompiledStateGraph
 import re
@@ -18,6 +19,21 @@ import logging
 from langchain_core.callbacks import BaseCallbackHandler
 
 logger = logging.getLogger(__name__)
+
+
+def _agent_log(*values, sep=" ", **_kwargs):
+    """Route legacy agent diagnostics through the configured logger."""
+    message = sep.join(str(value) for value in values)
+    if "ERROR]" in message:
+        logger.error(message)
+    elif "[WARNING]" in message or "Warning:" in message:
+        logger.warning(message)
+    else:
+        logger.debug(message)
+
+
+# Keep the existing call sites small while making LOG_LEVEL/presets effective.
+print = _agent_log
 
 # ================================================================================
 # DEBUG CALLBACK HANDLER (Console step-by-step traces for LLM and Tool calls)
@@ -109,10 +125,8 @@ class AgentDebugCallback(BaseCallbackHandler):
             name = self._safe_name(serialized)
             count = len(prompts) if hasattr(prompts, "__len__") else "unknown"
             print(f"[TRACE][LLM.START] {name} prompts={count}")
-            for i, p in enumerate(prompts or [], 1):
-                p_str = str(p)
-                snippet = p_str[:500].replace("\n", " ")
-                print(f"[TRACE][LLM.PROMPT {i}] {snippet}")
+            for i, prompt in enumerate(prompts or [], 1):
+                print(f"[TRACE][LLM.PROMPT {i}] length={len(str(prompt))}")
         except Exception as e:
             print(f"[TRACE][LLM.START] error={e}")
 
@@ -127,7 +141,7 @@ class AgentDebugCallback(BaseCallbackHandler):
         try:
             gens = getattr(response, "generations", None)
             text = gens[0][0].text if gens and gens[0] and gens[0][0] else ""
-            print(f"[TRACE][LLM.END] text_snippet={text[:300].replace(chr(10), ' ')}")
+            print(f"[TRACE][LLM.END] text_length={len(text)}")
             llm_output = getattr(response, "llm_output", None)
             usage = llm_output.get("token_usage") if isinstance(llm_output, dict) else None
             if usage:
@@ -159,7 +173,7 @@ class AgentDebugCallback(BaseCallbackHandler):
         """
         try:
             name = self._safe_name(serialized)
-            print(f"[TRACE][TOOL.START] {name} args={input_str}")
+            print(f"[TRACE][TOOL.START] {name} input_length={len(str(input_str))}")
         except Exception as e:
             print(f"[TRACE][TOOL.START] error={e}")
 
@@ -172,8 +186,7 @@ class AgentDebugCallback(BaseCallbackHandler):
             **kwargs: Additional keyword arguments.
         """
         try:
-            out_snippet = str(output)[:300].replace("\n", " ")
-            print(f"[TRACE][TOOL.END] output={out_snippet}")
+            print(f"[TRACE][TOOL.END] output_type={type(output).__name__} output_length={len(str(output))}")
         except Exception as e:
             print(f"[TRACE][TOOL.END] error={e}")
 
@@ -197,7 +210,7 @@ class AgentDebugCallback(BaseCallbackHandler):
 # ================================================================================
 
 # ================================================================================
-# REACTAGENT NODE - THE ORCHESTRATION BRAIN OF KAI-FUSION
+# REACTAGENT NODE - THE ORCHESTRATION BRAIN OF KAI FLOW
 # ================================================================================
 
 class ReactAgentNode(ProcessorNode):
@@ -397,7 +410,7 @@ class ReactAgentNode(ProcessorNode):
         return NodeInput(
             name="max_iterations",
             type="int",
-            default=10,
+            default=5,
             description="The maximum number of iterations the agent can perform."
         )
 
@@ -461,12 +474,27 @@ class ReactAgentNode(ProcessorNode):
             # The templating has already been applied to the 'inputs' parameter by node_executor.py
             user_input = self._extract_user_input_from_templated_inputs(runtime_inputs, inputs)
 
+            raw_max_iterations = inputs.get("max_iterations", 5)
+            if isinstance(raw_max_iterations, bool) or (
+                isinstance(raw_max_iterations, float) and not raw_max_iterations.is_integer()
+            ):
+                raise ValueError("Max Iterations must be a whole number between 1 and 20.")
+            try:
+                max_iterations = int(raw_max_iterations)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Max Iterations must be a whole number between 1 and 20.") from exc
+            if not 1 <= max_iterations <= 20:
+                raise ValueError("Max Iterations must be between 1 and 20.")
+
             # Create agent graph using new API
             agent_graph = self._create_agent(llm, tools_list, memory, inputs)
 
             # Prepare final input and execute
             final_input = self._prepare_final_input_for_graph(user_input, memory)
-            return self._execute_graph_with_error_handling(agent_graph, final_input, memory, user_input=user_input)
+            return self._execute_graph_with_error_handling(
+                agent_graph, final_input, memory,
+                user_input=user_input, max_iterations=max_iterations,
+            )
 
         return RunnableLambda(agent_executor_lambda)
 
@@ -555,7 +583,7 @@ class ReactAgentNode(ProcessorNode):
         # Use the templated/custom value if it's static (no variables) OR if the variables were successfully resolved
         if templated_user_prompt and raw_template:
             if (not has_variables) or (templated_user_prompt != raw_template and "${{" not in templated_user_prompt):
-                print(f"[TEMPLATE] ReactAgent using user_prompt_template: '{templated_user_prompt[:50]}...'")
+                print(f"[TEMPLATE] ReactAgent using user_prompt_template length={len(templated_user_prompt)}")
                 return templated_user_prompt
 
         # STARTNODE MODE or FALLBACK: Use the connected 'input' field
@@ -563,19 +591,19 @@ class ReactAgentNode(ProcessorNode):
         if isinstance(templated_inputs, dict) and "input" in templated_inputs:
             templated_input = templated_inputs["input"]
             if isinstance(templated_input, str) and templated_input.strip():
-                print(f"[TEMPLATE] ReactAgent using connected input (StartNode mode): '{templated_input[:50]}...'")
+                print(f"[TEMPLATE] ReactAgent using connected input length={len(templated_input)}")
                 return templated_input
 
         # Priority 2: runtime_inputs string
         if isinstance(runtime_inputs, str) and runtime_inputs.strip():
-            print(f"[TEMPLATE] ReactAgent using runtime input: '{runtime_inputs[:50]}...'")
+            print(f"[TEMPLATE] ReactAgent using runtime input length={len(runtime_inputs)}")
             return runtime_inputs
 
         # Priority 3: runtime_inputs dict
         if isinstance(runtime_inputs, dict):
             runtime_input = runtime_inputs.get("input", "")
             if runtime_input and isinstance(runtime_input, str):
-                print(f"[TEMPLATE] ReactAgent using runtime dict input: '{runtime_input[:50]}...'")
+                print(f"[TEMPLATE] ReactAgent using runtime dict input length={len(runtime_input)}")
                 return runtime_input
 
         # Fallback: empty string (should not happen in normal flow)
@@ -630,7 +658,7 @@ class ReactAgentNode(ProcessorNode):
         # - For Chat mode: the templated user_prompt_template (e.g., "bana baklava tarifi")
         # - For StartNode mode: the connected input value
         if user_input and user_input.strip():
-            print(f"[AGENT] Adding HumanMessage: '{user_input[:50]}...'")
+            print(f"[AGENT] Adding HumanMessage length={len(user_input)}")
             messages.append(HumanMessage(content=user_input))
         else:
             print(f"[AGENT] Warning: No user input to add as HumanMessage")
@@ -705,17 +733,27 @@ class ReactAgentNode(ProcessorNode):
 
         return ""
 
-    def _execute_graph_with_error_handling(self, agent_graph: CompiledStateGraph, final_input: Dict[str, Any], memory: Any, user_input: str = None) -> Dict[str, Any]:
+    def _execute_graph_with_error_handling(
+        self,
+        agent_graph: CompiledStateGraph,
+        final_input: Dict[str, Any],
+        memory: Any,
+        user_input: str = None,
+        max_iterations: int = 5,
+    ) -> Dict[str, Any]:
         """Execute the agent graph with comprehensive error handling."""
         try:
 
-            result = agent_graph.invoke(final_input)
+            # Each tool round trip traverses the agent and tools graph nodes.
+            result = agent_graph.invoke(
+                final_input, config={"recursion_limit": 2 * max_iterations + 2}
+            )
             
             # Extract the final message content from the result
             if 'messages' in result and result['messages']:
                 last_ai_message = result['messages'][-1]
                 output_content = last_ai_message.content if hasattr(last_ai_message, 'content') else str(last_ai_message)
-                print(f"[AGENT OUTPUT] {output_content}")
+                print(f"[AGENT OUTPUT] type={type(output_content).__name__} length={len(str(output_content))}")
                 # Debug: Check memory after execution and save to database
                 if memory:
                     try:
@@ -743,12 +781,18 @@ class ReactAgentNode(ProcessorNode):
                 return {"output": output_content}
             else:
                 fallback_output = str(result)
-                print(f"[AGENT OUTPUT] {fallback_output}")
+                print(f"[AGENT OUTPUT] type={type(fallback_output).__name__} length={len(str(fallback_output))}")
                 return {"output": fallback_output}
 
         except UnicodeEncodeError as unicode_error:
             print(f"[ERROR] Unicode encoding error: {unicode_error}")
             return self._handle_unicode_error(unicode_error)
+
+        except GraphRecursionError as exc:
+            raise RuntimeError(
+                f"Agent reached Max Iterations ({max_iterations}) without producing a final answer. "
+                "Check for repeated tool calls or increase the limit if the task needs more steps."
+            ) from exc
 
         except Exception as e:
             error_msg = f"Agent graph execution failed: {str(e)}"
@@ -770,42 +814,31 @@ class ReactAgentNode(ProcessorNode):
         """Universal tool preparation using auto-discovery."""
         if not tools_to_process:
             return []
-        
-        tools_list = []
-        tools_dict = tools_to_process
-        
-        # Handle non-dict formats
-        if not isinstance(tools_to_process, dict):
-            tools_dict = dict((key, d[key]) for d in tools_to_process for key in d)
 
-        for tool_key in tools_dict:
-            tool_value = tools_dict[tool_key]
-            
-            # Case 1: Value is already a BaseTool (aggregated format)
-            if isinstance(tool_value, BaseTool):
-                tools_list.append(tool_value)
-                print(f"[TOOL] Added tool directly: {tool_value.name}")
-            
-            # Case 2: Value is a dict with 'tool' key (nested format)
-            elif isinstance(tool_value, dict) and 'tool' in tool_value:
-                tool = tool_value['tool']
-                if isinstance(tool, BaseTool):
-                    tools_list.append(tool)
-                    print(f"[TOOL] Added tool from nested dict: {tool.name}")
+        tools_list: list[BaseTool] = []
+
+        def collect(value: Any) -> None:
+            if isinstance(value, BaseTool):
+                tools_list.append(value)
+            elif isinstance(value, dict):
+                if "tool" in value or "tools" in value:
+                    collect(value.get("tool", value.get("tools")))
+                elif any(isinstance(nested, (BaseTool, dict, list, tuple)) for nested in value.values()):
+                    for nested in value.values():
+                        collect(nested)
                 else:
-                    # Try auto-conversion
-                    converted_tool = self.auto_tool_manager.converter.convert_to_tool(tool)
-                    if converted_tool:
-                        tools_list.append(converted_tool)
-                        print(f"[TOOL] Auto-converted nested tool: {converted_tool.name}")
-            
-            # Case 3: Try auto-discovery
+                    converted = self.auto_tool_manager.converter.convert_to_tool(value)
+                    if converted:
+                        tools_list.append(converted)
+            elif isinstance(value, (list, tuple)):
+                for nested in value:
+                    collect(nested)
             else:
-                converted_tool = self.auto_tool_manager.converter.convert_to_tool(tool_value)
-                if converted_tool:
-                    tools_list.append(converted_tool)
-                    print(f"[TOOL] Auto-converted {type(tool_value).__name__} to tool: {converted_tool.name}")
-        
+                converted = self.auto_tool_manager.converter.convert_to_tool(value)
+                if converted:
+                    tools_list.append(converted)
+
+        collect(tools_to_process)
         return tools_list
 
     def _create_prompt(self, tools: list[BaseTool]) -> ChatPromptTemplate:
@@ -863,7 +896,7 @@ class ReactAgentNode(ProcessorNode):
             return "".join(result)
 
         custom_instructions = escape_braces(custom_instructions)
-        header = "You are an agent running inside KAI-Fusion."
+        header = "You are an agent running inside KAI Flow."
         tool_rule = (
             "Use tools when needed. If no tools are available, answer directly."
             if has_tools

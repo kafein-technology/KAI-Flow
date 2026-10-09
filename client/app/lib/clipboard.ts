@@ -7,7 +7,7 @@ import copy from "copy-to-clipboard";
  */
 export const copyToClipboard = async (text: string): Promise<boolean> => {
   try {
-    const success = copy(text);
+    const success = await copy(text);
     return success;
   } catch (err) {
     console.error("Clipboard operation failed:", err);
@@ -27,7 +27,7 @@ export const copyWithFeedback = async (
   onError?: (error: any) => void
 ): Promise<void> => {
   try {
-    const success = copy(text);
+    const success = await copy(text);
     if (success) {
       onSuccess?.();
     } else {

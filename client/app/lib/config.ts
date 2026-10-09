@@ -80,6 +80,8 @@ export const API_ENDPOINTS = {
     TEST: (id: string) => `/credentials/${id}/test`,
     TEST_RAW: '/credentials/test-raw',
     WORKFLOWS: (id: string) => `/credentials/${id}/workflows`,
+    MODELS: (id: string) => `/credentials/${id}/models`,
+    LIST_MODELS: '/credentials/list-models',
   },
   API_KEYS: {
     LIST: '/api-keys',
@@ -95,6 +97,7 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/workflows/${id}`,
     VALIDATE: '/workflows/validate',
     EXECUTE: '/workflows/execute',
+    EXECUTE_NODE: '/workflows/execute-node',
     PUBLIC: '/workflows/public/',
     SEARCH: '/workflows/search/',
     DUPLICATE: (id: string) => `/workflows/${id}/duplicate`,
@@ -112,6 +115,13 @@ export const API_ENDPOINTS = {
     CUSTOM: '/nodes/custom',
     GET_CUSTOM: (id: string) => `/nodes/custom/${id}`,
   },
+  MODEL_ARTIFACTS: {
+    UPLOAD: '/model-artifacts/upload',
+    UPLOAD_DIRECTORY: '/model-artifacts/upload-directory',
+    CAPABILITIES: '/model-artifacts/capabilities',
+    GET: (id: string) => `/model-artifacts/${id}`,
+    DELETE: (id: string) => `/model-artifacts/${id}`,
+  },
   CHAT: {
     LIST: '/chat', // Get all chats
     CREATE: '/chat', // Start new chat
@@ -127,6 +137,8 @@ export const API_ENDPOINTS = {
   },
   EXECUTIONS: {
     LIST: '/executions',
+    PAGE: '/executions/page',
+    WORKFLOW_OPTIONS: '/executions/workflow-options',
     CREATE: '/executions',
     GET: (id: string) => `/executions/${id}`,
     EXPORT_CSV: '/executions/export/csv',

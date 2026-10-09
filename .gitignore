@@ -60,7 +60,6 @@ aiagent/client/.vite/
 aiagent/client/.cache/
 
 # Backend
-backend/.env
 backend/app.db
 backend/*.db
 

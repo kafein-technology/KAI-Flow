@@ -255,7 +255,7 @@ class SmartDataFilter:
                 filtered[key] = value
         
         if truncated_keys:
-            filtered["_kai_fusion_truncated_keys"] = truncated_keys
+            filtered["_kai_flow_truncated_keys"] = truncated_keys
         
         return filtered
     
@@ -311,7 +311,7 @@ class WorkflowLogger:
         context['component'] = component.value
         
         self.logger = base_logger or get_logger_with_context(
-            f"kai_fusion.{component.value}", **context
+            f"kai_flow.{component.value}", **context
         )
         
         self.data_filter = SmartDataFilter()
@@ -377,12 +377,6 @@ class WorkflowLogger:
             message += f" ({total_steps} steps)"
         
         self.log_with_context(LogLevel.INFO, message, **details)
-        logger.info("=" * 60)
-        logger.info(message)
-        if details:
-            for key, value in details.items():
-                logger.info(f"   {key}: {value}")
-        logger.info("=" * 60)
 
     def end_workflow_phase(self, phase: WorkflowPhase, success: bool = True, **details):
         """End workflow phase with summary."""
@@ -399,12 +393,6 @@ class WorkflowLogger:
         
         level = LogLevel.INFO if success else LogLevel.ERROR
         self.log_with_context(level, message, success=success, elapsed_time=elapsed, **details)
-        
-        f" {phase.value.upper()} {status_text} in {elapsed:.2f}s"
-        if details:
-            for key, value in details.items():
-                logger.info(f"   {key}: {value}")
-        logger.info("=" * 60)
 
     def log_node_execution(
         self, node_id: str, node_type: str, inputs: Dict[str, Any], **extra
@@ -416,7 +404,7 @@ class WorkflowLogger:
         # Create clean input summary
         input_summary = []
         for key, value in filtered_inputs.items():
-            if key.startswith('_kai_fusion'):
+            if key.startswith('_kai_flow'):
                 continue
             if isinstance(value, str) and "embedding vector" in value:
                 input_summary.append(f"{key}=<vector>")

@@ -14,7 +14,15 @@ export const NodeText = ({ property, values }: NodeTextProps) => {
   if (Object.keys(show).length > 0) {
     for (const [dependencyName, validValue] of Object.entries(show)) {
       const dependencyValue = values[dependencyName];
-      if (dependencyValue !== validValue) {
+      const matches =
+        validValue === "*"
+          ? dependencyValue !== undefined &&
+            dependencyValue !== null &&
+            dependencyValue !== ""
+          : Array.isArray(validValue)
+            ? validValue.includes(dependencyValue)
+            : dependencyValue === validValue;
+      if (!matches) {
         return null;
       }
     }

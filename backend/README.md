@@ -204,9 +204,12 @@ backend/
 │   │       ├── __init__.py
 │   │       └── vector_store_orchestrator.py # Vector store management
 │   │
-│   ├── routes/                   # Additional route handlers
+│   ├── api/                      # FastAPI route controllers
 │   │   ├── __init__.py
-│   │   └── export.py             # Data export routes
+│   │   ├── workflows.py          # Workflow endpoints
+│   │   ├── executions.py         # Execution endpoints
+│   │   ├── export.py             # Workflow bundle export endpoints
+│   │   └── ...                   # Other API route handlers
 │   │
 │   ├── schemas/                  # Pydantic schemas for API validation
 │   │   ├── __init__.py
@@ -247,10 +250,11 @@ backend/
 │
 ├── requirements.txt              # Python dependencies
 ├── Dockerfile                    # Docker configuration
-├── docker-compose.yml            # Docker Compose setup
-├── .env.example                  # Environment variables template
 └── README.md                     # This file
 ```
+
+Environment configuration is maintained only in the repository root `.env` and
+`.env.example` files. Docker Compose is also maintained at the repository root.
 
 ## Core Components
 
@@ -812,7 +816,7 @@ TAVILY_API_KEY=your-tavily-api-key
 
 # LangSmith Configuration (Optional)
 LANGCHAIN_TRACING_V2=false
-LANGCHAIN_API_KEY=your-langsmith-api-key
+LANGCHAIN_API_KEY=
 LANGCHAIN_PROJECT=kai-Flow-backend
 
 # Application Configuration
@@ -861,9 +865,7 @@ class Settings(BaseSettings):
     debug: bool = Field(False, env="DEBUG")
     log_level: str = Field("INFO", env="LOG_LEVEL")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    # Application startup loads the repository root .env with find_dotenv().
 ```
 
 ## API Documentation
@@ -1213,24 +1215,25 @@ const WorkflowExecutor: React.FC = () => {
 ```bash
 # 1. Clone the repository
 git clone <repository-url>
-cd KAI-Flow/backend
+cd KAI-Flow
 
-# 2. Create virtual environment
+# 2. Create the single root environment file
+cp .env.example .env
+# Edit .env with your configuration
+
+# 3. Create virtual environment
+cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# 3. Install dependencies
+# 4. Install dependencies
 pip install -r requirements.txt
-
-# 4. Set up environment variables
-cp .env.example .env
-# Edit .env with your configuration
 
 # 5. Set up database
 python migrations/database_setup.py
 
 # 6. Run the application
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python main.py
 ```
 
 ### Docker Deployment

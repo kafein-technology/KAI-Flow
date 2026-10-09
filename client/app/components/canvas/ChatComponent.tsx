@@ -23,6 +23,7 @@ import { getWorkflowChats } from "~/services/chatService";
 import { v4 as uuidv4 } from "uuid";
 import type { ChatMessage } from "~/types/api";
 import CredentialSelector from "../credentials/CredentialSelector";
+import { useAutosizeTextArea } from "~/hooks/useAutosizeTextArea";
 
 interface ChatComponentProps {
   chatOpen: boolean;
@@ -67,7 +68,7 @@ export default function ChatComponent({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const {
     chats,
     setActiveChatflowId,
@@ -177,7 +178,7 @@ export default function ChatComponent({
       fetchWorkflowBuilderChats(currentWorkflow.id)
         .then(() => {
           // If no active builder chatflow is set yet and we haven't done our initial load, auto-select the most recent
-          if (!activeBuilderChatflowId && !hasInitialLoaded.current) {
+          if (!useChatStore.getState().activeBuilderChatflowId && !hasInitialLoaded.current) {
             const currentBuilderChats = useChatStore.getState().builderChats;
             const chatEntries = Object.entries(currentBuilderChats);
             if (chatEntries.length > 0) {
@@ -197,7 +198,7 @@ export default function ChatComponent({
           console.error("Failed to load KAI Assistant chat history:", err);
         });
     }
-  }, [chatOpen, mode, currentWorkflow?.id, activeBuilderChatflowId, fetchWorkflowBuilderChats, setActiveBuilderChatflowId]);
+  }, [chatOpen, mode, currentWorkflow?.id, fetchWorkflowBuilderChats, setActiveBuilderChatflowId]);
 
   // ─── Fetch History on View Toggle ───
   useEffect(() => {
@@ -319,7 +320,7 @@ export default function ChatComponent({
         const messageIndex = chatHistory.findIndex((msg) => msg.id === messageId);
         const messagesToRemove = chatHistory
           .slice(messageIndex + 1)
-          .filter((msg) => msg.role === "assistant")
+          .filter((msg) => msg.role === "assistant" || msg.role === "error")
           .map((msg) => msg.id);
         messagesToRemove.forEach((id) => {
           removeMessage(activeChatflowId!, id);
@@ -348,7 +349,7 @@ export default function ChatComponent({
           const messageIndex = chatHistory.findIndex((msg) => msg.id === messageId);
           const messagesToRemove = chatHistory
             .slice(messageIndex + 1)
-            .filter((msg) => msg.role === "assistant")
+            .filter((msg) => msg.role === "assistant" || msg.role === "error")
             .map((msg) => msg.id);
           messagesToRemove.forEach((id) => {
             removeMessage(activeChatflowId!, id);
@@ -359,12 +360,9 @@ export default function ChatComponent({
   };
 
   // ─── Builder Handlers ───
-  const hasBuiltWorkflow = activeBuilderChatflowId
-    ? (builderChats[activeBuilderChatflowId] || []).length > 0
-    : false;
   const canvasHasWorkflow = currentNodes.length > 0;
   const isBuilderEditMode =
-    !rebuildFromScratch && (hasBuiltWorkflow || canvasHasWorkflow);
+    !rebuildFromScratch && canvasHasWorkflow;
 
   const handleBuilderGenerate = async (prompt?: string) => {
     const query = prompt || builderInput;
@@ -387,7 +385,7 @@ export default function ChatComponent({
       const assistantMsg: ChatMessage = {
         id: uuidv4(),
         chatflow_id: cfId,
-        role: "assistant",
+        role: "error",
         content: "⚠️ Please select an API Credential first. Click the ⚙️ Settings icon in the header to configure your AI provider.",
         created_at: new Date().toISOString()
       };
@@ -434,14 +432,14 @@ export default function ChatComponent({
       }
     } catch (err: any) {
       console.error(err);
-      const errorMsg =
-        err.response?.data?.detail || err.message || "Failed to generate workflow";
+      const errorDetail = err?.response?.data?.detail ?? err?.message ?? "Failed to generate workflow";
+      const errorMsg = typeof errorDetail === "string" ? errorDetail : JSON.stringify(errorDetail);
 
       const errorAssistantMsg: ChatMessage = {
         id: uuidv4(),
         chatflow_id: cfId,
-        role: "assistant",
-        content: `Error: ${errorMsg}`,
+        role: "error",
+        content: errorMsg,
         created_at: new Date().toISOString()
       };
       addBuilderMessage(cfId, errorAssistantMsg);
@@ -480,6 +478,8 @@ export default function ChatComponent({
   const currentInput = mode === "builder" ? builderInput : chatInput;
   const setCurrentInput = mode === "builder" ? setBuilderInput : setChatInput;
   const isLoading = mode === "builder" ? builderLoading : chatLoading;
+
+  useAutosizeTextArea(inputRef.current, currentInput, 160);
 
   if (!chatOpen) return null;
 
@@ -817,6 +817,7 @@ export default function ChatComponent({
                   message={msg.content}
                   userInitial={msg.role === "user" ? "U" : undefined}
                   isBuilder={true}
+                  isError={msg.role === "error"}
                 />
               ))}
 
@@ -834,6 +835,7 @@ export default function ChatComponent({
                     from={msg.role === "user" ? "user" : "assistant"}
                     message={msg.content}
                     userInitial={msg.role === "user" ? "U" : undefined}
+                    isError={msg.source_documents === "workflow_error" || msg.role === "error"}
                     messageId={msg.id}
                     onEdit={handleEditMessage}
                     onDelete={handleDeleteMessage}
@@ -860,11 +862,11 @@ export default function ChatComponent({
           </div>
 
           {/* ─── Input Area ─── */}
-          <div className="p-3 border-t border-gray-700 flex gap-2">
-            <input
+          <div className="p-3 border-t border-gray-700 flex gap-2 items-end">
+            <textarea
               ref={inputRef}
-              type="text"
-              className={`flex-1 border rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:outline-none ${mode === "builder"
+              rows={1}
+              className={`flex-1 border rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:outline-none resize-none overflow-y-auto max-h-40 min-h-[40px] ${mode === "builder"
                   ? "border-purple-500 bg-gray-800 text-gray-100 placeholder-gray-400 focus:border-purple-400 focus:ring-1 focus:ring-purple-500/20"
                   : "border-gray-600 bg-gray-800 text-gray-100 placeholder-gray-400 focus:border-blue-400 focus:ring-1 focus:ring-blue-500/20"
                 }`}
@@ -878,13 +880,16 @@ export default function ChatComponent({
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleUnifiedSend();
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleUnifiedSend();
+                }
               }}
               disabled={isLoading}
             />
             <button
               onClick={handleUnifiedSend}
-              className={`text-white px-4 py-2 rounded-lg disabled:opacity-50 ${mode === "builder"
+              className={`text-white px-4 py-2 rounded-lg disabled:opacity-50 shrink-0 ${mode === "builder"
                   ? "bg-purple-600 hover:bg-purple-700"
                   : "bg-blue-600 hover:bg-blue-700"
                 }`}

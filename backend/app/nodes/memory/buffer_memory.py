@@ -11,6 +11,12 @@ from app.core.database import get_db
 
 logger = logging.getLogger(__name__)
 
+
+class SessionConversationBufferMemory(ConversationBufferMemory):
+    """Carry the resolved session with the history supplied to an agent."""
+
+    session_id: str = ""
+
 # ================================================================================
 # BUFFER MEMORY NODE - ENTERPRISE COMPLETE HISTORY MANAGEMENT
 # ================================================================================
@@ -147,9 +153,10 @@ class BufferMemoryNode(MemoryNode):
         except Exception as e:
             logger.error(f"Error in BufferMemoryNode.execute: {e}")
             # Fallback to a non-persistent memory instance in case of DB error
-            return ConversationBufferMemory(
+            return SessionConversationBufferMemory(
                 memory_key=kwargs.get("memory_key", "memory"),
-                return_messages=kwargs.get("return_messages", True)
+                return_messages=kwargs.get("return_messages", True),
+                session_id=session_id or "",
             )
 
     def get_memory_instance(self, session_id: str, **kwargs) -> Runnable:
@@ -163,10 +170,11 @@ class BufferMemoryNode(MemoryNode):
         return_messages = kwargs.get("return_messages", True)
 
         # Create a standard ConversationBufferMemory instance
-        memory = ConversationBufferMemory(
+        memory = SessionConversationBufferMemory(
             input_key=input_key,
             memory_key=memory_key,
-            return_messages=return_messages
+            return_messages=return_messages,
+            session_id=session_id or "",
         )
 
         # Load historical messages from the database

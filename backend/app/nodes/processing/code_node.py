@@ -731,9 +731,9 @@ class CodeNode(ProcessorNode):
         code = _extract_mixed_template(raw_code, language)
 
         input_data = connected_nodes.get("input", None)
-        logger.info("RAW INPUT (before extraction): %s", input_data)
+        logger.debug("Code node input received (type=%s)", type(input_data).__name__)
         input_data = _extract_input_payload(input_data)
-        logger.info("PROCESSED INPUT (after extraction): %s", input_data)
+        logger.debug("Code node input prepared (type=%s)", type(input_data).__name__)
 
         context = {
             CODE_INPUT_VARIABLE_NAME: input_data,

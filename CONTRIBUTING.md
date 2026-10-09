@@ -178,13 +178,14 @@ docker run --name kai \
 
 ### 4) Environment Files
 
-Create three `.env` files:
+Create one `.env` file at the repository root:
 
-* `backend/migrations/.env`
-* `backend/.env`
-* `client/.env`
+```bash
+cp .env.example .env
+```
 
-> **Copy exact keys/values from [README](./README.md).** Make sure `CREATE_DATABASE=true` in **migrations** env and `false` in **backend** env.
+> **Copy exact keys/values from [README](./README.md).** Backend, migrations,
+> Docker Compose, and frontend configuration use this single root file.
 
 ### 5) Python Environment & Backend Deps
 
@@ -262,16 +263,17 @@ Use **Conventional Commits**:
 
 > Full list and explanations live in [README](./README.md). Here’s a quick view:
 
-| Key                    | Where                                          | Example                                           |
-| ---------------------- | ---------------------------------------------- | ------------------------------------------------- |
-| `ASYNC_DATABASE_URL`   | backend/migrations, backend                    | `postgresql+asyncpg://kai:kai@localhost:5432/kai` |
-| `DATABASE_URL`         | backend/migrations, backend                    | `postgresql://kai:kai@localhost:5432/kai`         |
-| `CREATE_DATABASE`      | backend/migrations (`true`), backend (`false`) | `true` / `false`                                  |
-| `LANGCHAIN_TRACING_V2` | backend                                        | `true`                                            |
-| `LANGCHAIN_API_KEY`    | backend                                        | `your_langchain_api_key`                          |
-| `VITE_API_BASE_URL`    | client                                         | `http://localhost:8000`                           |
+| Key                    | Where       | Example                                           |
+| ---------------------- | ----------- | ------------------------------------------------- |
+| `ASYNC_DATABASE_URL`   | root `.env` | `postgresql+asyncpg://kai:kai@localhost:5432/kai` |
+| `DATABASE_URL`         | root `.env` | `postgresql://kai:kai@localhost:5432/kai`         |
+| `CREATE_DATABASE`      | root `.env` | `true`                                            |
+| `LANGCHAIN_TRACING_V2` | root `.env` | `true`                                            |
+| `LANGCHAIN_API_KEY`    | root `.env` | `your_langchain_api_key`                          |
+| `VITE_API_BASE_URL`    | root `.env` | `http://localhost:23056`                          |
 
-You can also pass envs to Docker via `--env-file backend/.env`.
+Docker Compose automatically reads the root `.env`; it can also be supplied
+explicitly with `--env-file .env`.
 
 ---
 

@@ -8,6 +8,7 @@ import * as LucideIcons from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
 import type { CSSProperties } from "react";
 import colors from "tailwindcss/colors";
+import { getExecutionStatusStyle, PendingWormRing } from "~/lib/nodeStatusUtils";
 
 // Helper functions for node colors
 function resolveNodeColorToken(token: string): string | null {
@@ -118,14 +119,7 @@ function GenericVisual({
   const gradientStyle = getNodeGradientStyle(colorStops);
 
   const getGlowColor = () => {
-    switch (data.validationStatus) {
-      case "success":
-        return "shadow-emerald-500/30";
-      case "error":
-        return "shadow-red-500/30";
-      default:
-        return "shadow-blue-500/30";
-    }
+    return "";
   };
 
   const getIconComponent = (icon: NodeMetadata["icon"]) => {
@@ -225,35 +219,38 @@ function GenericVisual({
     });
   };
 
+  const executionStatusStyle = getExecutionStatusStyle(data.executionStatus);
+
   return (
     <div
       className={`relative group w-24 h-24 rounded-2xl flex flex-col items-center justify-center 
           cursor-pointer transition-all duration-300 transform
         ${isHovered ? "scale-105" : "scale-100"}
-        ${isHovered
-          ? `shadow-2xl ${getGlowColor()}`
-          : "shadow-lg shadow-black/50"
-        }
         border border-white/20 backdrop-blur-sm
         hover:border-white/40`}
-      style={gradientStyle}
+      style={{ ...gradientStyle, ...executionStatusStyle }}
       onDoubleClick={onDoubleClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       title="Yapılandırmak için çift tıklayın"
     >
+      {/* Pending status clockwise revolving amber worm light */}
+      {data?.executionStatus === "pending" && (
+        <PendingWormRing borderRadius="1rem" rx={16} />
+      )}
+
       {/* Arka plan deseni */}
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>
 
       {/* Ana ikon */}
       <div className="relative z-10 mb-2">
         <div className="relative">
-          <Icon className="w-8 h-8 text-white drop-shadow-lg" />
+          <Icon className="w-8 h-8 text-white" />
         </div>
       </div>
 
       {/* Node başlığı */}
-      <div className="text-white text-xs font-semibold text-center drop-shadow-lg z-10 px-2">
+      <div className="text-white text-xs font-semibold text-center z-10 px-2">
         {data?.display_name ||
           data?.displayName ||
           data?.name ||
@@ -267,7 +264,7 @@ function GenericVisual({
           <button
             className="absolute -top-3 -right-3 w-8 h-8 
               bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500
-              text-white rounded-full border border-white/30 shadow-xl 
+              text-white rounded-full border border-white/30
               transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
               backdrop-blur-sm"
             onClick={onDelete}
@@ -286,7 +283,7 @@ function GenericVisual({
               ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500"
               : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500"
             }
-                text-white rounded-full border border-white/30 shadow-xl 
+                text-white rounded-full border border-white/30
                 transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
                 backdrop-blur-sm`}
           onClick={(e) => {
@@ -311,7 +308,7 @@ function GenericVisual({
           <button
             className="absolute -bottom-3 -left-3 w-8 h-8 
                 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500
-                text-white rounded-full border border-white/30 shadow-xl 
+                text-white rounded-full border border-white/30
                 transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
                 backdrop-blur-sm"
             onClick={(e) => {
@@ -332,7 +329,7 @@ function GenericVisual({
               ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500"
               : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500"
             }
-                text-white rounded-full border border-white/30 shadow-xl 
+                text-white rounded-full border border-white/30
                 transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
                 backdrop-blur-sm`}
           onClick={(e) => {
@@ -360,7 +357,7 @@ function GenericVisual({
               <button
                 className="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 
                     hover:from-green-400 hover:to-green-500 text-white rounded-full 
-                    border border-white/30 shadow-xl transition-all duration-200 
+                    border border-white/30 transition-all duration-200
                     hover:scale-110 flex items-center justify-center z-20 backdrop-blur-sm"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -374,7 +371,7 @@ function GenericVisual({
               <button
                 className="w-8 h-8 bg-gradient-to-r from-red-500 to-red-600 
                     hover:from-red-400 hover:to-red-500 text-white rounded-full 
-                    border border-white/30 shadow-xl transition-all duration-200 
+                    border border-white/30 transition-all duration-200
                     hover:scale-110 flex items-center justify-center z-20 backdrop-blur-sm"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -389,7 +386,7 @@ function GenericVisual({
             <button
               className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 
                   hover:from-blue-400 hover:to-blue-500 text-white rounded-full 
-                  border border-white/30 shadow-xl transition-all duration-200 
+                  border border-white/30 transition-all duration-200
                   hover:scale-110 flex items-center justify-center z-20 backdrop-blur-sm"
               onClick={(e) => {
                 e.stopPropagation();

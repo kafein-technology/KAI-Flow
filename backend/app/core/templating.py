@@ -380,6 +380,16 @@ def render_value_recursively(value: Any, context: Dict[str, Any], node_id: str) 
     return value
 
 
+def _contains_template(value: Any) -> bool:
+    if isinstance(value, str):
+        return "{{" in value
+    if isinstance(value, dict):
+        return any(_contains_template(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_contains_template(item) for item in value)
+    return False
+
+
 def apply_jinja_to_inputs(
     inputs: Dict[str, Any],
     state: FlowState,
@@ -410,17 +420,16 @@ def apply_jinja_to_inputs(
         rendered_inputs = render_value_recursively(inputs, context, node_id)
         
         # Check if the inputs contain Jinja templates
-        has_jinja = False
-        try:
-            has_jinja = "{{" in str(inputs)
-        except Exception:
-            pass
+        has_jinja = logger.isEnabledFor(logging.DEBUG) and _contains_template(inputs)
 
-        # Print before and after for terminal visualization if there's any Jinja template in inputs
+        # Template values can contain credentials or very large Kafka payloads.
         if has_jinja:
-            print(f"\n[JINJA TEMPLATING] Node: {node_id}")
-            print(f"   BEFORE: {inputs}")
-            print(f"   AFTER : {rendered_inputs}\n")
+            logger.debug(
+                "[JINJA TEMPLATING] Node: %s input_keys=%s rendered_keys=%s",
+                node_id,
+                list(inputs),
+                list(rendered_inputs),
+            )
             
         return rendered_inputs
         

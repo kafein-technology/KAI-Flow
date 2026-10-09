@@ -1,24 +1,42 @@
 import boto3
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from botocore.exceptions import ClientError
 import logging
 
 logger = logging.getLogger(__name__)
 
+
 class MinioService:
-    """S3-compatible object storage client using boto3.
-    
-    This service is designed to work with MinIO or any S3-compatible API.
+    """MinIO object storage client using its S3-compatible API.
+
+    This service is designed for MinIO deployments.
     It takes credentials dynamically rather than relying on environment variables,
     allowing users to specify different MinIO credentials per node via the 
     KAI-Flow Credential Service.
     """
 
-    def get_client(self, endpoint: str, access_key: str, secret_key: str, use_ssl: bool = False):
-        """Initialize and return a boto3 S3 client with the provided credentials."""
+    @staticmethod
+    def _normalize_endpoint(endpoint: str) -> str:
+        """Return an endpoint host suitable for constructing an S3 URL."""
+        normalized = str(endpoint or "").strip()
+        if normalized.startswith("http://"):
+            normalized = normalized[7:]
+        elif normalized.startswith("https://"):
+            normalized = normalized[8:]
+        return normalized.rstrip("/")
+
+    def get_client(
+        self,
+        endpoint: str,
+        access_key: str,
+        secret_key: str,
+        use_ssl: bool = False,
+    ):
+        """Initialize and return a MinIO client with the provided credentials."""
+        normalized_endpoint = self._normalize_endpoint(endpoint)
         protocol = "https" if use_ssl else "http"
-        endpoint_url = f"{protocol}://{endpoint}"
+        endpoint_url = f"{protocol}://{normalized_endpoint}"
         
         try:
             client = boto3.client(
@@ -27,7 +45,10 @@ class MinioService:
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
                 # For MinIO, we typically need addressing style path rather than virtual-hosted
-                config=boto3.session.Config(signature_version='s3v4')
+                config=boto3.session.Config(
+                    signature_version="s3v4",
+                    s3={"addressing_style": "path"},
+                ),
             )
             return client
         except Exception as e:

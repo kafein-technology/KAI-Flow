@@ -68,10 +68,15 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
     try {
       const result = await onTest(credential.id);
       setTestState(result.success ? "success" : "error");
-      setTestMessage(result.message);
+      setTestMessage(
+        result.message ||
+          (result.success
+            ? "Connection successful."
+            : "Connection failed. Please check your connection details.")
+      );
     } catch {
       setTestState("error");
-      setTestMessage("Unexpected error. Please try again.");
+      setTestMessage("Connection failed. Please check your connection details.");
     }
     setTimeout(() => {
       setTestState("idle");

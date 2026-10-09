@@ -193,9 +193,9 @@ async def main():
     
     logger.info("Webhook tables migration completed successfully!")
     logger.info("You can now use webhook endpoints with the following IDs:")
-    logger.info("   • wh_3f3fead612b4 (token: webhook_token_123)")
-    logger.info("   • wh_second_workflow_123 (token: webhook_token_456)")
-    logger.info("   • wh_http_scraping_test_456 (token: http_scraping_token_789)")
+    logger.info("   wh_3f3fead612b4 (token: webhook_token_123)")
+    logger.info("   wh_second_workflow_123 (token: webhook_token_456)")
+    logger.info("   wh_http_scraping_test_456 (token: http_scraping_token_789)")
 
 if __name__ == "__main__":
     asyncio.run(main())

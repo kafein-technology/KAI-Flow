@@ -268,47 +268,84 @@ class NodeConnectionExtractor:
         self.output_cache = NodeOutputCache()
         self.nodes_registry = {}  # Will be injected by GraphBuilder
     
-    def extract_connected_instances(self, 
-                                  gnode: Any, 
-                                  state: FlowState,
-                                  nodes_registry: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Main extraction method replacing the monolithic function.
-        
-        This is the clean, maintainable replacement for 
-        _extract_connected_node_instances that uses Strategy Pattern.
-        """
+    def extract_connected_instances(
+        self,
+        gnode: Any,
+        state: FlowState,
+        nodes_registry: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Resolve every input so sibling failures never hide one another."""
+        from app.core.graph_builder.exceptions import (
+            NodeExecutionError,
+            find_deepest_node_execution_error,
+        )
+        from app.core.state import get_runtime_node_statuses
+
         self.nodes_registry = nodes_registry
-        connected = {}
-        
-        # Validate input connections exist
-        if not hasattr(gnode.node_instance, "_input_connections"):
+        connected: Dict[str, Any] = {}
+        connection_errors = []
+        input_connections = getattr(gnode.node_instance, "_input_connections", {}) or {}
+
+        if not input_connections:
             logger.debug(f"[DEBUG] No input connections found for {gnode.id}")
             return connected
-        
-        logger.debug(f"[DEBUG] Extracting {len(gnode.node_instance._input_connections)} connections for {gnode.id}")
-        
-        # Process each input connection
-        for input_name, connection_info in gnode.node_instance._input_connections.items():
+
+        logger.debug(
+            f"[DEBUG] Extracting {len(input_connections)} connections for {gnode.id}"
+        )
+
+        for input_name, connection_info in input_connections.items():
             try:
-                result = self._process_connection(input_name, connection_info, state)
-                
+                result = self._process_connection(
+                    input_name, connection_info, state
+                )
                 if result is not None:
                     connected[input_name] = result
-                    connection_count = len(connection_info) if isinstance(connection_info, list) else 1
-                    logger.debug(f"[DEBUG] Successfully connected {input_name} with {connection_count} connection(s)")
-                else:
-                    logger.debug(f"[DEBUG] No result for connection {input_name}")
+                    connection_count = (
+                        len(connection_info)
+                        if isinstance(connection_info, list)
+                        else 1
+                    )
+                    logger.debug(
+                        f"[DEBUG] Successfully connected {input_name} with "
+                        f"{connection_count} connection(s)"
+                    )
+            except Exception as error:
+                logger.error(
+                    f"[ERROR] Failed to extract connection {input_name}: {error}"
+                )
+                node_error = find_deepest_node_execution_error(error)
+                if node_error is None:
+                    source_info = (
+                        connection_info[0]
+                        if isinstance(connection_info, list) and connection_info
+                        else connection_info
+                    )
+                    source_node_id = (
+                        source_info.get("source_node_id", "unknown")
+                        if isinstance(source_info, dict)
+                        else "unknown"
+                    )
+                    source_node = self.nodes_registry.get(source_node_id)
+                    node_error = NodeExecutionError(
+                        node_id=source_node_id,
+                        node_type=getattr(source_node, "type", "connected_node"),
+                        original_error=error,
+                    )
+                connection_errors.append(node_error)
 
-            except Exception as e:
-                logger.error(f"[ERROR] Failed to extract connection {input_name}: {e}")
-                import traceback
-                logger.error(f"[ERROR] Stack trace: {traceback.format_exc()}")
-                continue
-        
-        logger.debug(f"[DEBUG] Extraction completed: {len(connected)} connections established")
+        if connection_errors:
+            primary_error = connection_errors[0]
+            primary_error.context["node_statuses"] = get_runtime_node_statuses(state)
+            primary_error.context["node_errors"] = [
+                error.to_dict() for error in connection_errors
+            ]
+            raise primary_error
+
+        logger.debug(
+            f"[DEBUG] Extraction completed: {len(connected)} connections established"
+        )
         return connected
-    
     def _process_connection(self,
                            input_name: str,
                            connection_info: Union[Dict[str, str], List[Dict[str, str]]],
@@ -365,6 +402,70 @@ class NodeConnectionExtractor:
         logger.debug(f"[DEBUG] Single connection result for {input_name} from {source_node_id}: {type(result)}")
         return result
 
+    def _is_unselected_branch(self, node_id: str, state: FlowState, visited=None) -> bool:
+        """Prove that a missing source is downstream of an unselected condition."""
+        from app.core.state import get_runtime_node_statuses
+
+        visited = visited or frozenset()
+        if node_id in visited:
+            return False
+
+        node_outputs = state.get("node_outputs", {}) if isinstance(state, dict) else getattr(state, "node_outputs", {})
+        executed_nodes = state.get("executed_nodes", []) if isinstance(state, dict) else getattr(state, "executed_nodes", [])
+        if not isinstance(node_outputs, dict):
+            node_outputs = {}
+        if not isinstance(executed_nodes, list):
+            executed_nodes = []
+        if (
+            node_id in node_outputs
+            or node_id in executed_nodes
+            or node_id in get_runtime_node_statuses(state)
+        ):
+            return False
+
+        gnode = self.nodes_registry.get(node_id)
+        if gnode is None:
+            return False
+
+        incoming = getattr(gnode.node_instance, "_input_connections", {}) or {}
+        flow_connections = []
+        for connection in incoming.values():
+            for item in connection if isinstance(connection, list) else [connection]:
+                if not isinstance(item, dict):
+                    continue
+                parent = self.nodes_registry.get(item.get("source_node_id"))
+                if parent is None:
+                    continue
+                metadata = getattr(parent.node_instance, "metadata", None)
+                raw_type = getattr(metadata, "node_type", None)
+                parent_type = getattr(raw_type, "value", raw_type)
+                if parent_type in {"provider", "memory"} and "trigger" not in str(parent.type).lower():
+                    continue
+                flow_connections.append(item)
+
+        if not flow_connections:
+            return False
+
+        next_visited = visited | {node_id}
+        for connection in flow_connections:
+            parent_id = connection["source_node_id"]
+            parent = self.nodes_registry[parent_id]
+            handle = connection.get("source_handle")
+            if parent.type == "ConditionNode" and handle in {"true_output", "false_output"}:
+                condition_output = node_outputs.get(parent_id, {})
+                if isinstance(condition_output, dict):
+                    condition_result = condition_output.get("condition_result")
+                    if condition_result is None and isinstance(condition_output.get("output"), dict):
+                        condition_result = condition_output["output"].get("condition_result")
+                    if isinstance(condition_result, bool):
+                        if (handle == "true_output") != condition_result:
+                            continue
+                        return False
+            if not self._is_unselected_branch(parent_id, state, next_visited):
+                return False
+
+        return True
+
     def _extract_many_connections(self,
                                  input_name: str,
                                  connection_list: List[Dict[str, str]],
@@ -390,6 +491,8 @@ class NodeConnectionExtractor:
         logger.debug(f"[DEBUG] Processing {len(connection_list)} connections for {input_name}")
         # Extract results from each connection
         results = []
+        connection_errors = []
+        skipped_branches = []
         for i, connection_info in enumerate(connection_list):
             try:
                 if not isinstance(connection_info, dict):
@@ -403,6 +506,11 @@ class NodeConnectionExtractor:
 
                 logger.debug(f"[DEBUG] Processing connection {i + 1}/{len(connection_list)}: {source_node_id}")
 
+                if self._is_unselected_branch(source_node_id, state):
+                    skipped_branches.append(source_node_id)
+                    logger.debug("Skipping unselected conditional branch %s", source_node_id)
+                    continue
+
                 # Extract single connection result
                 result = self._extract_single_connection(input_name, connection_info, state)
                 if result is not None:
@@ -411,15 +519,43 @@ class NodeConnectionExtractor:
                         'handle': connection_info.get('source_handle', 'output'),
                         'data': result
                     })
-                    print(f"[DEBUG] ✓ Connection {i+1} successful: {source_node_id}")
+                    logger.debug("Connection %s successful: %s", i + 1, source_node_id)
                 else:
-                    logger.debug(f"✗ Connection {i + 1} returned None: {source_node_id}")
+                    logger.debug(f"Connection {i + 1} returned None: {source_node_id}")
 
-            except Exception as e:
-                logger.error(f"Failed to process connection {i}: {e}")
-                continue
+            except Exception as error:
+                logger.error(f"Failed to process connection {i}: {error}")
+                from app.core.graph_builder.exceptions import (
+                    NodeExecutionError,
+                    find_deepest_node_execution_error,
+                )
+
+                node_error = find_deepest_node_execution_error(error)
+                if node_error is None:
+                    source_node_id = connection_info.get("source_node_id", "unknown")
+                    source_node = self.nodes_registry.get(source_node_id)
+                    node_error = NodeExecutionError(
+                        node_id=source_node_id,
+                        node_type=getattr(source_node, "type", "connected_node"),
+                        original_error=error,
+                    )
+                connection_errors.append(node_error)
+        if connection_errors:
+            from app.core.state import get_runtime_node_statuses
+
+            primary_error = connection_errors[0]
+            primary_error.context["node_statuses"] = get_runtime_node_statuses(state)
+            primary_error.context["node_errors"] = [
+                error.to_dict() for error in connection_errors
+            ]
+            raise primary_error
+
         
         if not results:
+            if skipped_branches:
+                raise RuntimeError(
+                    f"No active upstream output is available for connection {input_name}"
+                )
             logger.debug(f"No successful connections for {input_name}")
             return None
         

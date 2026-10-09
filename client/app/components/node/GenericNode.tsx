@@ -408,7 +408,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
           user_agent:
             inputData.config?.user_agent ||
             data?.user_agent ||
-            "Default KAI-Fusion",
+            "Default KAI Flow",
           remove_selectors:
             inputData.config?.remove_selectors || data?.remove_selectors || "",
           min_content_length:
@@ -443,6 +443,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
     return (
       <GenericNodeForm
         configData={configData}
+        nodeId={id}
         initialValues={{
           ...configData,
           text_input: configData.text_input || "",

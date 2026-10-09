@@ -16,7 +16,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.runnables import Runnable, RunnableConfig
 
 # Local imports - core
-from app.core.state import FlowState
+from app.core.state import FlowState, get_runtime_node_statuses
+from app.core.execution_status import build_execution_edge_statuses
 from app.nodes import BaseNode
 from app.core.tracing import get_workflow_tracer
 from app.core.node_handlers import node_handler_registry
@@ -30,7 +31,7 @@ from .types import (
 )
 from .exceptions import (
     WorkflowError, NodeExecutionError, ConnectionError, 
-    ValidationError, GraphCompilationError
+    ValidationError, GraphCompilationError, find_deepest_node_execution_error
 )
 from .connection_mapper import ConnectionMapper
 from .node_executor import NodeExecutor
@@ -158,7 +159,10 @@ class GraphBuilder:
             }
             
             logger.info(f"Workflow build completed successfully in {build_duration:.3f}s")
-            logger.info(f"Build metrics: {self._build_metrics}")
+            logger.debug(
+                "Build metrics: duration=%.3fs nodes=%s connections=%s",
+                build_duration, len(self.nodes), len(self.connections),
+            )
             
             return compiled_graph
             
@@ -262,12 +266,24 @@ class GraphBuilder:
         self,
         node_id: str,
         previous_node_id: Optional[str] = None,
+        completed_nodes: Optional[set] = None,
     ) -> List[str]:
-        """Return the canvas edge IDs that represent data entering node_id."""
+        """Return the canvas edge IDs that represent data entering node_id.
+
+        Uses completed_nodes set for branching graph support.
+        Falls back to previous_node_id for backward compatibility.
+        """
         incoming = self._incoming_visual_edges.get(node_id, [])
         if not incoming:
             return []
 
+        # For branching graphs: match edges from any completed parent node
+        if completed_nodes:
+            matched = [edge for edge in incoming if edge.get("source") in completed_nodes]
+            if matched:
+                return [edge.get("id") or self._fallback_edge_id(edge) for edge in matched]
+
+        # Fallback: single previous_node_id (linear graphs)
         if previous_node_id:
             matched = [edge for edge in incoming if edge.get("source") == previous_node_id]
             if matched:
@@ -279,11 +295,85 @@ class GraphBuilder:
         outgoing = self._outgoing_visual_edges.get(node_id, [])
         return [edge.get("id") or self._fallback_edge_id(edge) for edge in outgoing]
 
+    def _execution_role_for_node(self, node_id: str) -> str:
+        """Expose the graph's node role to execution-event consumers."""
+        return "dependency" if self._is_dependency_node(node_id) else "workflow"
+
+    def _edge_statuses_for_execution(
+        self,
+        node_statuses: Dict[str, str],
+        transmitted_edge_ids: Optional[set] = None,
+    ) -> Dict[str, str]:
+        return build_execution_edge_statuses(
+            node_statuses,
+            transmitted_edge_ids or set(),
+            is_dependency_node=self._is_dependency_node,
+            outgoing_edge_ids_for_node=self._visual_outgoing_edge_ids_for_node,
+        )
+
     @staticmethod
     def _fallback_edge_id(edge: Dict[str, Any]) -> str:
         source_handle = edge.get("sourceHandle") or "output"
         target_handle = edge.get("targetHandle") or "input"
         return f"{edge.get('source')}-{source_handle}-{edge.get('target')}-{target_handle}"
+
+    def _runtime_node_output(
+        self,
+        node_id: str,
+        status: str,
+        error_message: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Build a serializable detail-panel record for dependency lifecycle events."""
+        graph_node = self.nodes.get(node_id)
+        node_type = getattr(graph_node, "type", "Unknown")
+        failed = status == "failed"
+        return {
+            "success": not failed,
+            "statusCode": 500 if failed else 200,
+            "nodeId": node_id,
+            "nodeType": node_type,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "executionTimeMs": 0.0,
+            "inputs": {},
+            "output": None,
+            "error": (
+                {
+                    "error_type": "execution",
+                    "error_message": error_message or "Node execution failed",
+                }
+                if failed
+                else None
+            ),
+        }
+
+    def _merge_runtime_node_outputs(
+        self,
+        node_outputs: Optional[Dict[str, Any]],
+        node_statuses: Dict[str, str],
+        failed_node_id: Optional[str] = None,
+        error_message: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Ensure every attempted node has a true/false execution detail record."""
+        merged = dict(node_outputs or {})
+        for node_id, status in node_statuses.items():
+            if status not in {"success", "failed"}:
+                continue
+            if node_id not in merged:
+                merged[node_id] = self._runtime_node_output(
+                    node_id,
+                    status,
+                    error_message if node_id == failed_node_id else None,
+                )
+            elif status == "failed" and isinstance(merged[node_id], dict):
+                failed_output = dict(merged[node_id])
+                failed_output["success"] = False
+                failed_output["statusCode"] = 500
+                failed_output["error"] = failed_output.get("error") or {
+                    "error_type": "execution",
+                    "error_message": error_message or "Node execution failed",
+                }
+                merged[node_id] = failed_output
+        return merged
 
     def _handle_start_end_nodes(self, workflow_data: Dict) -> Dict[str, Any]:
         """Handle StartNode, WebhookTrigger, KafkaConsumer/KafkaTrigger, and EndNode special cases."""
@@ -331,7 +421,7 @@ class GraphBuilder:
             # them to the virtual EndNode. ErrorTrigger-only workflows must still run.
             all_node_ids = {n["id"] for n in nodes if n.get("id")}
             all_sources = {e["source"] for e in edges}
-            last_nodes = all_node_ids - all_sources - start_node_ids - end_node_ids
+            last_nodes = all_node_ids - all_sources - start_node_ids - end_node_ids - {"virtual-end-node"}
 
             # SAFE: Add virtual edges to working copy
             for node_id in last_nodes:
@@ -496,11 +586,11 @@ class GraphBuilder:
                 
                 log_msg = f"Created {node_id} ({node_type}) with user_data keys: {list(user_data.keys())}"
                 logger.debug(log_msg)
-                print(log_msg)
+                logger.debug(log_msg)
                 if node_type in ("ErrorTrigger", "ErrorTriggerNode"):
                     log_msg = f"[ErrorTrigger Debug] Node {node_id} user_data: {user_data}"
                     logger.debug(log_msg)
-                    print(log_msg)
+                    logger.debug(log_msg)
                 
             except Exception as e:
                 logger.error(f"Failed to create node {node_id}: {e}")
@@ -531,6 +621,34 @@ class GraphBuilder:
         build_duration = time.time() - start_time
         logger.info(f"Enhanced instantiation completed in {build_duration:.3f}s")
 
+    def _is_dependency_node(self, node_id: str) -> bool:
+        """Return whether a node is resolved by its consumer, not LangGraph."""
+        gnode = self.nodes.get(node_id)
+        node_instance = getattr(gnode, "node_instance", None)
+        metadata = getattr(node_instance, "metadata", None)
+
+        # Trigger nodes always participate in control flow. Some legacy trigger
+        # implementations were classified as providers, so metadata.node_type
+        # alone is not sufficient to decide whether a node is lazy.
+        concrete_type = str(getattr(gnode, "type", "")).lower()
+        class_name = str(getattr(getattr(node_instance, "__class__", None), "__name__", "")).lower()
+        category = str(getattr(metadata, "category", "")).lower()
+        if (
+            category in {"trigger", "triggers"}
+            or "trigger" in concrete_type
+            or "trigger" in class_name
+            or concrete_type in {"timerstart", "timerstartnode"}
+        ):
+            return False
+
+        raw_node_type = getattr(metadata, "node_type", "")
+        node_type = getattr(raw_node_type, "value", raw_node_type)
+        return str(node_type).lower() in {"provider", "memory"}
+
+    def _is_flow_node(self, node_id: str) -> bool:
+        """Return whether a node participates directly in workflow control flow."""
+        return node_id in self.nodes and not self._is_dependency_node(node_id)
+
     def _compile_final_graph(self) -> CompiledStateGraph:
         """Compile final LangGraph using all components."""
         logger.info("Compiling final LangGraph")
@@ -540,7 +658,8 @@ class GraphBuilder:
 
             # 1) Add regular nodes with enhanced node wrapper
             for node_id, gnode in self.nodes.items():
-                graph.add_node(node_id, self._wrap_node_enhanced(node_id, gnode))
+                if self._is_flow_node(node_id):
+                    graph.add_node(node_id, self._wrap_node_enhanced(node_id, gnode))
 
             # 2) Add control-flow constructs using ControlFlowManager
             self.control_flow_manager.add_control_flow_edges(graph)
@@ -576,6 +695,53 @@ class GraphBuilder:
             import time
             start_time = time.time()
             try:
+                if isinstance(state, dict):
+                    variables = state.get("variables", {})
+                    node_outputs = state.get("node_outputs", {})
+                    executed_nodes = state.get("executed_nodes", [])
+                else:
+                    variables = getattr(state, "variables", {}) or {}
+                    node_outputs = getattr(state, "node_outputs", {}) or {}
+                    executed_nodes = getattr(state, "executed_nodes", []) or []
+
+                target_node_id = variables.get("target_node_id")
+                if target_node_id:
+                    # Determine ancestors cache
+                    ancestors = variables.get("ancestors_cache")
+                    if ancestors is None:
+                        # Fallback if not computed
+                        ancestors = list(self._get_upstream_nodes(target_node_id))
+                        variables["ancestors_cache"] = ancestors
+
+                    # If this node is not in the ancestor path, bypass execution completely
+                    if node_id not in ancestors:
+                        logger.info(f"[PARTIAL] Bypassing node {node_id} (not an ancestor of target {target_node_id})")
+                        return {
+                            f"output_{node_id}": node_outputs.get(node_id),
+                            "executed_nodes": executed_nodes,
+                            "node_outputs": node_outputs
+                        }
+                    
+                    # If this node is in the ancestor path, but it is already in node_outputs
+                    # AND it is not the target node itself
+                    # AND it is not marked as dirty
+                    dirty_node_ids = variables.get("dirty_node_ids", [])
+                    if node_id in node_outputs and node_id != target_node_id and node_id not in dirty_node_ids:
+                        logger.info(f"[PARTIAL] Reusing cached output for ancestor node {node_id}")
+                        # Ensure node_id is marked as executed if it wasn't
+                        from app.core.state import merge_executed_nodes
+                        new_executed = merge_executed_nodes(executed_nodes, [node_id])
+                        return {
+                            f"output_{node_id}": node_outputs.get(node_id),
+                            "executed_nodes": new_executed,
+                            "node_outputs": node_outputs
+                        }
+
+                    logger.info(f"[PARTIAL] Executing required ancestor/target node: {node_id}")
+                # -------------------------------------------------------------
+                # End of Partial Execution Logic
+                # -------------------------------------------------------------
+
                 logger.info(f"EXECUTING: {node_id} ({gnode.type}) with NodeExecutor")
                 
                 # Inject nodes registry into state so that nodes can resolve Jinja variables with friendly names
@@ -687,7 +853,7 @@ class GraphBuilder:
                     err.context["executed_nodes"] = exec_nodes
                     raise err from e
 
-        wrapper.__name__ = f"node_{node_id}"
+        wrapper.__name__ = node_id
         return wrapper
 
     # ---------------------------------------------------------------------
@@ -713,6 +879,12 @@ class GraphBuilder:
             # Skip if either node is not in our graph (StartNode/EndNode handled separately)
             if source_id not in self.nodes or target_id not in self.nodes:
                 logger.debug(f"Skipping edge {source_id} -> {target_id} (node not in graph)")
+                continue
+
+            # Provider/memory nodes are resolved through the target node's
+            # connection handler. They remain in the registry but never form
+            # independent LangGraph branches.
+            if not self._is_flow_node(source_id) or not self._is_flow_node(target_id):
                 continue
             
             # Check if source is a ConditionNode
@@ -827,7 +999,7 @@ class GraphBuilder:
         if self.explicit_start_nodes:
             logger.info(f"START -> {list(self.explicit_start_nodes)}")
             for start_target in self.explicit_start_nodes:
-                if start_target in self.nodes:
+                if self._is_flow_node(start_target):
                     graph.add_edge(START, start_target)
                     logger.debug(f"START -> {start_target}")
                 else:
@@ -844,7 +1016,7 @@ class GraphBuilder:
         if end_connections:
             logger.info(f"{end_connections} -> END")
             for end_source in end_connections:
-                if end_source in self.nodes:
+                if self._is_flow_node(end_source):
                     graph.add_edge(end_source, END)
                     logger.debug(f"{end_source} -> END")
                 else:
@@ -854,7 +1026,10 @@ class GraphBuilder:
             logger.debug("No explicit END connections, finding last nodes")
             all_targets = {conn.target_node_id for conn in self.connections}
             all_sources = {conn.source_node_id for conn in self.connections}
-            last_nodes = [node_id for node_id in all_sources if node_id not in all_targets and node_id in self.nodes]
+            last_nodes = [
+                node_id for node_id in all_sources
+                if node_id not in all_targets and self._is_flow_node(node_id)
+            ]
             
             if last_nodes:
                 logger.info(f"Auto-connecting last nodes to END: {last_nodes}")
@@ -862,9 +1037,204 @@ class GraphBuilder:
                     graph.add_edge(last_node, END)
                     logger.debug(f"{last_node} -> END")
 
+    def _get_upstream_nodes(self, target_id: str) -> Set[str]:
+        """Traverse backwards from target_id along visual edges to find all ancestors."""
+        ancestors = {target_id}
+        queue = [target_id]
+        while queue:
+            current = queue.pop(0)
+            for edge in self.visual_edges:
+                if edge.get("target") == current:
+                    source = edge.get("source")
+                    if not self._is_flow_node(source) or not self._is_flow_node(current):
+                        continue
+                    if source and source not in ancestors:
+                        ancestors.add(source)
+                        queue.append(source)
+        return ancestors
+
+    def is_trigger_node(self, node_id: str, gnode: GraphNodeInstance) -> bool:
+        """Dynamically determine if a node is a trigger node using metadata, class, or topology."""
+        # 1. Metadata category check
+        metadata = getattr(gnode.node_instance, "metadata", None)
+        if metadata:
+            category = getattr(metadata, "category", "")
+            if category.lower() in ("triggers", "trigger", "start"):
+                return True
+                
+        # 2. Class name and node type string check
+        class_name = gnode.node_instance.__class__.__name__.lower()
+        node_type = gnode.type.lower()
+        if "trigger" in class_name or "trigger" in node_type or "start" in class_name or "start" in node_type:
+            return True
+            
+        # 3. Topology check: if the node has no incoming connections, it's a starting point (trigger-like)
+
+        # A disconnected provider or memory node is still a dependency, not a
+        # workflow trigger. It runs only when a consumer resolves it.
+        if self._is_dependency_node(node_id):
+            return False
+        incoming_edges = [edge for edge in self.visual_edges if edge.get("target") == node_id]
+        if not incoming_edges:
+            return True
+            
+        return False
+
     # ---------------------------------------------------------------------
     # Execution methods - preserved for backward compatibility
     # ---------------------------------------------------------------------
+
+    async def execute_node(
+        self,
+        node_id: str,
+        inputs: Dict[str, Any],
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        owner_id: Optional[str] = None,
+        workflow_id: Optional[str] = None,
+        node_outputs: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Execute one node using the compiled graph in partial execution mode."""
+        if not self.graph:
+            raise ValueError("Graph has not been built. Call build_from_flow() first.")
+            
+        if node_id not in self.nodes:
+            raise ValueError(f"Node '{node_id}' not found in workflow.")
+
+        # Prepare state variables for partial execution
+        inputs = inputs or {}
+        inputs["target_node_id"] = node_id
+        inputs["dirty_node_ids"] = inputs.get("dirty_node_ids", [])
+        
+        # Build ancestors cache using visual edges
+        ancestors = self._get_upstream_nodes(node_id)
+        inputs["ancestors_cache"] = list(ancestors)
+
+        initial_input = inputs.get("input", "")
+        init_state = FlowState(
+            current_input=initial_input,
+            last_output=initial_input,
+            session_id=session_id or str(uuid.uuid4()),
+            user_id=user_id,
+            owner_id=owner_id,
+            workflow_id=workflow_id,
+            variables=inputs,
+            node_outputs=node_outputs or {},
+        )
+
+        # Pre-inject trigger node outputs so they are available in node_outputs
+        for trigger_id, gnode in self.nodes.items():
+            if self.is_trigger_node(trigger_id, gnode) and trigger_id not in init_state.node_outputs:
+                try:
+                    # 1. Custom handling for StartNode to support initial query text
+                    if gnode.type == "StartNode" or gnode.node_instance.__class__.__name__ == "StartNode":
+                        output_dict = {
+                            "output": initial_input or "Workflow started"
+                        }
+                    else:
+                        # 2. Dynamic execution of trigger
+                        output_dict = {}
+                        import inspect
+                        if hasattr(gnode.node_instance, "_execute") and callable(getattr(gnode.node_instance, "_execute")):
+                            execute_method = gnode.node_instance._execute
+                            sig = inspect.signature(execute_method)
+                            if len(sig.parameters) >= 1:
+                                output_dict = execute_method(init_state)
+                            else:
+                                output_dict = execute_method()
+                        elif hasattr(gnode.node_instance, "execute") and callable(getattr(gnode.node_instance, "execute")):
+                            execute_method = gnode.node_instance.execute
+                            sig = inspect.signature(execute_method)
+                            if "inputs" in sig.parameters:
+                                output_dict = execute_method(inputs=inputs)
+                            elif not sig.parameters:
+                                output_dict = execute_method()
+                            else:
+                                output_dict = execute_method()
+
+                    from app.core.json_utils import format_standard_node_output
+                    standard_output = format_standard_node_output(
+                        node_id=trigger_id,
+                        node_type=gnode.type,
+                        success=True,
+                        status_code=200,
+                        execution_time_ms=0.0,
+                        inputs=gnode.user_data,
+                        output=output_dict,
+                        node_instance=gnode.node_instance
+                    )
+                    init_state.set_node_output(trigger_id, standard_output)
+                    logger.info(f"[TRIGGER] Pre-injected standardized output for {gnode.type}: {trigger_id}")
+                except Exception as trigger_err:
+                    logger.warning(f"Failed to pre-inject trigger output for {trigger_id}: {trigger_err}")
+
+        config = {"configurable": {"thread_id": init_state.session_id}}
+
+        from app.core.templating import register_global_registry, unregister_global_registry
+        register_global_registry(init_state.session_id, self.nodes)
+        if workflow_id:
+            register_global_registry(workflow_id, self.nodes)
+
+        gnode = self.nodes[node_id]
+        node_name = (
+            gnode.user_data.get("name")
+            or gnode.node_instance.metadata.display_name
+            or gnode.type
+        )
+
+        try:
+            result_state = await self.graph.ainvoke(init_state, config=config)
+            
+            # Extract output of the target node
+            if isinstance(result_state, dict):
+                node_outputs_final = result_state.get("node_outputs", {})
+                executed_nodes_final = result_state.get("executed_nodes", [])
+            else:
+                node_outputs_final = getattr(result_state, "node_outputs", {})
+                executed_nodes_final = getattr(result_state, "executed_nodes", [])
+                
+            target_output = node_outputs_final.get(node_id)
+            if target_output is None:
+                dyn_key = f"output_{node_id}"
+                if isinstance(result_state, dict):
+                    target_output = result_state.get(dyn_key)
+                else:
+                    target_output = getattr(result_state, dyn_key, None)
+            
+            success = True
+            error_message = None
+            
+            if isinstance(target_output, dict) and not target_output.get("success", True):
+                success = False
+                error_message = target_output.get("error", {}).get("message") or "Node execution failed"
+
+            return {
+                "success": success,
+                "node_id": node_id,
+                "output": target_output,
+                "node_outputs": node_outputs_final,
+                "executed_nodes": executed_nodes_final,
+                "session_id": init_state.session_id,
+                "error": error_message
+            }
+        except Exception as exc:
+            error_message = f"Node '{node_name}' ({node_id}) execution failed: {exc}"
+            logger.error(error_message, exc_info=True)
+            node_output = init_state.node_outputs.get(node_id) or {
+                "success": False,
+                "error": {"message": error_message},
+            }
+            return {
+                "success": False,
+                "node_id": node_id,
+                "error": error_message,
+                "output": node_output,
+                "node_outputs": init_state.node_outputs,
+                "executed_nodes": init_state.executed_nodes,
+                "session_id": init_state.session_id,
+            }
+        finally:
+            unregister_global_registry(init_state.session_id)
 
     async def execute(
         self,
@@ -906,24 +1276,16 @@ class GraphBuilder:
         listener_id = inputs.get("listener_id")
         
         # Pre-inject trigger node outputs so they are available in node_outputs (and downstream nodes)
-        from app.nodes.base import NodeType
         for node_id, gnode in self.nodes.items():
-            node_type_val = None
-            try:
-                node_type_val = gnode.node_instance.metadata.node_type
-            except Exception:
-                pass
-                
-            is_trigger = False
-            if gnode.type in ("StartNode", "WebhookTrigger", "KafkaConsumer", "KafkaTrigger", "TimerStartNode", "TimerStart", "ErrorTriggerNode"):
-                is_trigger = True
-            elif node_type_val == NodeType.TERMINATOR and gnode.type not in ("EndNode", "RespondToWebhook"):
-                is_trigger = True
-                
-            if is_trigger:
+            if self.is_trigger_node(node_id, gnode):
                 try:
-                    # 1. Webhook Trigger Node
-                    if "webhook" in gnode.type.lower() or gnode.node_instance.__class__.__name__ == "WebhookTriggerNode":
+                    # 1. Custom handling for StartNode
+                    if gnode.type == "StartNode" or gnode.node_instance.__class__.__name__ == "StartNode":
+                        output_dict = {
+                            "output": initial_input or "Workflow started"
+                        }
+                    # 2. Custom handling for WebhookTrigger
+                    elif "webhook" in gnode.type.lower() or gnode.node_instance.__class__.__name__ == "WebhookTriggerNode":
                         if webhook_data:
                             payload = webhook_data.get("data", webhook_data)
                             gnode.node_instance.user_data["webhook_payload"] = payload
@@ -938,62 +1300,14 @@ class GraphBuilder:
                                     "source": "mock",
                                     "event_type": "webhook.received"
                                 }
-                                
-                        from app.core.json_utils import format_standard_node_output
-                        standard_output = format_standard_node_output(
-                            node_id=node_id,
-                            node_type=gnode.type,
-                            success=True,
-                            status_code=200,
-                            execution_time_ms=0.0,
-                            inputs=gnode.user_data,
-                            output=output_dict,
-                            node_instance=gnode.node_instance
-                        )
-                        init_state.set_node_output(node_id, standard_output)
-                        logger.info(f"[TRIGGER] Pre-injected standardized output for webhook: {node_id}")
-                        
-                    # 2. Kafka Trigger Node
+                    # 3. Custom handling for KafkaTrigger
                     elif "kafka" in gnode.type.lower() or gnode.node_instance.__class__.__name__ == "KafkaTriggerNode":
                         k_data = kafka_data or inputs.get("kafka_data") or {}
                         output_dict = {
                             "kafka_data": k_data,
                             "output": k_data.get("value", "Kafka trigger message")
                         }
-                        from app.core.json_utils import format_standard_node_output
-                        standard_output = format_standard_node_output(
-                            node_id=node_id,
-                            node_type=gnode.type,
-                            success=True,
-                            status_code=200,
-                            execution_time_ms=0.0,
-                            inputs=gnode.user_data,
-                            output=output_dict,
-                            node_instance=gnode.node_instance
-                        )
-                        init_state.set_node_output(node_id, standard_output)
-                        logger.info(f"[TRIGGER] Pre-injected standardized output for kafka: {node_id}")
-                        
-                    # 3. Start Node
-                    elif gnode.type == "StartNode" or gnode.node_instance.__class__.__name__ == "StartNode":
-                        output_dict = {
-                            "output": initial_input or "Workflow started"
-                        }
-                        from app.core.json_utils import format_standard_node_output
-                        standard_output = format_standard_node_output(
-                            node_id=node_id,
-                            node_type=gnode.type,
-                            success=True,
-                            status_code=200,
-                            execution_time_ms=0.0,
-                            inputs=gnode.user_data,
-                            output=output_dict,
-                            node_instance=gnode.node_instance
-                        )
-                        init_state.set_node_output(node_id, standard_output)
-                        logger.info(f"[TRIGGER] Pre-injected standardized output for start node: {node_id}")
-                        
-                    # 4. Timer Start Node
+                    # 4. Custom handling for TimerStart
                     elif gnode.type in ("TimerStart", "TimerStartNode") or gnode.node_instance.__class__.__name__ == "TimerStartNode":
                         from datetime import datetime, timezone
                         output_dict = {
@@ -1006,19 +1320,40 @@ class GraphBuilder:
                             },
                             "output": "Timer triggered"
                         }
-                        from app.core.json_utils import format_standard_node_output
-                        standard_output = format_standard_node_output(
-                            node_id=node_id,
-                            node_type=gnode.type,
-                            success=True,
-                            status_code=200,
-                            execution_time_ms=0.0,
-                            inputs=gnode.user_data,
-                            output=output_dict,
-                            node_instance=gnode.node_instance
-                        )
-                        init_state.set_node_output(node_id, standard_output)
-                        logger.info(f"[TRIGGER] Pre-injected standardized output for timer: {node_id}")
+                    # 5. Generic Fallback trigger
+                    else:
+                        output_dict = {}
+                        import inspect
+                        if hasattr(gnode.node_instance, "_execute") and callable(getattr(gnode.node_instance, "_execute")):
+                            execute_method = gnode.node_instance._execute
+                            sig = inspect.signature(execute_method)
+                            if len(sig.parameters) >= 1:
+                                output_dict = execute_method(init_state)
+                            else:
+                                output_dict = execute_method()
+                        elif hasattr(gnode.node_instance, "execute") and callable(getattr(gnode.node_instance, "execute")):
+                            execute_method = gnode.node_instance.execute
+                            sig = inspect.signature(execute_method)
+                            if "inputs" in sig.parameters:
+                                output_dict = execute_method(inputs=inputs)
+                            elif not sig.parameters:
+                                output_dict = execute_method()
+                            else:
+                                output_dict = execute_method()
+
+                    from app.core.json_utils import format_standard_node_output
+                    standard_output = format_standard_node_output(
+                        node_id=node_id,
+                        node_type=gnode.type,
+                        success=True,
+                        status_code=200,
+                        execution_time_ms=0.0,
+                        inputs=gnode.user_data,
+                        output=output_dict,
+                        node_instance=gnode.node_instance
+                    )
+                    init_state.set_node_output(node_id, standard_output)
+                    logger.info(f"[TRIGGER] Pre-injected standardized output for {gnode.type}: {node_id}")
                 except Exception as trigger_err:
                     logger.warning(f"Failed to pre-inject trigger output for {node_id}: {trigger_err}")
 
@@ -1077,7 +1412,7 @@ class GraphBuilder:
                         
                         if last_node_output:
                             state_dict["last_output"] = last_node_output
-                            logger.info(f"Extracted last_output from node_outputs: {str(last_node_output)[:100]}")
+                            logger.debug("Extracted last output from node outputs (type=%s)", type(last_node_output).__name__)
                 
             except Exception as e:
                 logger.error(f"Error converting result_state to dict: {e}", exc_info=True)
@@ -1103,10 +1438,14 @@ class GraphBuilder:
                             else:
                                 result_output = str(output)
                             if result_output:
-                                logger.info(f"Extracted result from node_outputs[{node_id}]: {str(result_output)[:100]}")
+                                logger.debug("Extracted result from node output (node_id=%s, type=%s)", node_id, type(result_output).__name__)
                                 break
             
-            logger.info(f"Final result output: {str(result_output)[:100] if result_output else '(empty)'}")
+            logger.debug(
+                "Workflow result prepared (type=%s, empty=%s)",
+                type(result_output).__name__,
+                not bool(result_output),
+            )
             
             result = {
                 "success": True,
@@ -1131,31 +1470,39 @@ class GraphBuilder:
             raise
 
     async def _execute_stream(self, init_state: FlowState, config: RunnableConfig):
-        """Streaming execution - preserved from original."""
+        """Streaming execution with branching graph support."""
+        # Track which nodes have been reported to frontend via events
+        streamed_node_starts: set = set()
+        streamed_node_ends: set = set()
+        current_running_node: str | None = None
+        completed_nodes: set = set()
+        transmitted_edge_ids: set = set()
+
         try:
             logger.info(f"Starting streaming execution for session: {init_state.session_id}")
             yield {"type": "start", "session_id": init_state.session_id, "message": "Starting workflow execution"}
-            
-            # Track previously executed node to help frontend animate correct edge
-            previous_node_id: str | None = None
             
             # Stream workflow execution events
             event_count = 0
             async for ev in self.graph.astream_events(init_state, config=config):
                 event_count += 1
                 
-                # Process and yield events (simplified version of original logic)
+                # Process and yield events
                 ev_type = ev.get("event", "")
                 node_name = ev.get("name", "unknown")
                 
                 if ev_type == "on_chain_start":
                     if node_name not in self.nodes:
                         continue
-                    incoming_edge_ids = self._visual_edge_ids_for_node(node_name, previous_node_id)
+                    current_running_node = node_name
+                    streamed_node_starts.add(node_name)
+                    incoming_edge_ids = self._visual_edge_ids_for_node(
+                        node_name, completed_nodes=completed_nodes
+                    )
+                    transmitted_edge_ids.update(incoming_edge_ids)
                     yield {
                         "type": "node_start", 
                         "node_id": node_name,
-                        "previous_node_id": previous_node_id,
                         "incoming_edge_ids": incoming_edge_ids,
                         "active_edge_ids": incoming_edge_ids,
                         "outgoing_edge_ids": self._visual_outgoing_edge_ids_for_node(node_name),
@@ -1166,7 +1513,9 @@ class GraphBuilder:
                     # Extract output from the event data for node_end
                     ev_data = ev.get("data", {})
                     node_output = ev_data.get("output", {})
-                    incoming_edge_ids = self._visual_edge_ids_for_node(node_name, previous_node_id)
+                    incoming_edge_ids = self._visual_edge_ids_for_node(
+                        node_name, completed_nodes=completed_nodes
+                    )
                     
                     # Try to extract meaningful output from various formats
                     output_data = {}
@@ -1190,20 +1539,107 @@ class GraphBuilder:
                     yield {
                         "type": "node_end",
                         "node_id": node_name,
-                        "previous_node_id": previous_node_id,
                         "incoming_edge_ids": incoming_edge_ids,
                         "active_edge_ids": incoming_edge_ids,
                         "outgoing_edge_ids": self._visual_outgoing_edge_ids_for_node(node_name),
                         "output": output_data
                     }
                     
-                    # Update previous node after successful completion
-                    previous_node_id = node_name
+                    # Add to completed set for branching graph edge resolution
+                    completed_nodes.add(node_name)
+                    streamed_node_ends.add(node_name)
+                elif ev_type == "on_custom_event" and node_name == "kai_node_status":
+                    status_data = ev.get("data", {})
+                    status_node_id = status_data.get("node_id")
+                    status_value = status_data.get("status")
+                    if status_node_id and status_value in {"pending", "success", "failed"}:
+                        execution_role = self._execution_role_for_node(status_node_id)
+                        status_edge_ids = (
+                            self._visual_outgoing_edge_ids_for_node(status_node_id)
+                            if execution_role == "dependency"
+                            else []
+                        )
+                        status_event = {
+                            "type": "node_status",
+                            "node_id": status_node_id,
+                            "status": status_value,
+                            "execution_role": execution_role,
+                            "edge_ids": status_edge_ids,
+                            "active_edge_ids": status_edge_ids,
+                        }
+                        if status_value in {"success", "failed"}:
+                            status_event["output"] = self._runtime_node_output(
+                                status_node_id,
+                                status_value,
+                                status_data.get("error"),
+                            )
+                        yield status_event
                 elif ev_type == "on_llm_new_token":
                     yield {"type": "token", "content": ev.get("data", {}).get("chunk", "")}
                 elif ev_type == "on_chain_error":
-                    error_msg = str(ev.get("data", {}).get("error", "Unknown error"))
-                    yield {"type": "error", "error": error_msg, "node_id": ev.get("name", "unknown")}
+                    raw_error = ev.get("data", {}).get("error", "Unknown error")
+                    deepest_error = (
+                        find_deepest_node_execution_error(raw_error)
+                        if isinstance(raw_error, BaseException)
+                        else None
+                    )
+                    failed_node = (
+                        deepest_error.node_id
+                        if deepest_error
+                        else node_name if node_name in self.nodes else current_running_node
+                    )
+                    execution_node = node_name if node_name in self.nodes else current_running_node
+                    node_statuses = (
+                        dict(deepest_error.context.get("node_statuses", {}))
+                        if deepest_error
+                        else get_runtime_node_statuses(init_state)
+                    )
+                    context_outputs = (
+                        deepest_error.context.get("node_outputs", {})
+                        if deepest_error
+                        else {}
+                    )
+                    context_executed_nodes = (
+                        deepest_error.context.get("executed_nodes", [])
+                        if deepest_error
+                        else []
+                    )
+                    current_node_outputs = context_outputs or dict(init_state.node_outputs)
+                    current_executed_nodes = (
+                        context_executed_nodes or list(init_state.executed_nodes)
+                    )
+                    execution_edge_ids = (
+                        self._visual_edge_ids_for_node(
+                            execution_node,
+                            completed_nodes=completed_nodes,
+                        )
+                        if execution_node
+                        else []
+                    )
+                    transmitted_edge_ids.update(execution_edge_ids)
+                    current_node_outputs = self._merge_runtime_node_outputs(
+                        current_node_outputs,
+                        node_statuses,
+                        failed_node_id=failed_node,
+                        error_message=str(raw_error),
+                    )
+                    yield {
+                        "type": "error",
+                        "error": str(raw_error),
+                        "node_id": failed_node or "unknown",
+                        "execution_node_id": execution_node,
+                        "incoming_edge_ids": execution_edge_ids,
+                        "active_edge_ids": execution_edge_ids,
+                        "edge_statuses": self._edge_statuses_for_execution(
+                            node_statuses,
+                            transmitted_edge_ids,
+                        ),
+                        "node_statuses": node_statuses,
+                        "node_outputs": current_node_outputs,
+                        "executed_nodes": current_executed_nodes,
+                        "session_id": init_state.session_id,
+                    }
+
             
             # Get final state
             final_state = await self.graph.aget_state(config)
@@ -1217,6 +1653,15 @@ class GraphBuilder:
                 executed_nodes = []
                 node_outputs = {}
                 errors = []
+            node_statuses = get_runtime_node_statuses(
+                final_state.values
+                if hasattr(final_state, "values") and final_state.values
+                else init_state
+            )
+            node_outputs = self._merge_runtime_node_outputs(
+                node_outputs,
+                node_statuses,
+            )
             
             # Yield completion event with node_outputs for frontend display
             yield {
@@ -1226,6 +1671,11 @@ class GraphBuilder:
                 "node_outputs": node_outputs,
                 "errors": errors,
                 "session_id": init_state.session_id,
+                "node_statuses": node_statuses,
+                "edge_statuses": self._edge_statuses_for_execution(
+                    node_statuses,
+                    transmitted_edge_ids,
+                ),
             }
             
             # Cleanup session-scoped registry to prevent memory leak
@@ -1237,12 +1687,21 @@ class GraphBuilder:
             node_outputs = {}
             executed_nodes = []
             
-            # Recursively traverse exception chain to find context
+            # Attribute nested provider/tool failures to the original node, not
+            # to the processor that happened to request that dependency.
+            deepest_error = find_deepest_node_execution_error(e)
+            failed_node_id = deepest_error.node_id if deepest_error else current_running_node
+
+            node_statuses = (
+                dict(deepest_error.context.get("node_statuses", {}))
+                if deepest_error
+                else get_runtime_node_statuses(init_state)
+            )
             curr_e = e
             while curr_e:
                 if hasattr(curr_e, "context") and isinstance(curr_e.context, dict):
-                    node_outputs = curr_e.context.get("node_outputs") or {}
-                    executed_nodes = curr_e.context.get("executed_nodes") or []
+                    node_outputs = curr_e.context.get("node_outputs") or node_outputs
+                    executed_nodes = curr_e.context.get("executed_nodes") or executed_nodes
                     if node_outputs:
                         break
                 curr_e = getattr(curr_e, "__cause__", None) or getattr(curr_e, "__context__", None)
@@ -1255,14 +1714,67 @@ class GraphBuilder:
                         executed_nodes = final_state.values.get('executed_nodes', [])
                 except Exception as state_err:
                     logger.warning(f"Failed to get graph state on streaming error: {state_err}")
-                
+
+            node_outputs = self._merge_runtime_node_outputs(
+                node_outputs or dict(init_state.node_outputs),
+                node_statuses,
+                failed_node_id=failed_node_id,
+                error_message=str(e),
+            )
+            if not executed_nodes:
+                executed_nodes = list(init_state.executed_nodes)
+
+            # Emit retroactive node_end events for successfully completed nodes
+            # that the frontend never saw (because the stream was cut short by the exception)
+            for completed_node_id in executed_nodes:
+                if completed_node_id in self.nodes and completed_node_id not in streamed_node_ends:
+                    completed_edge_ids = self._visual_edge_ids_for_node(completed_node_id)
+                    transmitted_edge_ids.update(completed_edge_ids)
+                    # Send node_start if we never sent it
+                    if completed_node_id not in streamed_node_starts:
+                        yield {
+                            "type": "node_start",
+                            "node_id": completed_node_id,
+                            "incoming_edge_ids": completed_edge_ids,
+                            "active_edge_ids": completed_edge_ids,
+                            "outgoing_edge_ids": self._visual_outgoing_edge_ids_for_node(completed_node_id),
+                        }
+                    yield {
+                        "type": "node_end",
+                        "node_id": completed_node_id,
+                        "incoming_edge_ids": completed_edge_ids,
+                        "active_edge_ids": completed_edge_ids,
+                        "outgoing_edge_ids": self._visual_outgoing_edge_ids_for_node(completed_node_id),
+                        "output": node_outputs.get(completed_node_id, {}),
+                    }
+
+            execution_edge_ids = (
+                self._visual_edge_ids_for_node(
+                    current_running_node,
+                    completed_nodes=completed_nodes,
+                )
+                if current_running_node
+                else []
+            )
+            transmitted_edge_ids.update(execution_edge_ids)
+
+            # Yield error event with node_id for failed node identification
             yield {
                 "type": "error", 
                 "error": str(e), 
-                "error_type": type(e).__name__, 
+                "error_type": type(e).__name__,
+                "node_id": failed_node_id or "unknown",
+                "execution_node_id": current_running_node,
+                "incoming_edge_ids": execution_edge_ids,
+                "active_edge_ids": execution_edge_ids,
+                "edge_statuses": self._edge_statuses_for_execution(
+                    node_statuses,
+                    transmitted_edge_ids,
+                ),
                 "session_id": init_state.session_id,
                 "node_outputs": node_outputs,
-                "executed_nodes": executed_nodes
+                "executed_nodes": executed_nodes,
+                "node_statuses": node_statuses,
             }
             
             # Cleanup session-scoped registry even on error

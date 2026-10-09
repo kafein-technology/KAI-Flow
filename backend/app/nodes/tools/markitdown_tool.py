@@ -4,17 +4,31 @@ import tempfile
 from pathlib import Path
 from typing import Dict, Any, List
 
+from pydantic import BaseModel, Field
+
 from ..base import ProviderNode, NodeOutput, NodeType, NodePropertyType, NodeProperty, NodePosition
 from app.services.minio_service import minio_service
 
 try:
     from markitdown import MarkItDown
-    from langchain_core.tools import Tool
+    from langchain_core.tools import StructuredTool
     MARKITDOWN_AVAILABLE = True
 except ImportError:
     MARKITDOWN_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+
+class MarkItDownToolInput(BaseModel):
+    """Arguments accepted by the MinIO document reader tool."""
+
+    object_key_override: str = Field(
+        default="",
+        description=(
+            "Optional path to a different document in the configured MinIO bucket. "
+            "Leave empty to read the node's default document."
+        ),
+    )
 
 
 class MarkItDownToolNode(ProviderNode):
@@ -233,11 +247,9 @@ class MarkItDownToolNode(ProviderNode):
 
         credential = self.get_credential(llm_credential_id)
         if not credential:
-            logger.warning(
-                "Selected LLM credential (ID: %s) not found, falling back to basic MarkItDown",
-                llm_credential_id
+            raise ValueError(
+                f"Selected LLM credential '{llm_credential_id}' could not be found."
             )
-            return MarkItDown()
 
         secret = credential.get("secret") or {}
         
@@ -251,8 +263,9 @@ class MarkItDownToolNode(ProviderNode):
         ).strip()
         
         if not api_key:
-            logger.warning("LLM credential missing api_key field, falling back to basic MarkItDown")
-            return MarkItDown()
+            raise ValueError(
+                "The selected MarkItDown LLM credential has no API key."
+            )
 
         # Get base URL: prioritize node property override, fallback to credential secret
         base_url = (self.user_data.get("llm_base_url") or "").strip()
@@ -477,10 +490,8 @@ class MarkItDownToolNode(ProviderNode):
                 # Use override if provided, otherwise use configured key
                 read_key = object_key_override.strip() if object_key_override else object_key
                 if not read_key:
-                    return (
-                        f"ERROR: No document specified. "
-                        f"Please provide a document path (e.g., 'reports/document.pdf') "
-                        f"or configure a default document in the node settings."
+                    raise ValueError(
+                        "No document was specified and the node has no default object key."
                     )
                 
                 logger.info(
@@ -497,16 +508,13 @@ class MarkItDownToolNode(ProviderNode):
                     object_key=read_key,
                     max_file_size_mb=max_file_size_mb,
                 )
-            except ValueError as e:
-                # Return user-friendly error message
-                return f"ERROR: {str(e)}"
-            except Exception as e:
+            except Exception:
                 logger.exception(
                     "Unexpected error during MarkItDown conversion: bucket=%s key=%s",
                     bucket_name,
                     object_key_override or object_key
                 )
-                return f"ERROR: Unexpected error during document conversion: {str(e)}"
+                raise
 
         # Create LangChain Tool with agent-optimized description
         tool_description = (
@@ -521,10 +529,11 @@ class MarkItDownToolNode(ProviderNode):
             f"\n\nThe tool returns the document content converted to Markdown format."
         )
 
-        tool = Tool(
+        tool = StructuredTool.from_function(
             name="read_document_from_minio",
             func=markitdown_minio_reader,
             description=tool_description,
+            args_schema=MarkItDownToolInput,
         )
 
         logger.info(

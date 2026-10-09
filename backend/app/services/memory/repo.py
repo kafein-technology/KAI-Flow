@@ -1,5 +1,7 @@
 """Memory repository for pure database operations."""
 
+import logging
+
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from uuid import UUID
@@ -7,6 +9,9 @@ from typing import List, Optional
 from datetime import datetime
 
 from app.models.memory import Memory
+
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryRepo:
@@ -45,11 +50,7 @@ class MemoryRepo:
             Memory.session_id == session_id
         ).order_by(desc(Memory.created_at)).offset(offset).limit(limit).all()
         
-        # DEBUG: Log what we found
-        if memories:
-            first_content = memories[0].content[:100] + "..." if len(memories[0].content) > 100 else memories[0].content
-        else:
-            logger.info(f"[REPO DEBUG] get_memories_by_session('{session_id}', limit={limit}) -> Found 0 records.")
+        logger.debug("Memory lookup completed (count=%s, limit=%s)", len(memories), limit)
             
         return memories
     

@@ -1,4 +1,4 @@
-"""Memory database models for KAI Fusion."""
+"""Memory database models for KAI Flow."""
 
 from sqlalchemy import Column, String, Text, DateTime, JSON, ForeignKey, Index
 from sqlalchemy.orm import relationship

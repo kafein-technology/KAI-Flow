@@ -25,6 +25,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { v4 as uuidv4 } from "uuid";
 import { config } from "../lib/config";
+import { useAutosizeTextArea } from "../hooks/useAutosizeTextArea";
 
 interface Message {
   id: string;
@@ -67,7 +68,7 @@ export default function KaiChatWidget({
   const [isLoading, setIsLoading] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const sessionIdRef = useRef(uuidv4());
 
   const copyToClipboard = async (text: string) => {
@@ -92,6 +93,8 @@ export default function KaiChatWidget({
       inputRef.current?.focus();
     }
   }, [isOpen, isLoading]);
+
+  useAutosizeTextArea(inputRef.current, input, 128);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -310,6 +313,11 @@ export default function KaiChatWidget({
                     style={!msg.isBot ? { backgroundColor: color } : {}}
                   >
                     <div className="max-w-none break-words">
+                      {!msg.isBot ? (
+                        <p className="m-0 whitespace-pre-wrap break-words text-sm leading-relaxed text-white">
+                          {msg.content}
+                        </p>
+                      ) : (
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex, rehypeRaw]}
@@ -633,6 +641,7 @@ export default function KaiChatWidget({
                       >
                         {msg.content}
                       </ReactMarkdown>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -654,27 +663,28 @@ export default function KaiChatWidget({
 
             {/* Input Alanı */}
             <div className="p-4 bg-white border-t border-gray-100">
-              <div className="flex gap-2 items-center bg-gray-50 rounded-full px-4 py-2 border border-gray-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
-                <input
+              <div className="flex gap-2 items-end bg-gray-50 rounded-2xl px-4 py-2 border border-gray-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={1}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
                       sendMessage();
                       // Immediate focus attempt after sending
                       setTimeout(() => inputRef.current?.focus(), 0);
                     }
                   }}
                   placeholder="Write your message..."
-                  className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm py-1"
+                  className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm py-1 resize-none overflow-y-auto max-h-32 min-h-[24px]"
                   disabled={isLoading}
                 />
                 <button
                   onClick={sendMessage}
                   disabled={isLoading || !input.trim()}
-                  className={`p-2 rounded-full transition-all ${input.trim() && !isLoading
+                  className={`p-2 rounded-full transition-all shrink-0 ${input.trim() && !isLoading
                     ? "text-blue-600 hover:bg-blue-50"
                     : "text-gray-400"
                     }`}

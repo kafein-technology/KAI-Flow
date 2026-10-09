@@ -142,19 +142,37 @@ function calculateJinjaExpression(path: string[], context: any) {
 
 interface JsonTreeItemProps {
   keyName?: string;
+  displayKeyName?: string;
   value: any;
   isLast?: boolean;
   depth: number;
   path: string[];
 }
 
-function JsonTreeItem({ keyName, value, isLast = false, depth, path }: JsonTreeItemProps) {
+function arrayItemLabel(parentKey: string | undefined, index: number): string {
+  const labels: Record<string, string> = {
+    findings: "Finding",
+    files: "File",
+    tests: "Check",
+    required_scanners: "Scanner",
+    missing_scanners: "Scanner",
+    incomplete_scanners: "Scanner",
+    duplicate_scanners: "Scanner",
+    coverage_reasons: "Reason",
+    reason_codes: "Reason",
+    supported_extensions: "Extension",
+  };
+  return `${labels[parentKey || ""] || "Item"} ${index + 1}`;
+}
+
+function JsonTreeItem({ keyName, displayKeyName, value, isLast = false, depth, path }: JsonTreeItemProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [copied, setCopied] = useState(false);
   const context = React.useContext(DataTreeContext);
 
   const isObject = value !== null && typeof value === 'object';
   const isArray = Array.isArray(value);
+  const renderedKeyName = displayKeyName ?? keyName;
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -181,7 +199,7 @@ function JsonTreeItem({ keyName, value, isLast = false, depth, path }: JsonTreeI
     if (size === 0) {
       return (
         <div className="flex items-center py-1 pl-4 font-mono text-sm">
-          {keyName && <span className="text-sky-400 font-medium mr-1">{keyName}:</span>}
+          {keyName && <span className="text-sky-400 font-medium mr-1">{renderedKeyName}:</span>}
           <span className="text-gray-500">{isArray ? '[]' : '{}'}</span>
         </div>
       );
@@ -208,7 +226,7 @@ function JsonTreeItem({ keyName, value, isLast = false, depth, path }: JsonTreeI
                 title="Drag to drop Jinja variable"
               >
                 <span className="text-[10px] text-gray-500 font-mono">☰</span>
-                {keyName}
+                {renderedKeyName}
               </span>
             ) : (
               <span
@@ -216,7 +234,7 @@ function JsonTreeItem({ keyName, value, isLast = false, depth, path }: JsonTreeI
                 className="border border-gray-800 bg-gray-950/40 rounded px-1.5 py-0.5 text-xs text-sky-300 font-mono font-medium select-none flex items-center gap-1"
                 title="Output key"
               >
-                {keyName}
+                {renderedKeyName}
               </span>
             )
           )}
@@ -250,6 +268,7 @@ function JsonTreeItem({ keyName, value, isLast = false, depth, path }: JsonTreeI
                   <JsonTreeItem
                     key={idx}
                     keyName={String(idx)}
+                    displayKeyName={arrayItemLabel(keyName, idx)}
                     value={item}
                     isLast={idx === value.length - 1}
                     depth={depth + 1}
@@ -291,14 +310,14 @@ function JsonTreeItem({ keyName, value, isLast = false, depth, path }: JsonTreeI
             title="Drag to drop Jinja variable"
           >
             <span className="text-[10px] text-gray-500 font-mono">☰</span>
-            {keyName}
+            {renderedKeyName}
           </span>
         ) : (
           <span
             className="border border-gray-800 bg-gray-950/40 rounded px-1.5 py-0.5 text-xs text-sky-300 font-mono font-medium select-none flex items-center gap-1 mr-1 flex-shrink-0"
             title="Output key"
           >
-            {keyName}
+            {renderedKeyName}
           </span>
         )
       )}

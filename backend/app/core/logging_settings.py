@@ -7,26 +7,26 @@ Users can customize logging behavior through environment variables or configurat
 files to control verbosity, component-specific debugging, and output formatting.
 
 Environment Variables:
-• KAI_FUSION_LOG_LEVEL: Overall log level (DEBUG, INFO, WARNING, ERROR)
-• KAI_FUSION_DEBUG_COMPONENTS: Comma-separated list of components for debug logging
-• KAI_FUSION_TRACE_COMPONENTS: Comma-separated list of components for trace logging
-• KAI_FUSION_FILE_LOGGING: Enable file logging (true/false)
-• KAI_FUSION_PROGRESS_LOGGING: Enable progress tracking (true/false)
-• KAI_FUSION_FILTER_EMBEDDINGS: Filter embedding data from logs (true/false)
+• KAI_FLOW_LOG_LEVEL: Overall log level (DEBUG, INFO, WARNING, ERROR)
+• KAI_FLOW_DEBUG_COMPONENTS: Comma-separated list of components for debug logging
+• KAI_FLOW_TRACE_COMPONENTS: Comma-separated list of components for trace logging
+• KAI_FLOW_FILE_LOGGING: Enable file logging (true/false)
+• KAI_FLOW_PROGRESS_LOGGING: Enable progress tracking (true/false)
+• KAI_FLOW_FILTER_EMBEDDINGS: Filter embedding data from logs (true/false)
 
 Example Usage:
 ```bash
 # Enable debug logging for workflow engine and database components
-export KAI_FUSION_DEBUG_COMPONENTS="workflow_engine,database"
+export KAI_FLOW_DEBUG_COMPONENTS="workflow_engine,database"
 
 # Enable trace logging for vector store operations
-export KAI_FUSION_TRACE_COMPONENTS="vector_store"
+export KAI_FLOW_TRACE_COMPONENTS="vector_store"
 
 # Enable file logging in production
-export KAI_FUSION_FILE_LOGGING=true
+export KAI_FLOW_FILE_LOGGING=true
 
 # Disable progress tracking for cleaner logs
-export KAI_FUSION_PROGRESS_LOGGING=false
+export KAI_FLOW_PROGRESS_LOGGING=false
 ```
 
 Configuration Presets:
@@ -86,42 +86,49 @@ class EnhancedLoggingSettings:
             self.trace_components = []
 
 
-def load_settings_from_environment() -> EnhancedLoggingSettings:
+def load_settings_from_environment(
+    settings: Optional[EnhancedLoggingSettings] = None,
+) -> EnhancedLoggingSettings:
     """Load settings from environment variables."""
-    settings = EnhancedLoggingSettings()
+    settings = settings or EnhancedLoggingSettings()
     
     # Basic settings
-    settings.log_level = os.getenv("KAI_FUSION_LOG_LEVEL", LOG_LEVEL).upper()
+    settings.log_level = os.getenv("KAI_FLOW_LOG_LEVEL", os.getenv("LOG_LEVEL", settings.log_level)).upper()
     settings.environment = os.getenv("ENVIRONMENT", ENVIRONMENT)
-    settings.enable_file_logging = os.getenv("KAI_FUSION_FILE_LOGGING", "false").lower() == "true"
-    settings.enable_progress_tracking = os.getenv("KAI_FUSION_PROGRESS_LOGGING", "true").lower() == "true"
+    if "KAI_FLOW_FILE_LOGGING" in os.environ:
+        settings.enable_file_logging = os.getenv("KAI_FLOW_FILE_LOGGING", "false").lower() == "true"
+    if "KAI_FLOW_PROGRESS_LOGGING" in os.environ:
+        settings.enable_progress_tracking = os.getenv("KAI_FLOW_PROGRESS_LOGGING", "true").lower() == "true"
     
     # Component-specific settings
-    debug_components = os.getenv("KAI_FUSION_DEBUG_COMPONENTS", "")
+    debug_components = os.getenv("KAI_FLOW_DEBUG_COMPONENTS", "")
     if debug_components:
         settings.debug_components = [c.strip() for c in debug_components.split(",") if c.strip()]
     
-    trace_components = os.getenv("KAI_FUSION_TRACE_COMPONENTS", "")
+    trace_components = os.getenv("KAI_FLOW_TRACE_COMPONENTS", "")
     if trace_components:
         settings.trace_components = [c.strip() for c in trace_components.split(",") if c.strip()]
     
     # Data filtering settings
-    settings.filter_embeddings = os.getenv("KAI_FUSION_FILTER_EMBEDDINGS", "true").lower() == "true"
+    if "KAI_FLOW_FILTER_EMBEDDINGS" in os.environ:
+        settings.filter_embeddings = os.getenv("KAI_FLOW_FILTER_EMBEDDINGS", "true").lower() == "true"
     
     try:
-        settings.truncate_threshold = int(os.getenv("KAI_FUSION_TRUNCATE_THRESHOLD", "500"))
+        settings.truncate_threshold = int(os.getenv("KAI_FLOW_TRUNCATE_THRESHOLD", str(settings.truncate_threshold)))
     except ValueError:
         pass
     
     # Performance settings
     try:
-        settings.performance_warning_threshold = float(os.getenv("KAI_FUSION_PERF_THRESHOLD", "2.0"))
+        settings.performance_warning_threshold = float(os.getenv("KAI_FLOW_PERF_THRESHOLD", str(settings.performance_warning_threshold)))
     except ValueError:
         pass
     
     # Output formatting
-    settings.use_colors = os.getenv("KAI_FUSION_USE_COLORS", "true").lower() == "true"
-    settings.use_emojis = os.getenv("KAI_FUSION_USE_EMOJIS", "true").lower() == "true"
+    if "KAI_FLOW_USE_COLORS" in os.environ:
+        settings.use_colors = os.getenv("KAI_FLOW_USE_COLORS", "true").lower() == "true"
+    if "KAI_FLOW_USE_EMOJIS" in os.environ:
+        settings.use_emojis = os.getenv("KAI_FLOW_USE_EMOJIS", "true").lower() == "true"
     
     return settings
 
@@ -222,7 +229,7 @@ def get_default_settings() -> EnhancedLoggingSettings:
     """Get default settings based on current environment."""
     
     # Check for preset environment variable
-    preset = os.getenv("KAI_FUSION_LOGGING_PRESET")
+    preset = os.getenv("KAI_FLOW_LOGGING_PRESET")
     if preset:
         base_settings = get_preset_settings(preset)
     else:
@@ -236,27 +243,10 @@ def get_default_settings() -> EnhancedLoggingSettings:
         else:
             base_settings = EnhancedLoggingSettings()
     
-    # Override with environment variables
-    env_settings = load_settings_from_environment()
-    
-    # Merge settings (environment variables take precedence)
-    merged_settings = EnhancedLoggingSettings()
-    
-    # Copy base settings
-    for field in base_settings.__dataclass_fields__:
-        setattr(merged_settings, field, getattr(base_settings, field))
-    
-    # Override with environment settings where they differ from defaults
-    default_settings = EnhancedLoggingSettings()
-    for field in env_settings.__dataclass_fields__:
-        env_value = getattr(env_settings, field)
-        default_value = getattr(default_settings, field)
-        
-        # Only override if environment value is different from default
-        if env_value != default_value:
-            setattr(merged_settings, field, env_value)
-    
-    return merged_settings
+    # Apply only explicitly supplied environment values to the selected preset.
+    # This is important for values such as KAI_FLOW_FILE_LOGGING=false: an
+    # explicit false must be able to override the production preset's true.
+    return load_settings_from_environment(base_settings)
 
 
 # Configuration validation

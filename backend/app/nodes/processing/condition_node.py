@@ -332,17 +332,14 @@ class ConditionNode(ProcessorNode):
             input_data = connected_nodes.get("input", "")
             raw_input = input_data  # Store raw input for type validation
             
-            # DEBUG: Log what we received from connected node
-            logger.info(f"RAW connected_nodes: {connected_nodes}")
-            logger.info(f"RAW input_data type: {type(input_data)}")
-            logger.info(f"RAW input_data: {str(input_data)[:500]}")
+            logger.debug("Condition input received (type=%s)", type(input_data).__name__)
             if isinstance(input_data, dict):
-                logger.info(f"input_data keys: {list(input_data.keys())}")
+                logger.debug("Condition input keys: %s", list(input_data.keys()))
             
             # Extract primary output using same logic as Jinja templating
             # This ensures consistent behavior between {{node}} and connection
             actual_value = self._extract_primary_output(input_data)
-            logger.info(f"EXTRACTED actual_value: {str(actual_value)[:200]}")
+            logger.debug("Condition value extracted (type=%s)", type(actual_value).__name__)
         
         # Data type validation
         if data_type == "string":
@@ -365,8 +362,12 @@ class ConditionNode(ProcessorNode):
                 logger.warning(f"Converting {type(actual_value).__name__} to string for comparison")
                 actual_value = str(actual_value)
 
-        logger.info(f"Evaluating value: '{actual_value[:100] if len(str(actual_value)) > 100 else actual_value}'")
-        logger.info(f"Comparing with: '{value2}'")
+        logger.debug(
+            "Evaluating condition (operation=%s, value_type=%s, comparison_type=%s)",
+            operation,
+            type(actual_value).__name__,
+            type(value2).__name__,
+        )
 
         # Evaluate the condition
         condition_result = self._evaluate_condition(

@@ -18,7 +18,7 @@
         "data": {
           "name": "kafka_consumer_trigger",
           "topic": "ai-column-review-request",
-          "group_id": "kai-fusion-test-group",
+          "group_id": "kai-flow-test-group",
           "credential": "f94f7bc2-341d-496c-97d0-6b481d88bdf3",
           "only_message": true,
           "_active_optional_fields": [

@@ -15,6 +15,11 @@ from typing import Any, Dict, Optional, List
 import traceback
 import datetime
 
+from app.core.error_normalization import (
+    normalize_execution_error,
+    sanitize_error_text,
+)
+
 
 class WorkflowError(Exception):
     """
@@ -68,19 +73,31 @@ class NodeExecutionError(WorkflowError):
         self.node_config = node_config or {}
         self.input_connections = input_connections or {}
         self.output_connections = output_connections or {}
+        self.error_details = normalize_execution_error(original_error)
         
-        # Build detailed error message
-        message = f"Node {node_id} ({node_type}) execution failed: {str(original_error)}"
+        # The public message is stable and actionable. The original exception
+        # object and its sanitized provider diagnostics remain available below.
+        message = (
+            f"Node {node_id} ({node_type}) execution failed: "
+            f"{self.error_details.display_message}"
+        )
         
         # Build enhanced context
         context = {
             "node_id": node_id,
             "node_type": node_type,
-            "original_error": str(original_error),
+            "original_error": self.error_details.raw_message,
             "original_error_type": type(original_error).__name__,
+            "error_code": self.error_details.code,
+            "error_category": self.error_details.category,
+            "http_status": self.error_details.status_code,
+            "provider_error_code": self.error_details.provider_code,
+            "provider_message": self.error_details.provider_message,
+            "retryable": self.error_details.retryable,
+            "resolution": self.error_details.resolution,
             "node_config": node_config,
             "input_connections": input_connections,
-            "output_connections": output_connections
+            "output_connections": output_connections,
         }
         
         super().__init__(message, context)
@@ -98,10 +115,38 @@ class NodeExecutionError(WorkflowError):
             },
             "original_error_details": {
                 "type": type(self.original_error).__name__,
-                "message": str(self.original_error),
-                "args": getattr(self.original_error, 'args', [])
-            }
+                "message": sanitize_error_text(self.original_error),
+                "args": sanitize_error_text(getattr(self.original_error, 'args', [])),
+            },
+            "normalized_error": self.error_details.to_dict(),
         }
+
+
+def find_deepest_node_execution_error(error: BaseException) -> Optional["NodeExecutionError"]:
+    """Return the original failing node error from a wrapped exception chain."""
+    deepest: Optional[NodeExecutionError] = None
+    pending: List[BaseException] = [error]
+    visited: set[int] = set()
+
+    while pending:
+        current = pending.pop()
+        if id(current) in visited:
+            continue
+        visited.add(id(current))
+
+        if isinstance(current, NodeExecutionError):
+            deepest = current
+
+        for nested in (
+            getattr(current, "__context__", None),
+            getattr(current, "__cause__", None),
+            getattr(current, "original_error", None),
+            getattr(current, "_kai_node_execution_error", None),
+        ):
+            if isinstance(nested, BaseException) and id(nested) not in visited:
+                pending.append(nested)
+
+    return deepest
 
 
 class ConnectionError(WorkflowError):

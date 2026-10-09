@@ -16,7 +16,7 @@ export interface PinnedItem {
 
 interface PinnedItemsState {
   pinnedItems: PinnedItem[];
-  
+
   // Actions
   addPinnedItem: (item: Omit<PinnedItem, 'pinnedAt'>) => void;
   removePinnedItem: (id: string, type: 'workflow' | 'chat') => void;
@@ -26,7 +26,7 @@ interface PinnedItemsState {
   updatePinnedItem: (id: string, type: 'workflow' | 'chat', updates: Partial<PinnedItem>) => void;
 }
 
-const STORAGE_KEY = 'kai_fusion_pinned_items';
+const STORAGE_KEY = 'kai_flow_pinned_items';
 
 // Helper function to load pinned items from localStorage
 const loadPinnedItems = (): PinnedItem[] => {

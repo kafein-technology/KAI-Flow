@@ -1,6 +1,6 @@
-# @kaifusion/widget
+# KAI Flow Widget (`@kaifusion/widget`)
 
-A customizable, React-based chat widget developed for the KAI Fusion AI platform. This component allows you to easily integrate your KAI Fusion workflows into your website.
+A customizable, React-based chat widget developed for the KAI Flow AI platform. This component allows you to easily integrate your KAI Flow workflows into your website.
 
 ## Features
 
@@ -62,7 +62,7 @@ export default App;
 
 | Prop         | Type                | Required | Default         | Description                                                                  |
 | ------------ | ------------------- | -------- | --------------- | ---------------------------------------------------------------------------- |
-| `targetUrl`  | `string`            | **Yes**  | -               | The address of the KAI Fusion backend API (e.g., `https://api.example.com`). |
+| `targetUrl`  | `string`            | **Yes**  | -               | The address of the KAI Flow backend API (e.g., `https://api.example.com`). |
 | `workflowId` | `string`            | **Yes**  | -               | Unique identifier (UUID) of the workflow to run.                             |
 | `authToken`  | `string`            | **Yes**  | -               | Bearer token or API Key for API access.                                      |
 | `title`      | `string`            | No       | `"ChatBot"`     | Title of the widget window.                                                  |
@@ -81,7 +81,7 @@ Add the following script tag to your HTML file:
 ```html
 <script
   src="https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js"
-  data-title="KAI Fusion Assistant"
+  data-title="KAI Flow Assistant"
   data-auth-token="your-auth-token"
   data-workflow-id="your-workflow-id"
   data-target-url="http://localhost:8000"
@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const script = document.createElement("script");
   script.src =
     "https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js"; // Adjust URL to your source
-  script.dataset.title = "KAI Fusion Assistant";
+  script.dataset.title = "KAI Flow Assistant";
   script.dataset.authToken = "your-auth-token";
   script.dataset.workflowId = "your-workflow-id";
   script.dataset.targetUrl = "http://localhost:8000";

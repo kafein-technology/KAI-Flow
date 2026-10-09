@@ -18,8 +18,6 @@ from app.core.constants import (
     DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_TIMEOUT,
     DB_POOL_RECYCLE, DB_POOL_PRE_PING
 )
-from app.core.logging_config import log_database_operation
-
 logger = logging.getLogger(__name__)
 
 # Database engines
@@ -176,8 +174,8 @@ def initialize_database():
             
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
-    # Don't raise during import - let the application start without database if needed
-    logger.warning("Database initialization failed - some features may not work")
+        # Don't raise during import - let the application start without database if needed
+        logger.warning("Database initialization failed - some features may not work")
 
 # Initialize database on import, but don't fail if it doesn't work
 try:

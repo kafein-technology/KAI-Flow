@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from typing import Dict, Any, List, Optional
 
 from langchain_core.runnables import Runnable
@@ -309,10 +308,6 @@ class AgenticRedTeamNode(ProcessorNode):
     # ----------------------------------------------------------------
 
     def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Dict[str, Any]:
-        # Suppress noisy LangSmith 403 warnings when no API key is configured
-        os.environ["LANGCHAIN_TRACING_V2"] = "false"
-        os.environ["LANGCHAIN_TRACING"] = "false"
-
         from openai import OpenAI
         from deepteam import red_team
         from deepteam.test_case import RTTurn

@@ -417,10 +417,10 @@ class VectorStoreOrchestrator(ProcessorNode):
         """Optimize database schema for vector operations."""
         
         # DEBUG: Validate all input parameters before database operations
-        logger.info(f"[SCHEMA_OPTIMIZATION_DEBUG] Input validation:")
-        logger.info(f"    - embedding_dimension: {repr(embedding_dimension)}, type: {type(embedding_dimension)}")
-        logger.info(f"    - collection_name: {repr(collection_name)}, type: {type(collection_name)}")
-        logger.info(f"    - search_algorithm: {repr(search_algorithm)}, type: {type(search_algorithm)}")
+        logger.debug("Vector schema optimization input validation")
+        logger.debug(f"    - embedding_dimension: {repr(embedding_dimension)}, type: {type(embedding_dimension)}")
+        logger.debug(f"    - collection_name: {repr(collection_name)}, type: {type(collection_name)}")
+        logger.debug(f"    - search_algorithm: {repr(search_algorithm)}, type: {type(search_algorithm)}")
         
         # Fix: Ensure embedding_dimension is a valid positive integer
         if not isinstance(embedding_dimension, int) or embedding_dimension <= 0:
@@ -729,9 +729,9 @@ class VectorStoreOrchestrator(ProcessorNode):
         logger.info("Starting Intelligent Vector Store execution")
         
         # DEBUG: Log all available keys in connected_nodes
-        logger.info(f"[VARIABLE_MISMATCH_DEBUG] Available connected_nodes keys: {list(connected_nodes.keys())}")
+        logger.debug(f"Available vector-store connection keys: {list(connected_nodes.keys())}")
         for key, value in connected_nodes.items():
-            logger.info(f"[VARIABLE_MISMATCH_DEBUG] Key '{key}': type={type(value)}, length={len(value) if isinstance(value, list) else 'N/A'}")
+            logger.debug(f"Vector-store input '{key}': type={type(value)}, length={len(value) if isinstance(value, list) else 'N/A'}")
         
         documents = connected_nodes.get("documents")
         
@@ -766,7 +766,7 @@ class VectorStoreOrchestrator(ProcessorNode):
             else:
                 connection_string = f"postgresql://{host}:{port}/{database}"
             
-            logger.info(f"Built connection string from credential: {credential['name']}")
+            logger.debug("Built vector-store connection string from configured credential")
         else:
             # Fallback to direct connection_string input (for backward compatibility)
             connection_string = inputs.get("connection_string")
@@ -793,7 +793,7 @@ class VectorStoreOrchestrator(ProcessorNode):
         pre_delete = inputs.get("pre_delete_collection", False)
         
         # DEBUG: Log embedding_dimension type and value for diagnostic
-        logger.info(f"[EMBEDDING_DIMENSION_DEBUG] Raw value: {repr(embedding_dimension)}, type: {type(embedding_dimension)}")
+        logger.debug(f"Embedding dimension raw value: {repr(embedding_dimension)}, type: {type(embedding_dimension)}")
         
         # Fix: Ensure embedding_dimension is always an integer
         if embedding_dimension is None or embedding_dimension == "none" or embedding_dimension == "":
@@ -808,11 +808,11 @@ class VectorStoreOrchestrator(ProcessorNode):
             logger.warning(f"Non-integer embedding_dimension value '{embedding_dimension}', defaulting to 0")
             embedding_dimension = 0
         
-        logger.info(f"[EMBEDDING_DIMENSION_DEBUG] Processed value: {embedding_dimension}, type: {type(embedding_dimension)}")
+        logger.debug(f"Embedding dimension processed value: {embedding_dimension}, type: {type(embedding_dimension)}")
         
         if embedding_dimension == 0:
             embedding_dimension = self._detect_embedding_dimension(valid_docs, embedder)
-            logger.info(f"[EMBEDDING_DIMENSION_DEBUG] Auto-detected value: {embedding_dimension}")
+            logger.debug(f"Embedding dimension auto-detected value: {embedding_dimension}")
             
         search_config = {
             "search_algorithm": inputs.get("search_algorithm", "cosine"),

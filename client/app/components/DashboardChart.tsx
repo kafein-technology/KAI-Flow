@@ -226,7 +226,9 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                 wrapperStyle={{ zIndex: 9999 }}
                 cursor={{ fill: "#2563eb", opacity: 0.08 }}
                 labelFormatter={(label) => {
-                  const date = new Date(label);
+                  const labelText = String(label ?? "");
+                  const date = new Date(labelText);
+                  if (Number.isNaN(date.getTime())) return labelText;
                   return date.toLocaleDateString("tr-TR", {
                     year: "numeric",
                     month: "long",

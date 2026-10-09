@@ -4,6 +4,7 @@ import { Check, Loader2, X as XIcon, Zap } from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
 import type { ServiceDefinition, ServiceField } from "~/types/credentials";
 import CredentialPasswordField from "./CredentialPasswordField";
+import CredentialModelCombobox from "./CredentialModelCombobox";
 
 interface DynamicCredentialFormProps {
   service: ServiceDefinition;
@@ -108,7 +109,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
     return values;
   }, [initialValues, service]);
 
-  const renderField = (field: ServiceField) => {
+  const renderField = (field: ServiceField, values: Record<string, any>) => {
     const commonProps = {
       name: field.name,
       placeholder: field.placeholder,
@@ -117,6 +118,16 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
     };
 
     switch (field.type) {
+      case "model-combobox":
+        return (
+          <CredentialModelCombobox
+            field={field}
+            serviceType={service.id}
+            values={values}
+            className={commonProps.className}
+          />
+        );
+
       case "textarea":
         return (
           <Field
@@ -242,7 +253,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
                     </label>
                   )}
 
-                  {renderField(field)}
+                  {renderField(field, values)}
 
                   {field.description && (
                     <p className="text-xs text-gray-500 mt-1">
@@ -285,10 +296,15 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
                     try {
                       const result = await onTest(values);
                       setTestState(result.success ? "success" : "error");
-                      setTestMessage(result.message);
+                      setTestMessage(
+                        result.message ||
+                          (result.success
+                            ? "Connection successful."
+                            : "Connection failed. Please check your connection details.")
+                      );
                     } catch (error: any) {
                       setTestState("error");
-                      setTestMessage(error?.message || "Unexpected error. Please try again.");
+                      setTestMessage(error?.message || "Connection failed. Please check your connection details.");
                     }
                     setTimeout(() => {
                       setTestState("idle");

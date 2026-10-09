@@ -17,8 +17,8 @@ const InsertTextRule = {
     InsertAsSnippet: 4,
 } as const;
 
-// KAI-Fusion specific variables available in code nodes
-const kaiFusionCompletions: CompletionItem[] = [
+// KAI Flow specific variables available in code nodes
+const kaiFlowCompletions: CompletionItem[] = [
     {
         label: "node_data",
         kind: CompletionItemKind.Variable,
@@ -129,6 +129,6 @@ export interface LanguageCompletions {
 }
 
 export const completionsByLanguage: LanguageCompletions = {
-    python: [...kaiFusionCompletions, ...pythonCompletions],
-    javascript: [...kaiFusionCompletions, ...javascriptCompletions],
+    python: [...kaiFlowCompletions, ...pythonCompletions],
+    javascript: [...kaiFlowCompletions, ...javascriptCompletions],
 };

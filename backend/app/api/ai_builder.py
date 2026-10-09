@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 import openai
 import json
+import logging
 from typing import Optional, Literal, Dict, Any
 
 from app.services.ai_builder import AIBuilderOrchestrator
@@ -38,6 +39,30 @@ async def generate_workflow(
     db: AsyncSession = Depends(get_db_session),
     credential_service: CredentialService = Depends(get_credential_service_dep)
 ):
+    async def save_builder_exchange(content: str, role: str = "assistant") -> None:
+        if not request.chatflow_id:
+            return
+        try:
+            cf_id = uuid.UUID(request.chatflow_id)
+            try:
+                w_id = uuid.UUID(request.workflow_id) if request.workflow_id else None
+            except (ValueError, TypeError):
+                w_id = None
+            chat_service = ChatService(db)
+            for message_role, message_content in (("user", request.question), (role, content)):
+                await chat_service.create_chat_message(
+                    ChatMessageCreate(
+                        role=message_role,
+                        content=message_content,
+                        chatflow_id=cf_id,
+                        user_id=current_user.id,
+                        workflow_id=w_id,
+                        source_documents="ai_builder"
+                    )
+                )
+        except Exception as e:
+            logging.getLogger(__name__).error("Failed to save AI Builder chat messages: %s", e)
+
     try:
         # Resolve credential
         try:
@@ -104,69 +129,43 @@ async def generate_workflow(
             chat_history=chat_history_list
         )
 
-        # Save user/assistant chat history if chatflow_id is provided
-        if request.chatflow_id:
-            try:
-                cf_id = uuid.UUID(request.chatflow_id)
-                w_id = None
-                if request.workflow_id:
-                    try:
-                        w_id = uuid.UUID(request.workflow_id)
-                    except (ValueError, TypeError):
-                        pass
-                chat_service = ChatService(db)
-
-                # Save user message
-                await chat_service.create_chat_message(
-                    ChatMessageCreate(
-                        role="user",
-                        content=request.question,
-                        chatflow_id=cf_id,
-                        user_id=current_user.id,
-                        workflow_id=w_id,
-                        source_documents="ai_builder"
-                    )
-                )
-
-                # Save assistant message
-                if result.get("invalid_request"):
-                    reject_msg = result.get("message") or "Your request does not appear to be a workflow edit. Please describe what you want to change."
-                    assistant_content = f"⚠️ {reject_msg}"
-                else:
-                    assistant_content = (
-                        "Workflow updated successfully!"
-                        if request.mode == "edit"
-                        else "Workflow created successfully! The nodes have been placed on your canvas."
-                    )
-
-                await chat_service.create_chat_message(
-                    ChatMessageCreate(
-                        role="assistant",
-                        content=assistant_content,
-                        chatflow_id=cf_id,
-                        user_id=current_user.id,
-                        workflow_id=w_id,
-                        source_documents="ai_builder"
-                    )
-                )
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Failed to save AI Builder chat messages: {e}")
+        if result.get("invalid_request"):
+            reject_msg = result.get("message") or "Your request does not appear to be a workflow edit. Please describe what you want to change."
+            await save_builder_exchange(f"⚠️ {reject_msg}", role="error")
+        else:
+            assistant_content = (
+                "Workflow updated successfully!"
+                if request.mode == "edit"
+                else "Workflow created successfully! The nodes have been placed on your canvas."
+            )
+            await save_builder_exchange(assistant_content)
 
         return result
     except ValueError as e:
+        await save_builder_exchange(str(e), role="error")
         raise HTTPException(status_code=400, detail=str(e))
     except openai.RateLimitError as e:
-        raise HTTPException(status_code=429, detail="Insufficient quota or rate limit exceeded. Please check your API balance and limits.")
+        detail = "Insufficient quota or rate limit exceeded. Please check your API balance and limits."
+        await save_builder_exchange(detail, role="error")
+        raise HTTPException(status_code=429, detail=detail)
     except openai.AuthenticationError as e:
-        raise HTTPException(status_code=401, detail="Invalid or expired API key. Please check your credentials in Settings → Credentials.")
+        detail = "Invalid or expired API key. Please check your credentials in Settings → Credentials."
+        await save_builder_exchange(detail, role="error")
+        # This is the AI provider's authentication failure, not the user's app session.
+        raise HTTPException(status_code=502, detail=detail)
     except (openai.APIConnectionError, openai.APITimeoutError) as e:
-        raise HTTPException(status_code=504, detail="Could not connect to the AI API or the request timed out. Please check your internet connection or the Base URL you entered and try again.")
+        detail = "Could not connect to the AI API or the request timed out. Please check your internet connection or the Base URL you entered and try again."
+        await save_builder_exchange(detail, role="error")
+        raise HTTPException(status_code=504, detail=detail)
     except openai.APIError as e:
         # Some generic provider errors (like missing JSON schema support)
         err_msg = e.message if hasattr(e, 'message') else str(e)
-        raise HTTPException(status_code=502, detail=f"API provider returned an error: {err_msg}")
+        detail = f"API provider returned an error: {err_msg}"
+        await save_builder_exchange(detail, role="error")
+        raise HTTPException(status_code=502, detail=detail)
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        detail = f"Internal Server Error: {str(e)}"
+        await save_builder_exchange(detail, role="error")
+        raise HTTPException(status_code=500, detail=detail)

@@ -201,13 +201,19 @@ class ComponentLogFilter(logging.Filter):
 def create_enhanced_workflow_handler(
     filename: str,
     component: Optional[ComponentType] = None,
-    max_bytes: int = 10 * 1024 * 1024,
-    backup_count: int = 5
-) -> logging.handlers.RotatingFileHandler:
-    """Create enhanced workflow-specific log handler."""
-    handler = logging.handlers.RotatingFileHandler(
-        filename, maxBytes=max_bytes, backupCount=backup_count
+    backup_count: int = 30
+) -> logging.handlers.TimedRotatingFileHandler:
+    """Create a UTF-8 log handler that rotates at local midnight."""
+    handler = logging.handlers.TimedRotatingFileHandler(
+        filename,
+        when="midnight",
+        interval=1,
+        backupCount=backup_count,
+        encoding="utf-8",
+        delay=True,
     )
+    handler.suffix = "%Y-%m-%d"
+    handler._kai_flow_managed_file_handler = True
     
     # Use enhanced formatters
     if ENVIRONMENT == "production":
@@ -234,23 +240,39 @@ log_history = deque(maxlen=MAX_HISTORY)
 # Set to store connected subscribers' (queue, loop) tuples
 log_subscribers = set()
 
+def _push_log_to_subscriber(queue, msg):
+    """Safely push log message to subscriber queue, dropping oldest if full to avoid QueueFull exceptions."""
+    try:
+        if queue.full():
+            try:
+                queue.get_nowait()
+            except Exception:
+                pass
+        queue.put_nowait(msg)
+    except Exception:
+        pass
+
 class UIStreamWrapper:
     """Wrapper around stdout and stderr that captures everything written to the terminal
-    and broadcasts it to connected UI clients.
+    for the application log and, when enabled, connected UI clients.
     """
-    def __init__(self, original_stream):
+    def __init__(self, original_stream, stream_name: str, capture_ui: bool):
         self.original_stream = original_stream
+        self.stream_name = stream_name
+        self.capture_ui = capture_ui
 
     def write(self, data):
         self.original_stream.write(data)
         if data.strip():
             msg = data.strip()
-            log_history.append(msg)
-            for queue, loop in list(log_subscribers):
-                try:
-                    loop.call_soon_threadsafe(queue.put_nowait, msg)
-                except Exception:
-                    pass
+            _write_stream_to_application_log(self.stream_name, msg)
+            if self.capture_ui:
+                log_history.append(msg)
+                for queue, loop in list(log_subscribers):
+                    try:
+                        loop.call_soon_threadsafe(_push_log_to_subscriber, queue, msg)
+                    except Exception:
+                        pass
 
     def flush(self):
         self.original_stream.flush()
@@ -267,7 +289,7 @@ class GlobalLogHandler(logging.Handler):
             log_history.append(msg)
             for queue, loop in list(log_subscribers):
                 try:
-                    loop.call_soon_threadsafe(queue.put_nowait, msg)
+                    loop.call_soon_threadsafe(_push_log_to_subscriber, queue, msg)
                 except Exception:
                     pass
         except Exception:
@@ -277,15 +299,46 @@ class GlobalLogHandler(logging.Handler):
 # Track original streams
 _original_stdout = sys.stdout
 _original_stderr = sys.stderr
+_application_file_handler = None
 
-def enable_ui_stream_capture():
-    # 1. Wrap stdout/stderr to capture print statements
+
+def _write_stream_to_application_log(stream_name: str, message: str):
+    """Write raw Python stdout/stderr output to the combined application log."""
+    handler = _application_file_handler
+    if handler is None:
+        return
+
+    try:
+        level = logging.WARNING if stream_name == "stderr" else logging.INFO
+        record = logging.LogRecord(
+            name=stream_name,
+            level=level,
+            pathname="",
+            lineno=0,
+            msg=message,
+            args=(),
+            exc_info=None,
+        )
+        handler.handle(record)
+    except Exception:
+        pass
+
+def _enable_stream_capture(capture_ui: bool):
+    """Capture Python streams for file logging and optionally the canvas UI."""
     if not isinstance(sys.stdout, UIStreamWrapper):
-        sys.stdout = UIStreamWrapper(_original_stdout)
+        sys.stdout = UIStreamWrapper(_original_stdout, "stdout", capture_ui)
+    elif capture_ui:
+        sys.stdout.capture_ui = True
     if not isinstance(sys.stderr, UIStreamWrapper):
-        sys.stderr = UIStreamWrapper(_original_stderr)
+        sys.stderr = UIStreamWrapper(_original_stderr, "stderr", capture_ui)
+    elif capture_ui:
+        sys.stderr.capture_ui = True
 
-    # 2. Setup standard logging handler for all registered loggers
+    if not capture_ui:
+        return
+
+    # Setup one standard handler on the root logger. Child loggers normally
+    # propagate to root; attaching the same handler to both produced duplicates.
     global_handler = GlobalLogHandler()
     global_handler.setFormatter(logging.Formatter('%(asctime)s | %(levelname)-8s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
     global_handler.setLevel(logging.DEBUG)
@@ -295,11 +348,51 @@ def enable_ui_stream_capture():
     if not any(isinstance(h, GlobalLogHandler) for h in root_logger.handlers):
         root_logger.addHandler(global_handler)
 
-    # Specific system loggers (even if they set propagate=False)
+    # Only attach directly to loggers that explicitly do not propagate.
     for name in list(logging.root.manager.loggerDict.keys()) + ["uvicorn", "uvicorn.access", "uvicorn.error", "sqlalchemy.engine", "langsmith.client"]:
         log = logging.getLogger(name)
-        if not any(isinstance(h, GlobalLogHandler) for h in log.handlers):
+        if not log.propagate and not any(isinstance(h, GlobalLogHandler) for h in log.handlers):
             log.addHandler(global_handler)
+
+
+def enable_ui_stream_capture():
+    _enable_stream_capture(capture_ui=True)
+
+
+def enable_file_stream_capture():
+    _enable_stream_capture(capture_ui=False)
+
+
+def _remove_managed_file_handlers():
+    """Remove handlers created by this module before reconfiguration."""
+    global _application_file_handler
+
+    loggers = [logging.getLogger()]
+    loggers.extend(
+        logger
+        for logger in logging.root.manager.loggerDict.values()
+        if isinstance(logger, logging.Logger)
+    )
+    removed_handlers = set()
+    for configured_logger in loggers:
+        for handler in configured_logger.handlers[:]:
+            if getattr(handler, "_kai_flow_managed_file_handler", False):
+                configured_logger.removeHandler(handler)
+                removed_handlers.add(handler)
+
+    for handler in removed_handlers:
+        handler.close()
+    _application_file_handler = None
+
+
+def _attach_application_handler_to_non_propagating_loggers(handler):
+    """Include loggers that intentionally bypass the root logger."""
+    names = list(logging.root.manager.loggerDict.keys())
+    names.extend(["uvicorn", "uvicorn.access", "uvicorn.error", "sqlalchemy.engine", "langsmith.client"])
+    for name in names:
+        configured_logger = logging.getLogger(name)
+        if not configured_logger.propagate and handler not in configured_logger.handlers:
+            configured_logger.addHandler(handler)
 
 
 def setup_enhanced_workflow_logging(
@@ -318,24 +411,31 @@ def setup_enhanced_workflow_logging(
         trace_components: Components to enable trace logging for
     """
     
+    global _application_file_handler
+
     # Configure root logger
     root_logger = logging.getLogger()
+    _remove_managed_file_handlers()
     
     # Set workflow log level
     workflow_level = getattr(logging, workflow_log_level.upper(), logging.INFO)
+    root_logger.setLevel(workflow_level)
     
     # Create enhanced console handler
-    console_handler = logging.StreamHandler(sys.stdout)
+    # Always bind the console handler to the original stream. The wrapped
+    # Python stream separately captures raw print/warning output, so normal
+    # logging records are not duplicated in application.log.
+    console_handler = logging.StreamHandler(_original_stdout)
     if ENVIRONMENT == "production":
         console_handler.setFormatter(WorkflowJSONFormatter())
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(workflow_level)
     else:
         console_handler.setFormatter(WorkflowFormatter(show_progress=True, show_context=True))
         console_handler.setLevel(workflow_level)
     
-    # Replace existing console handler
+    # Replace the console handler so repeated initialization stays idempotent.
     for handler in root_logger.handlers[:]:
-        if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
+        if type(handler) is logging.StreamHandler:
             root_logger.removeHandler(handler)
     
     root_logger.addHandler(console_handler)
@@ -366,6 +466,15 @@ def setup_enhanced_workflow_logging(
     # Setup file logging if enabled
     if enable_file_logging:
         log_dir = setup_log_directories()
+
+        # Complete application log: all records at the configured level,
+        # without workflow/component filtering.
+        application_handler = create_enhanced_workflow_handler(
+            log_dir / "application.log"
+        )
+        application_handler.setLevel(workflow_level)
+        root_logger.addHandler(application_handler)
+        _application_file_handler = application_handler
         
         # Create component-specific log files
         workflow_handler = create_enhanced_workflow_handler(
@@ -389,6 +498,8 @@ def setup_enhanced_workflow_logging(
         root_logger.addHandler(error_handler)
     # Configure third-party loggers to reduce noise
     configure_third_party_loggers()
+    if _application_file_handler is not None:
+        _attach_application_handler_to_non_propagating_loggers(_application_file_handler)
     
     # Additional noise reduction for development
     if ENVIRONMENT != "production":
@@ -547,6 +658,15 @@ def setup_debugging_logging():
 def auto_configure_enhanced_logging():
     """Automatically configure logging based on environment and user settings."""
     from .logging_settings import get_logging_settings
+
+    # Reuse the existing preset switch for customers that require no application
+    # logs. No console/file/UI handler is installed in this mode.
+    if os.getenv("KAI_FLOW_LOGGING_PRESET", "").strip().lower() == "disabled":
+        log_history.clear()
+        logging.disable(logging.CRITICAL)
+        return
+
+    logging.disable(logging.NOTSET)
     
     settings = get_logging_settings()
     
@@ -557,7 +677,12 @@ def auto_configure_enhanced_logging():
         trace_components=settings.trace_components
     )
     integrate_with_tracing()
-    enable_ui_stream_capture()
+    # The UI log stream is a development aid and must not retain/serve backend
+    # logs in production deployments.
+    if settings.environment == "development":
+        enable_ui_stream_capture()
+    elif settings.enable_file_logging:
+        enable_file_stream_capture()
 
 
 # Utility functions for existing code migration

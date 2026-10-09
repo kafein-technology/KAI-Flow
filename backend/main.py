@@ -1,12 +1,21 @@
 from dotenv import load_dotenv, find_dotenv
+import os
 
 load_dotenv(find_dotenv())
+
+# A single existing logging preset can be used for customer deployments that
+# must not emit application logs or external LangChain traces.
+if os.getenv("KAI_FLOW_LOGGING_PRESET", "").strip().lower() == "disabled":
+    os.environ["LANGSMITH_TRACING"] = "false"
+    os.environ["LANGCHAIN_TRACING_V2"] = "false"
+    os.environ["ENABLE_WORKFLOW_TRACING"] = "false"
+    os.environ["TRACE_AGENT_REASONING"] = "false"
+    os.environ["TRACE_MEMORY_OPERATIONS"] = "false"
 
 import asyncio
 import logging
 from datetime import datetime, timezone
 from app.core.enhanced_logging import auto_configure_enhanced_logging
-import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,6 +57,7 @@ from app.api.documents import router as documents_router
 from app.api.scheduled_jobs import router as scheduled_jobs_router
 from app.api.vectors import router as vectors_router
 from app.api.timers import router as timers_router
+from app.api.model_artifacts import router as model_artifacts_router
 
 
 from app.api.external_workflows import router as external_workflows_router
@@ -57,13 +67,18 @@ from app.api.logs import router as logs_router
 
 logger = logging.getLogger(__name__)
 
+# Suppress import/startup logs as well when the existing logging preset is
+# explicitly disabled. The normal handler setup still happens in lifespan.
+if os.getenv("KAI_FLOW_LOGGING_PRESET", "").strip().lower() == "disabled":
+    logging.disable(logging.CRITICAL)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize enhanced logging system first
     auto_configure_enhanced_logging()
     
-    logger.info("Starting Agent-Flow V2 Backend...")
+    logger.info("Starting KAI Flow Backend...")
     
     # Initialize node registry
     try:
@@ -102,6 +117,24 @@ async def lifespan(app: FastAPI):
     
     logger.info("Backend initialization complete - KAI Flow Ready!")
     
+    # Start managed model artifact lifecycle maintenance. The first pass also
+    # recovers stale leases and crash-left staging files.
+    _model_artifact_maintenance_task = None
+    try:
+        from app.services.model_artifact_maintenance import (
+            model_artifact_maintenance_loop,
+        )
+
+        _model_artifact_maintenance_task = asyncio.create_task(
+            model_artifact_maintenance_loop()
+        )
+        logger.info("Managed model artifact maintenance loop started")
+    except Exception as e:
+        logger.error(
+            f"Failed to start managed model artifact maintenance loop: {e}",
+            exc_info=True,
+        )
+
     # Start Kafka reconciliation loop — periodic listener synchronization
     _kafka_reconciliation_task = None
     try:
@@ -115,6 +148,17 @@ async def lifespan(app: FastAPI):
     
     # Cleanup
     logger.info("Shutting down KAI Flow Backend...")
+
+    if (
+        _model_artifact_maintenance_task
+        and not _model_artifact_maintenance_task.done()
+    ):
+        _model_artifact_maintenance_task.cancel()
+        try:
+            await _model_artifact_maintenance_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Managed model artifact maintenance loop stopped")
     
     # Stop the reconciliation loop.
     if _kafka_reconciliation_task and not _kafka_reconciliation_task.done():
@@ -130,7 +174,7 @@ async def lifespan(app: FastAPI):
         from app.nodes.triggers.kafka_trigger import KafkaListenerService
         all_listeners = KafkaListenerService.get_all_listeners()
         for listener in all_listeners:
-            if listener and listener.get("status") == "running":
+            if listener and listener.get("status") in ("starting", "running"):
                 await KafkaListenerService.stop_listener(listener["listener_id"])
         logger.info("All Kafka listeners stopped")
     except Exception as e:
@@ -141,8 +185,8 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI application
 app = FastAPI(
-    title="Agent-Flow V2",
-    description="Advanced workflow automation platform with LangGraph engine",
+    title="KAI Flow",
+    description="KAI Flow workflow automation platform with LangGraph engine",
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -215,6 +259,7 @@ app.include_router(documents_router, prefix=f"/{API_START}/{API_VERSION}/documen
 app.include_router(scheduled_jobs_router, prefix=f"/{API_START}/{API_VERSION}/jobs/scheduled", tags=["Scheduled Jobs"])
 app.include_router(vectors_router, prefix=f"/{API_START}/{API_VERSION}/vectors", tags=["Vector Storage"])
 app.include_router(logs_router, prefix=f"/{API_START}/{API_VERSION}/logs", tags=["Logs"])
+app.include_router(model_artifacts_router, prefix=f"/{API_START}/{API_VERSION}/model-artifacts", tags=["Model Artifacts"])
 
 # Include Timers router (both versioned and unversioned to match frontend API calls)
 app.include_router(timers_router, prefix=f"/{API_START}/timers", tags=["Timers"])
@@ -276,7 +321,22 @@ async def health_check():
                 'error': str(e)
             })
         
-        overall_healthy = nodes_healthy and engine_healthy and db_status.get("status") == "healthy"
+        model_artifact_storage = {"status": "error"}
+        try:
+            from app.services.model_artifact_store import managed_model_artifact_store
+
+            model_artifact_storage = await asyncio.to_thread(
+                managed_model_artifact_store.storage_status
+            )
+        except Exception as e:
+            model_artifact_storage["error"] = type(e).__name__
+
+        overall_healthy = (
+            nodes_healthy
+            and engine_healthy
+            and db_status.get("status") == "healthy"
+            and model_artifact_storage.get("status") not in {"error", "critical"}
+        )
         
         return {
             "status": "healthy" if overall_healthy else "degraded",
@@ -293,6 +353,7 @@ async def health_check():
                     "type": "LangGraph Unified Engine"
                 },
                 "database": db_status,
+                "model_artifact_storage": model_artifact_storage,
                 "logging": {
                     "status": "healthy",
                     "middleware_active": True,
@@ -317,7 +378,7 @@ async def health_check_api():
 async def get_info():
     try:
         return {
-            "name": "Agent-Flow V2",
+            "name": "KAI Flow",
             "version": "2.0.0",
             "description": "Advanced workflow automation platform",
             "features": [
@@ -373,8 +434,8 @@ async def get_info_v1():
 async def root():
     return {
         "status": "healthy",
-        "app": "Agent-Flow V2",
-        "message": "Agent-Flow V2 API",
+        "app": "KAI Flow",
+        "message": "KAI Flow API",
         "version": "2.0.0",
         "docs": "/docs",
         "health": f"/{API_START}/health",

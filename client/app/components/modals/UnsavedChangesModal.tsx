@@ -13,9 +13,23 @@ const UnsavedChangesModal = forwardRef<
   const dialogRef = useRef<HTMLDialogElement>(null);
   useImperativeHandle(ref, () => dialogRef.current!);
 
+  const closeAsCancel = () => {
+    onCancel();
+    dialogRef.current?.close();
+  };
+
   return (
-    <dialog ref={dialogRef} className="modal modal-bottom sm:modal-middle">
-      <div className="modal-box bg-gray-900 border border-gray-700">
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="unsaved-changes-title"
+      aria-describedby="unsaved-changes-description"
+      onCancel={(event) => {
+        event.preventDefault();
+        closeAsCancel();
+      }}
+      className="fixed inset-0 m-auto h-fit w-[calc(100%_-_2rem)] max-w-lg overflow-visible bg-transparent p-0 text-left text-white backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
+    >
+      <div className="rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl shadow-black/50">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-yellow-500/20 rounded-full flex items-center justify-center">
             <svg
@@ -33,29 +47,30 @@ const UnsavedChangesModal = forwardRef<
             </svg>
           </div>
           <div>
-            <h3 className="font-bold text-lg text-white">Unsaved Changes</h3>
+            <h3 id="unsaved-changes-title" className="font-bold text-lg text-white">
+              Unsaved Changes
+            </h3>
             <p className="text-sm text-gray-400">
               Your changes have not been saved
             </p>
           </div>
         </div>
 
-        <p className="text-gray-300 mb-6">
+        <p id="unsaved-changes-description" className="text-gray-300 mb-6">
           Do you want to save your changes before leaving this page?
         </p>
 
-        <div className="modal-action gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <button
-            className="btn btn-outline btn-sm text-gray-400 border-gray-600 hover:bg-gray-800 hover:text-white"
-            onClick={() => {
-              onCancel();
-              dialogRef.current?.close();
-            }}
+            type="button"
+            className="rounded-lg border border-gray-600 px-3 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+            onClick={closeAsCancel}
           >
             Cancel
           </button>
           <button
-            className="btn btn-outline btn-sm text-red-400 border-red-600 hover:bg-red-900/20 hover:text-red-300"
+            type="button"
+            className="rounded-lg border border-red-600 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-900/20 hover:text-red-300"
             onClick={() => {
               onDiscard();
               dialogRef.current?.close();
@@ -64,7 +79,8 @@ const UnsavedChangesModal = forwardRef<
             Discard Changes
           </button>
           <button
-            className="btn btn-primary btn-sm bg-blue-600 hover:bg-blue-700 text-white"
+            type="button"
+            className="rounded-lg border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:border-blue-700 hover:bg-blue-700"
             onClick={() => {
               onSave();
               dialogRef.current?.close();

@@ -168,7 +168,7 @@ const Register = () => {
                     onBlur={handleBlur}
                     value={values.fullName}
                     disabled={isLoading || isSubmitting}
-                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.fullName && touched.fullName
+                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.fullName && touched.fullName
                       ? "border-red-300 bg-red-50"
                       : "border-gray-300 bg-white hover:border-gray-400"
                       }`}
@@ -191,7 +191,7 @@ const Register = () => {
                     onBlur={handleBlur}
                     value={values.email}
                     disabled={isLoading || isSubmitting}
-                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.email && touched.email
+                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.email && touched.email
                       ? "border-red-300 bg-red-50"
                       : "border-gray-300 bg-white hover:border-gray-400"
                       }`}
@@ -214,7 +214,7 @@ const Register = () => {
                     onBlur={handleBlur}
                     value={values.password}
                     disabled={isLoading || isSubmitting}
-                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.password && touched.password
+                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.password && touched.password
                       ? "border-red-300 bg-red-50"
                       : "border-gray-300 bg-white hover:border-gray-400"
                       }`}
@@ -237,7 +237,7 @@ const Register = () => {
                     onBlur={handleBlur}
                     value={values.confirmPassword}
                     disabled={isLoading || isSubmitting}
-                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.confirmPassword && touched.confirmPassword
+                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.confirmPassword && touched.confirmPassword
                       ? "border-red-300 bg-red-50"
                       : "border-gray-300 bg-white hover:border-gray-400"
                       }`}
@@ -255,8 +255,8 @@ const Register = () => {
                   type="submit"
                   disabled={isSubmitting || isLoading}
                   className={`w-full py-3 px-4 rounded-md font-medium text-white transition-all duration-200 ${isSubmitting || isLoading
-                    ? "bg-purple-400 cursor-not-allowed"
-                    : "bg-purple-600 hover:bg-purple-700 active:bg-purple-800"
+                    ? "bg-blue-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
                     }`}
                 >
                   {isSubmitting || isLoading ? (
@@ -321,7 +321,7 @@ const Register = () => {
                     Already have an account?{" "}
                     <Link
                       to="/signin"
-                      className="text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
+                      className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
                     >
                       Sign In
                     </Link>

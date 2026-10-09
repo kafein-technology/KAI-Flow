@@ -231,7 +231,7 @@ class RespondToWebhookNode(TerminatorNode):
             data = make_json_serializable(data)
             # Ensure JSON format: if string, wrap it; if already dict/list, use as is
             response_body = {"data": data} if isinstance(data, str) else (data if isinstance(data, (dict, list)) else {"data": data})
-            logger.info(f"Using all incoming items as response body: {response_body}")
+            logger.debug("Using incoming items as webhook response (type=%s)", type(response_body).__name__)
         elif response_config == "no_data":
             # Send empty response
             response_body = {}
@@ -241,12 +241,12 @@ class RespondToWebhookNode(TerminatorNode):
             response_body = inputs.get("response_body")
             if not response_body and previous_node_output:
                 # Fallback to previous node output if response_body is empty
-                logger.info(f"Using previous node output as response body: {previous_node_output}")
+                logger.debug("Using previous node output as webhook response (type=%s)", type(previous_node_output).__name__)
                 # Convert Document objects to dicts first, then make JSON serializable
                 response_body = _convert_documents_to_dict(previous_node_output)
                 response_body = make_json_serializable(response_body)
             elif not response_body and previous_node_output:
-                logger.info(f"Using previous_node output as response body: {previous_node_output}")
+                logger.debug("Using previous node output as webhook response (type=%s)", type(previous_node_output).__name__)
                 response_body = _convert_documents_to_dict(previous_node_output)
                 response_body = make_json_serializable(response_body)
         
@@ -274,7 +274,7 @@ class RespondToWebhookNode(TerminatorNode):
             try:
                 response_headers = json.loads(response_headers)
             except json.JSONDecodeError:
-                logger.warning(f"Failed to parse response_headers as JSON: {response_headers}")
+                logger.warning("Failed to parse webhook response headers as JSON")
                 response_headers = {}
         
         # Ensure response_headers is a dict

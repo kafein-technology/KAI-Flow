@@ -13,6 +13,10 @@ import {
   type Connection,
 } from "@xyflow/react";
 import CustomEdge from "../common/CustomEdge";
+import {
+  getEdgeExecutionStatus,
+  getEffectiveNodeStatus,
+} from "~/lib/nodeStatusUtils";
 
 interface ReactFlowCanvasProps {
   nodes: Node[];
@@ -22,7 +26,7 @@ interface ReactFlowCanvasProps {
   onConnect: (connection: Connection) => void;
   nodeTypes: any;
   edgeTypes: any;
-  activeEdges: string[];
+  activeNodes: string[];
   reactFlowWrapper: React.RefObject<HTMLDivElement | null>;
   onDrop: (event: React.DragEvent) => void;
   onDragOver: (event: React.DragEvent) => void;
@@ -41,7 +45,7 @@ export default function ReactFlowCanvas({
   onConnect,
   nodeTypes,
   edgeTypes,
-  activeEdges,
+  activeNodes,
   reactFlowWrapper,
   onDrop,
   onDragOver,
@@ -51,6 +55,8 @@ export default function ReactFlowCanvas({
   onNodeContextMenu,
   onPaneClick,
 }: ReactFlowCanvasProps) {
+  const activeNodeIds = new Set(activeNodes);
+
   return (
     <div
       ref={reactFlowWrapper}
@@ -60,24 +66,28 @@ export default function ReactFlowCanvas({
     >
       <ReactFlow
         nodes={nodes.map((node) => {
-          const status = nodeStatus[node.id];
-          const statusStyle =
-            status === 'success'
-              ? { outline: '2px solid #22c55e', outlineOffset: 2, borderRadius: 12 }
-              : status === 'failed'
-                ? { outline: '2px solid #ef4444', outlineOffset: 2, borderRadius: 12 }
-                : {};
+          const reportedStatus = getEffectiveNodeStatus(node.id, nodeStatus, nodes, edges);
+          const status =
+            reportedStatus === "pending" && !activeNodeIds.has(node.id)
+              ? undefined
+              : reportedStatus;
           return {
             ...node,
-            style: { ...(node.style || {}), ...statusStyle },
-            data: { ...node.data },
+            data: {
+              ...(node.data || {}),
+              executionStatus: status,
+            },
           };
         })}
-        edges={edges.map((edge) => ({
-          ...edge,
-          data: { ...(edge.data || {}), status: edgeStatus[edge.id] },
-          style: { ...(edge.style || {}), __status: edgeStatus[edge.id] },
-        }))}
+        edges={edges.map((edge) => {
+          const status = getEdgeExecutionStatus(edge, edgeStatus);
+
+          return {
+            ...edge,
+            data: { ...(edge.data || {}), status },
+            style: { ...(edge.style || {}), __status: status },
+          };
+        })}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}

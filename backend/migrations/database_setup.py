@@ -25,14 +25,18 @@ env_decryptor = EnvEncryption()
 # Logging configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 numeric_level = getattr(logging, LOG_LEVEL, logging.INFO)
+logging_disabled = os.getenv("KAI_FLOW_LOGGING_PRESET", "").strip().lower() == "disabled"
+file_logging_enabled = os.getenv("KAI_FLOW_FILE_LOGGING", "false").lower() == "true"
+log_handlers = [] if logging_disabled else [logging.StreamHandler(sys.stdout)]
+if not logging_disabled and file_logging_enabled:
+    log_handlers.append(logging.FileHandler('database_setup.log', encoding='utf-8'))
 logging.basicConfig(
     level=numeric_level,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('database_setup.log', encoding='utf-8')
-    ]
+    handlers=log_handlers or [logging.NullHandler()]
 )
+if logging_disabled:
+    logging.disable(logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
 # Environment variables
@@ -77,7 +81,9 @@ class DatabaseSetup:
             "webhook_events",
             "vector_collections",
             "vector_documents",
-            "external_workflows"
+            "external_workflows",
+            "managed_model_artifacts",
+            "managed_model_artifact_leases"
         ]
 
     async def initialize(self):
@@ -248,7 +254,8 @@ class DatabaseSetup:
                 DocumentCollection, Document, DocumentChunk, DocumentAccessLog, DocumentVersion,
                 WebhookEndpoint, WebhookEvent,
                 VectorCollection, VectorDocument,
-                ExternalWorkflow
+                ExternalWorkflow,
+                ManagedModelArtifact, ManagedModelArtifactLease
             )
 
             # Check API Key model
@@ -286,7 +293,9 @@ class DatabaseSetup:
                 'webhook_events': WebhookEvent,
                 'vector_collections': VectorCollection,
                 'vector_documents': VectorDocument,
-                'external_workflows': ExternalWorkflow
+                'external_workflows': ExternalWorkflow,
+                'managed_model_artifacts': ManagedModelArtifact,
+                'managed_model_artifact_leases': ManagedModelArtifactLease
             }
 
             # Add API Key if available
@@ -330,6 +339,7 @@ class DatabaseSetup:
             'TEXT': 'text',
             'BOOLEAN': 'boolean',
             'INTEGER': 'integer',
+            'BIGINT': 'bigint',
             'TIMESTAMP': 'timestamp with time zone',
             'DATETIME': 'timestamp with time zone',
             'JSONB': 'jsonb',
@@ -516,7 +526,8 @@ class DatabaseSetup:
                 DocumentCollection, Document, DocumentChunk, DocumentAccessLog, DocumentVersion,
                 WebhookEndpoint, WebhookEvent,
                 VectorCollection, VectorDocument,
-                ExternalWorkflow
+                ExternalWorkflow,
+                ManagedModelArtifact, ManagedModelArtifactLease
             )
 
             # Check API Key model
@@ -737,12 +748,12 @@ async def main():
     # Environment check
     if not CREATE_DATABASE:
         logger.error("CREATE_DATABASE environment variable is not set to 'true'")
-        logger.info("Solution: Set CREATE_DATABASE=true in backend/.env or export CREATE_DATABASE=true")
+        logger.info("Solution: Set CREATE_DATABASE=true in the root .env or export CREATE_DATABASE=true")
         sys.exit(1)
 
     if not DATABASE_URL:
         logger.error("DATABASE_URL environment variable is not set")
-        logger.info("Solution: Set DATABASE_URL in backend/.env or export DATABASE_URL='your_database_url'")
+        logger.info("Solution: Set DATABASE_URL in the root .env or export DATABASE_URL='your_database_url'")
         sys.exit(1)
 
     # Column removal warning

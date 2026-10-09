@@ -17,6 +17,7 @@ from .vector_collection import VectorCollection
 from .vector_document import VectorDocument
 from .document import DocumentCollection, Document, DocumentChunk, DocumentAccessLog, DocumentVersion
 from .external_workflow import ExternalWorkflow
+from .model_artifact import ManagedModelArtifact, ManagedModelArtifactLease
 
 __all__ = [
     "Base",
@@ -48,6 +49,8 @@ __all__ = [
     "DocumentChunk",
     "DocumentAccessLog",
     "DocumentVersion",
-    "ExternalWorkflow"
+    "ExternalWorkflow",
+    "ManagedModelArtifact",
+    "ManagedModelArtifactLease"
 ]
 

@@ -1,5 +1,5 @@
 """
-Middleware package for KAI Fusion Backend.
+Middleware package for KAI Flow Backend.
 
 Contains comprehensive middleware for logging, security, and monitoring.
 """

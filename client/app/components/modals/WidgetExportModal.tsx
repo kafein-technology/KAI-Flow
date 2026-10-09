@@ -105,15 +105,28 @@ function App() {
     return (
       <dialog
         ref={dialogRef}
-        className="modal modal-bottom sm:modal-middle backdrop-blur-sm"
+        aria-labelledby="widget-export-title"
+        onCancel={(event) => {
+          event.preventDefault();
+          setShowPreview(false);
+          dialogRef.current?.close();
+        }}
+        onClick={(event) => {
+          if (event.target !== event.currentTarget) return;
+          setShowPreview(false);
+          dialogRef.current?.close();
+        }}
+        className="fixed inset-0 m-auto h-fit w-[calc(100%_-_2rem)] max-w-[80rem] overflow-visible bg-transparent p-0 text-left text-white backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
       >
-        <div className="modal-box bg-gray-900 border border-gray-700 max-w-[80rem]! h-[80vh] flex flex-col">
+        <div className="flex h-[80vh] w-full flex-col rounded-xl border border-gray-700 bg-[#18181B] p-6 shadow-2xl shadow-black/50">
           <div className="flex items-center gap-3 mb-6 flex-shrink-0">
             <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
               <MessageSquare className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-white">Export Widget</h3>
+              <h3 id="widget-export-title" className="font-bold text-lg text-white">
+                Export Widget
+              </h3>
               <p className="text-sm text-gray-400">
                 Integrate KAI Flow widget into your application
               </p>
@@ -291,7 +304,7 @@ function App() {
             </div>
           </div>
 
-          <div className="modal-action mt-6 flex-shrink-0 flex items-center justify-end w-full gap-3">
+          <div className="mt-6 flex w-full flex-shrink-0 items-center justify-end gap-3">
             <button
               className={`flex items-center gap-2 px-3 py-1.5 text-white rounded-md text-xs font-medium transition-colors ${showPreview
                 ? "bg-red-500 hover:bg-red-600"

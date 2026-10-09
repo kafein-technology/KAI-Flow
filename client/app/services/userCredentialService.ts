@@ -49,3 +49,32 @@ export const getCredentialWorkflows = async (
     API_ENDPOINTS.CREDENTIALS.WORKFLOWS(id)
   );
 };
+
+export interface CredentialModelOption {
+  id: string;
+  owned_by?: string | null;
+}
+
+export interface CredentialModelsResponse {
+  models: CredentialModelOption[];
+  source: 'provider' | 'empty' | string;
+  message?: string | null;
+}
+
+export const getCredentialModels = async (
+  id: string
+): Promise<CredentialModelsResponse> => {
+  return await apiClient.get<CredentialModelsResponse>(
+    API_ENDPOINTS.CREDENTIALS.MODELS(id)
+  );
+};
+
+export const listModelsRaw = async (
+  serviceType: string,
+  data: Record<string, any>
+): Promise<CredentialModelsResponse> => {
+  return await apiClient.post<CredentialModelsResponse>(
+    API_ENDPOINTS.CREDENTIALS.LIST_MODELS,
+    { service_type: serviceType, data }
+  );
+};

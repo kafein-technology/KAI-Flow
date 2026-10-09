@@ -67,7 +67,7 @@ interface FullscreenNodeModalProps {
   onConfigChange?: (values: any) => void;
   historyRevision?: number;
   configFlushRef?: React.MutableRefObject<(() => void) | null>;
-  onExecute?: () => void; // New execute function
+  onExecute?: (values: any) => void; // New execute function
   ConfigComponent: React.ComponentType<{
     configData: any;
     onSave: (values: any) => void;
@@ -144,6 +144,7 @@ export default function FullscreenNodeModal({
 
   const cancelPendingConfigChange = useCallback(() => {
     configChangeRevisionRef.current += 1;
+    pendingConfigValuesRef.current = null;
     if (configChangeTimerRef.current) {
       clearTimeout(configChangeTimerRef.current);
       configChangeTimerRef.current = null;
@@ -652,9 +653,12 @@ export default function FullscreenNodeModal({
     nodeAliasRef.current = alias;
     setNodeAlias(alias);
     setNodeAliasError(validateNodeAlias(alias));
-    // Sync workflow state into the form after undo/redo or when configData changes externally (e.g., import).
+    // Live form edits are written back to the canvas through onConfigChange. Do not
+    // feed those canvas echoes into Formik's initialValues: enableReinitialize would
+    // otherwise replace a newer keystroke with an older debounced value. Explicit
+    // workflow revisions (undo/redo/import/reset) still reinitialize the form below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyRevision, configData]);
+  }, [historyRevision]);
 
   useEffect(() => {
     if (prevHistoryRevisionRef.current === historyRevision) return;
@@ -804,12 +808,12 @@ export default function FullscreenNodeModal({
               </div>
               {onExecute && nodeMetadata.node_type === "processor" && (
                 <button
-                  onClick={onExecute}
+                  onClick={() => onExecute({ ...(pendingConfigValuesRef.current ?? configValues), name: nodeAliasRef.current })}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
-                  title="Execute this processor node"
+                  title="Run only this processor node"
                 >
                   <Play className="w-4 h-4" />
-                  Execute
+                  Run Node
                 </button>
               )}
               <button

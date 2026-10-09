@@ -42,7 +42,7 @@ export const NeonHandle = ({
             ? "shadow-[0_0_8px_2px_var(--neon-color),0_0_16px_4px_var(--neon-color)]"
             : ""
         }
-         z-10
+         z-30
         ${
           glow
             ? "before:content-[''] before:absolute before:inset-0 before:rounded-full before:bg-[radial-gradient(circle,var(--neon-color)_0%,transparent_80%)] before:opacity-40 before:blur-[3px] after:content-[''] after:absolute after:inset-0 after:rounded-full after:bg-[radial-gradient(circle,var(--neon-color)_0%,transparent_80%)] after:opacity-30 after:blur-[5px]"

@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -355,70 +356,343 @@ class CredentialTestRawRequest(BaseModel):
     data: Dict[str, Any]
 
 
-async def _test_openai(secret: Dict[str, Any]) -> CredentialTestResponse:
-    try:
-        from openai import AsyncOpenAI
+class CredentialModelOption(BaseModel):
+    id: str
+    owned_by: Optional[str] = None
 
-        client = AsyncOpenAI(api_key=secret.get("api_key", ""))
-        await asyncio.wait_for(client.models.list(), timeout=10)
-        return CredentialTestResponse(success=True, message="Connected to OpenAI successfully.")
-    except asyncio.TimeoutError:
-        return CredentialTestResponse(success=False, message="Connection timed out.")
-    except Exception as e:
-        msg = str(e)
-        if "invalid" in msg.lower() or "auth" in msg.lower():
-            msg += (
-                " Note: If this key is for an OpenAI-compatible provider "
-                "(OpenRouter, vLLM, etc.), it may still be valid for that provider."
+
+class CredentialModelsResponse(BaseModel):
+    models: List[CredentialModelOption]
+    source: str  # "provider" | "empty"
+    message: Optional[str] = None
+
+
+_MODELS_CACHE: Dict[str, tuple[float, List[CredentialModelOption]]] = {}
+_CACHE_TTL_SECONDS = 60.0
+
+
+async def _list_openai_models(api_key: str) -> List[CredentialModelOption]:
+    """Query official OpenAI /models endpoint."""
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(api_key=api_key)
+    response = await asyncio.wait_for(client.models.list(), timeout=10)
+    raw_items = getattr(response, "data", None) or []
+
+    seen: set[str] = set()
+    models: List[CredentialModelOption] = []
+    for item in raw_items:
+        model_id = str(getattr(item, "id", "") or "").strip()
+        if not model_id or model_id in seen:
+            continue
+        seen.add(model_id)
+        owned_by = getattr(item, "owned_by", None)
+        models.append(CredentialModelOption(id=model_id, owned_by=str(owned_by) if owned_by else None))
+
+    models.sort(key=lambda m: m.id.lower())
+    return models
+
+
+def _is_html_response(content_type: str = "", body: str = "") -> bool:
+    """Check if an HTTP response is an HTML web page rather than API JSON."""
+    ct = (content_type or "").lower()
+    if "text/html" in ct or "application/xhtml" in ct:
+        return True
+    body_strip = (body or "").strip().lower()
+    if body_strip.startswith("<!doctype html") or body_strip.startswith("<html") or "<title>" in body_strip:
+        return True
+    return False
+
+
+def _format_error_text(text: str, status_code: Optional[int] = None) -> str:
+    """Sanitize error text to avoid dumping massive HTML documents or empty messages in the UI."""
+    text_strip = (text or "").strip()
+    if not text_strip:
+        code_str = f" (HTTP {status_code})" if status_code else ""
+        return f"Connection failed{code_str}. Please check your connection details."
+    if _is_html_response(body=text_strip):
+        code_str = f" (HTTP {status_code})" if status_code else ""
+        return f"Server returned an HTML page instead of API response{code_str}. Please check your Base URL."
+    if len(text_strip) > 500:
+        return text_strip[:500] + "..."
+    return text_strip
+
+
+async def _list_openai_compatible_models(
+    base_url: str,
+    api_key: str = "",
+    skip_ssl: bool = False,
+) -> List[CredentialModelOption]:
+    """Query an OpenAI Compatible endpoint's /models API."""
+    url = f"{base_url.rstrip('/')}/models"
+    headers: Dict[str, str] = {
+        "User-Agent": "KAI-Flow/1.0",
+        "Accept": "application/json",
+    }
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    async with httpx.AsyncClient(verify=not skip_ssl, timeout=httpx.Timeout(10.0, connect=4.0)) as http_client:
+        resp = await http_client.get(url, headers=headers)
+        if _is_html_response(resp.headers.get("content-type"), resp.text):
+            raise ValueError(
+                f"Server returned an HTML page (HTTP {resp.status_code}) instead of API response. Please check your Base URL."
             )
-        return CredentialTestResponse(success=False, message=msg)
+        if resp.status_code >= 400:
+            raise ValueError(f"HTTP {resp.status_code}: {_format_error_text(resp.text, resp.status_code)}")
+
+        json_data = resp.json()
+        raw_items = None
+        if isinstance(json_data, dict):
+            raw_items = json_data.get("data") or json_data.get("models") or []
+        elif isinstance(json_data, list):
+            raw_items = json_data
+
+    seen: set[str] = set()
+    models: List[CredentialModelOption] = []
+    for item in (raw_items or []):
+        model_id = (
+            getattr(item, "id", None)
+            or (item.get("id") if isinstance(item, dict) else None)
+            or (item.get("name") if isinstance(item, dict) else None)
+            or (str(item) if isinstance(item, str) else None)
+        )
+        if not model_id or not str(model_id).strip():
+            continue
+        model_id_str = str(model_id).strip()
+        if model_id_str in seen:
+            continue
+
+        seen.add(model_id_str)
+        owned_by = getattr(item, "owned_by", None) or (item.get("owned_by") if isinstance(item, dict) else None)
+        models.append(
+            CredentialModelOption(
+                id=model_id_str,
+                owned_by=str(owned_by) if owned_by else None,
+            )
+        )
+
+    models.sort(key=lambda m: m.id.lower())
+    return models
 
 
-async def _test_openai_compatible(secret: Dict[str, Any]) -> CredentialTestResponse:
-    try:
-        from openai import AsyncOpenAI
-
-        # Use dummy key for local servers that don't need auth, so client doesn't complain about empty key
-        api_key = secret.get("api_key", "")
+async def _list_models_response(
+    service_type: str,
+    secret: Dict[str, Any],
+) -> CredentialModelsResponse:
+    """Query a provider's /models API with caching and error handling."""
+    if service_type == "openai":
+        api_key = str(secret.get("api_key") or "").strip()
         if not api_key:
-            api_key = "dummy_for_local"
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Enter your API key to load available models.",
+            )
 
-        # Check if SSL verification should be skipped
+        cache_key = f"openai::{api_key}"
+        now = time.time()
+        if cache_key in _MODELS_CACHE:
+            cached_time, cached_models = _MODELS_CACHE[cache_key]
+            if now - cached_time < _CACHE_TTL_SECONDS:
+                return CredentialModelsResponse(models=cached_models, source="provider")
+
+        try:
+            models = await _list_openai_models(api_key)
+            if models:
+                _MODELS_CACHE[cache_key] = (now, models)
+                return CredentialModelsResponse(models=models, source="provider")
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Provider returned no models. You can type a model name manually.",
+            )
+        except asyncio.TimeoutError:
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Connection timed out. You can type a model name manually.",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to list OpenAI models: {e}")
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message=f"Could not fetch models: {_format_error_text(str(e))}",
+            )
+
+    elif service_type == "openai_compatible":
+        base_url = str(secret.get("base_url") or "").strip().rstrip("/")
+        if not base_url:
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Enter a Base URL to load available models.",
+            )
+
+        api_key = str(secret.get("api_key") or "").strip()
         skip_ssl = secret.get("skip_ssl_verify", False)
         if isinstance(skip_ssl, str):
             skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
         skip_ssl = bool(skip_ssl)
 
-        client_kwargs = {
-            "api_key": api_key,
-            "base_url": secret.get("base_url", "")
+        cache_key = f"openai_compatible:{base_url}:{api_key}"
+        now = time.time()
+        if cache_key in _MODELS_CACHE:
+            cached_time, cached_models = _MODELS_CACHE[cache_key]
+            if now - cached_time < _CACHE_TTL_SECONDS:
+                return CredentialModelsResponse(models=cached_models, source="provider")
+
+        try:
+            models = await _list_openai_compatible_models(base_url, api_key=api_key, skip_ssl=skip_ssl)
+            if models:
+                _MODELS_CACHE[cache_key] = (now, models)
+                return CredentialModelsResponse(models=models, source="provider")
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Provider returned no models. You can type a model name manually.",
+            )
+        except asyncio.TimeoutError:
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Connection timed out. You can type a model name manually.",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to list OpenAI Compatible models: {e}")
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message=f"Could not fetch models: {_format_error_text(str(e))}",
+            )
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Model listing is not supported for service type: {service_type}",
+    )
+
+
+@router.post("/list-models", response_model=CredentialModelsResponse)
+async def list_models_raw(
+    request: CredentialTestRawRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """List models from unsaved credential form data (base URL / API key)."""
+    return await _list_models_response(request.service_type, request.data or {})
+
+
+@router.get("/{credential_id}/models", response_model=CredentialModelsResponse)
+async def list_credential_models(
+    credential_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    credential_service: CredentialService = Depends(get_credential_service_dep),
+):
+    """
+    List available LLM models for a credential by querying the provider's /models API.
+    """
+    user_id = current_user.id
+    decrypted = await credential_service.get_decrypted_credential(db, user_id, credential_id)
+    if not decrypted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Credential not found")
+
+    return await _list_models_response(
+        decrypted.get("service_type", ""),
+        decrypted.get("secret", {}) or {},
+    )
+
+
+async def _test_openai(secret: Dict[str, Any]) -> CredentialTestResponse:
+    try:
+        api_key = str(secret.get("api_key") or "").strip()
+        if not api_key:
+            return CredentialTestResponse(success=False, message="API key is required.")
+
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(api_key=api_key)
+        await asyncio.wait_for(client.models.list(), timeout=10)
+        return CredentialTestResponse(success=True, message="Connected to OpenAI successfully.")
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="Connection timed out.")
+    except Exception as e:
+        return CredentialTestResponse(success=False, message=str(e) or "Connection failed. Please check your API key.")
+
+
+async def _test_openai_compatible(secret: Dict[str, Any]) -> CredentialTestResponse:
+    try:
+        base_url = str(secret.get("base_url") or "").strip().rstrip("/")
+        if not base_url:
+            return CredentialTestResponse(success=False, message="Base URL is required.")
+
+        api_key = str(secret.get("api_key") or "").strip()
+        model_name = str(secret.get("model_name") or "").strip()
+        skip_ssl = secret.get("skip_ssl_verify", False)
+        if isinstance(skip_ssl, str):
+            skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
+        skip_ssl = bool(skip_ssl)
+
+        headers: Dict[str, str] = {
+            "User-Agent": "KAI-Flow/1.0",
+            "Accept": "application/json",
         }
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
 
-        # Inject custom HTTP client to bypass SSL verification
-        if skip_ssl:
-            logger.info("SSL verification disabled for test connection.")
-            client_kwargs["http_client"] = httpx.AsyncClient(verify=False)
+        async with httpx.AsyncClient(verify=not skip_ssl, timeout=httpx.Timeout(10.0, connect=4.0)) as http_client:
+            # 1. Connectivity check via /models
+            models_url = f"{base_url}/models"
+            try:
+                models_resp = await http_client.get(models_url, headers=headers)
+                if _is_html_response(models_resp.headers.get("content-type"), models_resp.text):
+                    return CredentialTestResponse(
+                        success=False,
+                        message=f"Server returned an HTML page (HTTP {models_resp.status_code}) instead of API response. Please check your Base URL.",
+                    )
+                if models_resp.status_code >= 400:
+                    return CredentialTestResponse(
+                        success=False,
+                        message=_format_error_text(models_resp.text, models_resp.status_code),
+                    )
+            except httpx.RequestError as req_err:
+                return CredentialTestResponse(success=False, message=str(req_err) or "Connection failed. Please check your Base URL.")
 
-        client = AsyncOpenAI(**client_kwargs)
-        
-        # 1. First, test using chat/completions endpoint
-        model_name = secret.get("model_name", "")
-        await asyncio.wait_for(
-            client.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "user", "content": "ping"}],
-                max_tokens=16
-            ),
-            timeout=10
-        )
-        msg = "Connected to OpenAI Compatible provider successfully via chat/completions."
+            # 2. Authentication probe: if API key is provided, test it with a lightweight POST request
+            if api_key:
+                chat_url = f"{base_url}/chat/completions"
+                probe_model = model_name
+                try:
+                    chat_resp = await http_client.post(
+                        chat_url,
+                        headers=headers,
+                        json={
+                            "model": probe_model,
+                            "messages": [{"role": "user", "content": "ping"}],
+                            "max_tokens": 1,
+                        },
+                    )
+                    if _is_html_response(chat_resp.headers.get("content-type"), chat_resp.text):
+                        return CredentialTestResponse(
+                            success=False,
+                            message=f"Server returned an HTML page (HTTP {chat_resp.status_code}) instead of API response. Please check your Base URL.",
+                        )
+                    if chat_resp.status_code >= 400:
+                        return CredentialTestResponse(
+                            success=False,
+                            message=_format_error_text(chat_resp.text, chat_resp.status_code),
+                        )
+                except httpx.RequestError as req_err:
+                    logger.debug(f"Chat probe request error: {req_err}")
+
+        msg = "Connected to OpenAI Compatible provider successfully."
         if skip_ssl:
             msg += " (SSL verification was skipped)"
         return CredentialTestResponse(success=True, message=msg)
     except asyncio.TimeoutError:
         return CredentialTestResponse(success=False, message="Connection timed out.")
     except Exception as e:
-        return CredentialTestResponse(success=False, message=str(e))
+        return CredentialTestResponse(success=False, message=str(e) or "Connection failed. Please check your connection details.")
 
 
 async def _test_cohere(secret: Dict[str, Any]) -> CredentialTestResponse:
@@ -482,6 +756,64 @@ async def _test_postgresql(secret: Dict[str, Any]) -> CredentialTestResponse:
         return CredentialTestResponse(success=False, message=str(e))
 
 
+async def _test_mongodb(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Test MongoDB in a worker thread so the async API remains responsive."""
+    from app.nodes.databases.mongo_node import MongoNode, _build_mongodb_uri
+
+    database = str(secret.get("database") or "").strip()
+    if not database:
+        return CredentialTestResponse(
+            success=False, message="MongoDB Database Name is required."
+        )
+
+    try:
+        connection_string = _build_mongodb_uri(secret)
+    except ValueError as exc:
+        return CredentialTestResponse(success=False, message=str(exc))
+
+    try:
+        from pymongo import MongoClient
+    except ImportError:
+        return CredentialTestResponse(
+            success=False,
+            message="The pymongo package is not installed on the server.",
+        )
+
+    def check_connection() -> int:
+        client = MongoClient(
+            connection_string,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=10000,
+        )
+        try:
+            client.admin.command("ping")
+            return len(client[database].list_collection_names())
+        finally:
+            client.close()
+
+    try:
+        collection_count = await asyncio.wait_for(
+            asyncio.to_thread(check_connection), timeout=15
+        )
+        return CredentialTestResponse(
+            success=True,
+            message=(
+                "MongoDB connection successful. "
+                f"The selected database has {collection_count} collection(s)."
+            ),
+        )
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(
+            success=False, message="MongoDB connection timed out."
+        )
+    except Exception as exc:
+        message = MongoNode._database_error(exc)
+        logger.warning("MongoDB credential test failed: %s", message)
+        return CredentialTestResponse(
+            success=False, message=message
+        )
+
 async def _test_kafka(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
         from confluent_kafka.admin import AdminClient
@@ -515,7 +847,6 @@ async def _test_minio(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
         from app.services.minio_service import minio_service
         import asyncio
-        import boto3
         from botocore.exceptions import ClientError, EndpointConnectionError
         
         endpoint = secret.get("endpoint", "").strip()
@@ -572,6 +903,27 @@ def _test_webhook_auth(secret: Dict[str, Any], service_type: str) -> CredentialT
     return CredentialTestResponse(success=False, message="Unknown credential type.")
 
 
+async def _test_mysql(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Test a MySQL credential without exposing connection details."""
+    from app.nodes.databases.mysql_node import MySQLNode, mysql_connection
+
+    def check_connection() -> None:
+        with mysql_connection(secret) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+
+    try:
+        await asyncio.wait_for(asyncio.to_thread(check_connection), timeout=15)
+        return CredentialTestResponse(success=True, message="MySQL connection successful.")
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="MySQL connection timed out.")
+    except Exception as exc:
+        message = MySQLNode._database_error(exc)
+        logger.warning("MySQL credential test failed: %s", message)
+        return CredentialTestResponse(success=False, message=message)
+
+
 async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTestResponse:
     """Route a test request to the appropriate handler based on service type."""
     if service_type == "openai":
@@ -584,16 +936,77 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_tavily(secret)
     elif service_type == "postgresql_vectorstore":
         return await _test_postgresql(secret)
+    elif service_type == "mongodb":
+        return await _test_mongodb(secret)
+    elif service_type == "gmail":
+        return await _test_gmail(secret)
     elif service_type == "kafka":
         return await _test_kafka(secret)
     elif service_type == "minio":
         return await _test_minio(secret)
+    elif service_type == "mysql":
+        return await _test_mysql(secret)
+    elif service_type == "sqlite":
+        return await _test_sqlite(secret)
+    elif service_type == "google_sheets":
+        return await _test_google_sheets(secret)
     elif service_type in ("basic_auth", "header_auth"):
         return _test_webhook_auth(secret, service_type)
     else:
         return CredentialTestResponse(
             success=False, message=f"Test not supported for service type: {service_type}"
         )
+
+
+async def _test_sqlite(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Test a SQLite credential without exposing its filesystem path."""
+    from app.nodes.databases.sqlite_node import SQLiteNode, sqlite_connection
+
+    def check_connection() -> None:
+        with sqlite_connection(secret) as connection:
+            connection.execute("SELECT 1").fetchone()
+
+    try:
+        await asyncio.wait_for(asyncio.to_thread(check_connection), timeout=15)
+        return CredentialTestResponse(success=True, message="SQLite connection successful.")
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="SQLite connection timed out.")
+    except Exception as exc:
+        message = SQLiteNode._database_error(exc)
+        logger.warning("SQLite credential test failed: %s", message)
+        return CredentialTestResponse(
+            success=False,
+            message=message,
+        )
+
+
+async def _test_google_sheets(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Validate Google credentials without requiring access to a specific spreadsheet."""
+    from google.auth.transport.requests import Request
+    from app.nodes.integrations.google_sheets_node import (
+        _google_credentials,
+        _google_error,
+    )
+
+    def authenticate() -> None:
+        credentials = _google_credentials(secret)
+        credentials.refresh(Request())
+
+    try:
+        await asyncio.wait_for(asyncio.to_thread(authenticate), timeout=15)
+        return CredentialTestResponse(
+            success=True,
+            message="Google Sheets authentication successful.",
+        )
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(
+            success=False,
+            message="Google Sheets authentication timed out.",
+        )
+    except Exception as exc:
+        message = _google_error(exc)
+        logger.warning("Google Sheets credential test failed: %s", message)
+        return CredentialTestResponse(success=False, message=message)
 
 
 @router.post("/test-raw", response_model=CredentialTestResponse)
@@ -640,7 +1053,18 @@ def _detect_service_type(data: dict) -> str:
     - **data**: Dictionary containing credential data
     - **Returns**: Detected service type
     """
-    # Simple heuristics to detect service type
+    # Simple heuristics to detect service type. Ambiguous host/database/user
+    # combinations are intentionally not guessed; normal clients send the
+    # explicit service_type alongside credential data.
+    if "database_path" in data:
+        return "sqlite"
+
+    connection_string = data.get("connection_string")
+    if isinstance(connection_string, str) and connection_string.lower().startswith(
+        ("mongodb://", "mongodb+srv://")
+    ):
+        return "mongodb"
+
     # 1) PostgreSQL Vector Store (must be detected BEFORE generic username/password)
     if (
         # Connection string form (accept postgresql://, postgresql+asyncpg://, etc.)
@@ -674,3 +1098,46 @@ def _detect_service_type(data: dict) -> str:
         return "certificate"
     else:
         return "custom"
+
+
+async def _test_gmail(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Validate the refresh token, Gmail API access, and granted scope."""
+    from app.core import google_oauth
+
+    try:
+        token = await asyncio.wait_for(
+            asyncio.to_thread(google_oauth.access_token_for, secret), timeout=20
+        )
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.get(
+                "https://gmail.googleapis.com/gmail/v1/users/me/profile",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if response.status_code != 200:
+            try:
+                provider_message = (
+                    response.json().get("error", {}).get("message") or ""
+                )
+            except ValueError:
+                provider_message = ""
+            detail = provider_message[:300] or f"HTTP {response.status_code}"
+            return CredentialTestResponse(
+                success=False,
+                message=f"Gmail API access failed: {detail}",
+            )
+
+        email = response.json().get("emailAddress") or secret.get("email")
+        return CredentialTestResponse(
+            success=True,
+            message=(
+                f"Connected to Gmail as {email}." if email else "Connected to Gmail."
+            ),
+        )
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="Gmail connection timed out.")
+    except httpx.TimeoutException:
+        return CredentialTestResponse(success=False, message="Gmail API request timed out.")
+    except google_oauth.GoogleOAuthError as exc:
+        return CredentialTestResponse(success=False, message=str(exc))
+    except Exception as exc:
+        return CredentialTestResponse(success=False, message=f"Could not connect: {exc}")

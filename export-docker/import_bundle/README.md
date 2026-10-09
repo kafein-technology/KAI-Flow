@@ -1,4 +1,4 @@
-# KAI-Fusion Workflow Export Bundle
+# KAI Flow Workflow Export Bundle
 
 Export Name: `<your_export_name>`
 Generated: `<timestamp>`

@@ -45,23 +45,31 @@ const AutoSaveSettingsModal = forwardRef<
 
     const formatInterval = (ms: number) => {
       const seconds = Math.floor(ms / 1000);
-      if (seconds < 60) return `${seconds} saniye`;
+      if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
       const minutes = Math.floor(seconds / 60);
-      return `${minutes} dakika`;
+      return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
     };
 
     return (
       <dialog
         ref={dialogRef}
-        className="modal modal-bottom sm:modal-middle backdrop-blur-sm"
+        aria-labelledby="auto-save-settings-title"
+        onCancel={(event) => {
+          event.preventDefault();
+          handleCancel();
+        }}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) handleCancel();
+        }}
+        className="fixed inset-0 m-auto h-fit w-[calc(100%_-_2rem)] max-w-lg overflow-visible bg-transparent p-0 text-left text-white backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
       >
-        <div className="modal-box bg-gray-900 border border-gray-700">
+        <div className="rounded-xl border border-gray-700 bg-[#18181B] p-6 shadow-2xl shadow-black/50">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
               <Save className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-white">
+              <h3 id="auto-save-settings-title" className="font-bold text-lg text-white">
                 Auto-Save Settings
               </h3>
               <p className="text-sm text-gray-400">
@@ -89,6 +97,7 @@ const AutoSaveSettingsModal = forwardRef<
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setLocalAutoSaveEnabled(!localAutoSaveEnabled)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   localAutoSaveEnabled ? "bg-blue-500" : "bg-gray-600"
@@ -136,7 +145,7 @@ const AutoSaveSettingsModal = forwardRef<
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                   <span className="text-sm text-gray-300">
-                    Last save: {lastAutoSave.toLocaleString("tr-TR")}
+                    Last save: {lastAutoSave.toLocaleString("en-US")}
                   </span>
                 </div>
               </div>
@@ -151,15 +160,17 @@ const AutoSaveSettingsModal = forwardRef<
             </div>
           </div>
 
-          <div className="modal-action gap-2">
+          <div className="mt-6 flex justify-end gap-2">
             <button
-              className="btn btn-outline btn-sm text-gray-400 border-gray-600 hover:bg-gray-800 hover:text-white"
+              type="button"
+              className="rounded-lg border border-gray-600 px-3 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
               onClick={handleCancel}
             >
               Cancel
             </button>
             <button
-              className="btn btn-primary btn-sm bg-blue-600 hover:bg-blue-700 text-white"
+              type="button"
+              className="rounded-lg border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:border-blue-700 hover:bg-blue-700"
               onClick={handleSave}
             >
               Save

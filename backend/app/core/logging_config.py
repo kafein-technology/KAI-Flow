@@ -1,5 +1,5 @@
 """
-Comprehensive logging configuration for KAI Fusion Backend.
+Comprehensive logging configuration for KAI Flow Backend.
 
 This module provides structured logging capabilities with:
 - JSON format for production environments
@@ -184,7 +184,8 @@ def setup_comprehensive_logging():
     
     # Configure root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(getattr(logging, LOG_LEVEL.upper()))
+    numeric_level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
+    root_logger.setLevel(numeric_level)
     
     # Clear existing handlers
     root_logger.handlers.clear()
@@ -193,11 +194,11 @@ def setup_comprehensive_logging():
     console_handler = logging.StreamHandler(sys.stdout)
     if ENVIRONMENT == "production":
         console_handler.setFormatter(JSONFormatter())
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(numeric_level)
     else:
         # Use colored formatter for development
         console_handler.setFormatter(HumanReadableFormatter(use_colors=True))
-        console_handler.setLevel(logging.DEBUG)
+        console_handler.setLevel(numeric_level)
 
     root_logger.addHandler(console_handler)
     
@@ -217,8 +218,8 @@ def configure_third_party_loggers():
     """Configure logging levels for third-party libraries."""
     
     # SQLAlchemy logging
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
-    logging.getLogger("sqlalchemy.pool").setLevel(logging.INFO)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.dialects").setLevel(logging.WARNING)
     
     # FastAPI/Uvicorn logging
@@ -229,6 +230,14 @@ def configure_third_party_loggers():
     # HTTP libraries
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+    # Object-storage SDK debug logs include internal endpoints, object names,
+    # access-key identifiers, and signed request headers. Keep those details out
+    # of normal application logs while preserving warnings and failures.
+    logging.getLogger("boto3").setLevel(logging.WARNING)
+    logging.getLogger("botocore").setLevel(logging.WARNING)
+    logging.getLogger("s3transfer").setLevel(logging.WARNING)
     
     # Asyncio
     logging.getLogger("asyncio").setLevel(logging.WARNING)

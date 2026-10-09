@@ -7,7 +7,6 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 import jwt
-from jose import JWTError
 
 from app.core.constants import SECRET_KEY, ALGORITHM
 from app.core.database import get_db_session
@@ -172,7 +171,7 @@ async def refresh_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token expired"
         )
-    except JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token"

@@ -1,4 +1,3 @@
-version: "3"
 services:
   db:
     image: postgres:15-alpine
@@ -26,7 +25,6 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       BACKEND_PORT: ${BACKEND_PORT:-23056}
-      BACKEND_DEBUG: ${BACKEND_DEBUG:-true}
       ROOT_PATH: ${ROOT_PATH}
 
       # Database Settings
@@ -42,14 +40,46 @@ services:
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
 
       # Basic Settings
-      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      KAI_FLOW_LOGGING_PRESET: ${KAI_FLOW_LOGGING_PRESET:-}
+      KAI_FLOW_FILE_LOGGING: ${KAI_FLOW_FILE_LOGGING:-false}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+
+      # Model security artifacts are streamed to persistent disk, never kept in RAM.
+      KAI_MODEL_ARTIFACT_DIR: /data/model-artifacts
+      KAI_MODEL_STAGING_DIR: /data/model-scan-staging
+      KAI_MODEL_MAX_ARTIFACT_BYTES: ${KAI_MODEL_MAX_ARTIFACT_BYTES:-274877906944}
+      KAI_MODEL_ARCHIVE_MAX_EXPANDED_BYTES: ${KAI_MODEL_ARCHIVE_MAX_EXPANDED_BYTES:-274877906944}
+      KAI_MODEL_UPLOAD_MAX_BYTES: ${KAI_MODEL_UPLOAD_MAX_BYTES:-8589934592}
+      KAI_MODEL_SCAN_MEMORY_LIMIT_BYTES: ${KAI_MODEL_SCAN_MEMORY_LIMIT_BYTES:-4294967296}
+      # Browser uploads are temporary execution artifacts, not a model repository.
+      KAI_MODEL_MANAGED_RETENTION_SECONDS: ${KAI_MODEL_MANAGED_RETENTION_SECONDS:-86400}
+      KAI_MODEL_MANAGED_POST_SCAN_RETENTION_SECONDS: ${KAI_MODEL_MANAGED_POST_SCAN_RETENTION_SECONDS:-3600}
+      KAI_MODEL_INCOMPLETE_RETENTION_SECONDS: ${KAI_MODEL_INCOMPLETE_RETENTION_SECONDS:-3600}
+      KAI_MODEL_STAGING_RETENTION_SECONDS: ${KAI_MODEL_STAGING_RETENTION_SECONDS:-7200}
+      KAI_MODEL_ARTIFACT_GC_INTERVAL_SECONDS: ${KAI_MODEL_ARTIFACT_GC_INTERVAL_SECONDS:-900}
+      KAI_MODEL_UPLOAD_RESERVATION_SECONDS: ${KAI_MODEL_UPLOAD_RESERVATION_SECONDS:-7200}
+      # Warn at the soft threshold, evict temporary uploads at aggressive pressure,
+      # and reject new upload/staging reservations at the hard threshold.
+      KAI_MODEL_STORAGE_SOFT_PERCENT: ${KAI_MODEL_STORAGE_SOFT_PERCENT:-75}
+      KAI_MODEL_STORAGE_AGGRESSIVE_PERCENT: ${KAI_MODEL_STORAGE_AGGRESSIVE_PERCENT:-85}
+      KAI_MODEL_STORAGE_HARD_PERCENT: ${KAI_MODEL_STORAGE_HARD_PERCENT:-90}
+      KAI_MODEL_STORAGE_MIN_FREE_BYTES: ${KAI_MODEL_STORAGE_MIN_FREE_BYTES:-21474836480}
+      KAI_MODEL_STORAGE_MIN_FREE_PERCENT: ${KAI_MODEL_STORAGE_MIN_FREE_PERCENT:-15}
+      # JSON keeps Windows drive-letter syntax portable when the backend runs natively.
+      # In this container, mount company storage read-only at /models and enter /models/...
+      KAI_MODEL_LOCAL_ALLOWED_ROOTS: '${KAI_MODEL_LOCAL_ALLOWED_ROOTS:-["/models"]}'
 
       # LangSmith Settings
       LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2}
       LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT}
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
       LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
+
+      # Workflow Tracing
+      ENABLE_WORKFLOW_TRACING: ${ENABLE_WORKFLOW_TRACING:-false}
+      TRACE_AGENT_REASONING: ${TRACE_AGENT_REASONING:-false}
+      TRACE_MEMORY_OPERATIONS: ${TRACE_MEMORY_OPERATIONS:-false}
 
       # Keycloak Settings
       KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-false}
@@ -62,6 +92,11 @@ services:
              uvicorn main:app --host 0.0.0.0 --port 8000"
     networks:
       - kai_network
+    volumes:
+      - kai_model_artifacts:/data/model-artifacts
+      - kai_model_scan_staging:/data/model-scan-staging
+      # Example enterprise bind/PVC mount (do not copy models into the image):
+      # - /mnt/company-models:/models:ro
     stdin_open: true
     tty: true
 
@@ -109,3 +144,5 @@ networks:
 
 volumes:
   kai_db_data:
+  kai_model_artifacts:
+  kai_model_scan_staging:

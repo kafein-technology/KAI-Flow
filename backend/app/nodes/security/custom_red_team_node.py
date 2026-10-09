@@ -226,7 +226,12 @@ class CustomRedTeamNode(ProcessorNode):
             # 4. Test each prompt
             results = []
             for idx, prompt in enumerate(prompts, 1):
-                logger.info(f"Testing prompt {idx}/{len(prompts)}: {prompt[:50]}...")
+                logger.debug(
+                    "Testing red-team prompt (index=%s, total=%s, length=%s)",
+                    idx,
+                    len(prompts),
+                    len(prompt),
+                )
                 
                 try:
                     # Send prompt to target LLM

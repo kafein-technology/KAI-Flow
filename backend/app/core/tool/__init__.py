@@ -39,7 +39,7 @@ from .converter import AutoToolConverter
 from .manager import AutoToolManager
 
 __version__ = "1.0.0"
-__author__ = "KAI-Fusion Tool Integration Team"
+__author__ = "KAI Flow Tool Integration Team"
 __license__ = "Proprietary"
 
 __all__ = [

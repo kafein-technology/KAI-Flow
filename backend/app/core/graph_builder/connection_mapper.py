@@ -84,7 +84,7 @@ class ConnectionMapper:
                 )
                 
                 connections.append(conn)
-                logger.debug(f"{source}[{source_handle}] ➜ {target}[{target_handle}]")
+                logger.debug(f"{source}[{source_handle}] -> {target}[{target_handle}]")
             
             # Store connections for later use
             self.connections = connections

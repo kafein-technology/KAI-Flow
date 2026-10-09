@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, status
 from starlette.requests import Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
-from jose import jwt, JWTError
+import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 import secrets
 import string

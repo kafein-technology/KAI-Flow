@@ -12,6 +12,7 @@ import {
   X,
   Clock,
   Heart,
+  LayoutDashboard,
 } from "lucide-react";
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -365,23 +366,12 @@ const Sidebar = () => {
         {/* Navigation */}
         <nav className="flex-1">
           <div className="space-y-2">
-            {/* Pinned Items Link */}
-            {(() => {
-              const pinnedItems = getPinnedItems();
-              if (pinnedItems.length > 0) {
-                return (
-                  <SidebarLink
-                    icon={<Heart className="w-5 h-5" />}
-                    label="Pinned Items"
-                    path="/pinned"
-                    active={location.pathname === "/pinned"}
-                    badge={`${pinnedItems.length}`}
-                  />
-                );
-              }
-              return null;
-            })()}
-
+            <SidebarLink
+              icon={<LayoutDashboard className="w-5 h-5" />}
+              label="Dashboard"
+              path="/"
+              active={location.pathname === "/"}
+            />
             <SidebarLink
               icon={<Play className="w-5 h-5" />}
               label="Workflows"
@@ -408,6 +398,23 @@ const Sidebar = () => {
                 active={location.pathname === "/marketplace"}
               />
             )}
+
+            {/* Pinned Items Link */}
+            {(() => {
+              const pinnedItems = getPinnedItems();
+              if (pinnedItems.length > 0) {
+                return (
+                  <SidebarLink
+                    icon={<Heart className="w-5 h-5" />}
+                    label="Pinned Items"
+                    path="/pinned"
+                    active={location.pathname === "/pinned"}
+                    badge={`${pinnedItems.length}`}
+                  />
+                );
+              }
+              return null;
+            })()}
 
             {/* Divider */}
             <div className="h-px bg-gradient-to-r from-transparent via-slate-600/50 to-transparent my-4" />

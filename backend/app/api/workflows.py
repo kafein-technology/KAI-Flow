@@ -579,6 +579,8 @@ class AdhocExecuteRequest(BaseModel):
     session_id: Optional[str] = None
     chatflow_id: Optional[str] = None  # Yeni eklenen alan
     workflow_id: Optional[str] = None  # Execution kaydı için workflow_id
+    node_id: Optional[str] = None
+    node_outputs: Optional[Dict[str, Any]] = None
 
 
 # Use centralized JSON serialization utility
@@ -665,6 +667,58 @@ async def get_dashboard_stats(
             for day in sorted(day_stats.keys())
         ]
     return stats
+
+@router.post("/execute-node")
+async def execute_node(
+    req: AdhocExecuteRequest,
+    current_user: User = Depends(get_current_user_or_master_api_key),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Execute only the selected node without creating a workflow execution."""
+    if not req.workflow_id or not req.flow_data or not req.node_id:
+        raise HTTPException(status_code=400, detail="Workflow ID, flow data and node ID are required")
+
+    try:
+        workflow_id = uuid.UUID(req.workflow_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid workflow ID")
+
+    workflow_result = await db.execute(select(Workflow).filter(Workflow.id == workflow_id))
+    workflow = workflow_result.scalar_one_or_none()
+    if not workflow:
+        raise HTTPException(status_code=404, detail=f"Workflow {req.workflow_id} not found")
+    if workflow.user_id != current_user.id and not workflow.is_public:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    executor = get_workflow_executor()
+    session_id = executor.get_canvas_session_id(current_user.id, workflow_id)
+    user_context = executor.prepare_user_context(
+        user=current_user,
+        session_id=session_id,
+        workflow_id=workflow_id,
+        owner_id=workflow.user_id,
+    )
+
+    try:
+        build_result = executor.workflow_enhancer.enhanced_build(
+            flow_data=req.flow_data,
+            user_context=user_context,
+        )
+        engine = build_result[2]
+        result = await engine.base_builder.execute_node(
+            node_id=req.node_id,
+            inputs={"input": req.input_text},
+            session_id=session_id,
+            user_id=user_context["user_id"],
+            owner_id=user_context["owner_id"],
+            workflow_id=req.workflow_id,
+            node_outputs=req.node_outputs,
+        )
+        return make_json_serializable(result)
+    except Exception as exc:
+        logger.error(f"Node execution failed: {exc}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Failed to run node: {exc}")
+
 
 @router.post("/execute")
 async def execute_adhoc_workflow(
@@ -799,12 +853,37 @@ async def execute_adhoc_workflow(
         )
     except Exception as e:
         logger.error(f"Workflow execution failed: {e}", exc_info=True)
+        if not is_internal_call and chatflow_id:
+            try:
+                await chat_service.create_chat_message(
+                    ChatMessageCreate(
+                        role="assistant",
+                        content=str(e) or type(e).__name__,
+                        chatflow_id=chatflow_id,
+                        user_id=user_id,
+                        workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None,
+                        source_documents="workflow_error",
+                    )
+                )
+            except Exception as chat_error:
+                logger.warning(f"Failed to create workflow error chat message: {chat_error}")
         raise HTTPException(status_code=400, detail=f"Failed to run workflow: {e}")
     
     # Stream the results
     async def event_generator():
         llm_output = ""
+        error_output = ""
         final_outputs = {}
+
+        def error_content(value: Any) -> str:
+            if value is None:
+                return "Workflow execution failed"
+            if isinstance(value, str):
+                return value or "Workflow execution failed"
+            try:
+                return json.dumps(_make_chunk_serializable(value), ensure_ascii=False)
+            except (TypeError, ValueError):
+                return str(value)
         
         try:
             if not hasattr(result_stream, "__aiter__"):
@@ -812,6 +891,8 @@ async def execute_adhoc_workflow(
             
             async for chunk in result_stream:
                 if isinstance(chunk, dict):
+                    if chatflow_id and (chunk.get("type") or chunk.get("event")) == "error":
+                        error_output = error_content(chunk.get("error") or chunk.get("data"))
                     if chunk.get("type") == "token":
                         llm_output += chunk.get("content", "")
                     elif chunk.get("type") == "output":
@@ -833,26 +914,32 @@ async def execute_adhoc_workflow(
                 except (TypeError, ValueError) as e:
                     logger.warning(f"Non-serializable chunk: {e}")
                     safe_chunk = {"type": "error", "error": f"Serialization error: {str(e)}", "original_type": type(chunk).__name__}
+                    if chatflow_id:
+                        error_output = safe_chunk["error"]
                     yield f"data: {json.dumps(safe_chunk, ensure_ascii=False)}\n\n"
         except Exception as e:
             logger.error(f"Streaming execution error: {e}", exc_info=True)
+            if chatflow_id:
+                error_output = error_content(str(e) or type(e).__name__)
             error_data = {"event": "error", "data": str(e)}
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
         finally:
-            # Save LLM output to chat - skip for webhook calls
-            if llm_output and not is_internal_call:
+            # Save a chat error in the existing assistant message shape.
+            response_content = error_output or llm_output
+            if response_content and not is_internal_call:
                 try:
                     await chat_service.create_chat_message(
                         ChatMessageCreate(
                             role="assistant",
-                            content=llm_output,
+                            content=response_content,
                             chatflow_id=chatflow_id,
                             user_id=user_id,
-                            workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None
+                            workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None,
+                            source_documents="workflow_error" if error_output else None,
                         )
                     )
                 except Exception as chat_error:
-                    logger.warning(f"Failed to create assistant chat message: {chat_error}")
+                    logger.warning(f"Failed to create terminal chat message: {chat_error}")
                 
     return StreamingResponse(
         event_generator(), 

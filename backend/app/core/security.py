@@ -3,19 +3,23 @@
 from typing import Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+import jwt
 from datetime import datetime, timedelta
 from app.core.constants import (
     SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS,
     KEYCLOAK_ENABLED, KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_VERIFY_SSL
 )
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
+from pwdlib.hashers.bcrypt import BcryptHasher
 import requests
 import logging
 
 logger = logging.getLogger(__name__)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# New credentials use Argon2. Bcrypt remains registered so credentials created
+# by older releases continue to verify during a rolling deployment.
+password_hash = PasswordHash((Argon2Hasher(), BcryptHasher()))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -59,13 +63,21 @@ def verify_token(token: str) -> Dict[str, Any]:
             # Verify local token
             return jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             
-        elif (alg == "RS256" or alg is None) and KEYCLOAK_ENABLED: # RS256 or maybe defaults to RS256 if Keycloak
+        elif alg == "RS256" and KEYCLOAK_ENABLED:
              # Verify Keycloak token
             try:
                 jwks = get_keycloak_jwks()
+                key_id = unverified_header.get("kid")
+                signing_keys = jwt.PyJWKSet.from_dict(jwks).keys
+                signing_key = next(
+                    (key for key in signing_keys if key.key_id == key_id),
+                    None,
+                )
+                if signing_key is None:
+                    raise jwt.InvalidKeyError("No matching Keycloak signing key")
                 return jwt.decode(
                     token,
-                    jwks,
+                    signing_key.key,
                     algorithms=["RS256"],
                     audience="account", # Default client scope often has 'account' audience
                     options={"verify_aud": False} # Relaxing audience check for now as it depends on client config
@@ -76,9 +88,9 @@ def verify_token(token: str) -> Dict[str, Any]:
                  raise
         else:
              # If algo is not HS256 and Keycloak is disabled, or algo is unknown
-            raise JWTError("Unsupported algorithm or Keycloak disabled")
+            raise jwt.InvalidAlgorithmError("Unsupported algorithm or Keycloak disabled")
             
-    except JWTError as e:
+    except jwt.PyJWTError as e:
         logger.warning(f"Token verification failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -116,11 +128,11 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifies a plain text password against a hashed password."""
-    return pwd_context.verify(plain_password, hashed_password)
+    return password_hash.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Hashes a plain text password."""
-    return pwd_context.hash(password)
+    return password_hash.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

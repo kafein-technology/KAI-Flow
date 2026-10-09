@@ -280,13 +280,6 @@ class OpenAINode(BaseNode):
             "colors": ["purple-500", "indigo-600"],
             "inputs": [
                 NodeInput(
-                    name="model_name",
-                    type="str",
-                    description="OpenAI model to use",
-                    default="gpt-4o",  # Changed default to gpt-4o
-                    required=False,
-                ),
-                NodeInput(
                     name="temperature",
                     type="float",
                     description="Sampling temperature (0.0-2.0) - Controls randomness",
@@ -372,20 +365,7 @@ class OpenAINode(BaseNode):
                     placeholder="Select Credential",
                     required=True,
                     serviceType="openai",
-                ),
-                NodeProperty(
-                    name="model_name",
-                    displayName="Model",
-                    type=NodePropertyType.SELECT,
-                    default="gpt-4o",
-                    options=[
-                        {"label": "GPT-4o", "value": "gpt-4o"},
-                        {"label": "GPT-4o Mini", "value": "gpt-4o-mini"},
-                        {"label": "GPT-4 Turbo", "value": "gpt-4-turbo"},
-                        {"label": "GPT-4", "value": "gpt-4"},
-                        {"label": "GPT-4 32K", "value": "gpt-4-32k"},
-                    ],
-                    required=True
+                    hint="The model is selected when creating the OpenAI credential.",
                 ),
                 NodeProperty(
                     name="temperature",
@@ -508,9 +488,25 @@ class OpenAINode(BaseNode):
     def execute(self, **kwargs) -> Runnable:
         """Execute OpenAI node with enhanced configuration and validation."""
         logger.info("\nOPENAI LLM SETUP")
-        
-        # Get configuration from kwargs or user_data fallback
-        model_name = kwargs.get("model_name") or self.user_data.get("model_name", "gpt-4o")
+
+        credential_id = kwargs.get("credential_id") or self.user_data.get("credential_id")
+        api_key = None
+        cred_model_name = None
+        if credential_id:
+            cred = self.get_credential(credential_id)
+            if cred and cred.get("secret"):
+                secret = cred.get("secret")
+                api_key = secret.get("api_key")
+                cred_model_name = secret.get("model_name")
+
+        # Model is chosen on the OpenAI credential, not on the node.
+        # Node data is only a fallback for older workflows that still store model_name.
+        model_name = (
+            cred_model_name
+            or kwargs.get("model_name")
+            or self.user_data.get("model_name")
+            or "gpt-4o"
+        )
         
         temperature_val = kwargs.get("temperature")
         if temperature_val is None:
@@ -550,14 +546,11 @@ class OpenAINode(BaseNode):
         if timeout_val is None:
             timeout_val = self.user_data.get("timeout", 60)
         timeout = int(timeout_val)
-        
-        # Get API key from user configuration (database/UI)
-        credential_id = kwargs.get("credential_id") or self.user_data.get("credential_id")
-        api_key = None
-        if credential_id:
-            cred = self.get_credential(credential_id)
-            if cred and cred.get('secret'):
-                api_key = cred.get('secret').get('api_key')
+
+        if credential_id and not api_key:
+            raise ValueError(
+                "The selected OpenAI credential has no API key."
+            )
         
         if not api_key:
             import os

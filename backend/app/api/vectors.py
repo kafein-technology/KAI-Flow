@@ -295,7 +295,7 @@ async def create_vector_documents(
                 
             except Exception as e:
                 failed_count += 1
-                print(f"Error creating document: {e}")
+                logger.error("Error creating vector document: %s", e)
         
         # Update collection document count
         collection.document_count += len(created_ids)
@@ -632,4 +632,4 @@ async def delete_single_vector_document(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete vector document: {str(e)}"
-        ) 
+        )

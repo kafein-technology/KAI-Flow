@@ -301,7 +301,7 @@ class PerformanceMonitor:
         if session_id and session_id in self._workflow_metrics:
             self._workflow_metrics[session_id].connection_resolution_time = resolution_time
         
-        logger.info(f"📊 Connection resolution: {connection_count} connections "
+        logger.info(f"Connection resolution: {connection_count} connections "
                    f"in {resolution_time:.3f}s ({connection_count/resolution_time:.1f}/s)")
     
     def record_memory_usage(
@@ -412,7 +412,7 @@ class PerformanceMonitor:
     
     def _trigger_alert(self, alert_type: str, data: Dict[str, Any]):
         """Trigger performance alert."""
-        logger.warning(f"🚨 Performance Alert [{alert_type}]: {data}")
+        logger.warning(f"Performance Alert [{alert_type}]: {data}")
         
         for callback in self._alert_callbacks:
             try:

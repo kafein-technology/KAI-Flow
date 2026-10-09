@@ -21,6 +21,10 @@ import WidgetExportModal from "../modals/WidgetExportModal";
 import ErrorWorkflowModal from "../modals/ErrorWorkflowModal";
 import WorkflowService from "~/services/workflows";
 import { useNodeStore } from "~/stores/nodes";
+import {
+  getWorkflowJsonErrorMessage,
+  parseWorkflowJson,
+} from "~/lib/workflowJson";
 
 interface NavbarProps {
   workflowName: string;
@@ -141,81 +145,110 @@ const Navbar: React.FC<NavbarProps> = ({
     enqueueSnackbar("Workflow name updated", { variant: "success" });
   };
 
-  const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleLoad = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        if (setCurrentWorkflow && setNodes && setEdges) {
-          let nodeStore = useNodeStore.getState();
-          if (nodeStore.nodes.length === 0) {
-            await nodeStore.fetchNodes();
-            await nodeStore.fetchCategories();
-          }
-          if (nodeStore.customNodes.length === 0) {
-            await nodeStore.fetchCustomNodes();
-          }
-          nodeStore = useNodeStore.getState();
 
-          const allNodesMetadata = [...(nodeStore.nodes || []), ...(nodeStore.customNodes || [])];
-          const enrichedNodes = (json.flow_data?.nodes || []).map((node: any) => {
-            if (!node.data?.metadata && allNodesMetadata.length > 0) {
-              const metadata = allNodesMetadata.find(
-                m => m.name === node.type || (m as any).id === node.type
-              ) as any;
-
-              if (metadata) {
-                return {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    metadata: metadata,
-                    icon: metadata.icon,
-                    description: metadata.description,
-                    displayName: metadata.display_name,
-                    inputs: metadata.inputs,
-                    outputs: metadata.outputs,
-                  }
-                };
-              }
-            }
-            return node;
-          });
-
-          if (onImportStart) onImportStart();
-
-          if (currentWorkflow && setCurrentWorkflow) {
-            setCurrentWorkflow({
-              ...currentWorkflow,
-              name: json.name || currentWorkflow.name,
-              flow_data: {
-                ...currentWorkflow.flow_data,
-                nodes: enrichedNodes,
-                edges: json.flow_data?.edges || []
-              }
-            });
-          } else if (setCurrentWorkflow) {
-            setCurrentWorkflow(null);
-          }
-
-          setNodes(enrichedNodes);
-          setEdges(json.flow_data?.edges || []);
-          onWorkflowImported?.(enrichedNodes, json.flow_data?.edges || []);
-          if (json.name) {
-            setWorkflowName(json.name);
-          }
-          enqueueSnackbar("Workflow loaded successfully!", { variant: "success" });
-        }
-      } catch (err) {
-        console.error("Load error:", err);
-        enqueueSnackbar("Invalid JSON file!", { variant: "error" });
-      }
-    };
-    reader.readAsText(file);
     setIsDropdownOpen(false);
-    e.target.value = "";
+    input.value = "";
+
+    let importedWorkflow;
+    try {
+      importedWorkflow = parseWorkflowJson(await file.text());
+    } catch (error) {
+      console.error("Workflow JSON parse error:", error);
+      enqueueSnackbar(getWorkflowJsonErrorMessage(error), { variant: "error" });
+      return;
+    }
+
+    if (!setCurrentWorkflow || !setNodes || !setEdges) {
+      enqueueSnackbar("Canvas import is not available in this view.", {
+        variant: "error",
+      });
+      return;
+    }
+
+    try {
+      let nodeStore = useNodeStore.getState();
+      const metadataLoads: Promise<void>[] = [];
+      if (nodeStore.nodes.length === 0) {
+        metadataLoads.push(nodeStore.fetchNodes());
+      }
+      if (nodeStore.customNodes.length === 0) {
+        metadataLoads.push(nodeStore.fetchCustomNodes());
+      }
+
+      if (metadataLoads.length > 0) {
+        const metadataResults = await Promise.allSettled(metadataLoads);
+        metadataResults.forEach((result) => {
+          if (result.status === "rejected") {
+            console.warn(
+              "Node metadata could not be refreshed; importing raw workflow nodes.",
+              result.reason,
+            );
+          }
+        });
+      }
+      nodeStore = useNodeStore.getState();
+
+      const allNodesMetadata = [
+        ...(nodeStore.nodes || []),
+        ...(nodeStore.customNodes || []),
+      ];
+      const importedNodes = importedWorkflow.flow_data.nodes;
+      const importedEdges = importedWorkflow.flow_data.edges;
+      const enrichedNodes = importedNodes.map((node: any) => {
+        if (!node.data?.metadata && allNodesMetadata.length > 0) {
+          const metadata = allNodesMetadata.find(
+            (candidate) =>
+              candidate.name === node.type || (candidate as any).id === node.type,
+          ) as any;
+
+          if (metadata) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                metadata,
+                icon: metadata.icon,
+                description: metadata.description,
+                displayName: metadata.display_name,
+                inputs: metadata.inputs,
+                outputs: metadata.outputs,
+              },
+            };
+          }
+        }
+        return node;
+      });
+
+      onImportStart?.();
+
+      if (currentWorkflow) {
+        setCurrentWorkflow({
+          ...currentWorkflow,
+          name: importedWorkflow.name || currentWorkflow.name,
+          flow_data: {
+            ...currentWorkflow.flow_data,
+            ...importedWorkflow.flow_data,
+            nodes: enrichedNodes,
+            edges: importedEdges,
+          },
+        });
+      }
+
+      setNodes(enrichedNodes);
+      setEdges(importedEdges);
+      onWorkflowImported?.(enrichedNodes, importedEdges);
+      if (importedWorkflow.name) {
+        setWorkflowName(importedWorkflow.name);
+      }
+      enqueueSnackbar("Workflow loaded successfully!", { variant: "success" });
+    } catch (error) {
+      console.error("Canvas workflow import error:", error);
+      enqueueSnackbar(getWorkflowJsonErrorMessage(error), { variant: "error" });
+    }
   };
 
   const handleExport = () => {
@@ -492,10 +525,10 @@ const Navbar: React.FC<NavbarProps> = ({
               />
               {isDropdownOpen && (
                 <div
-                  className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2"
+                  className="absolute right-0 z-50 mt-2 w-56 rounded-xl border border-gray-700 bg-[#18181B] p-2 shadow-2xl shadow-black/50"
                 >
                   <button
-                    className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <FileUp className="w-5 h-5" />
@@ -503,14 +536,14 @@ const Navbar: React.FC<NavbarProps> = ({
                   </button>
                   <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleLoad} />
 
-                  <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center" onClick={handleExport}>
+                  <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-gray-300 transition-colors hover:bg-gray-800 hover:text-white" onClick={handleExport}>
                     <Download className="w-5 h-5" />
                     Export JSON
                   </button>
 
                   {onAutoSaveSettings && (
                     <button
-                      className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center"
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
                       onClick={() => {
                         setIsDropdownOpen(false);
                         onAutoSaveSettings();
@@ -522,7 +555,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   )}
 
                   <button
-                    className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 items-center"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
                     onClick={() => {
                       setIsDropdownOpen(false);
                       setTimeout(() => widgetExportDialogRef.current?.showModal(), 100);
@@ -533,7 +566,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   </button>
 
                   <button
-                    className="w-full text-left px-3 py-2 text-black hover:bg-red-50 hover:text-red-600 rounded flex gap-3 items-center transition-colors"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-gray-300 transition-colors hover:bg-red-500/10 hover:text-red-300"
                     onClick={() => {
                       setIsDropdownOpen(false);
                       setIsErrorModalOpen(true);
@@ -545,7 +578,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   </button>
 
                   <button
-                    className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded flex gap-3 items-center transition-colors"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
                     onClick={() => {
                       setIsDropdownOpen(false);
                       setTimeout(() => deleteDialogRef.current?.showModal(), 100);
@@ -561,23 +594,36 @@ const Navbar: React.FC<NavbarProps> = ({
         </nav>
       </header>
 
-      <dialog ref={deleteDialogRef} className="modal">
-        <div className="modal-box bg-white border border-gray-200 rounded-lg shadow-xl">
+      <dialog
+        ref={deleteDialogRef}
+        aria-labelledby="delete-workflow-title"
+        onCancel={(event) => {
+          event.preventDefault();
+          deleteDialogRef.current?.close();
+        }}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) deleteDialogRef.current?.close();
+        }}
+        className="fixed inset-0 m-auto h-fit w-[calc(100%_-_2rem)] max-w-lg overflow-visible bg-transparent p-0 text-left text-white backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
+      >
+        <div className="rounded-xl border border-gray-700 bg-[#18181B] p-6 shadow-2xl shadow-black/50">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-              <Trash className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 bg-red-500/15 rounded-full flex items-center justify-center">
+              <Trash className="w-5 h-5 text-red-400" />
             </div>
-            <h3 className="font-bold text-lg text-gray-900">Delete Workflow</h3>
+            <h3 id="delete-workflow-title" className="font-bold text-lg text-white">
+              Delete Workflow
+            </h3>
           </div>
-          <p className="py-4 text-gray-700">
-            Are you sure you want to delete the workflow <strong className="font-semibold text-gray-900">{currentWorkflow?.name}</strong>?
+          <p className="py-4 text-gray-300">
+            Are you sure you want to delete the workflow <strong className="font-semibold text-white">{currentWorkflow?.name}</strong>?
             <br />
-            <span className="text-red-600 text-sm font-medium mt-2 block">⚠️ This action cannot be undone!</span>
+            <span className="mt-2 block text-sm font-medium text-red-400">⚠️ This action cannot be undone!</span>
           </p>
-          <div className="modal-action">
+          <div className="mt-6 flex justify-end">
             <form method="dialog" className="flex items-center gap-3">
-              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50" type="button" onClick={() => deleteDialogRef.current?.close()}>Cancel</button>
-              <button className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center gap-2" type="button" onClick={handleDelete}>
+              <button className="rounded-lg border border-gray-600 px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-white" type="button" onClick={() => deleteDialogRef.current?.close()}>Cancel</button>
+              <button className="flex items-center gap-2 rounded-lg border border-red-600 bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-red-700 hover:bg-red-700" type="button" onClick={handleDelete}>
                 <Trash className="w-4 h-4" />
                 Delete
               </button>

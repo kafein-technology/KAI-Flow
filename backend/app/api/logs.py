@@ -1,5 +1,6 @@
 import asyncio
-from fastapi import APIRouter
+import os
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from app.core.enhanced_logging import log_history, log_subscribers
 
@@ -12,6 +13,10 @@ async def stream_logs():
     First yields the historical logs from the in-memory buffer,
     then streams new logs as they are produced.
     """
+    if os.getenv("ENVIRONMENT", "development").lower() != "development" or \
+       os.getenv("KAI_FLOW_LOGGING_PRESET", "").lower() == "disabled":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Log stream is disabled")
+
     queue = asyncio.Queue(maxsize=1000)
     loop = asyncio.get_running_loop()
     
@@ -54,7 +59,5 @@ async def stream_logs():
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "*",
         }
     )

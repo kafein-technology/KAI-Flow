@@ -316,6 +316,7 @@ class PackageAnalyzer:
             
             # === DATABASE NODES ===
             "PostgresNode": ["asyncpg>=0.28.0", "psycopg2-binary>=2.9.0"],
+            "MySQLNode": ["PyMySQL>=1.1.1,<2.0.0"],
             "SqliteNode": ["aiosqlite>=0.19.0"],
             
             # === ADDITIONAL TOOLS ===

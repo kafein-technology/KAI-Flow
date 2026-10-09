@@ -373,7 +373,7 @@ class WebScraperNode(ProcessorNode):
                     name="user_agent",
                     type="str",
                     description="User agent string for web requests",
-                    default="Mozilla/5.0 (compatible; KAI-Fusion/2.1.0; Web-Scraper)",
+                    default="Mozilla/5.0 (compatible; KAI-Flow/2.1.0; Web-Scraper)",
                     required=False,
                 ),
                 NodeInput(
@@ -422,7 +422,7 @@ class WebScraperNode(ProcessorNode):
                     displayName= "User Agent",
                     tabName= "basic",
                     type= NodePropertyType.TEXT,
-                    placeholder= "Default KAI-Fusion",
+                    placeholder= "Default KAI Flow",
                     required= True
                 ),
                 NodeProperty(
@@ -649,7 +649,7 @@ class WebScraperNode(ProcessorNode):
         except (ValueError, TypeError):
             retry_attempts = 3
 
-        user_agent = inputs.get("user_agent", "Mozilla/5.0 (compatible; KAI-Fusion/2.1.0; Web-Scraper)")
+        user_agent = inputs.get("user_agent", "Mozilla/5.0 (compatible; KAI-Flow/2.1.0; Web-Scraper)")
         
         # Setup HTTP session with retry strategy
         session = requests.Session()

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 import NeonHandle from "../common/NeonHandle";
+import { getExecutionStatusStyle, PendingWormRing } from "~/lib/nodeStatusUtils";
 import {
   Play,
   Square,
@@ -47,15 +48,10 @@ function EndNode({ data, id, onExecute, validationStatus }: EndNodeProps) {
   };
 
   const getGlowColor = () => {
-    switch (validationState) {
-      case "success":
-        return "shadow-emerald-500/30";
-      case "error":
-        return "shadow-red-500/30";
-      default:
-        return "shadow-gray-500/30";
-    }
+    return "";
   };
+
+  const executionStatusStyle = getExecutionStatusStyle(data?.executionStatus);
 
   return (
     <>
@@ -65,34 +61,29 @@ function EndNode({ data, id, onExecute, validationStatus }: EndNodeProps) {
           cursor-pointer transition-all duration-300 transform
           ${isHovered ? "scale-105" : "scale-100"}
           bg-gradient-to-br ${getStatusColor()}
-          ${
-            isHovered
-              ? `shadow-2xl ${getGlowColor()}`
-              : "shadow-lg shadow-black/50"
-          }
           border border-white/20 backdrop-blur-sm
           hover:border-white/40`}
+        style={executionStatusStyle}
         onDoubleClick={() => executeHandler?.(id)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         title="Double click to execute"
       >
+        {/* Pending status clockwise revolving amber worm light */}
+        {data?.executionStatus === "pending" && (
+          <PendingWormRing borderRadius="1rem" rx={16} />
+        )}
+
         {/* Background pattern */}
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>
 
         {/* Main icon */}
         <div className="relative z-10 mb-2">
-          <div className="relative">
-            <Flag className="w-10 h-10 text-white drop-shadow-lg" />
-            {/* Activity indicator */}
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-gray-400 to-slate-500 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-2 h-2 text-white" />
-            </div>
-          </div>
+          <Flag className="w-10 h-10 text-white" />
         </div>
 
         {/* Node title */}
-        <div className="text-white text-xs font-semibold text-center drop-shadow-lg z-10">
+        <div className="text-white text-xs font-semibold text-center z-10">
           {data?.displayName || data?.name || "End"}
         </div>
 
@@ -153,140 +144,6 @@ function EndNode({ data, id, onExecute, validationStatus }: EndNodeProps) {
 
 
 
-        {/* Connection Status Indicator */}
-        {data?.has_input && (
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="w-3 h-3 bg-gray-400 rounded-full shadow-lg animate-pulse"></div>
-          </div>
-        )}
-
-        {/* Completion Status Indicator */}
-        {data?.is_completed && (
-          <div className="absolute top-1 left-1 z-10">
-            <div className="w-4 h-4 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
-              <CheckCircle className="w-2 h-2 text-white" />
-            </div>
-          </div>
-        )}
-
-        {/* Execution Status Indicator */}
-        {data?.is_executing && (
-          <div className="absolute top-1 right-1 z-10">
-            <div className="w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-              <Activity className="w-2 h-2 text-white" />
-            </div>
-          </div>
-        )}
-
-        {/* Execution Time Indicator */}
-        {data?.execution_time && (
-          <div className="absolute bottom-1 left-1 z-10">
-            <div className="w-3 h-3 bg-blue-400 rounded-full shadow-lg animate-pulse"></div>
-          </div>
-        )}
-
-        {/* Performance Indicator */}
-        {data?.performance_metrics && (
-          <div className="absolute bottom-1 right-1 z-10">
-            <div className="w-3 h-3 bg-green-400 rounded-full shadow-lg animate-pulse"></div>
-          </div>
-        )}
-
-        {/* End Type Badge */}
-        {data?.end_type && (
-          <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 z-10">
-            <div className="px-2 py-1 rounded bg-slate-600 text-white text-xs font-bold shadow-lg transform rotate-90">
-              {data.end_type === "success"
-                ? "Success"
-                : data.end_type === "error"
-                ? "Error"
-                : "End"}
-            </div>
-          </div>
-        )}
-
-        {/* Completion Count Indicator */}
-        {data?.completion_count && (
-          <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 z-10">
-            <div className="px-2 py-1 rounded bg-gray-600 text-white text-xs font-bold shadow-lg transform -rotate-90">
-              {data.completion_count > 1000
-                ? `${Math.round(data.completion_count / 1000)}K`
-                : data.completion_count}
-            </div>
-          </div>
-        )}
-
-        {/* End Status Badge */}
-        {data?.end_status && (
-          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="px-2 py-1 rounded bg-gradient-to-r from-gray-500 to-slate-600 text-white text-xs font-bold shadow-lg">
-              {data.end_status === "ready"
-                ? "Ready"
-                : data.end_status === "executing"
-                ? "Executing"
-                : data.end_status === "completed"
-                ? "Completed"
-                : data.end_status === "error"
-                ? "Error"
-                : "Active"}
-            </div>
-          </div>
-        )}
-
-        {/* Last Completion Indicator */}
-        {data?.last_completion && (
-          <div className="absolute top-1 right-1 z-10">
-            <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center shadow-lg">
-              <Clock className="w-2 h-2 text-white" />
-            </div>
-          </div>
-        )}
-
-        {/* Completion Speed Indicator */}
-        {data?.completion_speed && (
-          <div className="absolute bottom-1 left-1 z-10">
-            <div className="w-3 h-3 bg-blue-400 rounded-full shadow-lg animate-pulse"></div>
-          </div>
-        )}
-
-        {/* Workflow Status Indicator */}
-        {data?.workflow_status && (
-          <div className="absolute bottom-1 right-1 z-10">
-            <div className="w-3 h-3 bg-orange-400 rounded-full shadow-lg animate-pulse"></div>
-          </div>
-        )}
-
-        {/* Auto Complete Indicator */}
-        {data?.auto_complete && (
-          <div className="absolute top-1 left-1 z-10">
-            <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-sky-500 rounded-full flex items-center justify-center shadow-lg">
-              <Zap className="w-2 h-2 text-white" />
-            </div>
-          </div>
-        )}
-
-        {/* Timer Indicator */}
-        {data?.has_timer && (
-          <div className="absolute top-1 right-1 z-10">
-            <div className="w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-              <Clock className="w-2 h-2 text-white" />
-            </div>
-          </div>
-        )}
-
-        {/* Success Rate Indicator */}
-        {data?.success_rate && (
-          <div className="absolute bottom-1 left-1 z-10">
-            <div className="w-3 h-3 bg-green-400 rounded-full shadow-lg animate-pulse"></div>
-          </div>
-        )}
-
-        {/* Error Rate Indicator */}
-        {data?.error_rate && (
-          <div className="absolute bottom-1 right-1 z-10">
-            <div className="w-3 h-3 bg-red-400 rounded-full shadow-lg animate-pulse"></div>
-          </div>
-        )}
       </div>
     </>
   );

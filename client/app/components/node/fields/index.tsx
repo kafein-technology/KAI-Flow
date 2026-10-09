@@ -1,5 +1,6 @@
 export { NodeTextArea } from "./NodeTextArea";
 export { NodeSelect } from "./NodeSelect";
+export { NodeModelSelect } from "./NodeModelSelect";
 export { NodeCredentialSelect } from "./NodeCredentialSelect";
 export { NodeText } from "./NodeText";
 export { NodeReadonlyText } from "./NodeReadonlyText";
@@ -12,3 +13,5 @@ export { NodeJsonEditor } from "./NodeJsonEditor";
 export { NodeDateTime } from "./NodeDateTime";
 export { NodeCodeEditor } from "./NodeCodeEditor";
 export { NodeSessionId } from "./NodeSessionId";
+export { NumberStepControls, ThemedNumberInput } from "./ThemedNumberInput";
+export { NodeModelArtifactSource } from "./NodeModelArtifactSource";

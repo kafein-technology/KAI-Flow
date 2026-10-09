@@ -25,8 +25,10 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
   const [autoScroll, setAutoScroll] = React.useState(true);
   const [userScrolledUp, setUserScrolledUp] = React.useState(false);
 
-  // Connection is established once at mount and kept alive to buffer logs in the background
-  const { logs, isConnected, error, clearLogs } = useLogStream(true);
+  // Connect only while the panel is open and frontend logging is enabled.
+  const { logs, isConnected, error, clearLogs } = useLogStream(
+    isOpen && window.VITE_ENABLE_LOGGING === 'true'
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);

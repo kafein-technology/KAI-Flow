@@ -19,10 +19,14 @@ import json
 import yaml
 import uuid
 import base64
+import os
 import sys
 import traceback
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -31,6 +35,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # auto-configure the root logger and make later basicConfig a no-op.
 import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
+
+if os.getenv("KAI_FLOW_LOGGING_PRESET", "").strip().lower() == "disabled":
+    logging.disable(logging.CRITICAL)
 
 from app.core.database import get_db_session_context
 from app.core.encryption import encrypt_data

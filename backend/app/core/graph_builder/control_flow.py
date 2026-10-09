@@ -62,7 +62,7 @@ class ControlFlowManager:
                 logger.debug("No control flow nodes to process")
                 return
             
-            logger.info(f"🔀 Adding control flow edges for {len(nodes_to_process)} nodes")
+            logger.info(f"Adding control flow edges for {len(nodes_to_process)} nodes")
             
             for node_id, info in nodes_to_process.items():
                 ctype: ControlFlowType = info["type"]

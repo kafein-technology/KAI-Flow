@@ -45,19 +45,13 @@ class DetailedLoggingMiddleware(BaseHTTPMiddleware):
         
         start_time = time.time()
         
-        # Extract client information
-        client_ip = self._extract_client_ip(request)
-        user_agent = request.headers.get("user-agent", "unknown")
-        
         # Prepare request data
         request_data = {
             "request_id": request_id,
             "method": request.method,
             "path": request.url.path,
-            "query_params": dict(request.query_params),
-            "client_ip": client_ip,
-            "user_agent": user_agent,
-            "headers": self._sanitize_headers(dict(request.headers)),
+            "query_param_names": list(request.query_params.keys()),
+            "header_names": list(request.headers.keys()),
             "content_type": request.headers.get("content-type"),
             "content_length": request.headers.get("content-length")
         }
@@ -84,7 +78,7 @@ class DetailedLoggingMiddleware(BaseHTTPMiddleware):
                 request_data["request_body_error"] = str(e)
         
         # Log request start
-        logger.info("API request started", extra=request_data)
+        logger.debug("API request started", extra=request_data)
         
         # Process request
         try:
@@ -99,7 +93,6 @@ class DetailedLoggingMiddleware(BaseHTTPMiddleware):
                 "status_code": response.status_code,
                 "duration_seconds": round(duration, 4),
                 "duration_ms": round(duration * 1000, 2),
-                "response_headers": self._sanitize_headers(dict(response.headers)),
                 "content_type": response.headers.get("content-type")
             }
             
@@ -126,13 +119,12 @@ class DetailedLoggingMiddleware(BaseHTTPMiddleware):
                 path=request.url.path,
                 status_code=response.status_code,
                 duration=duration,
-                request_id=request_id,
-                client_ip=client_ip,
-                user_agent=user_agent
+                request_id=request_id
             )
-            
+
             # Log detailed response
-            logger.info("API request completed", extra=response_data)
+            logger.debug("API request completed", extra=response_data)
+            response.headers["X-Request-ID"] = request_id
             
             return response
             
@@ -140,9 +132,8 @@ class DetailedLoggingMiddleware(BaseHTTPMiddleware):
             duration = time.time() - start_time
             
             # Log error
-            logger.error("API request failed", extra={
+            logger.exception("API request failed", extra={
                 "request_id": request_id,
-                "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_seconds": round(duration, 4),
                 "duration_ms": round(duration * 1000, 2)
@@ -335,19 +326,18 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         if any(suspicious in user_agent for suspicious in self.suspicious_user_agents):
             suspicious_events.append({
                 "type": "suspicious_user_agent",
-                "pattern": user_agent,
+                "pattern": "known_scanner_user_agent",
                 "severity": "warning"
             })
         
         # Check URL path
-        url_path = str(request.url)
+        url_path = request.url.path
         for pattern_type, patterns in self.compiled_patterns.items():
             for pattern in patterns:
                 if pattern.search(url_path):
                     suspicious_events.append({
                         "type": f"suspicious_{pattern_type}_in_url",
                         "pattern": pattern.pattern,
-                        "matched_text": url_path,
                         "severity": "error"
                     })
                     break
@@ -361,13 +351,23 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
                             "type": f"suspicious_{pattern_type}_in_query",
                             "parameter": param_name,
                             "pattern": pattern.pattern,
-                            "matched_text": param_value[:100],  # Limit for logging
                             "severity": "error"
                         })
                         break
         
         # Check request body for POST/PUT requests
         if request.method in ["POST", "PUT", "PATCH"]:
+            is_model_upload = request.url.path.endswith(
+                ("/model-artifacts/upload", "/model-artifacts/upload-directory")
+            )
+
+            # Multipart bodies can contain very large model files.  Reading the
+            # whole request here defeats the upload endpoint's bounded streaming
+            # implementation and can duplicate the payload in RAM.  URL, query,
+            # header and user-agent checks above remain active for these requests.
+            if is_model_upload:
+                return
+
             try:
                 body = await request.body()
                 if body:
@@ -379,7 +379,6 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
                                 suspicious_events.append({
                                     "type": f"suspicious_{pattern_type}_in_body",
                                     "pattern": pattern.pattern,
-                                    "matched_text": body_str[:100],  # Limit for logging
                                     "severity": "error"
                                 })
                                 break
@@ -400,7 +399,6 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
                     "method": request.method,
                     "path": request.url.path,
                     "pattern": event.get("pattern"),
-                    "matched_text": event.get("matched_text"),
                     "parameter": event.get("parameter")
                 },
                 severity=event["severity"]

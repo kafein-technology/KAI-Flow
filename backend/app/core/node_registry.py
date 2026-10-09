@@ -226,9 +226,9 @@ class NodeRegistry:
             # Automatically reload changed nodes
             try:
                 self.registry.reload_node_from_file(node_file_path)
-                print(f"✅ Hot reloaded node from {node_file_path}")
+                print(f"Hot reloaded node from {node_file_path}")
             except Exception as e:
-                print(f"❌ Failed to reload node: {e}")
+                print(f"Failed to reload node: {e}")
                 
         def get_development_metrics(self):
             return {

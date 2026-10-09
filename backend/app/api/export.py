@@ -231,7 +231,7 @@ async def export_workflows(
         config["credentials"].append(cred_info)
     
     # Create README
-    readme = f"""# KAI-Fusion Workflow Export Bundle
+    readme = f"""# KAI-Flow Workflow Export Bundle
 
 Export Name: {export_name}
 Generated: {config['generated_at']}

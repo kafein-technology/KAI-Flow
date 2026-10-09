@@ -1,13 +1,12 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import tsconfigPaths from "vite-tsconfig-paths";
 import fs from 'fs';
 import path from 'path';
 
 // Helper to read constants from public/config.js
 const readConfig = () => {
-  const configPath = path.resolve(__dirname, 'public/config.js');
+  const configPath = path.resolve(import.meta.dirname, 'public/config.js');
   if (!fs.existsSync(configPath)) return { API_START: 'api', API_VERSION: 'v1' };
   const content = fs.readFileSync(configPath, 'utf8');
   const apiStartMatch = content.match(/window\.VITE_API_START\s*=\s*"(.*?)"/);
@@ -24,8 +23,8 @@ const isDev = process.env.NODE_ENV !== 'production';
 const basePath = process.env.VITE_BASE_PATH || '/kai';
 
 // Resolve SSL certs
-const sslKeyPath = path.resolve(__dirname, '../backend/cert/key.pem');
-const sslCertPath = path.resolve(__dirname, '../backend/cert/cert.pem');
+const sslKeyPath = path.resolve(import.meta.dirname, '../backend/cert/key.pem');
+const sslCertPath = path.resolve(import.meta.dirname, '../backend/cert/cert.pem');
 const hasSSL = fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath);
 const httpsConfig = hasSSL ? {
   key: fs.readFileSync(sslKeyPath),
@@ -39,7 +38,10 @@ const proxyTarget = (!hasSSL && apiBaseUrl.includes('localhost'))
 
 export default defineConfig({
   base: basePath,
-  plugins: [react(), tailwindcss(), tsconfigPaths()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    tsconfigPaths: true,
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

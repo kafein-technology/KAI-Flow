@@ -69,6 +69,8 @@ export function getNodeTypeIconPath(nodeType: string): string {
 
         // AI & Embedding
         Agent: "icons/bot.svg",
+        AgentTeam: "icons/users-round.svg",
+        AgentTool: "icons/bot.svg",
         CohereEmbeddings: "icons/cohere.svg",
         OpenAIEmbedder: "icons/openai.svg",
 
@@ -83,10 +85,20 @@ export function getNodeTypeIconPath(nodeType: string): string {
         PGVectorStore: "icons/postgresql_vectorstore.svg",
         VectorStoreOrchestrator: "icons/postgresql_vectorstore.svg",
         IntelligentVectorStore: "icons/postgresql_vectorstore.svg",
+        PostgresNode: "icons/postgresql_vectorstore.svg",
+        PostgresTool: "icons/postgresql_vectorstore.svg",
+        MongoNode: "icons/mongodb.svg",
+        MongoTool: "icons/mongodb.svg",
+        GmailNode: "icons/gmail.svg",
         MarkItDownTool: "icons/markitdown.svg",
+        MySQLNode: "icons/mysql.svg",
+        MySQLTool: "icons/mysql.svg",
+        SQLiteNode: "icons/sqlite.svg",
+        SQLiteTool: "icons/sqlite.svg",
 
         // Web & APIs
         TavilySearch: "icons/tavily-nonbrand.svg",
+        ScraplingTool: "icons/scrapling.svg",
         WebScraper: "icons/pickaxe.svg",
         HttpRequest: "icons/globe.svg",
         WebhookTrigger: "icons/webhook.svg",
@@ -95,6 +107,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
         RespondToWebhook: "icons/webhook.svg",
         KafkaConsumer: "icons/kafka.svg",
         KafkaProducer: "icons/kafka.svg",
+        GoogleSheets: "icons/google-sheets.svg",
 
         // RAG & QA
         RetrievalQA: "icons/book-open.svg",
@@ -117,6 +130,8 @@ export function getNodeTypeIconPath(nodeType: string): string {
         LLMRedTeam: "icons/red_teaming_menu.svg",
         AgenticRedTeam: "icons/redteaming_agentic_menu.svg",
         CustomRedTeam: "icons/redteaming_custom_menu.svg",
+        LLMModelScanner: "icons/llm_model_scanner.svg",
+        LLMModelScannerTool: "icons/llm_model_scanner.svg",
 
         // Decorative Nodes
         StickyNoteNode: "icons/sticky_note.svg",

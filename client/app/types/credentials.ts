@@ -1,21 +1,22 @@
 export interface ServiceField {
   name: string;
   label: string;
-  type: 'text' | 'password' | 'textarea' | 'select' | 'checkbox';
+  type: 'text' | 'password' | 'textarea' | 'select' | 'checkbox' | 'model-combobox';
+  helpText?: string;
   required: boolean;
   placeholder?: string;
-  default?: any;
+  default?: string | number | boolean;
   options?: { value: string; label: string }[];
   description?: string;
   dependsOn?: {
     field: string;
-    values: string[];
+    values: Array<string | boolean>;
   };
   validation?: {
     minLength?: number;
     maxLength?: number;
     pattern?: string;
-    custom?: (value: any) => string | undefined;
+    custom?: (value: string) => string | undefined;
   };
 }
 
@@ -54,6 +55,14 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
             return undefined;
           }
         }
+      },
+      {
+        name: 'model_name',
+        label: 'Model',
+        type: 'model-combobox',
+        required: true,
+        placeholder: 'Select or type a model',
+        description: 'Models are loaded from OpenAI after you enter your API key. Use the arrow keys to move through the list.'
       }
     ]
   },
@@ -70,24 +79,24 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         label: 'Base URL',
         type: 'text',
         required: true,
-        placeholder: 'https://openrouter.ai/api/v1',
+        placeholder: 'e.g. https://openrouter.ai/api/v1',
         description: 'The endpoint URL for the compatible service'
-      },
-      {
-        name: 'model_name',
-        label: 'Model Name',
-        type: 'text',
-        required: true,
-        placeholder: 'google/gemma-3n-e4b-it',
-        description: 'The model name/identifier (e.g. llama3-70b-8192)'
       },
       {
         name: 'api_key',
         label: 'API Key',
         type: 'password',
+        required: false,
+        placeholder: 'Optional for local endpoints (Ollama, LM Studio, etc.)',
+        description: 'The authentication key for the compatible service (leave empty if not required)'
+      },
+      {
+        name: 'model_name',
+        label: 'Model',
+        type: 'model-combobox',
         required: true,
-        placeholder: '...',
-        description: 'The authentication key for the compatible service'
+        placeholder: 'Select or type a model',
+        description: 'Models are loaded from your provider when Base URL is set. Use the arrow keys to move through the list.'
       },
       {
         name: 'skip_ssl_verify',
@@ -170,6 +179,143 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
       }
     ]
   },
+
+  {
+    id: 'mongodb',
+    name: 'MongoDB',
+    description: 'Connect to MongoDB for bounded document read and write operations',
+    icon: 'mongodb.svg',
+    category: 'database',
+    color: 'from-green-500 to-emerald-600',
+    fields: [
+      {
+        name: 'configuration_type',
+        label: 'Configuration Type',
+        type: 'select',
+        required: true,
+        default: 'values',
+        options: [
+          { value: 'values', label: 'Separate Fields' },
+          { value: 'connection_string', label: 'Connection String' }
+        ],
+        description: 'Enter the connection details field by field, or paste a connection string'
+      },
+      {
+        name: 'connection_string',
+        label: 'Connection String',
+        type: 'password',
+        required: false,
+        placeholder: 'mongodb+srv://user:password@cluster.mongodb.net',
+        description: 'Paste the string your provider gave you. Atlas uses the mongodb+srv scheme.',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['connection_string']
+        }
+      },
+      {
+        name: 'host',
+        label: 'Host',
+        type: 'text',
+        required: false,
+        default: 'localhost',
+        placeholder: 'localhost',
+        description: 'MongoDB server hostname or IP address',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['values']
+        }
+      },
+      {
+        name: 'port',
+        label: 'Port',
+        type: 'text',
+        required: false,
+        default: '27017',
+        placeholder: '27017',
+        description: 'MongoDB server port',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['values']
+        }
+      },
+      {
+        name: 'username',
+        label: 'Username',
+        type: 'text',
+        required: false,
+        placeholder: 'mongo',
+        description: 'Username for authentication',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['values']
+        }
+      },
+      {
+        name: 'password',
+        label: 'Password',
+        type: 'password',
+        required: false,
+        placeholder: '••••••••',
+        description: 'Password for authentication',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['values']
+        }
+      },
+      {
+        name: 'auth_source',
+        label: 'Authentication Database',
+        type: 'text',
+        required: false,
+        placeholder: 'admin',
+        description: 'Database that holds the user account. Usually admin.',
+        dependsOn: {
+          field: 'configuration_type',
+          values: ['values']
+        }
+      },
+      {
+        name: 'database',
+        label: 'Database Name',
+        type: 'text',
+        required: true,
+        placeholder: 'mydatabase',
+        description: 'Name of the database to work in'
+      }
+    ]
+  },
+  {
+    id: 'gmail',
+    name: 'Gmail',
+    description: 'Read, send, and organize mail with a Google OAuth2 credential',
+    icon: 'gmail.svg',
+    category: 'api',
+    color: 'from-red-600 to-red-800',
+    fields: [
+      {
+        name: 'client_id',
+        label: 'OAuth Client ID',
+        type: 'text',
+        required: true,
+        placeholder: '...apps.googleusercontent.com',
+        description: 'Client ID from the Google Cloud OAuth 2.0 application'
+      },
+      {
+        name: 'client_secret',
+        label: 'OAuth Client Secret',
+        type: 'password',
+        required: true,
+        description: 'Client Secret belonging to the OAuth Client ID'
+      },
+      {
+        name: 'refresh_token',
+        label: 'Refresh Token',
+        type: 'password',
+        required: true,
+        description: 'Offline refresh token authorized with the Gmail modify scope'
+      }
+    ]
+  },
   {
     id: 'tavily_search',
     name: 'Tavily Search',
@@ -188,6 +334,142 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         validation: {
           minLength: 20
         }
+      }
+    ]
+  },
+  {
+    id: 'sqlite',
+    name: 'SQLite',
+    description: 'Connect to a SQLite database file for workflow query and row operations',
+    icon: 'sqlite.svg',
+    category: 'database',
+    color: 'from-sky-600 to-cyan-800',
+    fields: [
+      {
+        name: 'database_path',
+        label: 'Database Path',
+        type: 'text',
+        required: true,
+        placeholder: '/data/app.sqlite',
+        description: 'Absolute path to the SQLite database file on the backend host'
+      },
+      {
+        name: 'timeout_ms',
+        label: 'Connection Timeout (ms)',
+        type: 'text',
+        required: false,
+        default: '30000',
+        description: 'Maximum time SQLite waits for a locked database'
+      },
+      {
+        name: 'read_only',
+        label: 'Read Only',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        description: 'Open the database in read-only mode as an additional safety guard'
+      },
+      {
+        name: 'create_if_missing',
+        label: 'Create if Missing',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        description: 'Create the database file when it does not exist; the parent directory must already exist'
+      }
+    ]
+  },
+  {
+    id: 'google_sheets',
+    name: 'Google Sheets',
+    description: 'Connect with OAuth2 or a Google service account',
+    icon: 'google-sheets.svg',
+    category: 'api',
+    color: 'from-green-600 to-emerald-800',
+    fields: [
+      {
+        name: 'authentication',
+        label: 'Authentication',
+        type: 'select',
+        required: true,
+        default: 'oauth2',
+        options: [
+          { value: 'oauth2', label: 'OAuth2' },
+          { value: 'service_account', label: 'Service Account' }
+        ]
+      },
+      {
+        name: 'client_id',
+        label: 'OAuth Client ID',
+        type: 'text',
+        required: true,
+        placeholder: '...apps.googleusercontent.com',
+        description: 'Client ID from a Google Cloud OAuth 2.0 application',
+        dependsOn: { field: 'authentication', values: ['oauth2'] }
+      },
+      {
+        name: 'client_secret',
+        label: 'OAuth Client Secret',
+        type: 'password',
+        required: true,
+        dependsOn: { field: 'authentication', values: ['oauth2'] }
+      },
+      {
+        name: 'refresh_token',
+        label: 'Refresh Token',
+        type: 'password',
+        required: true,
+        description: 'Offline refresh token authorized for Google Sheets',
+        dependsOn: { field: 'authentication', values: ['oauth2'] }
+      },
+      {
+        name: 'project_id',
+        label: 'Project ID',
+        type: 'text',
+        required: false,
+        dependsOn: { field: 'authentication', values: ['service_account'] }
+      },
+      {
+        name: 'service_account_email',
+        label: 'Service Account Email',
+        type: 'text',
+        required: true,
+        placeholder: 'service-account@project.iam.gserviceaccount.com',
+        dependsOn: { field: 'authentication', values: ['service_account'] }
+      },
+      {
+        name: 'private_key',
+        label: 'Private Key',
+        type: 'textarea',
+        required: true,
+        placeholder: '-----BEGIN PRIVATE KEY-----',
+        dependsOn: { field: 'authentication', values: ['service_account'] }
+      },
+      {
+        name: 'delegated_user',
+        label: 'Delegated User',
+        type: 'text',
+        required: false,
+        placeholder: 'user@example.com',
+        description: 'Optional Google Workspace user for domain-wide delegation',
+        dependsOn: { field: 'authentication', values: ['service_account'] }
+      },
+      {
+        name: 'custom_scopes',
+        label: 'Custom Scopes',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        description: 'Override the default Sheets and Drive File scopes'
+      },
+      {
+        name: 'enabled_scopes',
+        label: 'Enabled Scopes',
+        type: 'textarea',
+        required: true,
+        default: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+        description: 'Space- or comma-separated Google OAuth scopes',
+        dependsOn: { field: 'custom_scopes', values: [true] }
       }
     ]
   },
@@ -248,7 +530,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     id: 'kafka',
     name: 'Kafka',
     description: 'Apache Kafka connection credentials for producing and consuming messages',
-    icon: 'kafka_credetial.svg',
+    icon: 'kafka-credentials.svg',
     category: 'api',
     color: 'from-green-500 to-emerald-600',
     fields: [
@@ -376,6 +658,98 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         required: false,
         default: false,
         helpText: 'Toggle on if your endpoint requires HTTPS'
+      }
+    ]
+  },
+  {
+    id: 'mysql',
+    name: 'MySQL',
+    description: 'Connect to a MySQL database for workflow query and row operations',
+    icon: 'mysql-credentials.svg',
+    category: 'database',
+    color: 'from-cyan-600 to-blue-700',
+    fields: [
+      {
+        name: 'host',
+        label: 'Host',
+        type: 'text',
+        required: true,
+        default: 'localhost',
+        placeholder: 'localhost',
+        description: 'MySQL server hostname or IP address'
+      },
+      {
+        name: 'port',
+        label: 'Port',
+        type: 'text',
+        required: true,
+        default: '3306',
+        placeholder: '3306',
+        description: 'MySQL TCP port'
+      },
+      {
+        name: 'database',
+        label: 'Database',
+        type: 'text',
+        required: true,
+        placeholder: 'kai',
+        description: 'Default database used by the connection'
+      },
+      {
+        name: 'username',
+        label: 'User',
+        type: 'text',
+        required: true,
+        placeholder: 'kai',
+        description: 'MySQL account username'
+      },
+      {
+        name: 'password',
+        label: 'Password',
+        type: 'password',
+        required: false,
+        placeholder: '••••••••',
+        description: 'MySQL account password'
+      },
+      {
+        name: 'connect_timeout',
+        label: 'Connect Timeout (ms)',
+        type: 'text',
+        required: false,
+        default: '10000',
+        description: 'Maximum time allowed for the initial connection'
+      },
+      {
+        name: 'ssl',
+        label: 'SSL',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        description: 'Encrypt the MySQL connection with TLS'
+      },
+      {
+        name: 'ca_certificate',
+        label: 'CA Certificate',
+        type: 'textarea',
+        required: false,
+        dependsOn: { field: 'ssl', values: [true] },
+        description: 'Optional PEM certificate authority'
+      },
+      {
+        name: 'client_certificate',
+        label: 'Client Certificate',
+        type: 'textarea',
+        required: false,
+        dependsOn: { field: 'ssl', values: [true] },
+        description: 'Optional PEM client certificate'
+      },
+      {
+        name: 'client_private_key',
+        label: 'Client Private Key',
+        type: 'textarea',
+        required: false,
+        dependsOn: { field: 'ssl', values: [true] },
+        description: 'Optional PEM client private key'
       }
     ]
   }

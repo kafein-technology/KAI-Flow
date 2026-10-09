@@ -41,7 +41,7 @@ Before installing KAI-Flow, make sure you have the following ready:
 
 *   **Docker**: KAI-Flow runs inside containers. You need Docker installed on your computer.
 *   **Git**: Required to download the project files.
-*   **Environment Files**: You will need to set up configuration files (`.env`) for the backend and frontend.
+*   **Environment File**: Configure the single root `.env` used by the project.
 *   **Database**: PostgreSQL is required. You can run it inside Docker or use an existing database.
 
 ---
@@ -168,49 +168,18 @@ Follow these steps to launch the KAI-Flow stack.
 
 You must configure the environment variables before starting.
 
-#### Backend Migrations `.env`
+#### Single Root `.env`
 
-Create: `backend/migrations/.env`
+KAI-Flow uses one environment file at the project root. Create it from the
+tracked template and keep all backend, migration, tracing, and frontend values
+there:
 
-```dotenv
-ASYNC_DATABASE_URL=postgresql+asyncpg://kai:kai@localhost:5432/kai
-DATABASE_URL=postgresql://kai:kai@localhost:5432/kai
-CREATE_DATABASE=true
+```bash
+cp .env.example .env
 ```
 
-#### Backend Runtime `.env`
-
-Create: `backend/.env`
-
-```dotenv
-ASYNC_DATABASE_URL=postgresql+asyncpg://kai:kai@localhost:5432/kai
-DATABASE_URL=postgresql://kai:kai@localhost:5432/kai
-CREATE_DATABASE=false
-POSTGRES_DB=kai
-POSTGRES_PASSWORD=kai
-
-# LangSmith / LangChain tracing (optional but recommended for debugging)
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_API_KEY=your_langchain_api_key
-LANGCHAIN_PROJECT=kai-Flow-workflows
-LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
-ENABLE_WORKFLOW_TRACING=true
-TRACE_MEMORY_OPERATIONS=true
-TRACE_AGENT_REASONING=true
-```
-
-#### Frontend `.env`
-
-Create: `client/.env`
-
-```dotenv
-VITE_API_BASE_URL=http://localhost:8000
-VITE_API_VERSION=/api/v1 (Derived from VITE_API_START and VITE_API_VERSION_ONLY)
-VITE_API_START=api
-VITE_API_VERSION_ONLY=v1
-VITE_NODE_ENV=development
-VITE_ENABLE_LOGGING=true
-```
+Do not create separate `backend/.env`, `backend/migrations/.env`, or
+`client/.env` files. Update the root `.env` before starting services.
 
 ### 2. Start Services
 
@@ -307,9 +276,10 @@ docker compose logs -f
 ```
 
 ### LangSmith Tracing
-For detailed AI observability, configure LangSmith variables in `backend/.env`:
+LangSmith is optional and disabled by default. To opt in to external AI
+observability, provide its credential through the deployment secret mechanism:
 *   `LANGCHAIN_TRACING_V2=true`
-*   `LANGCHAIN_API_KEY=<your-key>`
+*   `LANGCHAIN_API_KEY=<your-encrypted-key>`
 *   `LANGCHAIN_PROJECT=kai-Flow-workflows`
 
 This allows you to inspect every step of your agent's reasoning, tool calls, and latency usage in the LangSmith dashboard.
@@ -356,6 +326,7 @@ The main builder interface.
 
 ### Tools
 *   **Tavily Search**: Optimized web search for AI agents.
+*   **Scrapling Web Scraper**: API-key-free, HTTP-only text/HTML/link/JSON extraction and bounded same-host crawling. Connect its `tool` output to the Agent's `tools` input. It does not render JavaScript or open a browser.
 *   **HTTP Client**: Generic API connector (GET/POST/PUT).
 *   **Retriever**: Fetches relevant documents from Vector Memory.
 *   **Cohere Reranker**: improves retrieval accuracy by re-ranking results.
@@ -408,8 +379,8 @@ The main builder interface.
 ### Database & Migrations
 
 **`CREATE_DATABASE environment variable is not set to 'true'`**
-*   When running `database_setup.py`, ensure your `backend/migrations/.env` file exists and contains `CREATE_DATABASE=true`.
-*   Load the variables explicitly if needed: `export $(grep -v '^#' backend/migrations/.env | xargs)` (Linux/Mac) before running the script.
+*   When running `database_setup.py`, ensure the root `.env` contains `CREATE_DATABASE=true`.
+*   The migration script locates the root `.env` automatically with `find_dotenv()`.
 
 **`Connection refused` / `Cannot connect to Postgres`**
 *   Ensure the Docker container is running: `docker ps`.
@@ -442,6 +413,7 @@ The main builder interface.
 ### Logging & Debugging
 
 *   **Backend Logs**: The backend uses enhanced logging. Check the terminal output for formatted logs.
+*   **Daily File Logs**: Set `KAI_FLOW_FILE_LOGGING=true` in the root `.env` to write `application.log`, `workflow.log`, and `workflow_errors.log` under `backend/logs`. The files rotate at local midnight and retain 30 daily archives. `application.log` contains the complete backend logging context at the configured `LOG_LEVEL`.
 *   **Database Setup Logs**: Check `database_setup.log` in the `backend` directory.
 *   **Frontend Logs**: Check the browser console (F12) and the terminal running Vite.
 

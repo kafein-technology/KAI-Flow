@@ -435,7 +435,7 @@ class ValidationEngine:
             # Check if node type supports many-to-many inputs
             # This could be enhanced with more sophisticated node capability detection
             many_to_many_supported_types = {
-                'ReactAgent', 'ToolAgentNode', 'Agent',  # Agents can handle multiple inputs
+                'ReactAgent', 'ToolAgentNode', 'Agent', 'AgentTeam',  # Agents can handle multiple inputs
                 'BufferMemory',                          # Memory nodes can aggregate
                 'VectorStoreOrchestrator',               # Vector stores can handle multiple queries
                 'ChunkSplitter',                         # Splitters can process multiple documents

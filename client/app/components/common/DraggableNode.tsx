@@ -67,6 +67,7 @@ const iconAltText: Record<string, string> = {
   VectorStoreOrchestrator: "vectorstore-orchestrator",
   IntelligentVectorStore: "intelligent-vectorstore",
   TavilySearch: "tavily-search",
+  ScraplingTool: "scrapling-web-scraper",
   WebScraper: "web-scraper",
   HttpRequest: "http-request",
   WebhookTrigger: "webhook",
@@ -86,6 +87,8 @@ const iconAltText: Record<string, string> = {
   LLMRedTeam: "llm-red-team-scanner",
   AgenticRedTeam: "agentic-red-team-scanner",
   CustomRedTeam: "custom-red-team-scanner",
+  LLMModelScanner: "llm-model-scanner",
+  LLMModelScannerTool: "llm-model-scanner-tool",
   CryptographyNode: "cryptography",
 };
 
