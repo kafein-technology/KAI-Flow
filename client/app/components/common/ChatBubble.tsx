@@ -123,7 +123,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   return (
     <div
-      className={`flex w-full my-3 px-2 sm:px-4 ${
+      className={`flex w-full mt-3 mb-10 px-2 sm:px-4 ${
         isUser ? "justify-end" : "justify-start"
       }`}
     >
@@ -142,7 +142,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       )}
 
       <div
-        className={`max-w-[calc(100%-3rem)] sm:max-w-[85%] px-3 sm:px-4 ${!loading && !isEditing ? "pt-4" : "pt-2 sm:pt-3"} pb-2 sm:pb-3 rounded-2xl shadow-lg text-sm
+        className={`max-w-[calc(100%-3rem)] sm:max-w-[85%] px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg text-sm
         ${
           isUser
             ? isBuilder
@@ -157,10 +157,13 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         {/* Message actions */}
         {!loading && !isEditing && (
           <div
-            className={`absolute -top-3 ${isUser ? "-right-2" : "-left-2"} z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1`}
+            className={`absolute top-full ${isUser ? "right-0" : "left-0"} z-10 flex translate-y-1 gap-1 pt-1 opacity-0 pointer-events-none transition-[opacity,transform] duration-200 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto`}
+            role="toolbar"
+            aria-label="Message actions"
           >
             <div className="relative">
               <button
+                type="button"
                 onClick={handleCopyMessage}
                 className="w-6 h-6 bg-gray-500 hover:bg-gray-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
                 title="Copy"
@@ -174,7 +177,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               </button>
               {messageCopied && (
                 <span
-                  className="absolute top-8 right-0 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white shadow-lg"
+                  className="absolute bottom-full right-0 mb-1 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white shadow-lg"
                   role="status"
                 >
                   Copied!
@@ -184,16 +187,20 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             {isUser && messageId && (
               <>
                 <button
+                  type="button"
                   onClick={handleEdit}
                   className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
                   title="Düzenle"
+                  aria-label="Edit message"
                 >
                   <Edit className="w-3 h-3" />
                 </button>
                 <button
+                  type="button"
                   onClick={handleDelete}
                   className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
                   title="Sil"
+                  aria-label="Delete message"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
