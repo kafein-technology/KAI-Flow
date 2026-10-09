@@ -55,6 +55,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 }) => {
   const { user } = useAuth();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [messageCopied, setMessageCopied] = useState(false);
   const [editContent, setEditContent] = useState(message);
   const isUser = from === "user";
   const [isErrorExpanded, setIsErrorExpanded] = useState(false);
@@ -97,6 +98,16 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     }
   };
 
+  const handleCopyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(message);
+      setMessageCopied(true);
+      setTimeout(() => setMessageCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy message:", err);
+    }
+  };
+
   const handleSaveEdit = () => {
     if (messageId && onSaveEdit) {
       onSaveEdit(messageId, editContent);
@@ -131,7 +142,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       )}
 
       <div
-        className={`max-w-[calc(100%-3rem)] sm:max-w-[85%] px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg text-sm
+        className={`max-w-[calc(100%-3rem)] sm:max-w-[85%] px-3 sm:px-4 ${!loading && !isEditing ? "pt-4" : "pt-2 sm:pt-3"} pb-2 sm:pb-3 rounded-2xl shadow-lg text-sm
         ${
           isUser
             ? isBuilder
@@ -143,23 +154,51 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         }
         relative transition-all duration-200 hover:shadow-xl group`}
       >
-        {/* Action buttons for user messages */}
-        {isUser && messageId && !isEditing && (
-          <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
-            <button
-              onClick={handleEdit}
-              className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
-              title="Düzenle"
-            >
-              <Edit className="w-3 h-3" />
-            </button>
-            <button
-              onClick={handleDelete}
-              className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
-              title="Sil"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
+        {/* Message actions */}
+        {!loading && !isEditing && (
+          <div
+            className={`absolute -top-3 ${isUser ? "-right-2" : "-left-2"} z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1`}
+          >
+            <div className="relative">
+              <button
+                onClick={handleCopyMessage}
+                className="w-6 h-6 bg-gray-500 hover:bg-gray-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
+                title="Copy"
+                aria-label="Copy"
+              >
+                {messageCopied ? (
+                  <Check className="w-3 h-3" />
+                ) : (
+                  <Copy className="w-3 h-3" />
+                )}
+              </button>
+              {messageCopied && (
+                <span
+                  className="absolute top-8 right-0 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white shadow-lg"
+                  role="status"
+                >
+                  Copied!
+                </span>
+              )}
+            </div>
+            {isUser && messageId && (
+              <>
+                <button
+                  onClick={handleEdit}
+                  className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
+                  title="Düzenle"
+                >
+                  <Edit className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
+                  title="Sil"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </>
+            )}
           </div>
         )}
 
