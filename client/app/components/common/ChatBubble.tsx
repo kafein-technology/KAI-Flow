@@ -55,6 +55,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 }) => {
   const { user } = useAuth();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [messageCopied, setMessageCopied] = useState(false);
   const [editContent, setEditContent] = useState(message);
   const isUser = from === "user";
   const [isErrorExpanded, setIsErrorExpanded] = useState(false);
@@ -97,6 +98,16 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     }
   };
 
+  const handleCopyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(message);
+      setMessageCopied(true);
+      setTimeout(() => setMessageCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy message:", err);
+    }
+  };
+
   const handleSaveEdit = () => {
     if (messageId && onSaveEdit) {
       onSaveEdit(messageId, editContent);
@@ -112,7 +123,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   return (
     <div
-      className={`flex w-full my-3 px-2 sm:px-4 ${
+      className={`flex w-full mt-3 mb-10 px-2 sm:px-4 ${
         isUser ? "justify-end" : "justify-start"
       }`}
     >
@@ -143,23 +154,58 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         }
         relative transition-all duration-200 hover:shadow-xl group`}
       >
-        {/* Action buttons for user messages */}
-        {isUser && messageId && !isEditing && (
-          <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
-            <button
-              onClick={handleEdit}
-              className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
-              title="Düzenle"
-            >
-              <Edit className="w-3 h-3" />
-            </button>
-            <button
-              onClick={handleDelete}
-              className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
-              title="Sil"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
+        {/* Message actions */}
+        {!loading && !isEditing && (
+          <div
+            className={`absolute top-full ${isUser ? "right-0" : "left-0"} z-10 flex translate-y-1 gap-1 pt-1 opacity-0 pointer-events-none transition-[opacity,transform] duration-200 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto`}
+            role="toolbar"
+            aria-label="Message actions"
+          >
+            <div className="relative">
+              <button
+                type="button"
+                onClick={handleCopyMessage}
+                className="w-6 h-6 bg-gray-500 hover:bg-gray-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
+                title="Copy"
+                aria-label="Copy"
+              >
+                {messageCopied ? (
+                  <Check className="w-3 h-3" />
+                ) : (
+                  <Copy className="w-3 h-3" />
+                )}
+              </button>
+              {messageCopied && (
+                <span
+                  className="absolute bottom-full right-0 mb-1 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white shadow-lg"
+                  role="status"
+                >
+                  Copied!
+                </span>
+              )}
+            </div>
+            {isUser && messageId && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleEdit}
+                  className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
+                  title="Düzenle"
+                  aria-label="Edit message"
+                >
+                  <Edit className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
+                  title="Sil"
+                  aria-label="Delete message"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </>
+            )}
           </div>
         )}
 
