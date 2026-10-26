@@ -1,6 +1,7 @@
-import { Field, ErrorMessage } from "formik";
+import { ErrorMessage } from "formik";
 import type { NodeProperty } from "../types";
 import { FieldLabel, getFieldHelpText } from "./FieldLabel";
+import { VariableAutocompleteField } from "./VariableAutocompleteField";
 
 interface NodeTextAreaProps {
   property: NodeProperty;
@@ -26,7 +27,7 @@ export const NodeTextArea = ({ property, values }: NodeTextAreaProps) => {
         label={property.displayName}
         helpText={getFieldHelpText(property)}
       />
-      <Field
+      <VariableAutocompleteField
         as="textarea"
         name={property.name}
         placeholder={property.placeholder}

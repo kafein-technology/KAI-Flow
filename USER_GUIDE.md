@@ -316,6 +316,14 @@ The main builder interface.
 *   **Agents**: "Brains" that decide which tools to use.
 *   **Workflows**: The complete graph of connected nodes.
 
+### Variables
+
+Variables are reusable text configuration values owned by your account. Create a key and value on the **Variables** page, then reference the key in a templated workflow node field with `${{vars.REGION}}`. Typing `${{` in a text field opens a variable menu; use the mouse, arrow keys and Enter, or Tab to insert a value. Each run reads the latest saved values when it starts.
+
+Variables can be **Global** (available in all your workflows) or assigned to one workflow. If both scopes contain the same key, the workflow value takes precedence. Names are case-sensitive, start with a letter or underscore, and use letters, numbers, and underscores. Keys are limited to 50 characters and values to 1000 characters.
+
+Variable values are shown on the Variables page and can appear in workflow execution data. Use **Credentials** for passwords, tokens, and API keys.
+
 ---
 
 ## <a name="node-reference"></a>Node Reference

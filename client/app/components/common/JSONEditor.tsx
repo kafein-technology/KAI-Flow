@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle, Code } from "lucide-react";
+import { VariableAutocompleteControl } from "../node/fields/VariableAutocompleteField";
 
 interface JSONEditorProps {
   value: string;
@@ -58,8 +59,7 @@ export default function JSONEditor({
   };
 
   // Handle input change
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value;
+  const handleChange = (newValue: string) => {
     const valid = validateJSON(newValue);
     setIsValid(valid);
     onChange(newValue);
@@ -92,9 +92,11 @@ export default function JSONEditor({
       {description && <p className="kai-node-field-hint">{description}</p>}
 
       <div className="relative">
-        <textarea
+        <VariableAutocompleteControl
+          name="json"
+          as="textarea"
           value={value}
-          onChange={handleChange}
+          onValueChange={handleChange}
           placeholder={placeholder}
           style={{ height: `${height}px` }}
           className={`

@@ -12,7 +12,6 @@ const Home = lazy(() => import("./routes/home"));
 const Signin = lazy(() => import("./routes/signin"));
 const Register = lazy(() => import("./routes/register"));
 const Workflows = lazy(() => import("./routes/workflows"));
-const Pinned = lazy(() => import("./routes/pinned"));
 const Settings = lazy(() => import("./routes/settings"));
 const Canvas = lazy(() => import("./routes/canvas"));
 const Executions = lazy(() => import("./routes/executions"));
@@ -135,7 +134,6 @@ export default function App() {
               <Route path="/signin" element={<Signin />} />
               {!config.IS_ENTERPRISE && <Route path="/register" element={<Register />} />}
               <Route path="/workflows" element={<Workflows />} />
-              <Route path="/pinned" element={<Pinned />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/canvas" element={<Canvas />} />
               <Route path="/executions" element={<Executions />} />

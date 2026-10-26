@@ -26,6 +26,7 @@ import { Settings, Plus, X, ChevronDown } from "lucide-react";
 import { NodeDynamicSelect } from "./fields/NodeDynamicSelect";
 import { NodeColumnMapper } from "./fields/NodeColumnMapper";
 import { NodeDocumentEditor } from "./fields/NodeDocumentEditor";
+import { useVariableStore } from "~/stores/variables";
 
 interface GenericNodeFormProps {
   initialValues?: GenericData;
@@ -94,6 +95,10 @@ export default function GenericNodeForm({
   onSave,
   onChange,
 }: GenericNodeFormProps) {
+  const fetchVariables = useVariableStore((state) => state.fetchVariables);
+  useEffect(() => {
+    void fetchVariables().catch(() => {});
+  }, [fetchVariables]);
   const rawProperties = configData?.metadata?.properties || [];
   const nodeType =
     configData?.metadata?.name || configData?.name || configData?.type;

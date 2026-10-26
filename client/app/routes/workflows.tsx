@@ -45,8 +45,6 @@ import { Link } from "react-router";
 import { useSnackbar } from "notistack";
 import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
-import PinnedItemsSection from "~/components/common/PinnedItemsSection";
-import PinButton from "~/components/common/PinButton";
 import WorkflowEditModal from "~/components/modals/WorkflowEditModal";
 import WorkflowExportModal from "~/components/modals/WorkflowExportModal";
 
@@ -707,9 +705,6 @@ function WorkflowsLayout() {
             {/* Content based on active tab */}
             {true ? (
               <>
-                {/* Pinned Workflows Section */}
-                <PinnedItemsSection type="workflow" />
-
                 {/* My Workflows Grid */}
                 {error ? (
                   <ErrorMessageBlock error={error} onRetry={handleRetry} />
@@ -747,22 +742,6 @@ function WorkflowsLayout() {
                               </p>
                             </div>
 
-                            <div className="shrink-0">
-                              <PinButton
-                                id={workflow.id}
-                                type="workflow"
-                                title={workflow.name}
-                                description={workflow.description}
-                                metadata={{
-                                  status: workflow.is_public
-                                    ? "Active"
-                                    : "Inactive",
-                                  lastActivity: workflow.updated_at,
-                                }}
-                                size="sm"
-                                variant="minimal"
-                              />
-                            </div>
                           </div>
 
                           <div className="mb-4 flex h-11 items-center justify-between border-y border-[var(--kai-border)] px-1">

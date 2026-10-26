@@ -1,6 +1,6 @@
-import { Field } from "formik";
 import type { NodeProperty } from "../types";
 import { FieldLabel, getFieldHelpText } from "./FieldLabel";
+import { VariableAutocompleteField } from "./VariableAutocompleteField";
 
 interface NodeTextProps {
   property: NodeProperty;
@@ -34,8 +34,7 @@ export const NodeText = ({ property, values }: NodeTextProps) => {
         label={property.displayName}
         helpText={getFieldHelpText(property)}
       />
-      <Field
-        type="text"
+      <VariableAutocompleteField
         name={property.name}
         className="kai-node-field-control px-4 py-3"
         placeholder={property.placeholder}

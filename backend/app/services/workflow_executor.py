@@ -13,9 +13,7 @@ and webhook triggers. Provides common functionality for:
 import logging
 import secrets
 import string
-import time
 import uuid
-import json
 import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Union, AsyncGenerator
@@ -30,6 +28,7 @@ from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpda
 from app.schemas.auth import UserSignUpData
 from app.services.user_service import UserService
 from app.services.execution_service import ExecutionService
+from app.services.variable_service import VariableService
 from app.core.json_utils import make_json_serializable
 from app.core.active_tasks import active_tasks_manager
 
@@ -431,8 +430,12 @@ class WorkflowExecutor:
             # Execute workflow using enhancer with the build result
             logger.info(f"Starting workflow execution: workflow={ctx.workflow.id}, session={ctx.session_id}")
             
+            variable_owner_id = ctx.workflow.user_id if ctx.user_context.get("is_webhook") else ctx.user.id
+            runtime_variables = await VariableService().get_runtime_values(db, variable_owner_id, ctx.workflow.id)
+            runtime_inputs = {**ctx.execution_inputs, "vars": runtime_variables}
+
             result = await self.workflow_enhancer.enhanced_execute(
-                inputs=ctx.execution_inputs,
+                inputs=runtime_inputs,
                 stream=stream,
                 user_context=ctx.user_context,
                 build_result=build_result
@@ -470,7 +473,7 @@ class WorkflowExecutor:
                 # Add webhook_response to result for easy access
                 if webhook_response:
                     result["webhook_response"] = webhook_response
-                    logger.info(f"Extracted webhook_response from workflow execution")
+                    logger.info("Extracted webhook_response from workflow execution")
             
             if stream and hasattr(result, "__aiter__"):
                 async def _tracked_stream() -> AsyncGenerator:

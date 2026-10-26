@@ -4,6 +4,7 @@ import { RefreshCw, Trash2, Plus, AlertCircle, X } from "lucide-react";
 import type { NodeProperty } from "../types";
 import { apiClient } from "~/lib/api-client";
 import { FieldLabel, getFieldHelpText } from "./FieldLabel";
+import { VariableAutocompleteControl } from "./VariableAutocompleteField";
 
 interface NodeDocumentEditorProps {
   property: NodeProperty;
@@ -255,26 +256,28 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
 
       case "json":
         return (
-          <textarea
+          <VariableAutocompleteControl
+            name={property.name}
+            as="textarea"
             rows={3}
             className={`${inputClass} font-mono text-xs`}
             value={
               typeof value === "string" ? value : value ? JSON.stringify(value, null, 2) : ""
             }
             placeholder=' JSON list or object'
-            onChange={(e) => onChange(e.target.value)}
+            onValueChange={onChange}
             onMouseDown={(event) => event.stopPropagation()}
           />
         );
 
       default:
         return (
-          <input
-            type="text"
+          <VariableAutocompleteControl
+            name={property.name}
             className={inputClass}
-            value={asInputValue(value)}
+            value={String(asInputValue(value))}
             placeholder="Leave empty to skip this field"
-            onChange={(e) => onChange(e.target.value)}
+            onValueChange={onChange}
             onMouseDown={(event) => event.stopPropagation()}
           />
         );

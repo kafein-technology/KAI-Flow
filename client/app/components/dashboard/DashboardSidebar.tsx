@@ -8,7 +8,6 @@ import {
   User,
   Search,
   X,
-  Heart,
   LayoutDashboard,
   LoaderCircle,
   Settings,
@@ -22,7 +21,6 @@ import { useWorkflows } from "~/stores/workflows";
 import { useExecutionsStore } from "~/stores/executions";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { useVariableStore } from "~/stores/variables";
-import { usePinnedItems } from "~/stores/pinnedItems";
 import type {
   Workflow,
   WorkflowExecution,
@@ -72,7 +70,6 @@ const Sidebar = () => {
   const { userCredentials: credentials, fetchCredentials } =
     useUserCredentialStore();
   const { variables, fetchVariables } = useVariableStore();
-  const { getPinnedItems } = usePinnedItems();
 
   // Search results
   const searchResults = useMemo(() => {
@@ -406,21 +403,6 @@ const Sidebar = () => {
               />
             )}
 
-            {(() => {
-              const pinnedItems = getPinnedItems();
-              if (pinnedItems.length > 0) {
-                return (
-                  <SidebarLink
-                    icon={<Heart className="h-[18px] w-[18px]" />}
-                    label="Pinned Items"
-                    path="/pinned"
-                    active={location.pathname === "/pinned"}
-                    badge={`${pinnedItems.length}`}
-                  />
-                );
-              }
-              return null;
-            })()}
           </div>
       </nav>
 

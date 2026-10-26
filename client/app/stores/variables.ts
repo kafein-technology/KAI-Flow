@@ -1,16 +1,16 @@
 import { create } from 'zustand';
 import { listVariables, createVariable, getVariable, removeVariable, updateVariable } from '../services/variableService';
-import type { Variable } from '~/types/api';
+import type { Variable, VariableCreateRequest } from '~/types/api';
 
 interface VariableStore {
   variables: Variable[];
   isLoading: boolean;
   error: string | null;
   fetchVariables: () => Promise<void>;
-  createVariable: (data: Record<string, any>) => Promise<void>;
+  createVariable: (data: VariableCreateRequest) => Promise<void>;
   getVariable: (id: string) => Promise<void>;
   removeVariable: (id: string) => Promise<void>;
-  updateVariable: (id: string, inputs: Record<string, any>) => Promise<void>;
+  updateVariable: (id: string, inputs: Partial<VariableCreateRequest>) => Promise<void>;
 }
 
 export const useVariableStore = create<VariableStore>((set, get) => ({

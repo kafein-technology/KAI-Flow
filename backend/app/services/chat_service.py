@@ -11,6 +11,7 @@ from app.models.chat import ChatMessage
 from app.schemas.chat import ChatMessageCreate, ChatMessageUpdate
 from app.core.encryption import encrypt_data, decrypt_data
 from app.core.engine import get_engine
+from app.services.variable_service import VariableService
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class ChatService:
         self._workflow_built = False
         self._last_workflow_id = None
     
-    async def _execute_workflow(self, user_input: str, chatflow_id: UUID, workflow_id: UUID = None) -> str:
+    async def _execute_workflow(self, user_input: str, chatflow_id: UUID, workflow_id: UUID = None, user_id: UUID = None) -> str:
 
         try:
             logger.info("Starting workflow execution", extra={
@@ -33,7 +34,7 @@ class ChatService:
             
             # Get workflow - either from database or use default
             if workflow_id:
-                workflow_data = await self._get_workflow_by_id(workflow_id)
+                workflow_data = await self._get_workflow_by_id(workflow_id, user_id)
                 if not workflow_data:
                     logger.warning(f"Workflow {workflow_id} not found, falling back to default")
                     workflow_data = await self._get_default_workflow()
@@ -55,20 +56,25 @@ class ChatService:
             
             user_context = {
                 "session_id": session_id,
-                "user_id": user_id if user_id else str(chatflow_id),
-                "workflow_id": str(workflow_id) if workflow_id else workflow_data.get("id", "default")
+                "user_id": str(user_id) if user_id else str(chatflow_id),
+                "workflow_id": workflow_data.get("id", "default")
             }
             
             # Build workflow only if needed (different workflow or not built yet)
-            current_workflow_id = str(workflow_id) if workflow_id else workflow_data.get("id", "default")
+            current_workflow_id = workflow_data.get("id", "default")
             if not self._workflow_built or self._last_workflow_id != current_workflow_id:
                 self.engine.build(workflow_data, user_context=user_context)
                 self._workflow_built = True
                 self._last_workflow_id = current_workflow_id
             
             # Execute workflow using the engine
+            scoped_workflow_id = workflow_id if workflow_id and workflow_data.get("id") == str(workflow_id) else None
+            runtime_variables = (
+                await VariableService().get_runtime_values(self.db, user_id, scoped_workflow_id)
+                if user_id else {}
+            )
             execution_result = await self.engine.execute(
-                inputs={"input": user_input},
+                inputs={"input": user_input, "vars": runtime_variables},
                 stream=False,
                 user_context=user_context
             )
@@ -146,14 +152,15 @@ class ChatService:
             })
             return f"I encountered an error while processing your request: {str(e)}"
     
-    async def _get_workflow_by_id(self, workflow_id: UUID) -> Optional[Dict[str, Any]]:
+    async def _get_workflow_by_id(self, workflow_id: UUID, user_id: UUID = None) -> Optional[Dict[str, Any]]:
 
         try:
             from app.models.workflow import Workflow
             
-            result = await self.db.execute(
-                select(Workflow).filter(Workflow.id == workflow_id)
-            )
+            query = select(Workflow).filter(Workflow.id == workflow_id)
+            if user_id:
+                query = query.where(or_(Workflow.user_id == user_id, Workflow.is_public.is_(True)))
+            result = await self.db.execute(query)
             workflow = result.scalars().first()
             
             if workflow and workflow.flow_data:
@@ -447,7 +454,7 @@ class ChatService:
             await self.db.execute(delete_stmt)
             await self.db.commit()
             return True
-        except Exception as e:
+        except Exception:
             await self.db.rollback()
             return False
 
@@ -466,7 +473,7 @@ class ChatService:
         await self.create_chat_message(user_message)
 
         # 3. Execute the actual workflow with the specified workflow_id
-        llm_response_content = await self._execute_workflow(user_input, chatflow_id, workflow_id)
+        llm_response_content = await self._execute_workflow(user_input, chatflow_id, workflow_id, user_id)
 
         # 4. Save LLM's response (create_chat_message will handle encryption)
         llm_message = ChatMessageCreate(
@@ -493,7 +500,7 @@ class ChatService:
         await self.create_chat_message(user_message)
 
         # 2. Execute the actual workflow with the specified workflow_id
-        llm_response_content = await self._execute_workflow(user_input, chatflow_id, workflow_id)
+        llm_response_content = await self._execute_workflow(user_input, chatflow_id, workflow_id, user_id)
 
         # 3. Save LLM's response (create_chat_message will handle encryption)
         llm_message = ChatMessageCreate(
