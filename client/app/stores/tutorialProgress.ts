@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 /**
  * Tutorial progress data stored per tutorial in localStorage.
- * Follows the same localStorage pattern as pinnedItems.ts and theme.ts.
+ * Follows the same localStorage pattern as theme.ts.
  */
 export interface TutorialProgressEntry {
     tutorial_id: string;

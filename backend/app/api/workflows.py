@@ -2,7 +2,7 @@
 import json
 import logging
 import uuid
-from typing import Any, Dict, Optional, AsyncGenerator, List
+from typing import Any, Dict, Optional, List
 from datetime import datetime, timedelta
 from sqlalchemy import and_, func as sql_func
 
@@ -29,6 +29,7 @@ from app.services.workflow_service import WorkflowService, WorkflowTemplateServi
 from app.services.dependencies import get_workflow_service_dep, get_workflow_template_service_dep, get_execution_service_dep
 from app.services.execution_service import ExecutionService
 from app.services.chat_service import ChatService
+from app.services.variable_service import VariableService
 from app.schemas.chat import ChatMessageCreate
 from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpdate
 from app.core.execution_queue import execution_queue
@@ -706,9 +707,10 @@ async def execute_node(
             user_context=user_context,
         )
         engine = build_result[2]
+        runtime_variables = await VariableService().get_runtime_values(db, current_user.id, workflow_id)
         result = await engine.base_builder.execute_node(
             node_id=req.node_id,
-            inputs={"input": req.input_text},
+            inputs={"input": req.input_text, "vars": runtime_variables},
             session_id=session_id,
             user_id=user_context["user_id"],
             owner_id=user_context["owner_id"],
@@ -1124,8 +1126,9 @@ async def execute_timer_node_manually(
         
         # Build and execute the workflow
         engine.build(flow_data=flow_data, user_context=user_context)
+        runtime_variables = await VariableService().get_runtime_values(db, current_user.id, workflow.id)
         result_stream = await engine.execute(
-            inputs={"input": "Manual TimerStartNode execution"},
+            inputs={"input": "Manual TimerStartNode execution", "vars": runtime_variables},
             stream=True,
             user_context=user_context,
         )

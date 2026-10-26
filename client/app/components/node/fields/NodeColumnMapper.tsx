@@ -6,6 +6,7 @@ import { apiClient } from "~/lib/api-client";
 import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 import { ThemedDateTimeInput } from "./ThemedDateTimeInput";
 import { ThemedNumberInput } from "./ThemedNumberInput";
+import { VariableAutocompleteControl } from "./VariableAutocompleteField";
 
 interface NodeColumnMapperProps {
   property: NodeProperty;
@@ -238,23 +239,25 @@ export const NodeColumnMapper = ({
 
       case "json":
         return (
-          <textarea
+          <VariableAutocompleteControl
+            name={column.name}
+            as="textarea"
             rows={3}
             className={`${inputClass} font-mono text-xs`}
             value={typeof value === "string" ? value : value ? JSON.stringify(value, null, 2) : ""}
             placeholder={column.required ? "Required JSON value" : "{}"}
-            onChange={(e) => setColumnValue(column.name, e.target.value)}
+            onValueChange={(next) => setColumnValue(column.name, next)}
           />
         );
 
       default:
         return (
-          <input
-            type="text"
+          <VariableAutocompleteControl
+            name={column.name}
             className={inputClass}
-            value={value ?? ""}
+            value={String(value ?? "")}
             placeholder={placeholderFor(column)}
-            onChange={(e) => setColumnValue(column.name, e.target.value)}
+            onValueChange={(next) => setColumnValue(column.name, next)}
           />
         );
     }

@@ -15,13 +15,14 @@ import {
 import AuthGuard from "~/components/AuthGuard";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useVariableStore } from "~/stores/variables";
+import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
 import Loading from "~/components/Loading";
 
 interface VariableFormValues {
   name: string;
-  type: string;
   value: string;
+  workflow_id: string;
 }
 
 function VariablesLayout() {
@@ -30,6 +31,9 @@ function VariablesLayout() {
   const [editingVariable, setEditingVariable] = useState<any>(null);
   const [itemsPerPage, setItemsPerPage] = useState(6);
   const [page, setPage] = useState(1);
+  const [scopeFilter, setScopeFilter] = useState("all");
+  const workflows = useWorkflows((state) => state.workflows);
+  const fetchWorkflows = useWorkflows((state) => state.fetchWorkflows);
 
   const {
     variables,
@@ -41,15 +45,16 @@ function VariablesLayout() {
   } = useVariableStore();
 
   useEffect(() => {
-    fetchVariables();
-  }, [fetchVariables]);
+    void fetchVariables().catch(() => {});
+    void fetchWorkflows();
+  }, [fetchVariables, fetchWorkflows]);
 
   const handleVariableSubmit = async (
     values: VariableFormValues,
     { resetForm }: any
   ) => {
     try {
-      await createVariable(values);
+      await createVariable({ ...values, workflow_id: values.workflow_id || null, type: "static" });
       enqueueSnackbar("Variable created successfully", { variant: "success" });
       const modal = document.getElementById(
         "modalCreateVariable"
@@ -69,7 +74,7 @@ function VariablesLayout() {
   ) => {
     try {
       if (editingVariable) {
-        await updateVariable(editingVariable.id, values);
+        await updateVariable(editingVariable.id, { ...values, workflow_id: values.workflow_id || null });
         enqueueSnackbar("Variable updated successfully", {
           variant: "success",
         });
@@ -95,17 +100,22 @@ function VariablesLayout() {
     modal?.showModal();
   };
 
-  const validateVariable = (values: VariableFormValues) => {
+  const validateVariable = (values: VariableFormValues, editingId?: string) => {
     const errors: Partial<VariableFormValues> = {};
     if (!values.name) {
       errors.name = "Variable name is required";
-    } else if (values.name.length < 2) {
-      errors.name = "Must be at least 2 characters";
-    } else if (!/^[A-Z][A-Z0-9_]*$/i.test(values.name)) {
-      errors.name = "Only letters, numbers, and underscores allowed";
+    } else if (values.name.length > 50) {
+      errors.name = "Must be 50 characters or fewer";
+    } else if (!/^[A-Z_][A-Z0-9_]*$/i.test(values.name)) {
+      errors.name = "Start with a letter or underscore; use only letters, numbers, and underscores";
+    } else if (variables.some((variable) =>
+      variable.id !== editingId &&
+      variable.name === values.name &&
+      (variable.workflow_id ?? "") === values.workflow_id
+    )) {
+      errors.name = "A variable with this name already exists in this scope";
     }
-    if (!values.value) errors.value = "Value is required";
-    if (!values.type) errors.type = "Type is required";
+    if (values.value.length > 1000) errors.value = "Must be 1000 characters or fewer";
     return errors;
   };
 
@@ -122,8 +132,9 @@ function VariablesLayout() {
 
   const filteredVariables = variables.filter(
     (v) =>
-      v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.value.toLowerCase().includes(searchQuery.toLowerCase())
+      (scopeFilter === "all" || (scopeFilter === "global" ? !v.workflow_id : v.workflow_id === scopeFilter)) &&
+      (v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      v.value.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const totalItems = filteredVariables.length;
@@ -148,8 +159,8 @@ function VariablesLayout() {
                 <h1 className="text-4xl font-bold text-zinc-100">
                   Variables
                 </h1>
-                <p className="text-gray-600 text-lg">
-                  Manage your application variables and configuration values
+                <p className="text-zinc-400 text-lg">
+                  Save reusable text values and type {"${{vars.NAME}}"} in a workflow field. Type {"${{"} to choose a variable. Use Credentials for passwords and API keys.
                 </p>
               </div>
               <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -163,6 +174,16 @@ function VariablesLayout() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
+                <select
+                  aria-label="Filter variable scope"
+                  className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900"
+                  value={scopeFilter}
+                  onChange={(event) => { setScopeFilter(event.target.value); setPage(1); }}
+                >
+                  <option value="all">All scopes</option>
+                  <option value="global">Global</option>
+                  {workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.name}</option>)}
+                </select>
                 <button
                   className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700"
                   onClick={() =>
@@ -208,6 +229,26 @@ function VariablesLayout() {
                           <h3 className="text-lg font-semibold text-gray-900 font-mono">
                             {variable.name}
                           </h3>
+                          <button
+                            type="button"
+                            title="Copy variable expression"
+                            className="rounded bg-blue-50 px-2 py-1 font-mono text-xs text-blue-700 hover:bg-blue-100"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText("${{vars." + variable.name + "}}");
+                                enqueueSnackbar("Expression copied", { variant: "success" });
+                              } catch {
+                                enqueueSnackbar("Could not copy expression", { variant: "error" });
+                              }
+                            }}
+                          >
+                            {"${{vars." + variable.name + "}}"}
+                          </button>
+                          <div className="mt-1 text-xs text-gray-500">
+                            {variable.workflow_id
+                              ? `Workflow: ${workflows.find((workflow) => workflow.id === variable.workflow_id)?.name ?? variable.workflow_id}`
+                              : "Global · all your workflows"}
+                          </div>
                           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                             <span>Created: {timeAgo(variable.created_at)}</span>
                             <span>Updated: {timeAgo(variable.updated_at)}</span>
@@ -219,16 +260,6 @@ function VariablesLayout() {
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span
-                          className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${
-                            variable.type === "static"
-                              ? "bg-blue-100 text-blue-800 border-blue-200"
-                              : "bg-green-100 text-green-800 border-green-200"
-                          }`}
-                        >
-                          {variable.type}
-                        </span>
-
                         <div className="flex items-center gap-1">
                           <button
                             title="Edit variable"
@@ -357,13 +388,13 @@ function VariablesLayout() {
             <Formik
               initialValues={{
                 name: "",
-                type: "static",
                 value: "",
+                workflow_id: "",
               }}
-              validate={validateVariable}
+              validate={(values) => validateVariable(values)}
               onSubmit={handleVariableSubmit}
             >
-              {({ isSubmitting }) => (
+              {({ isSubmitting, values }) => (
                 <Form className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -371,6 +402,7 @@ function VariablesLayout() {
                     </label>
                     <Field
                       name="name"
+                      maxLength={50}
                       className="input input-bordered w-full"
                       placeholder="VARIABLE_NAME"
                     />
@@ -382,22 +414,14 @@ function VariablesLayout() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Type
-                    </label>
-                    <Field
-                      as="select"
-                      name="type"
-                      className="select select-bordered w-full"
-                    >
-                      <option value="static">Static</option>
-                      <option value="dynamic">Dynamic</option>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Scope</label>
+                    <Field as="select" name="workflow_id" className="select select-bordered w-full">
+                      <option value="">Global · all workflows</option>
+                      {workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.name}</option>)}
                     </Field>
-                    <ErrorMessage
-                      name="type"
-                      component="div"
-                      className="text-red-500 text-sm mt-1"
-                    />
+                    {values.workflow_id && variables.some((variable) => variable.workflow_id === null && variable.name === values.name) && (
+                      <p className="mt-1 text-xs text-amber-700">This workflow value will override the global value.</p>
+                    )}
                   </div>
 
                   <div>
@@ -407,6 +431,7 @@ function VariablesLayout() {
                     <Field
                       as="textarea"
                       name="value"
+                      maxLength={1000}
                       className="textarea textarea-bordered w-full h-24"
                       placeholder="Enter variable value..."
                     />
@@ -478,10 +503,10 @@ function VariablesLayout() {
               <Formik
                 initialValues={{
                   name: editingVariable.name,
-                  type: editingVariable.type,
                   value: editingVariable.value,
+                  workflow_id: editingVariable.workflow_id || "",
                 }}
-                validate={validateVariable}
+                validate={(values) => validateVariable(values, editingVariable.id)}
                 onSubmit={handleVariableUpdate}
                 enableReinitialize
               >
@@ -493,6 +518,7 @@ function VariablesLayout() {
                       </label>
                       <Field
                         name="name"
+                        maxLength={50}
                         className="input input-bordered w-full"
                         placeholder="VARIABLE_NAME"
                       />
@@ -504,22 +530,11 @@ function VariablesLayout() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Type
-                      </label>
-                      <Field
-                        as="select"
-                        name="type"
-                        className="select select-bordered w-full"
-                      >
-                        <option value="static">Static</option>
-                        <option value="dynamic">Dynamic</option>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Scope</label>
+                      <Field as="select" name="workflow_id" className="select select-bordered w-full">
+                        <option value="">Global · all workflows</option>
+                        {workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.name}</option>)}
                       </Field>
-                      <ErrorMessage
-                        name="type"
-                        component="div"
-                        className="text-red-500 text-sm mt-1"
-                      />
                     </div>
 
                     <div>
@@ -529,6 +544,7 @@ function VariablesLayout() {
                       <Field
                         as="textarea"
                         name="value"
+                        maxLength={1000}
                         className="textarea textarea-bordered w-full h-24"
                         placeholder="Enter variable value..."
                       />

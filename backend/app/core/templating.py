@@ -15,7 +15,7 @@ import re
 import json
 import logging
 import os
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List
 
 from jinja2 import Environment
 from app.core.error_normalization import sanitize_error_text
@@ -455,10 +455,11 @@ def apply_jinja_to_inputs(
     try:
         context = build_template_context(state, nodes_registry)
         
-        # Merge state variables into context (do not overwrite primary context values)
+        # Merge state variables into context. The saved-variable namespace is reserved
+        # so a node named "vars" cannot hide it.
         if hasattr(state, 'variables') and isinstance(state.variables, dict):
             for k, v in state.variables.items():
-                if k not in context:
+                if k == 'vars' or k not in context:
                     context[k] = v
                     
         if not context:

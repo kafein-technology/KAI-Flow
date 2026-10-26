@@ -306,14 +306,13 @@ export interface CredentialWorkflowUsageResponse {
   workflows: CredentialWorkflowUsageItem[];
 }
 
-// Variables types (for future implementation)
+// Account-level workflow variables
 export interface Variable {
   id: string;
   name: string;
   value: string;
-  type: string; // enum değil, string olmalı
-  description?: string;
-  user_id: string;
+  type: string | null;
+  workflow_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -321,8 +320,8 @@ export interface Variable {
 export interface VariableCreateRequest {
   name: string;
   value: string;
-  type: string; // enum değil, string olmalı
-  description?: string;
+  type?: "static";
+  workflow_id?: string | null;
 }
 
 // Template types (for future implementation)
