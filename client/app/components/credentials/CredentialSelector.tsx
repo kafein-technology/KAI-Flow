@@ -24,6 +24,7 @@ interface CredentialSelectorProps {
   className?: string;
   showCreateNew?: boolean; // Whether to show create new credentials option
   includeGenericFallback?: boolean; // Whether to include generic_api creds alongside serviceType
+  allowNone?: boolean;
   appearance?: "default" | "dark";
 }
 
@@ -38,6 +39,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
   className = "",
   showCreateNew = true,
   includeGenericFallback = true,
+  allowNone = false,
   appearance = "default",
 }) => {
   const { userCredentials, addCredential, updateCredential, removeCredential, fetchCredentials, isLoading } =
@@ -97,6 +99,11 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
       if (onCredentialLoad) {
         onCredentialLoad(null);
       }
+      return;
+    }
+
+    if (!onCredentialLoad) {
+      onChange(credentialId);
       return;
     }
 
@@ -238,7 +245,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
   const selectedCredential = filteredCredentials.find(cred => cred.id === value);
   const displayText = selectedCredential
     ? `${selectedCredential.name} (${selectedCredential.service_type})`
-    : placeholder;
+    : value ? "Credential unavailable" : allowNone ? "None (no authentication)" : placeholder;
 
   return (
     <div className="space-y-3">
@@ -272,6 +279,15 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
           {/* Dropdown Menu */}
           {dropdownOpen && (
             <div className={`absolute z-50 mt-1 left-0 right-0 rounded-lg border shadow-lg shadow-black/40 overflow-hidden ${isDarkAppearance ? "bg-[var(--kai-surface-control)] border-[var(--kai-control-border)]" : "bg-slate-900 border-slate-700"}`}>
+              {allowNone && (
+                <button
+                  type="button"
+                  onClick={() => handleCredentialSelect("")}
+                  className={`w-full px-4 py-2.5 text-sm text-left transition-colors ${isDarkAppearance ? "text-zinc-200 hover:bg-[var(--kai-surface-hover)]" : "text-slate-300 hover:bg-blue-500/20"}`}
+                >
+                  None (no authentication)
+                </button>
+              )}
               {/* Credential options */}
               {filteredCredentials.map((cred) => (
                 <button

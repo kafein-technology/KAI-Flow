@@ -1,5 +1,4 @@
 import CredentialSelector from "../../credentials/CredentialSelector";
-import { getUserCredentialById } from "~/services/userCredentialService";
 import type { NodeProperty } from "../types";
 import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
@@ -10,29 +9,23 @@ interface NodeCredentialSelectProps {
 }
 
 export const NodeCredentialSelect = ({ property, values, setFieldValue }: NodeCredentialSelectProps) => {
-  const handleCredentialChange = async (credentialId: string) => {
+  const handleCredentialChange = (credentialId: string) => {
     const targetFieldName = property.name || "credential_id";
     setFieldValue(targetFieldName, credentialId);
 
     if (property.serviceType === "postgresql_vectorstore") {
       setFieldValue("connection_string", credentialId);
     }
-    if (credentialId) {
-      try {
-        const result = await getUserCredentialById(credentialId);
-
-        if ((result as any)?.secret?.api_key) {
-          setFieldValue("tavily_api_key", (result as any).secret.api_key);
-        }
-      } catch (e) {
-        console.error("Failed to fetch credential secret:", e);
-      }
-    }
   };
 
   const handleCredentialLoad = (secret: any) => {
-    if (secret?.api_key) {
-      setFieldValue("tavily_api_key", secret.api_key);
+    if (property.serviceType === "mcp" && secret) {
+      if (secret.test_endpoint_url) {
+        setFieldValue("endpoint_url", secret.test_endpoint_url);
+      }
+      if (secret.test_transport) {
+        setFieldValue("transport", secret.test_transport);
+      }
     }
   };
 
@@ -42,7 +35,7 @@ export const NodeCredentialSelect = ({ property, values, setFieldValue }: NodeCr
   if (Object.keys(show).length > 0) {
     for (const [dependencyName, validValue] of Object.entries(show)) {
       const dependencyValue = values[dependencyName];
-      if (dependencyValue !== validValue) {
+      if (Array.isArray(validValue) ? !validValue.includes(dependencyValue) : dependencyValue !== validValue) {
         return null;
       }
     }
@@ -57,8 +50,10 @@ export const NodeCredentialSelect = ({ property, values, setFieldValue }: NodeCr
       <CredentialSelector
         value={values[property.name] ?? values.credential_id}
         onChange={handleCredentialChange}
-        onCredentialLoad={handleCredentialLoad}
+        onCredentialLoad={property.serviceType === "mcp" ? handleCredentialLoad : undefined}
         serviceType={property.serviceType}
+        includeGenericFallback={property.serviceType !== "mcp"}
+        allowNone={property.serviceType === "mcp"}
         placeholder={property.placeholder}
         showCreateNew={true}
         appearance="dark"

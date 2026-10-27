@@ -14,6 +14,7 @@ interface NodeDynamicSelectProps {
 interface Option {
   label: string;
   value: string;
+  description?: string;
 }
 
 /**
@@ -40,7 +41,8 @@ export const NodeDynamicSelect = ({ property, values, nodeType }: NodeDynamicSel
   latestValuesRef.current = values;
 
   const dependsOn: string[] = property.optionsDependsOn || [];
-  const dependencyValues = dependsOn.map((name) => values[name]);
+  const optionalDependsOn: string[] = property.optionsOptionalDependsOn || [];
+  const dependencyValues = [...dependsOn, ...optionalDependsOn].map((name) => values[name]);
   const dependencyKey = JSON.stringify(dependencyValues);
   const missingDependency = dependsOn.find((name) => !values[name]);
 
@@ -224,7 +226,10 @@ export const NodeDynamicSelect = ({ property, values, nodeType }: NodeDynamicSel
                       aria-selected={selected}
                       className={`kai-node-field-option flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm ${selected ? "is-selected" : ""}`}
                     >
-                      <span>{option.label}</span>
+                      <span className="min-w-0 text-left">
+                        <span className="block truncate">{option.label}</span>
+                        {option.description && <span className="block truncate text-xs text-[var(--kai-text-muted)]">{option.description}</span>}
+                      </span>
                       {selected && <Check size={14} />}
                     </button>
                   );

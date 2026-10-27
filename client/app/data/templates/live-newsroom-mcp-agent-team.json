@@ -1,0 +1,531 @@
+{
+  "id": "live-newsroom-mcp-agent-team",
+  "category": "ai-ml",
+  "created_at": "2026-10-27T00:00:00.000Z",
+  "name": "Daily News | MCP Template",
+  "description": "Ask a natural news question in any language. The Agent Team routes it to the relevant category specialist, which checks current publisher headlines through credential-free MCP tools and returns a brief linked answer.",
+  "colorFrom": "from-teal-500",
+  "colorTo": "to-violet-600",
+  "icon": {
+    "name": "mcp",
+    "path": "icons/mcp.svg",
+    "alt": "MCP"
+  },
+  "flow_data": {
+    "nodes": [
+      {
+        "id": "StartNode__newsroom_mcp_start",
+        "type": "StartNode",
+        "position": {
+          "x": 150,
+          "y": 160
+        },
+        "data": {
+          "name": "start",
+          "initial_input": "What is today's biggest sports headline? Give the source link."
+        }
+      },
+      {
+        "id": "AgentTeam__newsroom_mcp_team",
+        "type": "AgentTeam",
+        "position": {
+          "x": 760,
+          "y": 160
+        },
+        "data": {
+          "name": "newsroom_supervisor",
+          "supervisor_prompt": "You coordinate a live news desk. Read the chat question in any language and delegate by subject: sports to sports_news, international events or politics to world_news, business or markets to business_news, technology to technology_news, and science or health to science_health_news. Delegate to only one specialist for a single-category question, or the two relevant specialists if the question clearly spans two categories. Do not ask the user to provide a website, tool name, or search phrase. Specialists must check live MCP results before answering. Preserve requested countries, dates, and topics. If the user asks for one story, return one; otherwise give at most three per requested category. Answer in the user's language, briefly, with each story's publisher, publication date when available, and direct source URL. Never invent a headline or describe an older article as today's news. If no verified item matches, say so plainly.",
+          "user_prompt_template": "${{input}}",
+          "max_delegations": 3,
+          "execution_mode": "supervisor"
+        }
+      },
+      {
+        "id": "EndNode__newsroom_mcp_end",
+        "type": "EndNode",
+        "position": {
+          "x": 1370,
+          "y": 160
+        },
+        "data": {
+          "name": "end"
+        }
+      },
+      {
+        "id": "AgentTool__newsroom_mcp_world",
+        "type": "AgentTool",
+        "position": {
+          "x": 87.41233504901419,
+          "y": 551.2539185784781
+        },
+        "data": {
+          "name": "world_news_agent",
+          "tool_name": "world_news",
+          "tool_description": "Use for world or international news questions. Check recent publisher articles with keyless news MCP tools and return concise, dated, linked evidence.",
+          "system_prompt": "You are the world and international affairs news specialist. Use the connected MCP tool ending in latest_news first. For a broad headline request, omit the category for international news; use politics only if the question is specifically political. Do not pass a long natural-language question as query: omit query for broad headlines, and for a named person, team, event, or place use only 1-3 distinctive keywords. If a country is explicitly requested, pass its two-letter country code; otherwise do not assume a country. Use a language filter only if the user explicitly asks for source articles in that language; the final answer can be translated without restricting source coverage. Inspect article titles, descriptions, publisher names, links, and publication dates. Select a genuinely relevant, recent report from a recognizable publisher; the newest item is not automatically the most important. If latest_news fails or has no suitable story, use the connected bing_news_search once with short, specific keywords or a publisher domain rather than a generic phrase like \"top news today\". Check that fallback results match the requested date. For a request about today, do not call an older article today's headline. If the user asks for one story, return exactly one. Give the headline, a one- or two-sentence summary, the publisher, the publication date when available, and the direct article URL. Reply in the user's language. If the source data is insufficient, say so rather than guessing.",
+          "max_steps": 5
+        }
+      },
+      {
+        "id": "AgentTool__newsroom_mcp_business",
+        "type": "AgentTool",
+        "position": {
+          "x": 363.66625362749227,
+          "y": 542.3591165196611
+        },
+        "data": {
+          "name": "business_news_agent",
+          "tool_name": "business_news",
+          "tool_description": "Use for business and markets questions. Check recent publisher articles with keyless news MCP tools and return concise, dated, linked evidence.",
+          "system_prompt": "You are the business and the economy news specialist. Use the connected MCP tool ending in latest_news first. For a broad headline request, set category to business. Do not pass a long natural-language question as query: omit query for broad headlines, and for a named person, team, event, or place use only 1-3 distinctive keywords. If a country is explicitly requested, pass its two-letter country code; otherwise do not assume a country. Use a language filter only if the user explicitly asks for source articles in that language; the final answer can be translated without restricting source coverage. Inspect article titles, descriptions, publisher names, links, and publication dates. Select a genuinely relevant, recent report from a recognizable publisher; the newest item is not automatically the most important. If latest_news fails or has no suitable story, use the connected bing_news_search once with short, specific keywords or a publisher domain rather than a generic phrase like \"top news today\". Check that fallback results match the requested date. For a request about today, do not call an older article today's headline. If the user asks for one story, return exactly one. Give the headline, a one- or two-sentence summary, the publisher, the publication date when available, and the direct article URL. Reply in the user's language. If the source data is insufficient, say so rather than guessing.",
+          "max_steps": 5
+        }
+      },
+      {
+        "id": "AgentTool__newsroom_mcp_technology",
+        "type": "AgentTool",
+        "position": {
+          "x": 758.2781016233222,
+          "y": 554.7335568162767
+        },
+        "data": {
+          "name": "technology_news_agent",
+          "tool_name": "technology_news",
+          "tool_description": "Use for technology questions. Check recent publisher articles with keyless news MCP tools and return concise, dated, linked evidence.",
+          "system_prompt": "You are the technology news specialist. Use the connected MCP tool ending in latest_news first. For a broad headline request, set category to technology. Do not pass a long natural-language question as query: omit query for broad headlines, and for a named person, team, event, or place use only 1-3 distinctive keywords. If a country is explicitly requested, pass its two-letter country code; otherwise do not assume a country. Use a language filter only if the user explicitly asks for source articles in that language; the final answer can be translated without restricting source coverage. Inspect article titles, descriptions, publisher names, links, and publication dates. Select a genuinely relevant, recent report from a recognizable publisher; the newest item is not automatically the most important. If latest_news fails or has no suitable story, use the connected bing_news_search once with short, specific keywords or a publisher domain rather than a generic phrase like \"top news today\". Check that fallback results match the requested date. For a request about today, do not call an older article today's headline. If the user asks for one story, return exactly one. Give the headline, a one- or two-sentence summary, the publisher, the publication date when available, and the direct article URL. Reply in the user's language. If the source data is insufficient, say so rather than guessing.",
+          "max_steps": 5
+        }
+      },
+      {
+        "id": "AgentTool__newsroom_mcp_science",
+        "type": "AgentTool",
+        "position": {
+          "x": 1089.6686097399331,
+          "y": 561.621150322988
+        },
+        "data": {
+          "name": "science_news_agent",
+          "tool_name": "science_health_news",
+          "tool_description": "Use for science and health questions. Check recent publisher articles with keyless news MCP tools and return concise, dated, linked evidence.",
+          "system_prompt": "You are the science and health news specialist. Use the connected MCP tool ending in latest_news first. For a broad headline request, set category to science or health according to the question. Do not pass a long natural-language question as query: omit query for broad headlines, and for a named person, team, event, or place use only 1-3 distinctive keywords. If a country is explicitly requested, pass its two-letter country code; otherwise do not assume a country. Use a language filter only if the user explicitly asks for source articles in that language; the final answer can be translated without restricting source coverage. Inspect article titles, descriptions, publisher names, links, and publication dates. Select a genuinely relevant, recent report from a recognizable publisher; the newest item is not automatically the most important. If latest_news fails or has no suitable story, use the connected bing_news_search once with short, specific keywords or a publisher domain rather than a generic phrase like \"top news today\". Check that fallback results match the requested date. For a request about today, do not call an older article today's headline. If the user asks for one story, return exactly one. Give the headline, a one- or two-sentence summary, the publisher, the publication date when available, and the direct article URL. Reply in the user's language. If the source data is insufficient, say so rather than guessing.",
+          "max_steps": 5
+        }
+      },
+      {
+        "id": "AgentTool__newsroom_mcp_sports",
+        "type": "AgentTool",
+        "position": {
+          "x": 1434.8343048699667,
+          "y": 565.0649470763436
+        },
+        "data": {
+          "name": "sports_news_agent",
+          "tool_name": "sports_news",
+          "tool_description": "Use for sports questions. Check recent publisher articles with keyless news MCP tools and return concise, dated, linked evidence.",
+          "system_prompt": "You are the sports news specialist. Use the connected MCP tool ending in latest_news first. For a broad headline request, set category to sports. Do not pass a long natural-language question as query: omit query for broad headlines, and for a named person, team, event, or place use only 1-3 distinctive keywords. If a country is explicitly requested, pass its two-letter country code; otherwise do not assume a country. Use a language filter only if the user explicitly asks for source articles in that language; the final answer can be translated without restricting source coverage. Inspect article titles, descriptions, publisher names, links, and publication dates. Select a genuinely relevant, recent report from a recognizable publisher; the newest item is not automatically the most important. If latest_news fails or has no suitable story, use the connected bing_news_search once with short, specific keywords or a publisher domain rather than a generic phrase like \"top news today\". Check that fallback results match the requested date. For a request about today, do not call an older article today's headline. If the user asks for one story, return exactly one. Give the headline, a one- or two-sentence summary, the publisher, the publication date when available, and the direct article URL. Reply in the user's language. If the source data is insufficient, say so rather than guessing.",
+          "max_steps": 5
+        }
+      },
+      {
+        "id": "OpenAICompatibleNode__newsroom_mcp_model",
+        "type": "OpenAICompatibleNode",
+        "position": {
+          "x": 698,
+          "y": 1276
+        },
+        "data": {
+          "name": "newsroom_compatible_model",
+          "credential_id": "",
+          "temperature": 0.1,
+          "max_tokens": 2200,
+          "_active_optional_fields": []
+        }
+      },
+      {
+        "id": "StickyNoteNode__newsroom_mcp_guide",
+        "type": "StickyNoteNode",
+        "position": {
+          "x": 1770,
+          "y": 40
+        },
+        "data": {
+          "name": "newsroom_guide",
+          "text": "# Daily News Agent Team | Keyless MCP\n\n**Setup**\nSelect a tool-calling OpenAI-compatible model credential in the blue LLM node. Each specialist has its own pair of news MCP nodes; these need no credentials or local server.\n\n**Ask naturally in chat**\n- What is one sports headline today?\n- Tell me about one major world story today.\n- What is happening in technology and business?\n\nThe Agent Team reads `${{input}}` and calls only the relevant category specialist(s). Each specialist checks current publisher articles through the Latest News MCP; Bing News is a fallback. Ask in any language. Answers follow your language and include publisher links and dates when available.\n\nAnonymous news MCP use is free with a shared daily call limit. The LLM provider may have separate costs.",
+          "colorIndex": 2
+        },
+        "width": 465,
+        "height": 430,
+        "style": {
+          "width": 465,
+          "height": 430
+        }
+      },
+      {
+        "id": "McpClientTool__newsroom_mcp_world_latest",
+        "type": "McpClientTool",
+        "position": {
+          "x": 267.1099350662193,
+          "y": 737.2514450907028
+        },
+        "data": {
+          "name": "world_latest_news_mcp",
+          "transport": "httpStreamable",
+          "endpoint_url": "https://gateway.pipeworx.io/newsdata/mcp",
+          "include": "selected",
+          "include_tools": [
+            "latest_news"
+          ],
+          "timeout_ms": 60000
+        }
+      },
+      {
+        "id": "McpClientTool__newsroom_mcp_world_bing",
+        "type": "McpClientTool",
+        "position": {
+          "x": 138.97544403469954,
+          "y": 737.8791395998026
+        },
+        "data": {
+          "name": "world_bing_news_mcp",
+          "transport": "httpStreamable",
+          "endpoint_url": "https://gateway.pipeworx.io/bing-news/mcp",
+          "include": "selected",
+          "include_tools": [
+            "bing_news_search"
+          ],
+          "timeout_ms": 60000
+        }
+      },
+      {
+        "id": "McpClientTool__newsroom_mcp_business_latest",
+        "type": "McpClientTool",
+        "position": {
+          "x": 547.5090762744793,
+          "y": 724.9552381863647
+        },
+        "data": {
+          "name": "business_latest_news_mcp",
+          "transport": "httpStreamable",
+          "endpoint_url": "https://gateway.pipeworx.io/newsdata/mcp",
+          "include": "selected",
+          "include_tools": [
+            "latest_news"
+          ],
+          "timeout_ms": 60000
+        }
+      },
+      {
+        "id": "McpClientTool__newsroom_mcp_business_bing",
+        "type": "McpClientTool",
+        "position": {
+          "x": 419.2285484313247,
+          "y": 723.559816568786
+        },
+        "data": {
+          "name": "business_bing_news_mcp",
+          "transport": "httpStreamable",
+          "endpoint_url": "https://gateway.pipeworx.io/bing-news/mcp",
+          "include": "selected",
+          "include_tools": [
+            "bing_news_search"
+          ],
+          "timeout_ms": 60000
+        }
+      },
+      {
+        "id": "McpClientTool__newsroom_mcp_technology_latest",
+        "type": "McpClientTool",
+        "position": {
+          "x": 816.1476109377251,
+          "y": 733.9397854556207
+        },
+        "data": {
+          "name": "technology_latest_news_mcp",
+          "transport": "httpStreamable",
+          "endpoint_url": "https://gateway.pipeworx.io/newsdata/mcp",
+          "include": "selected",
+          "include_tools": [
+            "latest_news"
+          ],
+          "timeout_ms": 60000
+        }
+      },
+      {
+        "id": "McpClientTool__newsroom_mcp_technology_bing",
+        "type": "McpClientTool",
+        "position": {
+          "x": 950.1017796408003,
+          "y": 736.0959287943534
+        },
+        "data": {
+          "name": "technology_bing_news_mcp",
+          "transport": "httpStreamable",
+          "endpoint_url": "https://gateway.pipeworx.io/bing-news/mcp",
+          "include": "selected",
+          "include_tools": [
+            "bing_news_search"
+          ],
+          "timeout_ms": 60000
+        }
+      },
+      {
+        "id": "McpClientTool__newsroom_mcp_science_latest",
+        "type": "McpClientTool",
+        "position": {
+          "x": 1280.2120916826082,
+          "y": 742.3208190784737
+        },
+        "data": {
+          "name": "science_latest_news_mcp",
+          "transport": "httpStreamable",
+          "endpoint_url": "https://gateway.pipeworx.io/newsdata/mcp",
+          "include": "selected",
+          "include_tools": [
+            "latest_news"
+          ],
+          "timeout_ms": 60000
+        }
+      },
+      {
+        "id": "McpClientTool__newsroom_mcp_science_bing",
+        "type": "McpClientTool",
+        "position": {
+          "x": 1161.3652974013,
+          "y": 740.5975689242542
+        },
+        "data": {
+          "name": "science_bing_news_mcp",
+          "transport": "httpStreamable",
+          "endpoint_url": "https://gateway.pipeworx.io/bing-news/mcp",
+          "include": "selected",
+          "include_tools": [
+            "bing_news_search"
+          ],
+          "timeout_ms": 60000
+        }
+      },
+      {
+        "id": "McpClientTool__newsroom_mcp_sports_latest",
+        "type": "McpClientTool",
+        "position": {
+          "x": 1625.5574301359295,
+          "y": 746.5832019902539
+        },
+        "data": {
+          "name": "sports_latest_news_mcp",
+          "transport": "httpStreamable",
+          "endpoint_url": "https://gateway.pipeworx.io/newsdata/mcp",
+          "include": "selected",
+          "include_tools": [
+            "latest_news"
+          ],
+          "timeout_ms": 60000
+        }
+      },
+      {
+        "id": "McpClientTool__newsroom_mcp_sports_bing",
+        "type": "McpClientTool",
+        "position": {
+          "x": 1489.9350529236563,
+          "y": 747.7006120447927
+        },
+        "data": {
+          "name": "sports_bing_news_mcp",
+          "transport": "httpStreamable",
+          "endpoint_url": "https://gateway.pipeworx.io/bing-news/mcp",
+          "include": "selected",
+          "include_tools": [
+            "bing_news_search"
+          ],
+          "timeout_ms": 60000
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "newsroom_mcp_start_team",
+        "type": "custom",
+        "source": "StartNode__newsroom_mcp_start",
+        "sourceHandle": "output",
+        "target": "AgentTeam__newsroom_mcp_team",
+        "targetHandle": "input"
+      },
+      {
+        "id": "newsroom_mcp_team_end",
+        "type": "custom",
+        "source": "AgentTeam__newsroom_mcp_team",
+        "sourceHandle": "output",
+        "target": "EndNode__newsroom_mcp_end",
+        "targetHandle": "target"
+      },
+      {
+        "id": "newsroom_mcp_model_team",
+        "type": "custom",
+        "source": "OpenAICompatibleNode__newsroom_mcp_model",
+        "sourceHandle": "llm",
+        "target": "AgentTeam__newsroom_mcp_team",
+        "targetHandle": "llm"
+      },
+      {
+        "id": "newsroom_mcp_model_world",
+        "type": "custom",
+        "source": "OpenAICompatibleNode__newsroom_mcp_model",
+        "sourceHandle": "llm",
+        "target": "AgentTool__newsroom_mcp_world",
+        "targetHandle": "llm"
+      },
+      {
+        "id": "newsroom_mcp_world_team",
+        "type": "custom",
+        "source": "AgentTool__newsroom_mcp_world",
+        "sourceHandle": "tool",
+        "target": "AgentTeam__newsroom_mcp_team",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_model_business",
+        "type": "custom",
+        "source": "OpenAICompatibleNode__newsroom_mcp_model",
+        "sourceHandle": "llm",
+        "target": "AgentTool__newsroom_mcp_business",
+        "targetHandle": "llm"
+      },
+      {
+        "id": "newsroom_mcp_business_team",
+        "type": "custom",
+        "source": "AgentTool__newsroom_mcp_business",
+        "sourceHandle": "tool",
+        "target": "AgentTeam__newsroom_mcp_team",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_model_technology",
+        "type": "custom",
+        "source": "OpenAICompatibleNode__newsroom_mcp_model",
+        "sourceHandle": "llm",
+        "target": "AgentTool__newsroom_mcp_technology",
+        "targetHandle": "llm"
+      },
+      {
+        "id": "newsroom_mcp_technology_team",
+        "type": "custom",
+        "source": "AgentTool__newsroom_mcp_technology",
+        "sourceHandle": "tool",
+        "target": "AgentTeam__newsroom_mcp_team",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_model_science",
+        "type": "custom",
+        "source": "OpenAICompatibleNode__newsroom_mcp_model",
+        "sourceHandle": "llm",
+        "target": "AgentTool__newsroom_mcp_science",
+        "targetHandle": "llm"
+      },
+      {
+        "id": "newsroom_mcp_science_team",
+        "type": "custom",
+        "source": "AgentTool__newsroom_mcp_science",
+        "sourceHandle": "tool",
+        "target": "AgentTeam__newsroom_mcp_team",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_model_sports",
+        "type": "custom",
+        "source": "OpenAICompatibleNode__newsroom_mcp_model",
+        "sourceHandle": "llm",
+        "target": "AgentTool__newsroom_mcp_sports",
+        "targetHandle": "llm"
+      },
+      {
+        "id": "newsroom_mcp_sports_team",
+        "type": "custom",
+        "source": "AgentTool__newsroom_mcp_sports",
+        "sourceHandle": "tool",
+        "target": "AgentTeam__newsroom_mcp_team",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_world_latest_tool",
+        "type": "custom",
+        "source": "McpClientTool__newsroom_mcp_world_latest",
+        "sourceHandle": "tools",
+        "target": "AgentTool__newsroom_mcp_world",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_world_bing_tool",
+        "type": "custom",
+        "source": "McpClientTool__newsroom_mcp_world_bing",
+        "sourceHandle": "tools",
+        "target": "AgentTool__newsroom_mcp_world",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_business_latest_tool",
+        "type": "custom",
+        "source": "McpClientTool__newsroom_mcp_business_latest",
+        "sourceHandle": "tools",
+        "target": "AgentTool__newsroom_mcp_business",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_business_bing_tool",
+        "type": "custom",
+        "source": "McpClientTool__newsroom_mcp_business_bing",
+        "sourceHandle": "tools",
+        "target": "AgentTool__newsroom_mcp_business",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_technology_latest_tool",
+        "type": "custom",
+        "source": "McpClientTool__newsroom_mcp_technology_latest",
+        "sourceHandle": "tools",
+        "target": "AgentTool__newsroom_mcp_technology",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_technology_bing_tool",
+        "type": "custom",
+        "source": "McpClientTool__newsroom_mcp_technology_bing",
+        "sourceHandle": "tools",
+        "target": "AgentTool__newsroom_mcp_technology",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_science_latest_tool",
+        "type": "custom",
+        "source": "McpClientTool__newsroom_mcp_science_latest",
+        "sourceHandle": "tools",
+        "target": "AgentTool__newsroom_mcp_science",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_science_bing_tool",
+        "type": "custom",
+        "source": "McpClientTool__newsroom_mcp_science_bing",
+        "sourceHandle": "tools",
+        "target": "AgentTool__newsroom_mcp_science",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_sports_latest_tool",
+        "type": "custom",
+        "source": "McpClientTool__newsroom_mcp_sports_latest",
+        "sourceHandle": "tools",
+        "target": "AgentTool__newsroom_mcp_sports",
+        "targetHandle": "tools"
+      },
+      {
+        "id": "newsroom_mcp_sports_bing_tool",
+        "type": "custom",
+        "source": "McpClientTool__newsroom_mcp_sports_bing",
+        "sourceHandle": "tools",
+        "target": "AgentTool__newsroom_mcp_sports",
+        "targetHandle": "tools"
+      }
+    ]
+  }
+}

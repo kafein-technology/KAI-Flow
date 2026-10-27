@@ -926,6 +926,24 @@ async def _test_mysql(secret: Dict[str, Any]) -> CredentialTestResponse:
 
 async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTestResponse:
     """Route a test request to the appropriate handler based on service type."""
+    if service_type == "mcp":
+        from app.nodes.tools.mcp_common import McpConfig, list_mcp_tools
+
+        endpoint = secret.get("test_endpoint_url")
+        try:
+            config = McpConfig(
+                endpoint_url=endpoint,
+                transport=secret.get("test_transport", "httpStreamable"),
+                authentication=secret.get("authentication", "none"),
+                credential=secret if endpoint else {**secret, "allowed_domains": ""},
+            )
+            config.headers()
+            if not endpoint:
+                return CredentialTestResponse(success=True, message="Credential fields are valid. Set a Test Endpoint URL to verify the server connection.")
+            tools = await list_mcp_tools(config)
+            return CredentialTestResponse(success=True, message=f"MCP connection successful; {len(tools)} tool(s) available.")
+        except Exception as exc:
+            return CredentialTestResponse(success=False, message=f"MCP connection failed: {exc}")
     if service_type == "openai":
         return await _test_openai(secret)
     elif service_type == "openai_compatible":
