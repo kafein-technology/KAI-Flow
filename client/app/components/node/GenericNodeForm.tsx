@@ -26,6 +26,7 @@ import { Settings, Plus, X, ChevronDown } from "lucide-react";
 import { NodeDynamicSelect } from "./fields/NodeDynamicSelect";
 import { NodeColumnMapper } from "./fields/NodeColumnMapper";
 import { NodeDocumentEditor } from "./fields/NodeDocumentEditor";
+import { NodeMcpParameters } from "./fields/NodeMcpParameters";
 import { useVariableStore } from "~/stores/variables";
 
 interface GenericNodeFormProps {
@@ -103,10 +104,14 @@ export default function GenericNodeForm({
   const nodeType =
     configData?.metadata?.name || configData?.name || configData?.type;
   // OpenAI GPT and OpenAI Compatible take the model from the credential; ignore stale saved metadata.
-  const properties =
+  const baseProperties: NodeProperty[] =
     nodeType === "OpenAIChat" || nodeType === "openai_gpt" || nodeType === "OpenAICompatible" || nodeType === "openai_compatible"
       ? rawProperties.filter((property: NodeProperty) => property.name !== "model_name")
       : rawProperties;
+  // Credentials belong at the start of Basic, regardless of their metadata order.
+  const properties = baseProperties
+    .map((property) => property.type === "credential-select" ? { ...property, tabName: "basic" } : property)
+    .sort((left, right) => Number(right.type === "credential-select") - Number(left.type === "credential-select"));
   const columnMapperSessionsRef = useRef<Record<string, any>>({});
 
   const tabs = properties.reduce((acc: any[], property: NodeProperty) => {
@@ -144,14 +149,21 @@ export default function GenericNodeForm({
   }, []);
 
   // Default values for missing fields
-  const initialValues = propInitialValues || {
+  const initialValues = { ...(propInitialValues || {
     ...properties.reduce((acc: any, property: NodeProperty) => {
       acc[property.name] =
         property.default ?? (property.type === "checkbox" ? false : "");
       return acc;
     }, {}),
     ...configData,
-  };
+  }) };
+  // Older forms copied a credential secret into this undeclared node field.
+  if (!properties.some((property) => property.name === "tavily_api_key")) {
+    delete initialValues.tavily_api_key;
+  }
+  if (nodeType === "McpClient" || nodeType === "McpClientTool") {
+    delete initialValues.authentication;
+  }
 
   // Validation function
   const validate =
@@ -168,10 +180,13 @@ export default function GenericNodeForm({
   const handleSubmit = (values: any) => {
     // Filter out optional fields that were not explicitly added by the user
     const optionalFieldNames = properties
-      .filter((p: NodeProperty) => !p.required && !(p.displayOptions?.show))
+      .filter((p: NodeProperty) => p.type !== "credential-select" && !p.required && !(p.displayOptions?.show))
       .map((p: NodeProperty) => p.name);
 
     const filteredValues = { ...values };
+    if (nodeType === "McpClient" || nodeType === "McpClientTool") {
+      delete filteredValues.authentication;
+    }
     for (const fieldName of optionalFieldNames) {
       if (!visibleOptionalFields.has(fieldName)) {
         delete filteredValues[fieldName];
@@ -204,6 +219,7 @@ export default function GenericNodeForm({
     return properties
       .filter((property: NodeProperty) => (property.tabName || "basic") === tabName)
       .filter((property: NodeProperty) =>
+        property.type === "credential-select" ||
         property.required ||
         visibleOptionalFields.has(property.name) ||
         (property.displayOptions && property.displayOptions.show)
@@ -214,6 +230,7 @@ export default function GenericNodeForm({
     return properties
       .filter((property: NodeProperty) => (property.tabName || "basic") === tabName)
       .filter((property: NodeProperty) =>
+        property.type !== "credential-select" &&
         !property.required &&
         !visibleOptionalFields.has(property.name) &&
         (!property.displayOptions || !property.displayOptions.show)
@@ -319,6 +336,8 @@ export default function GenericNodeForm({
                           nodeType={nodeType}
                         />
                       );
+                    case "mcp-parameters":
+                      return <NodeMcpParameters property={fullWidthProperty} values={values} nodeType={nodeType} />;
                     case "credential-select":
                       return (
                         <NodeCredentialSelect

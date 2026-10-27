@@ -101,6 +101,8 @@ export function getNodeTypeIconPath(nodeType: string): string {
         ScraplingTool: "icons/scrapling.svg",
         WebScraper: "icons/pickaxe.svg",
         HttpRequest: "icons/globe.svg",
+        McpClient: "icons/mcp.svg",
+        McpClientTool: "icons/mcp.svg",
         WebhookTrigger: "icons/webhook.svg",
         ErrorTrigger: "icons/error_trigger.svg",
         ErrorTriggerNode: "icons/error_trigger.svg",

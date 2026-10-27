@@ -124,6 +124,7 @@ class NodePropertyType(str, Enum):
     COLUMN_MAPPER = "column-mapper"
     MODEL_ARTIFACT_SOURCE = "model-artifact-source"
     DOCUMENT_EDITOR = "document-editor"
+    MCP_PARAMETERS = "mcp-parameters"
 
 
 class NodeProperty(BaseModel):
@@ -255,6 +256,12 @@ class NodeProperty(BaseModel):
         default=None,
         description="Fields that trigger a refetch of the option list when they change",
         alias="optionsDependsOn"
+    )
+
+    optionsOptionalDependsOn: Optional[List[str]] = Field(
+        default=None,
+        description="Fields that trigger a refetch without being required",
+        alias="optionsOptionalDependsOn"
     )
 
     multiple: Optional[bool] = Field(
