@@ -32,6 +32,25 @@ export interface ServiceDefinition {
 
 export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   {
+    id: 'github',
+    name: 'GitHub',
+    description: 'Connect once with an access token, then select this credential in your nodes.',
+    icon: 'github.svg',
+    category: 'api',
+    color: 'from-slate-500 to-orange-600',
+    fields: [
+      {
+        name: 'access_token', label: 'Access Token', type: 'password', required: true,
+        description: 'Personal access token with access to the required repositories. Issue creation requires Issues: Read and write.',
+      },
+      {
+        name: 'server_url', label: 'Server URL (optional)', type: 'text', required: false,
+        placeholder: 'https://github.com',
+        description: 'Leave empty for GitHub.com. Private servers must be approved by your administrator.',
+      },
+    ],
+  },
+  {
     id: 'openai',
     name: 'OpenAI',
     description: 'OpenAI API credentials for GPT models, embeddings, and more',

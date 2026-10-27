@@ -14,6 +14,7 @@ from .mysql_tool import MySQLToolNode
 from .sqlite_tool import SQLiteToolNode
 from .scrapling_tool import ScraplingToolNode
 from .llm_model_scanner_tool import LLMModelScannerToolNode
+from .github_tool import GitHubToolNode
 
 __all__ = [
     "HttpClientNode",
@@ -28,4 +29,5 @@ __all__ = [
     "SQLiteToolNode",
     "ScraplingToolNode",
     "LLMModelScannerToolNode",
+    "GitHubToolNode",
 ]
