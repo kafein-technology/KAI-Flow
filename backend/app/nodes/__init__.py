@@ -29,6 +29,7 @@ from .tools.mysql_tool import MySQLToolNode
 from .tools.sqlite_tool import SQLiteToolNode
 from .tools.scrapling_tool import ScraplingToolNode
 from .tools.llm_model_scanner_tool import LLMModelScannerToolNode
+from .tools.github_tool import GitHubToolNode
 
 # Document Loaders
 from .document_loaders.web_scraper import WebScraperNode
@@ -54,6 +55,7 @@ from .triggers.webhook_trigger import WebhookTriggerNode
 from .triggers.kafka_trigger import KafkaTriggerNode
 from .triggers.timer_start_node import TimerStartNode
 from .triggers.error_trigger import ErrorTriggerNode
+from .integrations.github_node import GitHubNode
 
 # Text Processing Nodes
 from .text_processing.string_input_node import StringInputNode
@@ -85,6 +87,7 @@ from .security.llm_model_scanner_node import LLMModelScannerNode
 __all__ = [
     # Base
     "BaseNode", "ProviderNode", "ProcessorNode", "TerminatorNode",
+    "GitHubNode",
     "NodeMetadata", "NodeInput", "NodeOutput", "NodeType",
     
     # LLM
@@ -100,7 +103,7 @@ __all__ = [
     "BufferMemoryNode",
     
     # Tools
-    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode", "PostgresToolNode", "MySQLToolNode", "SQLiteToolNode", "ScraplingToolNode", "LLMModelScannerToolNode",
+    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode", "PostgresToolNode", "MySQLToolNode", "SQLiteToolNode", "ScraplingToolNode", "LLMModelScannerToolNode", "GitHubToolNode",
     
     # Document Loaders
     "WebScraperNode", "DocumentLoaderNode",

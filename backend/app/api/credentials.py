@@ -926,6 +926,13 @@ async def _test_mysql(secret: Dict[str, Any]) -> CredentialTestResponse:
 
 async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTestResponse:
     """Route a test request to the appropriate handler based on service type."""
+    if service_type == "github":
+        from app.core.git_provider_api import GitProviderClient, GitProviderError
+        try:
+            await GitProviderClient("github", secret).test_connection()
+            return CredentialTestResponse(success=True, message="Connected to GitHub successfully.")
+        except GitProviderError as exc:
+            return CredentialTestResponse(success=False, message=str(exc))
     if service_type == "mcp":
         from app.nodes.tools.mcp_common import McpConfig, list_mcp_tools
 
