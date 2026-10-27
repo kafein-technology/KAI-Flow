@@ -4,6 +4,13 @@ from app.core.git_provider_api import GitProviderClient, GitProviderError
 from app.nodes.base import BaseNode, NodeInput, NodeOutput, NodeProperty, NodePropertyType, NodeType
 
 
+GITHUB_OPERATIONS = [{"value": "repository.get", "label": "Get Repository"}] + [
+    {"value": f"{resource}.{operation}", "label": f"{operation.title()} {label}"}
+    for resource, label in (("commit", "Commit"), ("issue", "Issue"), ("pull_request", "Pull Request"))
+    for operation in (["list", "get"] if resource == "commit" else ["list", "get", "create", "update", "comment"])
+]
+
+
 class GitHubNode(BaseNode):
     provider = "github"
 
@@ -11,17 +18,13 @@ class GitHubNode(BaseNode):
         super().__init__()
         name = "GitHub"
         pr = "Pull Request"
-        operations = [("repository.get", "Get Repository")]
-        for resource, label in (("commit", "Commit"), ("issue", "Issue"), ("pull_request", pr)):
-            for operation in (["list", "get"] if resource == "commit" else ["list", "get", "create", "update", "comment"]):
-                operations.append((f"{resource}.{operation}", f"{operation.title()} {label}"))
         properties = [
             NodeProperty(name="credential_id", displayName="Credential", type=NodePropertyType.CREDENTIAL_SELECT,
                          serviceType=self.provider, description=f"Select or create a {name} access token credential."),
             NodeProperty(name="repository", displayName="Repository",
                          type=NodePropertyType.TEXT, placeholder="owner/repository"),
             NodeProperty(name="operation", displayName="Operation", type=NodePropertyType.SELECT, default="repository.get",
-                         options=[{"value": value, "label": label} for value, label in operations]),
+                         options=GITHUB_OPERATIONS),
         ]
         for field, label, kind in [("number", "Issue / PR Number", NodePropertyType.NUMBER),
                                    ("commit_sha", "Commit SHA / Ref", NodePropertyType.TEXT),
