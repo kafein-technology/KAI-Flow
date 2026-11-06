@@ -125,6 +125,7 @@ class NodePropertyType(str, Enum):
     MODEL_ARTIFACT_SOURCE = "model-artifact-source"
     DOCUMENT_EDITOR = "document-editor"
     MCP_PARAMETERS = "mcp-parameters"
+    DECISION_CRITERIA = "decision-criteria"
 
 
 class NodeProperty(BaseModel):

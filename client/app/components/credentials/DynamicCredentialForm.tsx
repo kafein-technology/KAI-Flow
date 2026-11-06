@@ -106,10 +106,19 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
       }
     });
 
+    if (service.id === "decision_model") {
+      if (values.endpoint_type === "systemone") values.endpoint_type = "/v1/systemone";
+      if (values.endpoint_type === "decisions") values.endpoint_type = "/api/alpha/decisions";
+    }
+
     return values;
   }, [initialValues, service]);
 
-  const renderField = (field: ServiceField, values: Record<string, any>) => {
+  const renderField = (
+    field: ServiceField,
+    values: Record<string, any>,
+    setValue?: (name: string, value: any) => void,
+  ) => {
     const commonProps = {
       name: field.name,
       placeholder: field.placeholder,
@@ -143,6 +152,13 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
           <Field
             as="select"
             name={field.name}
+            {...(service.id === "decision_model" && field.name === "endpoint_type" ? {
+              onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
+                setValue?.("endpoint_type", event.target.value);
+                setValue?.("base_url", "");
+                setValue?.("model_name", "");
+              },
+            } : {})}
             className="select select-bordered w-full cursor-pointer rounded-lg border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] text-zinc-100 focus:border-[var(--kai-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/20"
           >
             <option value="">Select {field.label}</option>
@@ -178,6 +194,27 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
       default:
         return <Field type="text" {...commonProps} />;
     }
+  };
+
+  const renderServiceField = (
+    field: ServiceField,
+    values: Record<string, any>,
+    setValue?: (name: string, value: any) => void,
+  ) => {
+    if (!isFieldVisible(field, values)) return null;
+    return (
+      <div key={field.name} className="space-y-2">
+        {field.type !== "checkbox" && (
+          <label className="block text-sm font-medium text-zinc-200">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+        )}
+        {renderField(field, values, setValue)}
+        {field.description && <p className="mt-1 text-xs text-zinc-400">{field.description}</p>}
+        <ErrorMessage name={field.name} component="p" className="text-red-500 text-sm mt-1" />
+      </div>
+    );
   };
 
   return (
@@ -219,8 +256,9 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
         onSubmit={onSubmit}
         enableReinitialize
       >
-        {({ values, errors, touched, handleChange, handleBlur }) => (
+        {({ values, errors, touched, handleChange, handleBlur, setFieldValue }) => (
           <Form className="space-y-6">
+            {service.id === "decision_model" && renderServiceField(service.fields[0], values, setFieldValue)}
             {/* Credential Name */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-zinc-200">
@@ -239,36 +277,9 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
               />
             </div>
 
-            {service.fields.map((field) => {
-              if (!isFieldVisible(field, values)) return null;
-
-              return (
-                <div key={field.name} className="space-y-2">
-                  {field.type !== "checkbox" && (
-                    <label className="block text-sm font-medium text-zinc-200">
-                      {field.label}
-                      {field.required && (
-                        <span className="text-red-500 ml-1">*</span>
-                      )}
-                    </label>
-                  )}
-
-                  {renderField(field, values)}
-
-                  {field.description && (
-                    <p className="mt-1 text-xs text-zinc-400">
-                      {field.description}
-                    </p>
-                  )}
-
-                  <ErrorMessage
-                    name={field.name}
-                    component="p"
-                    className="text-red-500 text-sm mt-1"
-                  />
-                </div>
-              );
-            })}
+            {service.fields
+              .filter((field) => service.id !== "decision_model" || field.name !== "endpoint_type")
+              .map((field) => renderServiceField(field, values, setFieldValue))}
 
             {/* Test result message */}
             {testMessage && testState !== "loading" && (

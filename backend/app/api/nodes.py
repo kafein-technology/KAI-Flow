@@ -79,7 +79,7 @@ async def get_node_categories():
     categories_list = [
         {
             "name": category,
-            "display_name": category.replace("_", " ").title(),
+            "display_name": category if category == "LLM" else category.replace("_", " ").title(),
             "description": f"Nodes in the {category} category"
         }
         for category in sorted(categories)

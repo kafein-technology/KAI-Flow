@@ -123,10 +123,12 @@ export function getNodeTypeIconPath(nodeType: string): string {
         OpenAICompatibleNode: "icons/openai.svg",
         OpenAIChat: "icons/openai.svg",
         OpenAIEmbeddings: "icons/openai.svg",
+        DecisionModelNode: "icons/decision.svg",
 
         // Processing Nodes
         CodeNode: "icons/code.svg",
         ConditionNode: "icons/condition.svg",
+
 
         // Security Nodes
         LLMRedTeam: "icons/red_teaming_menu.svg",

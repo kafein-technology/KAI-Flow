@@ -32,6 +32,40 @@ export interface ServiceDefinition {
 
 export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   {
+    id: 'decision_model',
+    name: 'Decision Model',
+    description: 'Connect to a structured decision endpoint.',
+    icon: 'decision.svg',
+    category: 'ai',
+    color: 'from-blue-500 to-cyan-600',
+    fields: [
+      {
+        name: 'endpoint_type', label: 'Endpoint', type: 'select', required: true,
+        default: '/v1/systemone',
+        options: [
+          { value: '/v1/systemone', label: '/v1/systemone' },
+          { value: '/api/alpha/decisions', label: '/api/alpha/decisions' },
+        ],
+        description: 'Select the decision API protocol.',
+      },
+      {
+        name: 'base_url', label: 'Base URL', type: 'text', required: true,
+        placeholder: 'https://your-server.example or http://localhost:8000',
+        description: 'Server address for the selected endpoint. Leave out the endpoint path, or paste the full endpoint URL.',
+      },
+      {
+        name: 'api_key', label: 'API Key', type: 'password', required: false,
+        placeholder: 'Optional if your server does not require authentication',
+        description: 'Bearer token, if required by your server.',
+      },
+      {
+        name: 'model_name', label: 'Model', type: 'model-combobox', required: true,
+        placeholder: 'Select or type a decision model',
+        description: 'Available decision models load from the selected endpoint. You can also enter a model ID.',
+      },
+    ],
+  },
+  {
     id: 'openai',
     name: 'OpenAI',
     description: 'OpenAI API credentials for GPT models, embeddings, and more',

@@ -41,6 +41,7 @@ const CredentialModelCombobox = ({
   const currentValue = String(formikField.value ?? field.default ?? "");
   const baseUrl = String(values.base_url || "").trim();
   const apiKey = String(values.api_key || "").trim();
+  const endpointType = String(values.endpoint_type || "/v1/systemone");
 
   const canFetch = useMemo(() => {
     if (serviceType === "openai") {
@@ -49,8 +50,11 @@ const CredentialModelCombobox = ({
     if (serviceType === "openai_compatible") {
       return baseUrl.length > 0;
     }
+    if (serviceType === "decision_model") {
+      return baseUrl.length > 0;
+    }
     return false;
-  }, [serviceType, apiKey, baseUrl]);
+  }, [serviceType, apiKey, baseUrl, endpointType]);
 
   const idleMessage = useMemo(() => {
     if (serviceType === "openai") {
@@ -59,19 +63,23 @@ const CredentialModelCombobox = ({
     if (serviceType === "openai_compatible") {
       return "Enter a Base URL to load available models.";
     }
+    if (serviceType === "decision_model") {
+      return "Enter a Base URL to load decision models.";
+    }
     return "No models available.";
-  }, [serviceType]);
+  }, [serviceType, endpointType]);
 
   const fetchKey = useMemo(
     () =>
       JSON.stringify({
         serviceType,
+        endpoint_type: endpointType,
         base_url: baseUrl,
         api_key: apiKey,
         skip_ssl_verify: values.skip_ssl_verify || false,
         canFetch,
       }),
-    [serviceType, baseUrl, apiKey, values.skip_ssl_verify, canFetch]
+    [serviceType, endpointType, baseUrl, apiKey, values.skip_ssl_verify, canFetch]
   );
 
   const fetchModels = useCallback(async () => {
