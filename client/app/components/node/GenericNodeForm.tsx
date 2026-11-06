@@ -27,6 +27,7 @@ import { NodeDynamicSelect } from "./fields/NodeDynamicSelect";
 import { NodeColumnMapper } from "./fields/NodeColumnMapper";
 import { NodeDocumentEditor } from "./fields/NodeDocumentEditor";
 import { NodeMcpParameters } from "./fields/NodeMcpParameters";
+import { NodeDecisionCriteria } from "./fields/NodeDecisionCriteria";
 import { useVariableStore } from "~/stores/variables";
 
 interface GenericNodeFormProps {
@@ -338,6 +339,8 @@ export default function GenericNodeForm({
                       );
                     case "mcp-parameters":
                       return <NodeMcpParameters property={fullWidthProperty} values={values} nodeType={nodeType} />;
+                    case "decision-criteria":
+                      return <NodeDecisionCriteria property={fullWidthProperty} value={values[property.name]} setValue={setFieldValue} />;
                     case "credential-select":
                       return (
                         <NodeCredentialSelect

@@ -64,6 +64,7 @@ from .processing.condition_node import ConditionNode
 from .processing.json_parser_node import JsonParserNode
 from .processing.kafka_producer import KafkaProducerNode
 from .processing.cryptography_node import CryptographyNode
+from .llms.decision_model_node import DecisionModelNode
 
 # Decorative Nodes
 from .decorative.sticky_note import StickyNoteNode
@@ -127,6 +128,7 @@ __all__ = [
     "KafkaProducerNode",
     "KafkaTriggerNode",
     "CryptographyNode",
+    "DecisionModelNode",
 
     # Security
     "LLMRedTeamNode",

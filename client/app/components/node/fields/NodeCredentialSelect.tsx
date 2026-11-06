@@ -52,7 +52,7 @@ export const NodeCredentialSelect = ({ property, values, setFieldValue }: NodeCr
         onChange={handleCredentialChange}
         onCredentialLoad={property.serviceType === "mcp" ? handleCredentialLoad : undefined}
         serviceType={property.serviceType}
-        includeGenericFallback={property.serviceType !== "mcp"}
+        includeGenericFallback={property.serviceType !== "mcp" && property.serviceType !== "decision_model"}
         allowNone={property.serviceType === "mcp"}
         placeholder={property.placeholder}
         showCreateNew={true}

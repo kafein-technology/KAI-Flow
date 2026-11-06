@@ -476,11 +476,70 @@ async def _list_openai_compatible_models(
     return models
 
 
+async def _list_decision_models(secret: Dict[str, Any]) -> List[CredentialModelOption]:
+    """List model IDs supported by the selected decision endpoint."""
+    from app.nodes.llms.decision_model_node import decision_models_endpoint, selected_endpoint_path
+
+    url = decision_models_endpoint(secret)
+    if selected_endpoint_path(secret) == "/api/alpha/decisions":
+        params = {"endpoints": "/api/alpha/decisions"}
+    else:
+        params = None
+    headers = {"Accept": "application/json"}
+    api_key = str(secret.get("api_key") or "").strip()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=4.0)) as client:
+        response = await client.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        payload = response.json()
+    if not isinstance(payload, dict):
+        raise ValueError("Model endpoint returned an invalid response.")
+    items = payload.get("models") if "models" in payload else payload.get("data")
+    if not isinstance(items, list):
+        raise ValueError("Model endpoint returned no model list.")
+    seen: set[str] = set()
+    models: List[CredentialModelOption] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        supported_paths = item.get("endpoints")
+        if params and isinstance(supported_paths, list) and "/api/alpha/decisions" not in supported_paths:
+            continue
+        model_id = str(item.get("id") or item.get("name") or "").strip()
+        if not model_id or model_id in seen:
+            continue
+        seen.add(model_id)
+        owner = item.get("owned_by")
+        models.append(CredentialModelOption(id=model_id, owned_by=str(owner) if owner else None))
+    models.sort(key=lambda model: model.id.lower())
+    return models
+
+
 async def _list_models_response(
     service_type: str,
     secret: Dict[str, Any],
 ) -> CredentialModelsResponse:
     """Query a provider's /models API with caching and error handling."""
+    if service_type == "decision_model":
+        if not str(secret.get("base_url") or "").strip():
+            return CredentialModelsResponse(models=[], source="empty", message="Enter a Base URL to load decision models.")
+        cache_key = f"decision_model:{secret.get('endpoint_type')}:{secret.get('base_url')}:{secret.get('api_key')}"
+        now = time.time()
+        if cache_key in _MODELS_CACHE:
+            cached_time, cached_models = _MODELS_CACHE[cache_key]
+            if now - cached_time < _CACHE_TTL_SECONDS:
+                return CredentialModelsResponse(models=cached_models, source="provider")
+        try:
+            models = await _list_decision_models(secret)
+            if models:
+                _MODELS_CACHE[cache_key] = (now, models)
+                return CredentialModelsResponse(models=models, source="provider")
+            return CredentialModelsResponse(models=[], source="empty", message="No decision models were returned. You can enter a model ID manually.")
+        except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as exc:
+            logger.warning("Failed to list decision models: %s", type(exc).__name__)
+            message = f"HTTP {exc.response.status_code}" if isinstance(exc, httpx.HTTPStatusError) else str(exc)
+            return CredentialModelsResponse(models=[], source="empty", message=f"Could not load decision models: {_format_error_text(message)}. You can enter a model ID manually.")
     if service_type == "openai":
         api_key = str(secret.get("api_key") or "").strip()
         if not api_key:
@@ -944,6 +1003,31 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
             return CredentialTestResponse(success=True, message=f"MCP connection successful; {len(tools)} tool(s) available.")
         except Exception as exc:
             return CredentialTestResponse(success=False, message=f"MCP connection failed: {exc}")
+    if service_type == "decision_model":
+        from app.nodes.llms.decision_model_node import decision_endpoint, decision_models_endpoint
+        try:
+            endpoint = decision_endpoint(secret)
+            test_url = decision_models_endpoint(secret)
+            headers = {"Accept": "application/json"}
+            api_key = str(secret.get("api_key") or "").strip()
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=4.0)) as client:
+                response = await client.get(test_url, headers=headers)
+                if response.status_code in (404, 405):
+                    probe = await client.post(endpoint, headers=headers, json={})
+                    if probe.status_code in (400, 422):
+                        return CredentialTestResponse(success=True, message="Decision endpoint is reachable. Model listing is unavailable; enter a model ID manually.")
+                    probe.raise_for_status()
+                response.raise_for_status()
+                response.json()
+            return CredentialTestResponse(success=True, message="Decision endpoint connection successful.")
+        except ValueError as exc:
+            return CredentialTestResponse(success=False, message=str(exc))
+        except httpx.HTTPStatusError as exc:
+            return CredentialTestResponse(success=False, message=f"Decision endpoint returned HTTP {exc.response.status_code}.")
+        except httpx.RequestError as exc:
+            return CredentialTestResponse(success=False, message=f"Decision endpoint connection failed: {type(exc).__name__}.")
     if service_type == "openai":
         return await _test_openai(secret)
     elif service_type == "openai_compatible":
