@@ -983,8 +983,16 @@ async def _test_mysql(secret: Dict[str, Any]) -> CredentialTestResponse:
         return CredentialTestResponse(success=False, message=message)
 
 
-async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTestResponse:
+async def _run_test(service_type: str, secret: Dict[str, Any], on_token_refresh=None) -> CredentialTestResponse:
     """Route a test request to the appropriate handler based on service type."""
+    if service_type == "smtp":
+        from app.nodes.processing.smtp_node import check_smtp_connection, smtp_error_message
+
+        try:
+            await asyncio.to_thread(check_smtp_connection, secret, on_token_refresh)
+            return CredentialTestResponse(success=True, message="SMTP connection successful. No email was sent.")
+        except Exception as exc:
+            return CredentialTestResponse(success=False, message=smtp_error_message(exc))
     if service_type == "mcp":
         from app.nodes.tools.mcp_common import McpConfig, list_mcp_tools
 
@@ -1141,8 +1149,13 @@ async def test_credential(
     service_type: str = decrypted.get("service_type", "")
     secret: Dict[str, Any] = decrypted.get("secret", {})
 
+    def save_refresh_token(previous, refreshed):
+        from app.core.credential_provider import credential_provider
+
+        credential_provider.update_refresh_token_sync(user_id, credential_id, previous, refreshed)
+
     try:
-        return await _run_test(service_type, secret)
+        return await _run_test(service_type, secret, on_token_refresh=save_refresh_token)
     except Exception as e:
         logger.error(f"Unexpected error testing credential {credential_id}: {e}")
         return CredentialTestResponse(success=False, message=f"Unexpected error: {e}")

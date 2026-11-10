@@ -30,7 +30,84 @@ export interface ServiceDefinition {
   color: string;
 }
 
+export const SMTP_PROVIDER_DEFAULTS: Record<string, { host: string; port: string; security: string; authentication: string }> = {
+  custom: { host: '', port: '587', security: 'starttls', authentication: 'none' },
+  google: { host: 'smtp.gmail.com', port: '587', security: 'starttls', authentication: 'oauth2' },
+};
+
 export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
+  {
+    id: 'smtp',
+    name: 'SMTP',
+    description: 'Send email through a local or remote SMTP server',
+    icon: 'message-square.svg',
+    category: 'api',
+    color: 'from-blue-500 to-cyan-600',
+    fields: [
+      {
+        name: 'provider', label: 'Provider', type: 'select', required: true, default: 'custom',
+        options: [
+          { value: 'custom', label: 'Custom SMTP' },
+          { value: 'google', label: 'Google Gmail' },
+        ],
+        description: 'Google Gmail fills default connection settings. Host and port remain editable; Google OAuth2 requires smtp.gmail.com.',
+      },
+      {
+        name: 'host', label: 'Host', type: 'text', required: true,
+        placeholder: 'smtp.example.com or 127.0.0.1',
+        description: 'Filled automatically for Google Gmail. In Docker, use the local mail server service name instead of localhost.',
+      },
+      {
+        name: 'port', label: 'Port', type: 'text', required: true, default: '587',
+        description: 'Usually 587 for STARTTLS, 465 for TLS, or 1025 for a local test server.',
+        validation: { custom: (value) => /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 65535 ? undefined : 'Port must be between 1 and 65535.' },
+      },
+      {
+        name: 'security', label: 'Connection Security', type: 'select', required: true,
+        default: 'starttls',
+        options: [
+          { value: 'starttls', label: 'STARTTLS' },
+          { value: 'tls', label: 'TLS (implicit)' },
+          { value: 'none', label: 'None (local test or trusted relay)' },
+        ],
+        description: 'TLS certificates are verified. Google Gmail uses port 587 with STARTTLS or port 465 with TLS.',
+      },
+      {
+        name: 'authentication', label: 'Authentication', type: 'select', required: true, default: 'none',
+        options: [
+          { value: 'none', label: 'None' },
+          { value: 'password', label: 'Username / Password' },
+          { value: 'oauth2', label: 'OAuth2' },
+        ],
+        description: 'Google supports OAuth2 or an app password. Custom SMTP supports username/password or no authentication.',
+      },
+      {
+        name: 'username', label: 'Username / Account Email', type: 'text', required: true,
+        dependsOn: { field: 'authentication', values: ['password', 'oauth2'] },
+        description: 'For Google Gmail, enter the full email address of the account authorized to send mail.',
+      },
+      {
+        name: 'password', label: 'Password / App Password', type: 'password', required: true,
+        dependsOn: { field: 'authentication', values: ['password'] },
+        description: 'Account or app password. Authentication requires STARTTLS or TLS.',
+      },
+      {
+        name: 'client_id', label: 'OAuth Client ID', type: 'text', required: true,
+        dependsOn: { field: 'authentication', values: ['oauth2'] },
+        description: 'Client ID of your Google Cloud web application.',
+      },
+      {
+        name: 'client_secret', label: 'OAuth Client Secret', type: 'password', required: true,
+        dependsOn: { field: 'authentication', values: ['oauth2'] },
+        description: 'Client secret belonging to the OAuth application.',
+      },
+      {
+        name: 'refresh_token', label: 'OAuth Refresh Token', type: 'password', required: true,
+        dependsOn: { field: 'authentication', values: ['oauth2'] },
+        description: 'Authorize Google with https://mail.google.com/. Obtain the refresh token using your OAuth application before saving this credential.',
+      },
+    ],
+  },
   {
     id: 'decision_model',
     name: 'Decision Model',

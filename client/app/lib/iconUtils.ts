@@ -90,6 +90,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
         MongoNode: "icons/mongodb.svg",
         MongoTool: "icons/mongodb.svg",
         GmailNode: "icons/gmail.svg",
+        SmtpNode: "icons/smtp_mail.svg",
         MarkItDownTool: "icons/markitdown.svg",
         MySQLNode: "icons/mysql.svg",
         MySQLTool: "icons/mysql.svg",
