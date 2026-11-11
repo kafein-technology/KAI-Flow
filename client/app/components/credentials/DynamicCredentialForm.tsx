@@ -3,6 +3,7 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Check, Loader2, X as XIcon, Zap } from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
 import type { ServiceDefinition, ServiceField } from "~/types/credentials";
+import { SMTP_PROVIDER_DEFAULTS } from "~/types/credentials";
 import CredentialPasswordField from "./CredentialPasswordField";
 import CredentialModelCombobox from "./CredentialModelCombobox";
 
@@ -110,6 +111,19 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
       if (values.endpoint_type === "systemone") values.endpoint_type = "/v1/systemone";
       if (values.endpoint_type === "decisions") values.endpoint_type = "/api/alpha/decisions";
     }
+    if (service.id === "smtp") {
+      const provider = values.provider || "custom";
+      if (provider !== "custom" && SMTP_PROVIDER_DEFAULTS[provider]) {
+        values.host = initialValues.host ?? SMTP_PROVIDER_DEFAULTS[provider].host;
+        values.security = values.security === "tls" ? "tls" : "starttls";
+        values.port = initialValues.port ?? (values.security === "tls" ? "465" : "587");
+      }
+      if (initialValues.authentication === undefined) {
+        values.authentication = provider === "custom"
+          ? (values.username || values.password ? "password" : "none")
+          : "oauth2";
+      }
+    }
 
     return values;
   }, [initialValues, service]);
@@ -152,17 +166,39 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
           <Field
             as="select"
             name={field.name}
-            {...(service.id === "decision_model" && field.name === "endpoint_type" ? {
+            {...((service.id === "decision_model" && field.name === "endpoint_type") ||
+              (service.id === "smtp" && ["provider", "authentication", "security"].includes(field.name)) ? {
               onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
-                setValue?.("endpoint_type", event.target.value);
-                setValue?.("base_url", "");
-                setValue?.("model_name", "");
+                const value = event.target.value;
+                setTestState("idle");
+                setTestMessage("");
+                if (service.id === "decision_model") {
+                  setValue?.("endpoint_type", value);
+                  setValue?.("base_url", "");
+                  setValue?.("model_name", "");
+                } else {
+                  setValue?.(field.name, value);
+                  if (field.name === "provider") {
+                    Object.entries(SMTP_PROVIDER_DEFAULTS[value] || {}).forEach(([key, setting]) => setValue?.(key, setting));
+                    setValue?.("username", "");
+                  }
+                  if (field.name === "security" && values.provider === "google") {
+                    setValue?.("port", value === "tls" ? "465" : "587");
+                  }
+                  if (field.name !== "security") {
+                    ["password", "client_id", "client_secret", "refresh_token"].forEach((key) => setValue?.(key, ""));
+                  }
+                }
               },
             } : {})}
             className="select select-bordered w-full cursor-pointer rounded-lg border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] text-zinc-100 focus:border-[var(--kai-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/20"
           >
             <option value="">Select {field.label}</option>
-            {field.options?.map((option) => (
+            {field.options?.filter((option) => {
+              if (service.id === "smtp" && field.name === "security" && values.provider === "google") return option.value !== "none";
+              if (service.id !== "smtp" || field.name !== "authentication") return true;
+              return values.provider === "google" ? option.value !== "none" : option.value !== "oauth2";
+            }).map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>

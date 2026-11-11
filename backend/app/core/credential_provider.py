@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional, Set, List
 from datetime import datetime, timedelta
 import threading
 import uuid
-from app.core.encryption import decrypt_data
+from app.core.encryption import decrypt_data, encrypt_data
 from app.services.credential_service import CredentialService
 from app.services.dependencies import get_credential_service_dep
 from app.core.database import get_db_session_context, SessionLocal
@@ -90,6 +90,7 @@ class CredentialProvider:
             decrypted_secret = decrypt_data(encrypted_bytes)
             return {
                 "id": credential.id,
+                "user_id": credential.user_id,
                 "name": credential.name,
                 "service_type": credential.service_type,
                 "secret": decrypted_secret if decrypted_secret is not None else {},
@@ -107,6 +108,27 @@ class CredentialProvider:
                 "created_at": credential.created_at,
                 "updated_at": credential.updated_at
             }
+
+    def update_refresh_token_sync(self, user_id, credential_id, previous: str, refreshed: str) -> None:
+        """Persist token rotation without overwriting concurrent credential edits."""
+        if not SessionLocal or not user_id:
+            raise ValueError("OAuth refresh token could not be saved. Check the credential owner and database connection.")
+        try:
+            with SessionLocal() as session:
+                credential = session.query(UserCredential).filter_by(
+                    user_id=uuid.UUID(str(user_id)), id=uuid.UUID(str(credential_id)), service_type="smtp",
+                ).with_for_update().first()
+                if not credential:
+                    raise ValueError("SMTP credential is no longer available.")
+                secret = decrypt_data(base64.b64decode(credential.encrypted_secret))
+                if not isinstance(secret, dict):
+                    raise ValueError("SMTP credential could not be decrypted.")
+                if secret.get("refresh_token") == previous:
+                    secret["refresh_token"] = refreshed
+                    credential.encrypted_secret = base64.b64encode(encrypt_data(secret)).decode("utf-8")
+                    session.commit()
+        except Exception:
+            raise ValueError("OAuth refresh token could not be saved. Check the credential and database connection.") from None
 
     def get_credential_sync(
         self, 
