@@ -212,6 +212,14 @@ def _classification(
     ) -> tuple[str, str, str, str, str, bool]:
         return code, category, title, description, resolution, retryable
 
+    if {"modulenotfounderror", "importerror"} & set(exception_names.split()):
+        return result(
+            "DEPENDENCY_MISSING",
+            "configuration",
+            "Missing runtime dependency",
+            "A Python package required by this node is not installed.",
+            "Install the missing package in the backend environment and restart the backend.",
+        )
     if status_code == 401 or "authenticationerror" in exception_names:
         return result(
             "AUTHENTICATION_FAILED",
@@ -287,7 +295,7 @@ def _classification(
             "The credential is valid but does not have permission for this operation.",
             "Grant the required role or scope and confirm model or resource access.",
         )
-    if status_code == 404 or "notfounderror" in exception_names:
+    if status_code == 404 or "notfounderror" in exception_names.split():
         return result(
             "RESOURCE_NOT_FOUND",
             "configuration",
@@ -422,7 +430,7 @@ def normalize_execution_error(error: BaseException) -> ExecutionErrorDetails:
         searchable=searchable,
     )
 
-    if code == "NODE_EXECUTION_FAILED" and raw_message:
+    if code in ("NODE_EXECUTION_FAILED", "DEPENDENCY_MISSING") and raw_message:
         description = raw_message
         if provider_message == raw_message:
             provider_message = None
