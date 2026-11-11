@@ -208,4 +208,5 @@ cachetools==7.1.8
 confluent-kafka==2.15.0
 deepteam==1.0.9
 deepeval==4.2.1
+sentry-sdk==2.58.0
 json-repair==0.63.4
