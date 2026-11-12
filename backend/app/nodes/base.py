@@ -126,6 +126,7 @@ class NodePropertyType(str, Enum):
     DOCUMENT_EDITOR = "document-editor"
     MCP_PARAMETERS = "mcp-parameters"
     DECISION_CRITERIA = "decision-criteria"
+    DECISION_QUESTIONS = "decision-questions"
 
 
 class NodeProperty(BaseModel):

@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { Terminal, X, Trash2, Search, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Download } from 'lucide-react';
 import { useLogStream } from '../../lib/useLogStream';
+import './LogPanel.css';
 
 interface LogPanelProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
   const [levelFilter, setLevelFilter] = React.useState<string>('ALL');
   const [autoScroll, setAutoScroll] = React.useState(true);
   const [userScrolledUp, setUserScrolledUp] = React.useState(false);
+  const [searchNavigation, setSearchNavigation] = React.useState(0);
 
   // Connect only while the panel is open and frontend logging is enabled.
   const { logs, isConnected, error, clearLogs } = useLogStream(
@@ -32,12 +34,19 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
 
   const containerRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
+  const followTailRef = useRef(true);
+  const navigateSearchRef = useRef(false);
 
   // Autoscroll logic
   const scrollToBottom = useCallback(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
+  }, []);
+
+  const pauseFollowing = useCallback(() => {
+    followTailRef.current = false;
+    setUserScrolledUp(true);
   }, []);
 
   // Drag-to-resize implementation
@@ -126,65 +135,65 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
     }
   }, [filteredLogs, searchTerm, matchCase, wholeWords, useRegex]);
 
-  // Coordinate match selection
-  useEffect(() => {
-    if (matches.length > 0) {
-      if (currentMatchIndex < 0 || currentMatchIndex >= matches.length) {
-        setCurrentMatchIndex(matches.length - 1); // Focus last match by default
-      }
-    } else {
-      setCurrentMatchIndex(-1);
-      // BUG FIX: When search is cleared, reset scroll offset and autoScroll state
-      if (searchTerm === '' && autoScroll) {
-        setUserScrolledUp(false);
-        scrollToBottom();
-      }
+  // Keep selection in range, but navigate only after an explicit search action.
+  // Streamed output must never recenter a match or resume tail following.
+  useLayoutEffect(() => {
+    const nextIndex = matches.length === 0 ? -1
+      : currentMatchIndex < 0 ? matches.length - 1 : Math.min(currentMatchIndex, matches.length - 1);
+    if (nextIndex !== currentMatchIndex) setCurrentMatchIndex(nextIndex);
+    if (!navigateSearchRef.current || !isOpen) return;
+    navigateSearchRef.current = false;
+    const container = containerRef.current;
+    const match = matches[nextIndex];
+    const line = match && container?.querySelector<HTMLElement>(`[data-log-line="${match.lineIndex}"]`);
+    if (container && line) {
+      container.scrollTop += line.getBoundingClientRect().top - container.getBoundingClientRect().top
+        - (container.clientHeight - line.getBoundingClientRect().height) / 2;
     }
-  }, [matches, searchTerm, autoScroll, scrollToBottom]);
+  }, [matches, currentMatchIndex, isOpen, searchNavigation]);
 
-  // Scroll current match to the center of the terminal screen
-  useEffect(() => {
-    if (currentMatchIndex >= 0 && currentMatchIndex < matches.length) {
-      const match = matches[currentMatchIndex];
-      const element = document.getElementById(`log-line-${match.lineIndex}`);
-      if (element) {
-        element.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
-    }
-  }, [currentMatchIndex, matches]);
+  useLayoutEffect(() => {
+    if (isOpen && autoScroll && followTailRef.current) scrollToBottom();
+  }, [filteredLogs, isOpen, autoScroll, height, scrollToBottom]);
 
-  useEffect(() => {
-    if (autoScroll && !userScrolledUp) {
-      scrollToBottom();
-    }
-  }, [filteredLogs, autoScroll, userScrolledUp, scrollToBottom]);
-
-  // BUG FIX: Scroll to bottom when log panel first opens to ensure we don't start at scroll 0
-  useEffect(() => {
-    if (isOpen && autoScroll && !userScrolledUp) {
-      const timer = setTimeout(() => {
-        scrollToBottom();
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, autoScroll, userScrolledUp, scrollToBottom]);
+  // Stable row identities let browser scroll anchoring preserve the text being
+  // read when the stream's bounded buffer removes old rows from its beginning.
+  const logRows = useMemo(() => {
+    const occurrences = new Map<string, number>();
+    return filteredLogs.map((text) => {
+      const occurrence = occurrences.get(text) ?? 0;
+      occurrences.set(text, occurrence + 1);
+      return { text, key: JSON.stringify([text, occurrence]) };
+    });
+  }, [filteredLogs]);
 
   // Detect user scroll up
   const handleScroll = () => {
-    if (!containerRef.current) return;
+    if (!isOpen || !containerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    // BUG FIX: Use a tighter threshold (8px instead of 30px) to prevent scroll-fighting when user scrolls up slightly
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 8;
-    if (isAtBottom) {
-      setUserScrolledUp(false);
-    } else {
-      setUserScrolledUp(true);
-    }
+    followTailRef.current = isAtBottom;
+    setUserScrolledUp(!isAtBottom);
   };
 
   const handleResumeAutoScroll = () => {
+    followTailRef.current = true;
     setUserScrolledUp(false);
     scrollToBottom();
+  };
+
+  const requestSearchNavigation = () => {
+    navigateSearchRef.current = Boolean(searchTerm);
+    if (searchTerm) pauseFollowing();
+    setCurrentMatchIndex(-1);
+  };
+
+  const navigateMatch = (direction: number) => {
+    if (!matches.length) return;
+    pauseFollowing();
+    navigateSearchRef.current = true;
+    setSearchNavigation((previous) => previous + 1);
+    setCurrentMatchIndex((previous) => (previous + direction + matches.length) % matches.length);
   };
 
   const handleDownloadLogs = () => {
@@ -231,11 +240,7 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
       elements.push(
         <mark
           key={`match-${idx}`}
-          className={`rounded-none font-mono ${
-            isFocused
-              ? 'bg-[var(--kai-accent)] text-white'
-              : 'bg-[var(--kai-accent)]/30 text-slate-100'
-          }`}
+          className={`kai-log-match${isFocused ? ' kai-log-match--current' : ''}`}
         >
           {matchText}
         </mark>
@@ -256,262 +261,120 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
   };
 
   return (
-    <div
+    <section
+      aria-label="Backend logs"
       style={{ height: `${height}px`, display: isOpen ? 'flex' : 'none' }}
-      className="fixed bottom-0 left-16 right-0 z-40 bg-[var(--kai-log-panel-bg)]/95 border-t border-gray-800/80 backdrop-blur-md shadow-2xl flex flex-col font-mono select-none"
+      className="kai-log-panel"
     >
-      {/* Resizer Handle */}
-      <div
-        onMouseDown={handleMouseDown}
-        className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize hover:bg-[var(--kai-accent)]/50 active:bg-[var(--kai-accent)]/70 transition-colors z-50"
-        title="Drag to resize panel"
-      />
+      <div onMouseDown={handleMouseDown} className="kai-log-resizer" title="Drag to resize panel" />
 
-      {/* Control Header */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800/60 bg-[var(--kai-log-header-bg)]/90 text-sm font-mono">
-        {/* Left Side: Status Info */}
-        <div className="flex items-center gap-3 font-mono">
-          <div className="flex items-center gap-1.5 text-slate-100 font-semibold font-mono">
-            <Terminal className="w-4 h-4 text-[var(--kai-accent-text)]" />
-            <span className="font-mono">Backend Logs</span>
-          </div>
-
-          {/* Connection Status Indicator */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-900 border border-gray-800 text-[11px] font-medium text-slate-300 font-mono">
-            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-gray-600'}`} />
-            <span className="font-mono">{isConnected ? 'Connected' : 'Offline'}</span>
-          </div>
-
-          {error && (
-            <span className="text-xs text-rose-400 flex items-center gap-1 font-mono">
-              • Connection error
-            </span>
-          )}
+      <header className="kai-log-header">
+        <div className="kai-log-heading">
+          <Terminal size={16} aria-hidden="true" />
+          <h2>Backend logs</h2>
+          <span className={`kai-log-status${isConnected ? ' kai-log-status--connected' : ''}`}>
+            <span aria-hidden="true" />{isConnected ? 'Connected' : 'Offline'}
+          </span>
+          {error && <span className="kai-log-error">Connection error</span>}
         </div>
-
-        {/* Middle: Modern IDE Search Bar & Options */}
-        <div className="flex items-center gap-4 flex-1 max-w-xl mx-8 font-mono">
-          <div className="flex items-center gap-2 bg-[var(--kai-log-control-bg)] border border-gray-800 rounded-lg px-2.5 py-1.5 max-w-md w-full relative font-mono">
-            <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mr-1" />
+        <div className="kai-log-search-controls">
+          <div className="kai-log-search">
+            <Search size={15} aria-hidden="true" />
             <input
               type="text"
+              aria-label="Search logs"
               placeholder="Search..."
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
+              onChange={(event) => {
+                const value = event.target.value;
+                navigateSearchRef.current = Boolean(value);
+                if (value) pauseFollowing();
+                setSearchTerm(value);
                 setCurrentMatchIndex(-1);
               }}
-              className="bg-transparent text-xs text-slate-100 placeholder-slate-500 focus:outline-none flex-1 font-mono pr-20"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  navigateMatch(event.shiftKey ? -1 : 1);
+                }
+              }}
             />
-            {/* Search Option Toggles */}
-            <div className="flex items-center gap-1 absolute right-2 top-1/2 -translate-y-1/2">
-              <button
-                onClick={() => setMatchCase(!matchCase)}
-                className={`px-1 py-0.5 text-[9px] rounded font-bold font-mono border transition-all ${
-                  matchCase
-                    ? 'bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55'
-                    : 'text-slate-500 border-transparent hover:text-slate-300'
-                }`}
-                title="Match Case (Aa)"
-              >
-                Aa
-              </button>
-              <button
-                onClick={() => setWholeWords(!wholeWords)}
-                className={`px-1 py-0.5 text-[9px] rounded font-bold font-mono border transition-all ${
-                  wholeWords
-                    ? 'bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55'
-                    : 'text-slate-500 border-transparent hover:text-slate-300'
-                }`}
-                title="Match Whole Word (\\b)"
-              >
-                \b
-              </button>
-              <button
-                onClick={() => setUseRegex(!useRegex)}
-                className={`px-1 py-0.5 text-[9px] rounded font-bold font-mono border transition-all ${
-                  useRegex
-                    ? 'bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55'
-                    : 'text-slate-500 border-transparent hover:text-slate-300'
-                }`}
-                title="Use Regular Expression (.*)"
-              >
-                .*
-              </button>
+            <div className="kai-log-search-options">
+              {[
+                { label: 'Aa', title: 'Match Case (Aa)', active: matchCase, toggle: () => setMatchCase(!matchCase) },
+                { label: '\\b', title: 'Match Whole Word (\\b)', active: wholeWords, toggle: () => setWholeWords(!wholeWords) },
+                { label: '.*', title: 'Use Regular Expression (.*)', active: useRegex, toggle: () => setUseRegex(!useRegex) },
+              ].map((option) => (
+                <button key={option.label} type="button" title={option.title} aria-label={option.title} aria-pressed={option.active} onClick={() => {
+                  requestSearchNavigation();
+                  option.toggle();
+                }}>{option.label}</button>
+              ))}
             </div>
           </div>
-
-          {/* Navigation and Match Count */}
-          {searchTerm && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono flex-shrink-0">
-              <span className="font-mono bg-gray-900 border border-gray-800 px-2 py-0.5 rounded text-[11px]">
-                {matches.length > 0 ? `${currentMatchIndex + 1} of ${matches.length}` : '0 of 0'}
-              </span>
-              <button
-                onClick={() => {
-                  if (matches.length > 0) {
-                    setCurrentMatchIndex((prev) => (prev - 1 + matches.length) % matches.length);
-                    setAutoScroll(false);
-                  }
-                }}
-                disabled={matches.length === 0}
-                className="p-1 hover:text-white rounded hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                title="Previous Match"
-              >
-                <ChevronUp className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  if (matches.length > 0) {
-                    setCurrentMatchIndex((prev) => (prev + 1) % matches.length);
-                    setAutoScroll(false);
-                  }
-                }}
-                disabled={matches.length === 0}
-                className="p-1 hover:text-white rounded hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                title="Next Match"
-              >
-                <ChevronDown className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+          {searchTerm && <div className="kai-log-match-navigation">
+            <span>{matches.length ? `${currentMatchIndex + 1} of ${matches.length}` : '0 of 0'}</span>
+            <button type="button" className="kai-log-icon-button" title="Previous Match" aria-label="Previous Match" disabled={!matches.length} onClick={() => navigateMatch(-1)}><ChevronUp size={16} /></button>
+            <button type="button" className="kai-log-icon-button" title="Next Match" aria-label="Next Match" disabled={!matches.length} onClick={() => navigateMatch(1)}><ChevronDown size={16} /></button>
+          </div>}
         </div>
-
-        {/* Right Side: Actions & Level Filter */}
-        <div className="flex items-center gap-1.5 font-mono">
-          {/* Level Filter Pills */}
-          <div className="flex items-center gap-1 bg-[var(--kai-log-control-bg)] border border-gray-800 rounded-lg p-0.5 font-mono mr-2">
+        <div className="kai-log-actions" aria-label="Log actions">
+          <div className="kai-log-levels" role="group" aria-label="Log level">
             {['ALL', 'INFO', 'WARNING', 'ERROR', 'DEBUG'].map((level) => (
-              <button
-                key={level}
-                onClick={() => setLevelFilter(level)}
-                className={`px-2 py-0.5 text-[10px] rounded-md font-medium transition-all font-mono ${
-                  levelFilter === level
-                    ? 'bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border border-[var(--kai-accent)]/55'
-                    : 'text-slate-400 hover:text-slate-200 border border-transparent'
-                }`}
-              >
-                {level}
+              <button key={level} type="button" aria-pressed={levelFilter === level} onClick={() => setLevelFilter(level)}>
+                {level === 'ALL' ? 'All' : level.charAt(0) + level.slice(1).toLowerCase()}
               </button>
             ))}
           </div>
-
-          {/* Scroll to Top */}
+          <button type="button" className="kai-log-icon-button" title="Scroll to Top" aria-label="Scroll to Top" onClick={() => {
+            pauseFollowing();
+            if (containerRef.current) containerRef.current.scrollTop = 0;
+          }}><ArrowUp size={16} /></button>
+          <button type="button" className="kai-log-icon-button" title="Scroll to Bottom" aria-label="Scroll to Bottom" onClick={handleResumeAutoScroll}><ArrowDown size={16} /></button>
+          <button type="button" className="kai-log-icon-button" title="Download Logs" aria-label="Download Logs" onClick={handleDownloadLogs}><Download size={16} /></button>
+          <button type="button" className="kai-log-icon-button kai-delete-trigger" title="Clear Console" aria-label="Clear Console" onClick={clearLogs}><Trash2 size={16} /></button>
           <button
-            onClick={() => {
-              if (containerRef.current) {
-                containerRef.current.scrollTop = 0;
-                setUserScrolledUp(true);
-              }
-            }}
-            className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-gray-800 transition-colors font-mono"
-            title="Scroll to Top"
-          >
-            <ArrowUp className="w-4 h-4" />
-          </button>
-
-          {/* Scroll to Bottom */}
-          <button
-            onClick={() => {
-              if (containerRef.current) {
-                containerRef.current.scrollTop = containerRef.current.scrollHeight;
-                setUserScrolledUp(false);
-              }
-            }}
-            className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-gray-800 transition-colors font-mono"
-            title="Scroll to Bottom"
-          >
-            <ArrowDown className="w-4 h-4" />
-          </button>
-
-          {/* Download Logs */}
-          <button
-            onClick={handleDownloadLogs}
-            className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-gray-800 transition-colors font-mono"
-            title="Download Logs"
-            aria-label="Download Logs"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-
-          {/* Clear Logs */}
-          <button
-            onClick={clearLogs}
-            className="kai-delete-trigger rounded-lg p-1.5 font-mono"
-            title="Clear Console"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-
-          {/* Auto-scroll toggle */}
-          <button
-            onClick={() => {
-              const nextVal = !autoScroll;
-              setAutoScroll(nextVal);
-              if (nextVal) {
-                setUserScrolledUp(false);
-                scrollToBottom();
-              }
-            }}
-            className={`px-2 py-1 text-xs rounded-lg font-medium transition-colors border font-mono ${
-              autoScroll
-                ? 'bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55'
-                : 'text-slate-400 border-gray-800 hover:bg-gray-800'
-            }`}
+            type="button"
+            className="kai-log-follow"
+            aria-pressed={autoScroll}
             title="Auto-scroll to bottom on new logs"
-          >
-            Auto-Scroll
-          </button>
-
-          {/* Divider */}
-          <div className="w-[1px] h-4 bg-gray-800 mx-1"></div>
-
-          {/* Close Panel */}
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-gray-800 transition-colors font-mono"
-            title="Hide logs panel"
-          >
-            <X className="w-4 h-4" />
-          </button>
+            onClick={() => {
+              const next = !autoScroll;
+              setAutoScroll(next);
+              if (next) handleResumeAutoScroll();
+            }}
+          >Auto-Scroll</button>
+          <span className="kai-log-divider" aria-hidden="true" />
+          <button type="button" className="kai-log-icon-button" title="Hide logs panel" aria-label="Hide logs panel" onClick={onClose}><X size={16} /></button>
         </div>
-      </div>
+      </header>
 
-      {/* Terminal Output Area */}
-        <div className="relative flex-1 min-h-0 bg-[var(--kai-log-body-bg)]">
+      <div className="kai-log-body">
         <div
           ref={containerRef}
+          role="log"
+          aria-label="Log output"
+          aria-live="off"
+          tabIndex={0}
           onScroll={handleScroll}
-          className="w-full h-full overflow-y-auto px-4 py-3 font-mono text-sm leading-relaxed text-slate-100 selection:bg-[var(--kai-accent)]/30 whitespace-pre-wrap select-text scrollbar-thin"
+          onWheel={(event) => { if (event.deltaY < 0) pauseFollowing(); }}
+          onKeyDown={(event) => { if (['ArrowUp', 'PageUp', 'Home'].includes(event.key)) pauseFollowing(); }}
+          className="kai-log-viewport"
         >
-          {filteredLogs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-slate-500 italic select-none font-mono">
-              <span className="font-mono">No logs found</span>
+          {logRows.length === 0 ? (
+            <div className="kai-log-empty">No logs found</div>
+          ) : logRows.map((row, index) => (
+            <div key={row.key} data-log-line={index} className="kai-log-line">
+              {renderLogLine(row.text, index)}
             </div>
-          ) : (
-            filteredLogs.map((logText, idx) => (
-              <div
-                key={idx}
-                id={`log-line-${idx}`}
-                className="py-0.5 border-b border-gray-900/20 hover:bg-gray-900/30 transition-colors font-mono text-slate-100 whitespace-pre-wrap select-text text-sm leading-relaxed"
-              >
-                {renderLogLine(logText, idx)}
-              </div>
-            ))
-          )}
+          ))}
         </div>
-
-        {/* Scroll pause overlay indicator */}
         {userScrolledUp && autoScroll && filteredLogs.length > 0 && (
-          <button
-            onClick={handleResumeAutoScroll}
-            className="absolute bottom-4 right-6 flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--kai-accent)] text-white rounded-lg shadow-lg hover:bg-[var(--kai-accent-hover)] active:scale-95 transition-all z-10 border border-[var(--kai-accent)] font-mono"
-          >
-            <ChevronDown className="w-3.5 h-3.5" />
-            <span className="font-mono">Resume Auto-scroll</span>
+          <button type="button" onClick={handleResumeAutoScroll} className="kai-log-resume">
+            <ChevronDown size={15} />Resume Auto-scroll
           </button>
         )}
       </div>
-    </div>
+    </section>
   );
 }

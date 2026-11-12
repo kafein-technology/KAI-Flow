@@ -41,7 +41,7 @@ const CredentialModelCombobox = ({
   const currentValue = String(formikField.value ?? field.default ?? "");
   const baseUrl = String(values.base_url || "").trim();
   const apiKey = String(values.api_key || "").trim();
-  const endpointType = String(values.endpoint_type || "/v1/systemone");
+  const endpointType = String(values.endpoint_type ?? "/v1/systemone");
 
   const canFetch = useMemo(() => {
     if (serviceType === "openai") {
@@ -51,7 +51,7 @@ const CredentialModelCombobox = ({
       return baseUrl.length > 0;
     }
     if (serviceType === "decision_model") {
-      return baseUrl.length > 0;
+      return baseUrl.length > 0 && endpointType !== "custom" && endpointType !== "";
     }
     return false;
   }, [serviceType, apiKey, baseUrl, endpointType]);
@@ -64,6 +64,9 @@ const CredentialModelCombobox = ({
       return "Enter a Base URL to load available models.";
     }
     if (serviceType === "decision_model") {
+      if (endpointType === "custom" || endpointType === "") {
+        return "Enter a model ID. Custom endpoints do not use automatic model discovery.";
+      }
       return "Enter a Base URL to load decision models.";
     }
     return "No models available.";
@@ -115,10 +118,21 @@ const CredentialModelCombobox = ({
   }, [canFetch, field.name, idleMessage, serviceType, values]);
 
   useEffect(() => {
+    // Invalidate in-flight preset discovery immediately when the URL or mode changes.
+    requestIdRef.current += 1;
+    if (!canFetch) {
+      setModels([]);
+      setStatusMessage(idleMessage);
+      setLoading(false);
+      return;
+    }
     const timeout = window.setTimeout(() => {
       void fetchModels();
     }, 300);
-    return () => window.clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(timeout);
+      requestIdRef.current += 1;
+    };
     // fetchKey captures the fields that should trigger a refetch
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchKey]);

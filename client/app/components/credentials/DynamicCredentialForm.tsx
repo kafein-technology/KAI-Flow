@@ -98,17 +98,22 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
     const values = {
       ...initialValues,
     };
+    if (service.id === "decision_model" && values.base_url && values.endpoint_type === undefined) {
+      values.endpoint_type = "/v1/systemone";
+    }
 
     // Apply service fields's default values to Formik state
     service.fields.forEach((field) => {
-      if (values[field.name] === undefined && field.default !== undefined) {
-        values[field.name] = field.default;
+      if (values[field.name] === undefined) {
+        if (field.default !== undefined) values[field.name] = field.default;
+        else if (service.id === "decision_model") values[field.name] = "";
       }
     });
 
     if (service.id === "decision_model") {
       if (values.endpoint_type === "systemone") values.endpoint_type = "/v1/systemone";
       if (values.endpoint_type === "decisions") values.endpoint_type = "/api/alpha/decisions";
+      if (values.endpoint_type === "") values.endpoint_type = "custom";
     }
 
     return values;
@@ -155,13 +160,12 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             {...(service.id === "decision_model" && field.name === "endpoint_type" ? {
               onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
                 setValue?.("endpoint_type", event.target.value);
-                setValue?.("base_url", "");
                 setValue?.("model_name", "");
               },
             } : {})}
             className="select select-bordered w-full cursor-pointer rounded-lg border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] text-zinc-100 focus:border-[var(--kai-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/20"
           >
-            <option value="">Select {field.label}</option>
+            {!(service.id === "decision_model" && field.name === "endpoint_type") && <option value="">Select {field.label}</option>}
             {field.options?.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}

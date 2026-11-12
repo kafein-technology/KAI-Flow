@@ -478,9 +478,11 @@ async def _list_openai_compatible_models(
 
 async def _list_decision_models(secret: Dict[str, Any]) -> List[CredentialModelOption]:
     """List model IDs supported by the selected decision endpoint."""
-    from app.nodes.llms.decision_model_node import decision_models_endpoint, selected_endpoint_path
+    from app.core.decision_api import decision_models_endpoint, selected_endpoint_path
 
     url = decision_models_endpoint(secret)
+    if url is None:
+        return []
     if selected_endpoint_path(secret) == "/api/alpha/decisions":
         params = {"endpoints": "/api/alpha/decisions"}
     else:
@@ -531,6 +533,10 @@ async def _list_models_response(
             if now - cached_time < _CACHE_TTL_SECONDS:
                 return CredentialModelsResponse(models=cached_models, source="provider")
         try:
+            from app.core.decision_api import selected_endpoint_path
+
+            if not selected_endpoint_path(secret):
+                return CredentialModelsResponse(models=[], source="empty", message="Custom endpoint: enter the model ID manually. No model-list URL is assumed.")
             models = await _list_decision_models(secret)
             if models:
                 _MODELS_CACHE[cache_key] = (now, models)
@@ -1004,24 +1010,10 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         except Exception as exc:
             return CredentialTestResponse(success=False, message=f"MCP connection failed: {exc}")
     if service_type == "decision_model":
-        from app.nodes.llms.decision_model_node import decision_endpoint, decision_models_endpoint
+        from app.core.decision_api import test_decision_connection
         try:
-            endpoint = decision_endpoint(secret)
-            test_url = decision_models_endpoint(secret)
-            headers = {"Accept": "application/json"}
-            api_key = str(secret.get("api_key") or "").strip()
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=4.0)) as client:
-                response = await client.get(test_url, headers=headers)
-                if response.status_code in (404, 405):
-                    probe = await client.post(endpoint, headers=headers, json={})
-                    if probe.status_code in (400, 422):
-                        return CredentialTestResponse(success=True, message="Decision endpoint is reachable. Model listing is unavailable; enter a model ID manually.")
-                    probe.raise_for_status()
-                response.raise_for_status()
-                response.json()
-            return CredentialTestResponse(success=True, message="Decision endpoint connection successful.")
+            await test_decision_connection(secret)
+            return CredentialTestResponse(success=True, message="Decision endpoint and selected model passed the connection test.")
         except ValueError as exc:
             return CredentialTestResponse(success=False, message=str(exc))
         except httpx.HTTPStatusError as exc:
