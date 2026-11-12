@@ -1,12 +1,16 @@
-"""A single-question client for System One compatible decision APIs."""
+"""A client for System One compatible decision APIs."""
 
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, Dict
-from urllib.parse import urlsplit, urlunsplit
 
 import httpx
+
+from ...core.decision_api import (
+    decision_endpoint, decision_models_endpoint, selected_endpoint_path,
+)
 
 from ..base import (
     NodeInput, NodeOutput, NodePosition, NodeProperty, NodePropertyType,
@@ -14,48 +18,9 @@ from ..base import (
 )
 
 
-ENDPOINT_PATHS = {
-    "systemone": "/v1/systemone",
-    "decisions": "/api/alpha/decisions",
-}
-
-
-def selected_endpoint_path(secret: Dict[str, Any]) -> str:
-    selection = str(secret.get("endpoint_type") or "/v1/systemone")
-    path = ENDPOINT_PATHS.get(selection, selection)
-    if path not in ENDPOINT_PATHS.values():
-        raise ValueError("Select a supported decision endpoint path.")
-    return path
-
-
-def decision_endpoint(secret: Dict[str, Any]) -> str:
-    endpoint_path = selected_endpoint_path(secret)
-    base_url = str(secret.get("base_url") or "").strip().rstrip("/")
-    parts = urlsplit(base_url)
-    if parts.scheme not in ("http", "https") or not parts.netloc or parts.username or parts.password or parts.query or parts.fragment:
-        raise ValueError("Base URL must be an HTTP or HTTPS server URL without query or credentials.")
-    base_segments = [segment for segment in parts.path.split("/") if segment]
-    target_segments = endpoint_path.strip("/").split("/")
-    overlap = 0
-    for size in range(1, min(len(base_segments), len(target_segments)) + 1):
-        if base_segments[-size:] == target_segments[:size]:
-            overlap = size
-    path = "/" + "/".join(base_segments + target_segments[overlap:])
-    return urlunsplit((parts.scheme, parts.netloc, path, "", ""))
-
-
-def decision_models_endpoint(secret: Dict[str, Any]) -> str:
-    """Conventional model-list route corresponding to the chosen decision path."""
-    endpoint = urlsplit(decision_endpoint(secret))
-    decision_path = selected_endpoint_path(secret)
-    prefix = endpoint.path[: -len(decision_path)].rstrip("/")
-    models_path = "/v1/models" if decision_path == "/v1/systemone" else "/api/v1/models"
-    return urlunsplit((endpoint.scheme, endpoint.netloc, prefix + models_path, "", ""))
-
-
 def build_question(operation: str, instructions: Any, configuration: Dict[str, Any]) -> Dict[str, Any]:
     if operation not in ("noul", "choice", "score"):
-        raise ValueError("Decision operation must be Yes / No, Choice, or Score.")
+        raise ValueError("Decision operation must be Noul (Yes/No), Choice, or Score.")
     if not isinstance(instructions, (str, dict, list)) or not instructions:
         raise ValueError("Decision instructions are required.")
     if isinstance(instructions, str) and not instructions.strip():
@@ -94,6 +59,26 @@ def build_question(operation: str, instructions: Any, configuration: Dict[str, A
             raise ValueError("Every score level needs a description.")
         question["criteria"] = criteria
     return question
+
+
+def build_questions(operation: str, instructions: Any, configuration: Dict[str, Any]) -> Dict[str, Any]:
+    questions = {"decision": build_question(operation, instructions, configuration)}
+    if operation != "noul":
+        return questions
+    additional = configuration.get("additional_questions", [])
+    if not isinstance(additional, list):
+        raise ValueError("Additional Noul questions must be a list.")
+    for index, row in enumerate(additional, start=2):
+        if not isinstance(row, dict):
+            raise ValueError(f"Noul question {index} must contain instructions.")
+        name = row.get("id", f"decision_{index}")
+        if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", name) or name in questions:
+            raise ValueError("Noul question IDs must be unique and contain only letters, numbers, dots, underscores, or hyphens.")
+        try:
+            questions[name] = build_question("noul", row.get("instructions"), row)
+        except ValueError as exc:
+            raise ValueError(f"Noul question {index}: {exc}") from exc
+    return questions
 
 
 def _probability(value: Any, name: str) -> float:
@@ -149,14 +134,15 @@ class DecisionModelNode(ProcessorNode):
             "icon": {"name": None, "path": "icons/decision.svg", "alt": "Decision Model"},
             "colors": ["blue-500", "cyan-600"],
             "inputs": [NodeInput(name="input", displayName="State", type="any", description="Fallback state when the node's State field is empty. Accepts text, an object, or an array.", is_connection=True, required=False, direction=NodePosition.LEFT)],
-            "outputs": [NodeOutput(name="output", displayName="Decision", type="any", description="Decision value, complete answer, model, and usage.", is_connection=True, direction=NodePosition.RIGHT)],
+            "outputs": [NodeOutput(name="output", displayName="Decision", type="any", description="Decision value, complete answer, model, and usage. Multiple Noul questions also return a decisions object keyed by question ID.", is_connection=True, direction=NodePosition.RIGHT)],
             "properties": [
                 NodeProperty(name="credential_id", displayName="Decision credential", type=NodePropertyType.CREDENTIAL_SELECT, serviceType="decision_model", description="Select a decision endpoint credential and model.", required=True),
                 NodeProperty(name="state", displayName="State", type=NodePropertyType.TEXT_AREA, description="Content to evaluate. When empty, the connected State input is used. Supports workflow variables.", placeholder="Enter content or connect a node to State", default="", required=True, rows=5),
-                NodeProperty(name="operation", displayName="Decision type", type=NodePropertyType.SELECT, description="Select the question and answer format.", default="noul", required=True, options=[{"label": "Yes / No", "value": "noul"}, {"label": "Choice", "value": "choice"}, {"label": "Score", "value": "score"}]),
+                NodeProperty(name="operation", displayName="Decision type", type=NodePropertyType.SELECT, description="Select the question and answer format.", default="noul", required=True, options=[{"label": "Noul (Yes/No)", "value": "noul"}, {"label": "Choice", "value": "choice"}, {"label": "Score", "value": "score"}]),
                 NodeProperty(name="instructions", displayName="Instructions", type=NodePropertyType.TEXT_AREA, description="Question or statement to evaluate. Supports workflow variables.", placeholder="Is this message about billing?", default="", required=True, rows=4),
                 NodeProperty(name="true_criterion", displayName="Yes / true means", type=NodePropertyType.TEXT, description="Optional clarification of what counts as yes or true.", default="", required=False, displayOptions={"show": {"operation": "noul"}}),
                 NodeProperty(name="false_criterion", displayName="No / false means", type=NodePropertyType.TEXT, description="Optional clarification of what counts as no or false.", default="", required=False, displayOptions={"show": {"operation": "noul"}}),
+                NodeProperty(name="additional_questions", displayName="Noul questions", type=NodePropertyType.DECISION_QUESTIONS, description="Ask one or more Yes/No questions about the same State. Each question returns its own decision.", default=[], required=False, displayOptions={"show": {"operation": "noul"}}),
                 NodeProperty(name="choice_criteria", displayName="Choices", type=NodePropertyType.DECISION_CRITERIA, description="Each choice has a unique name and an optional description.", default=[{"name": "", "description": ""}], required=True, displayOptions={"show": {"operation": "choice"}}),
                 NodeProperty(name="score_criteria", displayName="Score levels", type=NodePropertyType.DECISION_CRITERIA, description="Two to ten ordered levels, scored from 0 upward.", default=["", ""], required=True, displayOptions={"show": {"operation": "score"}}),
                 NodeProperty(name="threshold", displayName="Yes threshold", type=NodePropertyType.NUMBER, description="A Yes / No probability at or above this value returns true.", default=0.5, min=0, max=1, step=0.01, required=True, displayOptions={"show": {"operation": "noul"}}),
@@ -188,7 +174,7 @@ class DecisionModelNode(ProcessorNode):
         if not isinstance(state, (str, dict, list)) or (isinstance(state, str) and not state.strip()):
             raise ValueError("Enter State in the node or connect a State input.")
         operation = str(inputs.get("operation") or "noul")
-        question = build_question(operation, instructions, inputs)
+        questions = build_questions(operation, instructions, inputs)
         try:
             threshold = float(inputs.get("threshold", 0.5))
         except (TypeError, ValueError):
@@ -201,7 +187,7 @@ class DecisionModelNode(ProcessorNode):
             headers["Authorization"] = f"Bearer {api_key}"
         try:
             with httpx.Client(timeout=httpx.Timeout(30.0, connect=5.0)) as client:
-                response = client.post(endpoint, headers=headers, json={"model": model, "state": state, "questions": {"decision": question}})
+                response = client.post(endpoint, headers=headers, json={"model": model, "state": state, "questions": questions})
                 response.raise_for_status()
                 payload = response.json()
         except httpx.HTTPStatusError as exc:
@@ -210,4 +196,9 @@ class DecisionModelNode(ProcessorNode):
             raise ValueError(f"Decision API connection failed: {type(exc).__name__}.") from exc
         except ValueError as exc:
             raise ValueError("Decision API returned invalid JSON.") from exc
-        return {"output": parse_answer(payload, operation, "decision", threshold)}
+        output = parse_answer(payload, operation, "decision", threshold)
+        if len(questions) > 1:
+            output["decisions"] = {
+                name: parse_answer(payload, operation, name, threshold) for name in questions
+            }
+        return {"output": output}

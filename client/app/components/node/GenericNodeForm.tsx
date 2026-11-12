@@ -28,6 +28,7 @@ import { NodeColumnMapper } from "./fields/NodeColumnMapper";
 import { NodeDocumentEditor } from "./fields/NodeDocumentEditor";
 import { NodeMcpParameters } from "./fields/NodeMcpParameters";
 import { NodeDecisionCriteria } from "./fields/NodeDecisionCriteria";
+import { NodeDecisionQuestions } from "./fields/NodeDecisionQuestions";
 import { useVariableStore } from "~/stores/variables";
 
 interface GenericNodeFormProps {
@@ -158,6 +159,10 @@ export default function GenericNodeForm({
     }, {}),
     ...configData,
   }) };
+  if (nodeType === "DecisionModelNode") {
+    initialValues.operation ??= "noul";
+    initialValues.additional_questions ??= [];
+  }
   // Older forms copied a credential secret into this undeclared node field.
   if (!properties.some((property) => property.name === "tavily_api_key")) {
     delete initialValues.tavily_api_key;
@@ -260,6 +265,11 @@ export default function GenericNodeForm({
             <FormValuesObserver values={values} initialValues={initialValues} onChange={onChange} />
             <Form className="grid w-full grid-cols-2 gap-3 p-3">
               {getVisibleProperties(activeTab).map((property: NodeProperty) => {
+                if (
+                  nodeType === "DecisionModelNode" && values.operation === "noul" &&
+                  properties.some((item) => item.type === "decision-questions") &&
+                  ["instructions", "true_criterion", "false_criterion"].includes(property.name)
+                ) return null;
                 // Check display options
                 if (property.displayOptions?.show) {
                   const shouldShow = Object.entries(property.displayOptions.show).every(
@@ -341,6 +351,8 @@ export default function GenericNodeForm({
                       return <NodeMcpParameters property={fullWidthProperty} values={values} nodeType={nodeType} />;
                     case "decision-criteria":
                       return <NodeDecisionCriteria property={fullWidthProperty} value={values[property.name]} setValue={setFieldValue} />;
+                    case "decision-questions":
+                      return <NodeDecisionQuestions property={fullWidthProperty} />;
                     case "credential-select":
                       return (
                         <NodeCredentialSelect

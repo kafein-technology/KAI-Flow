@@ -41,17 +41,18 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     fields: [
       {
         name: 'endpoint_type', label: 'Endpoint', type: 'select', required: true,
-        default: '/v1/systemone',
+        default: 'custom',
         options: [
+          { value: 'custom', label: 'Custom endpoint' },
           { value: '/v1/systemone', label: '/v1/systemone' },
           { value: '/api/alpha/decisions', label: '/api/alpha/decisions' },
         ],
-        description: 'Select the decision API protocol.',
+        description: 'Custom endpoint uses Base URL exactly as entered. A preset appends its endpoint path.',
       },
       {
         name: 'base_url', label: 'Base URL', type: 'text', required: true,
-        placeholder: 'https://your-server.example or http://localhost:8000',
-        description: 'Server address for the selected endpoint. Leave out the endpoint path, or paste the full endpoint URL.',
+        placeholder: 'https://your-server.example/your-decision-endpoint',
+        description: 'For Custom endpoint, enter the complete request URL. For a preset, enter the server address or full endpoint URL.',
       },
       {
         name: 'api_key', label: 'API Key', type: 'password', required: false,
@@ -61,7 +62,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
       {
         name: 'model_name', label: 'Model', type: 'model-combobox', required: true,
         placeholder: 'Select or type a decision model',
-        description: 'Available decision models load from the selected endpoint. You can also enter a model ID.',
+        description: 'Enter a model ID for a custom endpoint. Preset endpoints can also load available models.',
       },
     ],
   },
