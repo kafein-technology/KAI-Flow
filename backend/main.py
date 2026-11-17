@@ -29,13 +29,15 @@ from app.core.engine import get_engine
 from app.core.database import get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
 from app.core.error_handlers import register_exception_handlers
-from app.core.constants import PORT, ROOT_PATH, SSL_KEYFILE, SSL_CERTFILE,API_START,API_VERSION
+from app.core.constants import PORT, SSL_KEYFILE, SSL_CERTFILE
+from app.core.api_paths import API_PREFIX, ROOT_PATH
 # Middleware imports
 from app.middleware import (
     DetailedLoggingMiddleware,
     DatabaseQueryLoggingMiddleware,
     SecurityLoggingMiddleware
 )
+from app.middleware.proxy_mount import ProxyMountMiddleware
 
 # API routers imports
 from app.api.workflows import router as workflows_router
@@ -238,50 +240,67 @@ app.add_middleware(
     log_all_security_headers=False  # Set to True for security debugging
 )
 
+# Normalize a stripped proxy mount before routing and URL generation. Requests
+# already containing the mount (including Uvicorn --root-path) stay unchanged.
+app.add_middleware(ProxyMountMiddleware)
+
 # Register comprehensive exception handlers
 register_exception_handlers(app)
 
 # Include API routers
 
-# Core routers (always available)
-app.include_router(auth_router, prefix=f"/{API_START}/{API_VERSION}/auth", tags=["Authentication"])
-app.include_router(nodes_router, prefix=f"/{API_START}/{API_VERSION}/nodes", tags=["Nodes"])
-app.include_router(workflows_router, prefix=f"/{API_START}/{API_VERSION}/workflows", tags=["Workflows"])
-app.include_router(api_key_router, prefix=f"/{API_START}/{API_VERSION}/api-keys", tags=["API Keys"])
-app.include_router(executions_router, prefix=f"/{API_START}/{API_VERSION}/executions", tags=["Executions"])
-app.include_router(credentials_router, prefix=f"/{API_START}/{API_VERSION}/credentials", tags=["Credentials"])
-app.include_router(chat_router, prefix=f"/{API_START}/{API_VERSION}/chat", tags=["Chat"])
-app.include_router(ai_builder_router, prefix=f"/{API_START}/{API_VERSION}/ai-builder", tags=["AI Builder"])
-app.include_router(variables_router, prefix=f"/{API_START}/{API_VERSION}/variables", tags=["Variables"])
-app.include_router(node_configurations_router, prefix=f"/{API_START}/{API_VERSION}/node-configurations", tags=["Node Configurations"])
-app.include_router(node_registry_router, prefix=f"/{API_START}/{API_VERSION}/nodes/registry", tags=["Node Registry"])
-app.include_router(documents_router, prefix=f"/{API_START}/{API_VERSION}/documents", tags=["Documents"])
-app.include_router(scheduled_jobs_router, prefix=f"/{API_START}/{API_VERSION}/jobs/scheduled", tags=["Scheduled Jobs"])
-app.include_router(vectors_router, prefix=f"/{API_START}/{API_VERSION}/vectors", tags=["Vector Storage"])
-app.include_router(logs_router, prefix=f"/{API_START}/{API_VERSION}/logs", tags=["Logs"])
-app.include_router(model_artifacts_router, prefix=f"/{API_START}/{API_VERSION}/model-artifacts", tags=["Model Artifacts"])
+# One canonical API router; historical addresses are registered below.
+api_router = APIRouter()
 
-# Include Timers router (both versioned and unversioned to match frontend API calls)
-app.include_router(timers_router, prefix=f"/{API_START}/timers", tags=["Timers"])
-app.include_router(timers_router, prefix=f"/{API_START}/{API_VERSION}/timers", tags=["Timers"])
+# Core routers (always available)
+api_router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(nodes_router, prefix="/nodes", tags=["Nodes"])
+api_router.include_router(workflows_router, prefix="/workflows", tags=["Workflows"])
+api_router.include_router(api_key_router, prefix="/api-keys", tags=["API Keys"])
+api_router.include_router(executions_router, prefix="/executions", tags=["Executions"])
+api_router.include_router(credentials_router, prefix="/credentials", tags=["Credentials"])
+api_router.include_router(chat_router, prefix="/chat", tags=["Chat"])
+api_router.include_router(ai_builder_router, prefix="/ai-builder", tags=["AI Builder"])
+api_router.include_router(variables_router, prefix="/variables", tags=["Variables"])
+api_router.include_router(node_configurations_router, prefix="/node-configurations", tags=["Node Configurations"])
+api_router.include_router(node_registry_router, prefix="/nodes/registry", tags=["Node Registry"])
+api_router.include_router(documents_router, prefix="/documents", tags=["Documents"])
+api_router.include_router(scheduled_jobs_router, prefix="/jobs/scheduled", tags=["Scheduled Jobs"])
+api_router.include_router(vectors_router, prefix="/vectors", tags=["Vector Storage"])
+api_router.include_router(logs_router, prefix="/logs", tags=["Logs"])
+api_router.include_router(model_artifacts_router, prefix="/model-artifacts", tags=["Model Artifacts"])
+
+# Timers share the same canonical API prefix as other local endpoints.
+api_router.include_router(timers_router, prefix="/timers", tags=["Timers"])
 
 # Include webhook routers
-app.include_router(webhook_router, prefix=f"/{API_START}/{API_VERSION}/webhooks", tags=["Webhooks"])
-app.include_router(webhook_trigger_router, prefix=f"/{API_START}/{API_VERSION}/webhooks/trigger", tags=["Webhook Triggers"])
-app.include_router(webhook_test_router, tags=["Webhook Test"])  # Test webhook endpoints with frontend streaming
-app.include_router(webhook_production_router, tags=["Webhook Production"])  # Production webhook endpoints without frontend streaming
-app.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic webhook endpoints with built-in prefix
+api_router.include_router(webhook_router, prefix="/webhooks", tags=["Webhooks"])
+api_router.include_router(webhook_trigger_router, prefix="/webhooks/trigger", tags=["Webhook Triggers"])
+api_router.include_router(webhook_test_router, tags=["Webhook Test"])  # Test webhook endpoints with frontend streaming
+api_router.include_router(webhook_production_router, tags=["Webhook Production"])  # Production webhook endpoints without frontend streaming
+api_router.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic webhook endpoints with built-in prefix
 
 # Include Kafka trigger router
-app.include_router(kafka_trigger_router, tags=["Kafka Triggers"])
+api_router.include_router(kafka_trigger_router, tags=["Kafka Triggers"])
 
 # Include HTTP Client router
-app.include_router(http_client_router, tags=["HTTP Client"])  # Built-in prefix
+api_router.include_router(http_client_router, tags=["HTTP Client"])  # Built-in prefix
 
 
-app.include_router(export_router, prefix=f"/{API_START}/{API_VERSION}", tags=["Export"])
-app.include_router(external_workflows_router, prefix=f"/{API_START}/{API_VERSION}", tags=["External Workflows"])
+api_router.include_router(export_router, prefix="", tags=["Export"])
+api_router.include_router(external_workflows_router, prefix="", tags=["External Workflows"])
 
+
+
+app.include_router(api_router, prefix=API_PREFIX)
+# Published addresses are fixed aliases, not additional API configuration.
+if API_PREFIX != "/api/v1":
+    app.include_router(api_router, prefix="/api/v1", include_in_schema=False)
+
+# Keep old unversioned helper URLs without exposing another path setting.
+if API_PREFIX != "/api":
+    app.include_router(timers_router, prefix="/api/timers", include_in_schema=False)
+    app.include_router(http_client_router, prefix="/api", include_in_schema=False)
 
 
 # Health checks and info endpoints
@@ -368,10 +387,15 @@ async def health_check():
             content={"status": "unhealthy", "error": str(e)}
         )
 
-# Legacy alias for health endpoint expected by some clients/tests
-@app.get(f"/{API_START}/health", tags=["Health"])
+# Canonical API health endpoint; historical health addresses are registered below.
+@app.get(f"{API_PREFIX}/health", tags=["Health"])
 async def health_check_api():
     return await health_check()
+
+
+for prefix in ("/api", "/api/v1"):
+    if prefix != API_PREFIX:
+        app.add_api_route(f"{prefix}/health", health_check_api, include_in_schema=False)
 
 # Info endpoint
 @app.get("/info", tags=["Info"])
@@ -413,7 +437,7 @@ async def get_info():
         )
 
 # Legacy alias for info endpoint with additional fields to maintain backward compatibility
-@app.get(f"/{API_START}/{API_VERSION}/info", tags=["Info"])
+@app.get(f"{API_PREFIX}/info", tags=["Info"])
 async def get_info_v1():
     original = await get_info()
 
@@ -422,12 +446,16 @@ async def get_info_v1():
 
     original.setdefault("endpoints", [
         "/",
-        f"/{API_START}/health",
-        f"/{API_START}/{API_VERSION}/nodes",
+        f"{API_PREFIX}/health",
+        f"{API_PREFIX}/nodes",
         "/docs",
     ])
     original.setdefault("stats", original.get("statistics", {}))
     return original
+
+if API_PREFIX != "/api/v1":
+    app.add_api_route("/api/v1/info", get_info_v1, include_in_schema=False)
+
 
 # Root endpoint
 @app.get("/", tags=["Root"])
@@ -438,8 +466,8 @@ async def root():
         "message": "KAI Flow API",
         "version": "2.0.0",
         "docs": "/docs",
-        "health": f"/{API_START}/health",
-        "info": f"/{API_START}/{API_VERSION}/info",
+        "health": f"{API_PREFIX}/health",
+        "info": f"{API_PREFIX}/info",
         "database_enabled": True
     }
 
@@ -461,6 +489,7 @@ if __name__ == "__main__":
             port=int(PORT),
             reload=True,
             log_level="info",
+            proxy_headers=True,
             ssl_keyfile=SSL_KEYFILE,
             ssl_certfile=SSL_CERTFILE
         )
@@ -470,5 +499,6 @@ if __name__ == "__main__":
             host="0.0.0.0",
             port=int(PORT),
             reload=True,
-            log_level="info"
+            log_level="info",
+            proxy_headers=True,
         )

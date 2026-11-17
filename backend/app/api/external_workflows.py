@@ -13,7 +13,6 @@ from app.models.external_workflow import ExternalWorkflow
 from app.models.user import User
 from app.auth.dependencies import get_current_user
 from app.core.database import get_db_session
-from app.core.constants import API_START,API_VERSION
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -79,6 +78,9 @@ class ChatResponse(BaseModel):
 # HELPER FUNCTIONS
 # ================================================================================
 
+# Remote workflow paths belong to the existing remote server protocol. They
+# deliberately do not follow this application's configurable API_PREFIX.
+
 async def connect_and_validate_external_workflow(config: ExternalWorkflowConfig) -> Dict[str, Any]:
     """Connect to and validate an external workflow."""
     protocol = "https" if config.is_secure else "http"
@@ -93,7 +95,7 @@ async def connect_and_validate_external_workflow(config: ExternalWorkflowConfig)
             
             # Try to get external workflow info first (this endpoint should not require auth)
             try:
-                external_info_response = await client.get(f"{base_url}/{API_START}/workflow/external/info")
+                external_info_response = await client.get(f"{base_url}/api/workflow/external/info")
                 if external_info_response.status_code == 200:
                     external_info = external_info_response.json()
                     api_key_required = external_info.get("api_key_required", False)
@@ -109,7 +111,7 @@ async def connect_and_validate_external_workflow(config: ExternalWorkflowConfig)
                 pass
             
             # Test connection to the info endpoint
-            info_response = await client.get(f"{base_url}/{API_START}/workflow/info", headers=headers)
+            info_response = await client.get(f"{base_url}/api/workflow/info", headers=headers)
             
             if info_response.status_code == 401:
                 raise HTTPException(
@@ -135,7 +137,7 @@ async def connect_and_validate_external_workflow(config: ExternalWorkflowConfig)
             # Get API key requirement from external info (if available)
             api_key_required = False
             try:
-                external_info_response = await client.get(f"{base_url}/{API_START}/workflow/external/info")
+                external_info_response = await client.get(f"{base_url}/api/workflow/external/info")
                 if external_info_response.status_code == 200:
                     external_info = external_info_response.json()
                     api_key_required = external_info.get("api_key_required", False)
@@ -330,7 +332,7 @@ async def get_external_workflow_info(
                 headers["Authorization"] = f"Bearer {workflow.api_key}"
             
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(f"{workflow.external_url}/{API_START}/workflow/info", headers=headers)
+                response = await client.get(f"{workflow.external_url}/api/workflow/info", headers=headers)
                 
                 if response.status_code == 200:
                     workflow_info = response.json()
@@ -454,7 +456,7 @@ async def chat_with_external_workflow(
             
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(
-                    f"{workflow.external_url}/{API_START}/workflow/execute",
+                    f"{workflow.external_url}/api/workflow/execute",
                     json=chat_request,
                     headers=headers
                 )
@@ -599,7 +601,7 @@ async def list_external_workflow_sessions(
             
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
-                    f"{workflow.external_url}/{API_START}/workflow/sessions",
+                    f"{workflow.external_url}/api/workflow/sessions",
                     headers=headers
                 )
                 
@@ -661,7 +663,7 @@ async def get_external_workflow_session_history(
             
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
-                    f"{workflow.external_url}/{API_START}/workflow/memory/{session_id}",
+                    f"{workflow.external_url}/api/workflow/memory/{session_id}",
                     headers=headers
                 )
                 
@@ -729,7 +731,7 @@ async def clear_external_workflow_session(
             
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.delete(
-                    f"{workflow.external_url}/{API_START}/workflow/memory/{session_id}",
+                    f"{workflow.external_url}/api/workflow/memory/{session_id}",
                     headers=headers
                 )
                 

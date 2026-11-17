@@ -16,7 +16,6 @@ from app.models.user import User
 from app.core.database import get_db_session
 import hashlib
 import logging
-from app.core.constants import API_START
 
 logger = logging.getLogger(__name__)
 
@@ -488,7 +487,8 @@ class DocumentService:
                 document_id=document_id,
                 user_id=user_id,
                 access_type=access_type,
-                access_method=f"/{API_START}",
+                # Historical audit label, independent of the deployment URL.
+                access_method="/api",
                 doc_metadata=metadata or {},
                 access_timestamp=datetime.now()
             )

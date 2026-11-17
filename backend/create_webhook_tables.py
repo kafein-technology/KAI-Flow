@@ -9,7 +9,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from app.core.constants import DATABASE_URL, API_START,API_VERSION
+from app.core.constants import DATABASE_URL
+from app.core.api_paths import API_PREFIX
 from app.models.webhook import WebhookEndpoint, WebhookEvent
 from app.models.base import Base
 logging.basicConfig(level=logging.INFO)
@@ -103,7 +104,7 @@ async def insert_test_webhook_endpoints():
                     webhook_id="wh_3f3fead612b4",
                     workflow_id=None,  # Will be set when workflow is associated
                     node_id="WebhookTrigger-1",
-                    endpoint_path=f"/{API_START}/{API_VERSION}/webhook/wh_3f3fead612b4",
+                    endpoint_path=f"{API_PREFIX}/webhook/wh_3f3fead612b4",
                     secret_token="webhook_token_123",
                     config={
                         "authentication_required": True,
@@ -120,7 +121,7 @@ async def insert_test_webhook_endpoints():
                     webhook_id="wh_second_workflow_123",
                     workflow_id=None,
                     node_id="WebhookTrigger-2", 
-                    endpoint_path=f"/{API_START}/{API_VERSION}/webhook/wh_second_workflow_123",
+                    endpoint_path=f"{API_PREFIX}/webhook/wh_second_workflow_123",
                     secret_token="webhook_token_456",
                     config={
                         "authentication_required": True,
@@ -137,7 +138,7 @@ async def insert_test_webhook_endpoints():
                     webhook_id="wh_http_scraping_test_456",
                     workflow_id=None,
                     node_id="WebhookTrigger-3",
-                    endpoint_path=f"/{API_START}/{API_VERSION}/webhook/wh_http_scraping_test_456", 
+                    endpoint_path=f"{API_PREFIX}/webhook/wh_http_scraping_test_456",
                     secret_token="http_scraping_token_789",
                     config={
                         "authentication_required": True,

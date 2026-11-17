@@ -16,22 +16,13 @@ export const useLogStream = (isEnabled: boolean) => {
       return;
     }
 
-    const base = config.API_BASE_URL;
-    const version = config.API_VERSION;
-
-    if (!base) {
-      console.error("[LogStream] Connection error: API_BASE_URL is not defined in config.");
-      setError(new Error("API_BASE_URL is not defined"));
-      setIsConnected(false);
-      return;
-    }
-    
-    let baseUrl = base;
+    // An empty origin intentionally uses this page's host, as other API clients do.
+    let baseUrl = config.API_BASE_URL || '';
     if (baseUrl.startsWith('//')) {
       baseUrl = window.location.protocol + baseUrl;
     }
     
-    const url = `${baseUrl}${version}/logs/stream`;
+    const url = `${baseUrl}${config.API_PREFIX}/logs/stream`;
     console.log("[LogStream] Connecting EventSource to:", url);
 
     const eventSource = new EventSource(url);

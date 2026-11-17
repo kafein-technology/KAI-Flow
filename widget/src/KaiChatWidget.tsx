@@ -80,7 +80,7 @@ export default function KaiChatWidget({
     setTokenError(null);
 
     try {
-      const response = await fetch(`${targetUrl}/${config.API_START}/${config.API_VERSION_ONLY}/auth/me`, {
+      const response = await fetch(`${targetUrl.replace(/\/+$/, '')}${config.API_PREFIX}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -157,7 +157,7 @@ export default function KaiChatWidget({
         headers["X-API-Key"] = token;
       }
 
-      const response = await fetch(`${targetUrl}/${config.API_START}/${config.API_VERSION_ONLY}/workflows/execute`, {
+      const response = await fetch(`${targetUrl.replace(/\/+$/, '')}${config.API_PREFIX}/workflows/execute`, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -377,12 +377,12 @@ export default function KaiChatWidget({
                                     {copiedCode === codeContent ? (
                                       <>
                                         <CheckCircle className="w-3 h-3 text-green-400" />
-                                        <span>Kopyalandı!</span>
+                                        <span>Copied!</span>
                                       </>
                                     ) : (
                                       <>
                                         <Copy className="w-3 h-3" />
-                                        <span>Kopyala</span>
+                                        <span>Copy</span>
                                       </>
                                     )}
                                   </button>

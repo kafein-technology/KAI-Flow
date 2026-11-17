@@ -19,7 +19,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.nodes.base import BaseNode, NodeType, NodeMetadata, NodeProperty, NodeInput, NodeOutput, NodePropertyType
 from app.core.kafka_utils import get_kafka_config, get_kafka_node_value
-from app.core.constants import API_START, API_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -1032,7 +1031,7 @@ async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVA
 # FastAPI Router — Kafka listener management endpoints
 # ══════════════════════════════════════════════════════════════════
 
-kafka_router = APIRouter(prefix=f"/{API_START}/{API_VERSION}/kafka")
+kafka_router = APIRouter(prefix="/kafka")
 
 
 @kafka_router.get("/listeners/{listener_id}/stream")

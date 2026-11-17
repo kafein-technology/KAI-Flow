@@ -24,8 +24,13 @@ services:
       # Core Application Settings
       SECRET_KEY: ${SECRET_KEY}
       ENVIRONMENT: ${ENVIRONMENT:-development}
-      BACKEND_PORT: ${BACKEND_PORT:-23056}
-      ROOT_PATH: ${ROOT_PATH}
+      # BACKEND_PORT above is a host mapping; the process listens on 8000.
+      BACKEND_PORT: "8000"
+      ROOT_PATH: ${ROOT_PATH:-}
+      API_PREFIX: ${API_PREFIX:-}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+      WEBHOOK_BASE_URL: ${WEBHOOK_BASE_URL:-http://localhost:8000}
+      TZ: ${TZ:-UTC}
 
       # Database Settings
       CREATE_DATABASE: ${CREATE_DATABASE}
@@ -89,7 +94,7 @@ services:
       KEYCLOAK_VERIFY_SSL: ${KEYCLOAK_VERIFY_SSL}
     command: >
       sh -c "python migrations/database_setup.py && 
-             uvicorn main:app --host 0.0.0.0 --port 8000"
+             uvicorn main:app --host 0.0.0.0 --port 8000 --proxy-headers"
     networks:
       - kai_network
     volumes:
@@ -110,8 +115,8 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
-        VITE_API_VERSION: ${VITE_API_VERSION}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL-//localhost:8000}
+        API_PREFIX: ${API_PREFIX:-}
         VITE_BASE_PATH: ${VITE_BASE_PATH}
         VITE_NODE_ENV: ${VITE_NODE_ENV}
         VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
@@ -123,9 +128,9 @@ services:
     ports:
       - "23058:3000"
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL-//localhost:8000}
       VITE_BASE_PATH: ${VITE_BASE_PATH}
-      VITE_API_VERSION: ${VITE_API_VERSION}
+      API_PREFIX: ${API_PREFIX:-}
       VITE_NODE_ENV: ${VITE_NODE_ENV}
       VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
       VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}

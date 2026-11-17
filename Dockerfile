@@ -3,9 +3,10 @@ FROM python:3.11
 WORKDIR /app
 
 # Sistem bağımlılıklarını yükle
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    tzdata \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -28,4 +29,4 @@ ENV KAI_MODEL_ARTIFACT_DIR=/data/model-artifacts \
 EXPOSE 8000
 
 # Uygulamayı çalıştır
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

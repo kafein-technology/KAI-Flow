@@ -10,7 +10,7 @@ WORKDIR /app
 
 # ✅ Build-time env değişkenleri tanımlanıyor
 ARG VITE_API_BASE_URL
-ARG VITE_API_VERSION
+ARG API_PREFIX
 ARG VITE_BASE_PATH
 ARG VITE_NODE_ENV
 ARG VITE_ENABLE_LOGGING
@@ -18,7 +18,7 @@ ARG VITE_ENTERPRISE
 
 # ✅ Build ortamına geçiriliyor
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ENV VITE_API_VERSION=$VITE_API_VERSION
+ENV API_PREFIX=$API_PREFIX
 ENV VITE_BASE_PATH=$VITE_BASE_PATH
 ENV VITE_NODE_ENV=$VITE_NODE_ENV
 ENV VITE_ENABLE_LOGGING=$VITE_ENABLE_LOGGING
@@ -40,6 +40,9 @@ RUN npm install -g serve
 # Copy built assets from build stage
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/public/config.js ./dist/config.js
+COPY config/api-paths.mjs ./config/api-paths.mjs
+COPY config/legacy-widget.mjs ./config/legacy-widget.mjs
+COPY runtime-config.mjs ./runtime-config.mjs
 
 # Copy entrypoint script for runtime config generation
 COPY docker-entrypoint.sh /docker-entrypoint.sh

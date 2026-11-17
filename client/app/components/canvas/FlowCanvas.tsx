@@ -3104,7 +3104,7 @@ function useWebhookExecutionListener(
         return;
       }
 
-      const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/webhook-test/${webhookId}/stream`;
+      const streamUrl = `${baseUrl}${config.API_PREFIX}/webhook-test/${webhookId}/stream`;
       console.log(`[WebhookListener] Connecting to Webhook EventSource at: ${streamUrl}`);
 
       try {
@@ -3696,7 +3696,7 @@ function useKafkaExecutionListener(
 
     kafkaNodes.forEach((node) => {
       const listenerId = node.id;
-      const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/kafka/listeners/${listenerId}/stream`;
+      const streamUrl = `${baseUrl}${config.API_PREFIX}/kafka/listeners/${listenerId}/stream`;
       console.log(`[KafkaListener] Connecting to Kafka EventSource at: ${streamUrl}`);
 
       try {
@@ -4121,7 +4121,7 @@ function useErrorTriggerExecutionListener(
       console.log(`config.API_BASE_URL is empty for ErrorTrigger, using window.location.origin as fallback: ${baseUrl}`);
     }
 
-    const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/workflows/error-trigger/${currentWorkflowId}/stream`;
+    const streamUrl = `${baseUrl}${config.API_PREFIX}/workflows/error-trigger/${currentWorkflowId}/stream`;
     console.log(`Connecting to ErrorTrigger EventSource at: ${streamUrl}`);
 
     let eventSource: EventSource | null = null;
@@ -4557,7 +4557,7 @@ function useTimerExecutionListener(
       const timerId = node.data?.timer_id || node.id;
       if (!timerId) return;
 
-      const streamUrl = `${baseUrl}/${config.API_START}/timers/${timerId}/stream`;
+      const streamUrl = `${baseUrl}${config.API_PREFIX}/timers/${timerId}/stream`;
       console.log(`[TimerListener] Connecting to Timer EventSource at: ${streamUrl}`);
 
       try {

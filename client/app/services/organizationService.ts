@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { config } from '../lib/config';
 
-const API_BASE_URL = `/${config.API_START}/organization`;
+const API_BASE_URL = `${config.API_PREFIX}/organization`;
 
 export const getOrganizations = async () => {
   return axios.get(API_BASE_URL);

@@ -108,6 +108,7 @@ from typing import Optional
 
 from app.core.env_encryption import EnvEncryption, decrypt_database_url
 from app.core.env_utils import external_tracing_enabled
+from app.core.api_paths import API_PREFIX, ROOT_PATH
 
 # Initialize environment variable decryptor
 _env_decryptor = EnvEncryption()
@@ -122,9 +123,6 @@ def _decrypt_env_val(key: str, default: Optional[str] = None) -> Optional[str]:
 SECRET_KEY = _decrypt_env_val("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 PORT = int(os.getenv("BACKEND_PORT","23056"))
-ROOT_PATH = os.getenv("ROOT_PATH")
-API_START = "api"
-API_VERSION = "v1"
 
 SSL_KEYFILE = os.getenv("SSL_KEYFILE")
 SSL_CERTFILE = os.getenv("SSL_CERTFILE")

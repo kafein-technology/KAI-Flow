@@ -7,7 +7,7 @@ declare global {
         VITE_KEYCLOAK_URL: string;
         VITE_KEYCLOAK_REALM: string;
         VITE_KEYCLOAK_CLIENT_ID: string;
-        VITE_API_VERSION: string;
+        API_PREFIX: string;
         VITE_APP_NAME: string;
         VITE_NODE_ENV: string;
         VITE_ENABLE_LOGGING: string;

@@ -157,13 +157,13 @@ function MarketplaceLayout() {
     setDuplicating(id);
     try {
       await duplicateWorkflow(id);
-      enqueueSnackbar("Workflow başarıyla kopyalandı!", {
+      enqueueSnackbar("Workflow successfully copied!", {
         variant: "success",
         autoHideDuration: 3000,
       });
     } catch (e: any) {
       console.error("Duplicate error:", e);
-      enqueueSnackbar("Workflow kopyalanamadı!", {
+      enqueueSnackbar("Workflow could not be copied!", {
         variant: "error",
         autoHideDuration: 4000,
       });
@@ -479,8 +479,8 @@ function MarketplaceLayout() {
                     ))}
                   </div>
                 )}
-            </div>
-          )}
+              </div>
+            )}
 
             {/* Public Workflows Section */}
             <div className="mb-10">

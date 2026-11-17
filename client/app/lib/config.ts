@@ -1,8 +1,8 @@
+import { resolveApiPaths } from '../../config/api-paths.mjs';
+
 interface Config {
   API_BASE_URL: string;
-  API_START: string;
-  API_VERSION_ONLY: string;
-  API_VERSION: string;
+  API_PREFIX: string;
   APP_NAME: string;
   ENVIRONMENT: 'development' | 'production' | 'testing';
   ENABLE_LOGGING: boolean;
@@ -12,16 +12,15 @@ interface Config {
 const getConfig = (): Config => {
   // Try to get values from window object (public/config.js) first, then fall back to env variables
   const getGlobalValue = (key: string): any => {
-    if (typeof window !== 'undefined' && (window as any)[key]) {
+    if (typeof window !== 'undefined' && (window as any)[key] !== undefined) {
       return (window as any)[key];
     }
     return (import.meta as any).env[key];
   };
 
   let apiBaseUrl = getGlobalValue('VITE_API_BASE_URL');
-  const apiStart = getGlobalValue('VITE_API_START') || 'api';
-  const apiVersionOnly = getGlobalValue('VITE_API_VERSION_ONLY') || 'v1';
-  const apiVersion = `/${apiStart}/${apiVersionOnly}`;
+  const paths = resolveApiPaths({ API_PREFIX: getGlobalValue('API_PREFIX') });
+  apiBaseUrl = (apiBaseUrl ?? '').replace(/\/+$/, '');
   const appName = getGlobalValue('VITE_APP_NAME');
   const env = getGlobalValue('VITE_NODE_ENV');
   const enableLogging = getGlobalValue('VITE_ENABLE_LOGGING') === 'true';
@@ -51,9 +50,7 @@ const getConfig = (): Config => {
 
   return {
     API_BASE_URL: apiBaseUrl,
-    API_START: apiStart,
-    API_VERSION_ONLY: apiVersionOnly,
-    API_VERSION: apiVersion,
+    ...paths,
     APP_NAME: appName,
     ENVIRONMENT: env,
     ENABLE_LOGGING: enableLogging,
