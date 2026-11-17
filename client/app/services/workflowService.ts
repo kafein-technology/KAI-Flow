@@ -3,7 +3,7 @@ import axios from 'axios';
 import { apiClient } from '../lib/api-client';
 import { API_ENDPOINTS, config } from '../lib/config';
 
-const API_BASE_URL = `/${config.API_START}/workflow`;
+const API_BASE_URL = `${config.API_PREFIX}/workflow`;
 
 export const getWorkflows = async () => {
   return axios.get(API_BASE_URL);

@@ -1,5 +1,4 @@
 import { apiClient } from '~/lib/api-client';
-import { config } from '~/lib/config';
 import type {
   ExternalWorkflowConfig,
   ExternalWorkflowInfo,
@@ -104,8 +103,8 @@ export const exportedWorkflowService = {
    * Execute exported workflow directly
    */
   async executeExportedWorkflow(baseUrl: string, input: string, sessionId?: string, apiKey?: string): Promise<any> {
-    // Fix for exported workflow URL - use localhost:8001 directly
-    const fixedBaseUrl = baseUrl.includes('localhost:8001') ? baseUrl : 'http://localhost:8001';
+    // Connect to the selected remote server, independently of this UI's API path.
+    const fixedBaseUrl = baseUrl.replace(/\/+$/, '');
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -124,7 +123,7 @@ export const exportedWorkflowService = {
       requestBody.session_id = sessionId.trim();
     }
 
-    const response = await fetch(`${fixedBaseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/workflow/execute`, {
+    const response = await fetch(`${fixedBaseUrl}/api/v1/workflow/execute`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody)
@@ -148,7 +147,7 @@ export const exportedWorkflowService = {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${baseUrl}/${config.API_START}/workflow/external/info`, {
+    const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/workflow/external/info`, {
       method: 'GET',
       headers
     });
@@ -170,7 +169,7 @@ export const exportedWorkflowService = {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${baseUrl}/${config.API_START}/workflow/sessions`, {
+    const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/workflow/sessions`, {
       method: 'GET',
       headers
     });
@@ -186,14 +185,14 @@ export const exportedWorkflowService = {
    * Get session memory for exported workflow
    */
   async getExportedWorkflowSessionMemory(baseUrl: string, sessionId: string, apiKey?: string): Promise<any> {
-    const fixedBaseUrl = baseUrl.includes('localhost:8001') ? baseUrl : 'http://localhost:8001';
+    const fixedBaseUrl = baseUrl.replace(/\/+$/, '');
     const headers: Record<string, string> = {};
 
     if (apiKey && apiKey !== 'api-key-placeholder') {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${fixedBaseUrl}/${config.API_START}/workflow/memory/${sessionId}`, {
+    const response = await fetch(`${fixedBaseUrl}/api/workflow/memory/${sessionId}`, {
       method: 'GET',
       headers
     });
@@ -215,7 +214,7 @@ export const exportedWorkflowService = {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${baseUrl}/${config.API_START}/workflow/memory/${sessionId}`, {
+    const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/workflow/memory/${sessionId}`, {
       method: 'DELETE',
       headers
     });
@@ -237,7 +236,7 @@ export const exportedWorkflowService = {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${baseUrl}/${config.API_START}/workflow/external/ping`, {
+    const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/workflow/external/ping`, {
       method: 'POST',
       headers
     });

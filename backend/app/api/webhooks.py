@@ -1,4 +1,3 @@
-from app.core.constants import API_START, API_VERSION
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
@@ -10,6 +9,7 @@ from app.core.database import get_db_session
 from app.auth.dependencies import get_current_user, get_optional_user
 from app.models.user import User
 from app.services.webhook_service import WebhookService
+from app.services.workflow_executor import get_workflow_executor
 from app.schemas.webhook import (
     WebhookEndpointCreate, WebhookEndpointUpdate, WebhookEndpointResponse,
     WebhookEndpointList, WebhookEventResponse, WebhookEventList,
@@ -502,8 +502,6 @@ async def trigger_webhook(
             if endpoint.workflow_id:
                 # Import necessary modules
                 from app.services.workflow_service import WorkflowService
-                from app.services.dependencies import get_workflow_service_dep
-                import httpx
                 
                 # Get workflow service
                 workflow_service = WorkflowService()
@@ -519,60 +517,70 @@ async def trigger_webhook(
                     )
                 
                 if workflow and workflow.flow_data and workflow.flow_data.get('nodes'):
-                    # Execute workflow via internal API
-                    execution_payload = {
-                        "flow_data": workflow.flow_data,
-                        "input_text": f"Webhook triggered: {webhook_id}",
-                        "session_id": f"webhook_{webhook_id}_{int(datetime.utcnow().timestamp())}",
-                        "webhook_data": {
-                            "webhook_id": webhook_id,
-                            "payload": payload,
-                            "source_ip": source_ip,
-                            "user_agent": user_agent,
-                            "timestamp": start_time.isoformat()
-                        }
-                    }
-                    
+                    # Reuse the same execution service as production webhook nodes.
+                    # A verified webhook token authorizes this call; no public URL,
+                    # internal HTTP authentication or SSE parsing is involved.
                     try:
-                        # Internal API call to execute workflow
-                        async with httpx.AsyncClient() as client:
-                            api_response = await client.post(
-                                f"{request.base_url}{API_START}/{API_VERSION}/workflows/execute",
-                                json=execution_payload,
-                                headers={
-                                    "Content-Type": "application/json",
-                                    "X-Internal-Call": "true"
+                        executor = get_workflow_executor()
+                        input_text = f"Webhook triggered: {webhook_id}"
+                        ctx = await executor.prepare_execution_context(
+                            db=db,
+                            workflow=workflow,
+                            execution_inputs={
+                                "input": input_text,
+                                "input_text": input_text,
+                                "webhook_data": {
+                                    "webhook_id": webhook_id,
+                                    "payload": payload,
+                                    "source_ip": source_ip,
+                                    "user_agent": user_agent,
+                                    "timestamp": start_time.isoformat(),
                                 },
-                                timeout=30
+                            },
+                            session_id=f"webhook_{webhook_id}_{uuid.uuid4().hex}",
+                            is_webhook=True,
+                            owner_id=workflow.user_id,
+                        )
+                        # Concurrent webhook requests must not clean up one
+                        # another's pending/running execution records.
+                        ctx.user_context["preserve_active_executions"] = True
+                        result = await executor.execute_workflow(ctx=ctx, db=db, stream=False)
+                        result = result if isinstance(result, dict) else {}
+                        state = result.get("state") or {}
+                        state_errors = state.get("errors") if isinstance(state, dict) else getattr(state, "errors", None)
+                        node_outputs = (
+                            state.get("node_outputs", result.get("node_outputs", {}))
+                            if isinstance(state, dict) else result.get("node_outputs", {})
+                        )
+                        failed = (
+                            result.get("success") is False
+                            or result.get("status") in {"failed", "error"}
+                            or bool(result.get("error"))
+                            or bool(state_errors)
+                            or (
+                                isinstance(node_outputs, dict)
+                                and any(isinstance(output, dict) and output.get("error") for output in node_outputs.values())
                             )
-                            
-                            if api_response.status_code == 200:
-                                api_result = api_response.json()
-                                execution_result = {
-                                    "status": "success",
-                                    "message": "Webhook triggered and workflow executed successfully",
-                                    "workflow_id": str(endpoint.workflow_id),
-                                    "node_id": endpoint.node_id,
-                                    "timestamp": datetime.utcnow().isoformat(),
-                                    "execution_id": api_result.get("execution_id"),
-                                    "workflow_status": api_result.get("status")
-                                }
-                            else:
-                                execution_result = {
-                                    "status": "partial_success",
-                                    "message": f"Webhook received but workflow execution failed: {api_response.text}",
-                                    "workflow_id": str(endpoint.workflow_id),
-                                    "node_id": endpoint.node_id,
-                                    "timestamp": datetime.utcnow().isoformat()
-                                }
-                    
+                        )
+                        execution_result = {
+                            "status": "partial_success" if failed else "success",
+                            "message": (
+                                "Webhook received but workflow execution failed"
+                                if failed else "Webhook triggered and workflow executed successfully"
+                            ),
+                            "workflow_id": str(workflow.id),
+                            "node_id": endpoint.node_id,
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "execution_id": str(ctx.execution_id) if ctx.execution_id else None,
+                            "workflow_status": "failed" if failed else "completed",
+                        }
                     except Exception as workflow_error:
                         execution_result = {
                             "status": "partial_success",
                             "message": f"Webhook received but workflow execution error: {str(workflow_error)}",
                             "workflow_id": str(endpoint.workflow_id),
                             "node_id": endpoint.node_id,
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.utcnow().isoformat(),
                         }
                 else:
                     execution_result = {
@@ -597,6 +605,8 @@ async def trigger_webhook(
             execution_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
             error_message = None
             
+        except HTTPException:
+            raise
         except Exception as e:
             response_status = 500
             response_body = {"error": str(e)}
@@ -703,4 +713,4 @@ async def get_webhook_info(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve webhook info: {str(e)}"
-        ) 
+        )

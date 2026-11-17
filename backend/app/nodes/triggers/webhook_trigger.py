@@ -13,7 +13,6 @@ import traceback
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional, AsyncGenerator
-from urllib.parse import urljoin
 
 from fastapi import APIRouter, Request, HTTPException, Depends, BackgroundTasks, Response, status
 from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse, PlainTextResponse
@@ -32,7 +31,7 @@ from app.models.workflow import Workflow
 from app.services.workflow_executor import (
     get_workflow_executor
 )
-from app.core.constants import API_START,API_VERSION
+from app.core.api_paths import API_PREFIX, public_api_url
 from app.core.env_utils import external_tracing_enabled
 
 
@@ -240,7 +239,7 @@ def validate_header_auth(request: Request, credential_data: Dict[str, Any]) -> b
     return header_value == expected_value
 
 # Global webhook router (will be included in main FastAPI app)
-webhook_router = APIRouter(prefix=f"/{API_START}/{API_VERSION}/webhooks", tags=["webhooks"])
+webhook_router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 # Health check endpoint for webhook router
 @webhook_router.get("/")
@@ -254,10 +253,10 @@ async def webhook_router_health():
     }
 
 # Test webhook router (with frontend streaming enabled)
-webhook_test_router = APIRouter(prefix=f"/{API_START}/{API_VERSION}/webhook-test", tags=["webhooks-test"])
+webhook_test_router = APIRouter(prefix="/webhook-test", tags=["webhooks-test"])
 
 # Production webhook router (without frontend streaming)
-webhook_production_router = APIRouter(prefix=f"/{API_START}/{API_VERSION}/webhook", tags=["webhooks-production"])
+webhook_production_router = APIRouter(prefix="/webhook", tags=["webhooks-production"])
 
 # Catch-all webhook handler for all HTTP methods
 async def handle_webhook_request(
@@ -732,6 +731,9 @@ async def handle_webhook_request(
                     )
 
         except Exception as e:
+            # Keep explicit access denials; retain the existing execution-error response otherwise.
+            if isinstance(e, HTTPException) and e.status_code == status.HTTP_403_FORBIDDEN:
+                raise
             logger.error(f"Workflow execution error for webhook {webhook_id}: {e}")
             logger.error(traceback.format_exc())
             # Fall back to error response
@@ -1190,7 +1192,7 @@ class WebhookTriggerNode(TerminatorNode):
             "display_name": "Webhook Trigger",
             "description": (
                 "Unified webhook node that supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD). "
-                f"Send requests to /{API_START}/{API_VERSION}/webhook{self.endpoint_path} with optional JSON payload."
+                f"Send requests to {API_PREFIX}/webhook{self.endpoint_path} with optional JSON payload."
             ),
             "category": "Triggers",
             "node_type": NodeType.TERMINATOR,
@@ -1462,7 +1464,7 @@ class WebhookTriggerNode(TerminatorNode):
         
         # Generate webhook configuration
         base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
-        full_endpoint = urljoin(base_url, f"/{API_START}/{API_VERSION}/webhook{self.endpoint_path}")
+        full_endpoint = public_api_url(base_url, f"webhook{self.endpoint_path}")
         
         webhook_data = {
             "payload": webhook_payload,
@@ -1516,13 +1518,13 @@ class WebhookTriggerNode(TerminatorNode):
         
         # Generate webhook configuration
         base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
-        full_endpoint = urljoin(base_url, f"/{API_START}/{API_VERSION}/webhook{self.endpoint_path}")
+        full_endpoint = public_api_url(base_url, f"webhook{self.endpoint_path}")
         
         authentication_type = kwargs.get("authentication_type", "none")
         webhook_config = {
             "webhook_id": self.webhook_id,
             "endpoint_url": full_endpoint,
-            "endpoint_path": f"/{API_START}/webhooks{self.endpoint_path}",
+            "endpoint_path": f"{API_PREFIX}/webhook{self.endpoint_path}",
             "http_method": kwargs.get("http_method", "POST").upper(),
             "authentication_type": authentication_type,
             "secret_token": self.secret_token if authentication_type != "none" else None,

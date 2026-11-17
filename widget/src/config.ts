@@ -1,27 +1,17 @@
-// Widget-specific configuration
-// This is a standalone config for the widget package to avoid
-// dependencies on the client package during Docker builds
+// Standalone widget configuration; does not depend on the client package.
+export interface WidgetConfig { API_PREFIX: string; }
 
-export interface WidgetConfig {
-    API_START: string;
-    API_VERSION_ONLY: string;
-}
-
-// Default values that can be overridden via props or window globals
-const getWidgetConfig = (): WidgetConfig => {
-    // Check for window globals (for runtime configuration)
-    if (typeof window !== 'undefined') {
-        return {
-            API_START: (window as any).VITE_API_START || 'api',
-            API_VERSION_ONLY: (window as any).VITE_API_VERSION_ONLY || 'v1',
-        };
+const normalize = (value: string): string => {
+    const path = value.trim().replace(/^\/+|\/+$/g, '');
+    if (!path || path.split('/').some(part => !/^[A-Za-z0-9._~-]+$/.test(part) || part === '.' || part === '..')) {
+        throw new Error('API_PREFIX must be a non-empty URL path');
     }
+    return `/${path}`;
+};
 
-    // Fallback defaults
-    return {
-        API_START: 'api',
-        API_VERSION_ONLY: 'v1',
-    };
+const getWidgetConfig = (): WidgetConfig => {
+    if (typeof window === 'undefined') return { API_PREFIX: '/api/v1' };
+    return { API_PREFIX: normalize((window as any).API_PREFIX || '/api/v1') };
 };
 
 export const config = getWidgetConfig();

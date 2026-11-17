@@ -80,7 +80,7 @@ export const exportService = {
   async downloadPackage(downloadUrl: string): Promise<void> {
     try {
       // Extract the endpoint path from download URL
-      const apiPrefix = `/${config.API_START}/${config.API_VERSION_ONLY}`;
+      const apiPrefix = `${config.API_PREFIX}`;
       const endpoint = downloadUrl.startsWith(apiPrefix)
         ? downloadUrl.replace(apiPrefix, '')
         : downloadUrl;

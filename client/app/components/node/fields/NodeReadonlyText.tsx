@@ -30,8 +30,8 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
         const baseUrl = config.API_BASE_URL || window.location.origin;
         const environment = String(values?.webhook_environment || "test");
         const prefix = environment === "production"
-          ? `/${config.API_START}/${config.API_VERSION_ONLY}/webhook`
-          : `/${config.API_START}/${config.API_VERSION_ONLY}/webhook-test`;
+          ? `${config.API_PREFIX}/webhook`
+          : `${config.API_PREFIX}/webhook-test`;
         return `${baseUrl}${prefix}/${pathValue}`;
       }
     }

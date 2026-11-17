@@ -734,26 +734,15 @@ async def execute_adhoc_workflow(
     Execute a workflow directly from flow data and stream the output.
     This is the primary endpoint for running workflows from the frontend.
     """
-    # Check if this is an internal webhook call
-    is_internal_call = request.headers.get("X-Internal-Call") == "true"
-    
-    # For internal calls, allow execution without authentication
-    if not current_user and not is_internal_call:
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required"
-        )
-    
+    # Webhooks execute through WorkflowExecutor in process. HTTP callers cannot
+    # select a system identity by sending X-Internal-Call.
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     executor = get_workflow_executor()
     chat_service = ChatService(db)
-    
-    # Handle user for internal calls
-    if is_internal_call:
-        user = await executor.get_or_create_master_user(db)
-        user_id = user.id
-    else:
-        user = current_user
-        user_id = current_user.id
+    user = current_user
+    user_id = current_user.id
 
     chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else None
     
@@ -824,7 +813,7 @@ async def execute_adhoc_workflow(
         await db.refresh(workflow)
     
     if req.edited_message_id:
-        if is_internal_call or not chatflow_id or not req.workflow_id:
+        if not chatflow_id or not req.workflow_id:
             raise HTTPException(status_code=400, detail="Editing requires a chat and workflow")
         try:
             edited = await chat_service.edit_user_message(
@@ -846,12 +835,12 @@ async def execute_adhoc_workflow(
         execution_inputs={"input": req.input_text},
         user=user,
         session_id=session_id,
-        is_webhook=is_internal_call,
+        is_webhook=False,
         owner_id=workflow.user_id if req.workflow_id else user_id,
     )
     
-    # Create chat message (skip for webhook calls)
-    if not is_internal_call and not req.edited_message_id:
+    # Create chat message for browser/API execution
+    if not req.edited_message_id:
         try:
             await chat_service.create_chat_message(ChatMessageCreate(
                 role="user",
@@ -872,7 +861,7 @@ async def execute_adhoc_workflow(
         )
     except Exception as e:
         logger.error(f"Workflow execution failed: {e}", exc_info=True)
-        if not is_internal_call and chatflow_id:
+        if chatflow_id:
             try:
                 await chat_service.create_chat_message(
                     ChatMessageCreate(
@@ -945,7 +934,7 @@ async def execute_adhoc_workflow(
         finally:
             # Save a chat error in the existing assistant message shape.
             response_content = error_output or llm_output
-            if response_content and not is_internal_call:
+            if response_content:
                 try:
                     await chat_service.create_chat_message(
                         ChatMessageCreate(

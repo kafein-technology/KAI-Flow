@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosResponse, type AxiosError } from 'axios';
-import { API_ENDPOINTS } from './config';
+import { API_ENDPOINTS, config } from './config';
 
 // API Response types
 export interface ApiResponse<T = any> {
@@ -63,7 +63,7 @@ class ApiClient {
     constructor() {
         // Create axios instance
         this.instance = axios.create({
-            baseURL: `${window.VITE_API_BASE_URL}${window.VITE_API_VERSION}`,
+            baseURL: `${config.API_BASE_URL}${config.API_PREFIX}`,
             timeout: 300000, // 5 minutes timeout for long/iterative AI operations
             headers: {
                 'Content-Type': 'application/json',
@@ -253,7 +253,7 @@ class ApiClient {
     }
 
     getBaseURL(): string {
-        return `${window.VITE_API_BASE_URL}${window.VITE_API_VERSION}`;
+        return `${config.API_BASE_URL}${config.API_PREFIX}`;
     }
 
     getAccessToken(): string | null {
