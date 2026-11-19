@@ -29,7 +29,6 @@ services:
       ROOT_PATH: ${ROOT_PATH:-}
       API_PREFIX: ${API_PREFIX:-}
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
-      WEBHOOK_BASE_URL: ${WEBHOOK_BASE_URL:-http://localhost:8000}
       TZ: ${TZ:-UTC}
 
       # Database Settings
