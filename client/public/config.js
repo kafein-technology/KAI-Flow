@@ -3,7 +3,6 @@ window.VITE_API_BASE_URL = "//localhost:23056";
 window.VITE_KEYCLOAK_URL = "https://keycloak.dev.netfein.com";
 window.VITE_KEYCLOAK_CLIENT_ID = "agenticgroapp";
 window.VITE_KEYCLOAK_REALM = "agenticgro-dev";
-window.API_PREFIX = "/api/v1";
 window.VITE_APP_NAME = "KAI Flow";
 window.VITE_NODE_ENV = "development";
 window.VITE_ENABLE_LOGGING = "true";

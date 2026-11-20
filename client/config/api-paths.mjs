@@ -15,7 +15,7 @@ function fullPrefix(value, name) {
 }
 
 export function resolveApiPaths(values = {}) {
-  return { API_PREFIX: fullPrefix(values.API_PREFIX || '/api/v1', 'API_PREFIX') };
+  return { API_PREFIX: fullPrefix(values.API_PREFIX || '/kai/api/v1', 'API_PREFIX') };
 }
 
 // Development proxy aliases mirror the server's compatibility routes.
