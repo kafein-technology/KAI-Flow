@@ -10,8 +10,8 @@ const normalize = (value: string): string => {
 };
 
 const getWidgetConfig = (): WidgetConfig => {
-    if (typeof window === 'undefined') return { API_PREFIX: '/api/v1' };
-    return { API_PREFIX: normalize((window as any).API_PREFIX || '/api/v1') };
+    const prefix = typeof window === 'undefined' ? undefined : (window as any).API_PREFIX;
+    return { API_PREFIX: normalize(prefix || '/kai/api/v1') };
 };
 
 export const config = getWidgetConfig();

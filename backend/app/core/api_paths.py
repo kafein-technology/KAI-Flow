@@ -1,6 +1,6 @@
 """API route configuration, independent of database and credential settings.
 
-API_PREFIX is the complete path (default /api/v1).
+API_PREFIX is the complete path (default /kai/api/v1).
 ROOT_PATH describes a proxy mount independently of the API path.
 """
 
@@ -25,7 +25,7 @@ def normalize_path(value: str | None, *, name: str, default: str = "") -> str:
 
 def resolve_api_prefix(values: Mapping[str, str]) -> str:
     """Read the complete path without interpreting or splitting its segments."""
-    path = normalize_path(values.get("API_PREFIX"), name="API_PREFIX", default="/api/v1")
+    path = normalize_path(values.get("API_PREFIX"), name="API_PREFIX", default="/kai/api/v1")
     if not path:
         raise ValueError("API_PREFIX must be a non-empty URL path")
     return f"/{path}"
